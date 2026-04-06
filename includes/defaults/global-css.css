@@ -301,6 +301,10 @@ div.fl-callout-text-wrap > .fl-callout-text {
   margin: 0 !important;
 }
 
+#header-top {
+  z-index: var(--dst-zindex-high);
+}
+
 /*─────────────────────────────────────────────────────────────────────────────
   Outline Text Styles
 ─────────────────────────────────────────────────────────────────────────────*/
