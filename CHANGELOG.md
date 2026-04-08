@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.1.0] - 2026-04-08
+### Fixed
+- `.top-social > div` — added `float: right !important` to right-align the social icon container
+
 ## [1.0.1] - 2026-04-04
 ### Added
 - Added header-top zindex for header style 5 permanent fix
