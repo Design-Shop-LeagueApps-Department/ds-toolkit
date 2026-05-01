@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.2.1] - 2026-05-02
+### Fixed
+- UABB post loop fix — patch now tracks flag ownership so it only resets `$in_post_grid_loop` if it was the one that set it. Prevents conflict if UABB ships their own fix that sets the flag at the loop level.
+
 ## [1.2.0] - 2026-05-02
 ### Fixed
 - UABB Advanced Posts module — all posts showing the same featured image when using a Custom Post Layout with `[fl_builder_insert_layout]`. Beaver Builder's field connection cache was using an identical key for every post in the loop because `FLThemeBuilderFieldConnections::$in_post_grid_loop` was never set. The patch toggles that flag around each post render via the existing `uabb_blog_posts_before_post` / `uabb_blog_posts_after_post` hooks.

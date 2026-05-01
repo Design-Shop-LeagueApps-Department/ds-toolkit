@@ -13,8 +13,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * resolved featured image for every subsequent post.
  *
  * Fix: use UABB's own before/after hooks to toggle the flag around each post render.
+ * We only reset the flag if we were the ones who set it, so a future UABB fix that
+ * sets the flag at the loop level won't conflict with our per-post reset.
  */
 class DS_UABB_Post_Loop_Fix {
+
+    private $flag_owner = false;
 
     public function __construct( $settings = array() ) {}
 
@@ -24,14 +28,17 @@ class DS_UABB_Post_Loop_Fix {
     }
 
     public function enter_post_loop() {
-        if ( class_exists( 'FLThemeBuilderFieldConnections' ) ) {
+        if ( class_exists( 'FLThemeBuilderFieldConnections' )
+            && ! FLThemeBuilderFieldConnections::$in_post_grid_loop ) {
             FLThemeBuilderFieldConnections::$in_post_grid_loop = true;
+            $this->flag_owner = true;
         }
     }
 
     public function leave_post_loop() {
-        if ( class_exists( 'FLThemeBuilderFieldConnections' ) ) {
+        if ( $this->flag_owner ) {
             FLThemeBuilderFieldConnections::$in_post_grid_loop = false;
+            $this->flag_owner = false;
         }
     }
 }
