@@ -47,6 +47,10 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-child-pages.php',
             'class' => 'DS_Child_Pages',
         ),
+        'uabb_post_loop_fix_enabled' => array(
+            'file'  => 'features/class-ds-uabb-post-loop-fix.php',
+            'class' => 'DS_UABB_Post_Loop_Fix',
+        ),
     );
 
     public static function activate() {
@@ -85,6 +89,7 @@ class DS_Toolkit {
             'child_pages_columns'                => 3,
             'child_pages_columns_tablet'         => 2,
             'child_pages_columns_mobile'         => 1,
+            'uabb_post_loop_fix_enabled'         => 1,
             // MCP tool group access controls (all enabled by default)
             'mcp_posts_pages_enabled'            => 1,
             'mcp_cpt_enabled'                    => 1,
