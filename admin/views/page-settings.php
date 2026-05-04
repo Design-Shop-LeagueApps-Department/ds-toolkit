@@ -24,6 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Custom logo, "Powered by LeagueApps Design Shop" branding, and support link on the WP login page.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[enable_login_branding]" value="0">
                 <input type="checkbox" id="enable_login_branding" name="ds_toolkit_settings[enable_login_branding]" value="1" <?php checked( $enabled ); ?>>
                 <label for="enable_login_branding"></label>
             </div>
@@ -57,6 +58,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Hides the FL Assistant cloud button in the Beaver Builder toolbar for all users except @leagueapps.com accounts.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[hide_fl_assistant]" value="0">
                 <input type="checkbox" id="hide_fl_assistant" name="ds_toolkit_settings[hide_fl_assistant]" value="1" <?php checked( $hide_fl_assistant ); ?>>
                 <label for="hide_fl_assistant"></label>
             </div>
@@ -72,6 +74,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Map ACF option fields to CSS custom properties output in <code>:root</code> on every page.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[acf_css_vars_enabled]" value="0">
                 <input type="checkbox" id="acf_css_vars_enabled" name="ds_toolkit_settings[acf_css_vars_enabled]" value="1" <?php checked( $acf_css_vars_enabled ); ?>>
                 <label for="acf_css_vars_enabled"></label>
             </div>
@@ -113,6 +116,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Adds a shortcode that displays the child pages of any page as a navigation list.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[getsubmenu_enabled]" value="0">
                 <input type="checkbox" id="getsubmenu_enabled" name="ds_toolkit_settings[getsubmenu_enabled]" value="1" <?php checked( $getsubmenu_enabled ); ?>>
                 <label for="getsubmenu_enabled"></label>
             </div>
@@ -141,6 +145,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Outputs the current year automatically. Great for copyright notices in footers.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[current_year_enabled]" value="0">
                 <input type="checkbox" id="current_year_enabled" name="ds_toolkit_settings[current_year_enabled]" value="1" <?php checked( $current_year_enabled ); ?>>
                 <label for="current_year_enabled"></label>
             </div>
@@ -166,6 +171,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Adds a custom <code>{email_partner}</code> variable to Forminator forms, pulled from the ACF options field <code>partner_email</code>.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[forminator_email_partner_enabled]" value="0">
                 <input type="checkbox" id="forminator_email_partner_enabled" name="ds_toolkit_settings[forminator_email_partner_enabled]" value="1" <?php checked( $forminator_email_partner_enabled ); ?>>
                 <label for="forminator_email_partner_enabled"></label>
             </div>
@@ -193,6 +199,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Outputs a responsive grid of child page cards using a Beaver Builder template. Also registers <code>[get_parent_page_title]</code> for use inside the card template.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[child_pages_enabled]" value="0">
                 <input type="checkbox" id="child_pages_enabled" name="ds_toolkit_settings[child_pages_enabled]" value="1" <?php checked( $child_pages_enabled ); ?>>
                 <label for="child_pages_enabled"></label>
             </div>
