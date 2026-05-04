@@ -44,6 +44,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to list, read, create, edit, and delete standard WordPress posts and pages.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_posts_pages_enabled]" value="0">
                 <input type="checkbox" id="mcp_posts_pages_enabled" name="ds_toolkit_settings[mcp_posts_pages_enabled]" value="1" <?php checked( $mcp_posts_pages_enabled ); ?>>
                 <label for="mcp_posts_pages_enabled"></label>
             </div>
@@ -56,6 +57,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to access CPTs — Events, Athletes, Staff, Teams, and any future custom post types registered on this site.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_cpt_enabled]" value="0">
                 <input type="checkbox" id="mcp_cpt_enabled" name="ds_toolkit_settings[mcp_cpt_enabled]" value="1" <?php checked( $mcp_cpt_enabled ); ?>>
                 <label for="mcp_cpt_enabled"></label>
             </div>
@@ -68,6 +70,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to list, create, edit, and delete taxonomy terms — Athlete Categories, Staff Categories, Team Categories, and any other taxonomies.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_taxonomies_enabled]" value="0">
                 <input type="checkbox" id="mcp_taxonomies_enabled" name="ds_toolkit_settings[mcp_taxonomies_enabled]" value="1" <?php checked( $mcp_taxonomies_enabled ); ?>>
                 <label for="mcp_taxonomies_enabled"></label>
             </div>
@@ -80,6 +83,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to read and update ACF field values on posts and CPT entries. Uses ACF's <code>get_fields()</code> / <code>update_field()</code> if ACF is active.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_acf_enabled]" value="0">
                 <input type="checkbox" id="mcp_acf_enabled" name="ds_toolkit_settings[mcp_acf_enabled]" value="1" <?php checked( $mcp_acf_enabled ); ?>>
                 <label for="mcp_acf_enabled"></label>
             </div>
@@ -92,6 +96,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to read and update DS Toolkit feature settings — toggles, column counts, Global CSS/JS, template IDs, etc.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_toolkit_settings_enabled]" value="0">
                 <input type="checkbox" id="mcp_toolkit_settings_enabled" name="ds_toolkit_settings[mcp_toolkit_settings_enabled]" value="1" <?php checked( $mcp_toolkit_settings_enabled ); ?>>
                 <label for="mcp_toolkit_settings_enabled"></label>
             </div>
@@ -104,6 +109,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to read and update Beaver Builder Global Style colors — Primary, Accent, Headings, Body, and all other named colors.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_bb_enabled]" value="0">
                 <input type="checkbox" id="mcp_bb_enabled" name="ds_toolkit_settings[mcp_bb_enabled]" value="1" <?php checked( $mcp_bb_enabled ); ?>>
                 <label for="mcp_bb_enabled"></label>
             </div>
@@ -116,6 +122,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to create, update, and delete ACF Post Types and Taxonomies. <strong>Restricted to @leagueapps.com accounts only</strong> — even if enabled, non-LeagueApps users cannot use these tools.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_acf_schema_enabled]" value="0">
                 <input type="checkbox" id="mcp_acf_schema_enabled" name="ds_toolkit_settings[mcp_acf_schema_enabled]" value="1" <?php checked( $mcp_acf_schema_enabled ); ?>>
                 <label for="mcp_acf_schema_enabled"></label>
             </div>
@@ -128,6 +135,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to list menus, read menu structure, replace all menu items, and assign menus to theme locations.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_menus_enabled]" value="0">
                 <input type="checkbox" id="mcp_menus_enabled" name="ds_toolkit_settings[mcp_menus_enabled]" value="1" <?php checked( $mcp_menus_enabled ); ?>>
                 <label for="mcp_menus_enabled"></label>
             </div>
@@ -140,6 +148,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to flush rewrite rules, flush object cache, delete transients, and run search &amp; replace on the database. <strong>search_replace restricted to @leagueapps.com accounts.</strong></span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_maintenance_enabled]" value="0">
                 <input type="checkbox" id="mcp_maintenance_enabled" name="ds_toolkit_settings[mcp_maintenance_enabled]" value="1" <?php checked( $mcp_maintenance_enabled ); ?>>
                 <label for="mcp_maintenance_enabled"></label>
             </div>
@@ -152,6 +161,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to read and write WordPress options (wp_options). <strong>Restricted to @leagueapps.com accounts only.</strong></span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_options_enabled]" value="0">
                 <input type="checkbox" id="mcp_options_enabled" name="ds_toolkit_settings[mcp_options_enabled]" value="1" <?php checked( $mcp_options_enabled ); ?>>
                 <label for="mcp_options_enabled"></label>
             </div>
@@ -164,6 +174,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <span>Allow Claude to list and read WordPress users and regenerate image thumbnails.</span>
             </div>
             <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[mcp_users_enabled]" value="0">
                 <input type="checkbox" id="mcp_users_enabled" name="ds_toolkit_settings[mcp_users_enabled]" value="1" <?php checked( $mcp_users_enabled ); ?>>
                 <label for="mcp_users_enabled"></label>
             </div>

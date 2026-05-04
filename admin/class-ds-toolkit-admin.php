@@ -40,7 +40,32 @@ class DS_Toolkit_Admin {
     }
 
     public function register_settings() {
-        register_setting( 'ds_toolkit_options', 'ds_toolkit_settings' );
+        register_setting( 'ds_toolkit_options', 'ds_toolkit_settings', array(
+            'sanitize_callback' => array( $this, 'merge_with_existing_settings' ),
+        ) );
+    }
+
+    /**
+     * WP's Settings API replaces the entire option on save. Each tab's form
+     * only POSTs ITS fields, so without merging, saving one tab wipes every
+     * other tab's keys (Features wipes MCP toggles, MCP wipes Features, etc.).
+     * Always merge incoming form values on top of the existing option so
+     * unrelated keys survive.
+     *
+     * Also defends against the fatal-error case: when every checkbox in a
+     * form is unchecked, $_POST['ds_toolkit_settings'] can come through as
+     * a non-array (null/empty string), which would otherwise be saved as ''
+     * and crash maybe_set_defaults() on the next page load.
+     */
+    public function merge_with_existing_settings( $new ) {
+        $existing = get_option( 'ds_toolkit_settings', array() );
+        if ( ! is_array( $existing ) ) {
+            $existing = array();
+        }
+        if ( ! is_array( $new ) ) {
+            return $existing;
+        }
+        return array_merge( $existing, $new );
     }
 
     public function enqueue_scripts( $hook ) {

@@ -66,10 +66,13 @@ class DS_Toolkit {
     }
 
     private static function get_defaults() {
+        // On fresh install only the core LeagueApps-branding features are on.
+        // Everything else is opt-in so a new site doesn't get unexpected CSS/JS,
+        // shortcodes, or MCP tools the moment the plugin is activated.
         return array(
             'enable_login_branding' => 1,
             'hide_fl_assistant'     => 1,
-            'acf_css_vars_enabled'  => 1,
+            'acf_css_vars_enabled'  => 0,
             'acf_css_vars_mappings' => array(
                 array(
                     'acf_field' => 'header_scrolled_bar_color',
@@ -77,31 +80,31 @@ class DS_Toolkit {
                     'fallback'  => 'var(--fl-global-accent)',
                 ),
             ),
-            'getsubmenu_enabled'                  => 1,
-            'current_year_enabled'               => 1,
-            'forminator_email_partner_enabled'   => 1,
+            'getsubmenu_enabled'                  => 0,
+            'current_year_enabled'               => 0,
+            'forminator_email_partner_enabled'   => 0,
             'forminator_email_partner_fallback'  => 'designshop' . DS_TOOLKIT_ADMIN_DOMAIN,
-            'global_css_enabled'                 => 1,
+            'global_css_enabled'                 => 0,
             'global_css_overrides'               => '',
-            'global_js_enabled'                  => 1,
-            'child_pages_enabled'                => 1,
+            'global_js_enabled'                  => 0,
+            'child_pages_enabled'                => 0,
             'child_pages_template_id'            => '56369',
             'child_pages_columns'                => 3,
             'child_pages_columns_tablet'         => 2,
             'child_pages_columns_mobile'         => 1,
-            'uabb_post_loop_fix_enabled'         => 1,
-            // MCP tool group access controls (all enabled by default)
-            'mcp_posts_pages_enabled'            => 1,
-            'mcp_cpt_enabled'                    => 1,
-            'mcp_taxonomies_enabled'             => 1,
-            'mcp_acf_enabled'                    => 1,
-            'mcp_toolkit_settings_enabled'       => 1,
-            'mcp_bb_enabled'                     => 1,
-            'mcp_acf_schema_enabled'             => 1,
-            'mcp_menus_enabled'                  => 1,
-            'mcp_maintenance_enabled'            => 1,
-            'mcp_options_enabled'                => 1,
-            'mcp_users_enabled'                  => 1,
+            'uabb_post_loop_fix_enabled'         => 0,
+            // MCP tool group access controls — off by default
+            'mcp_posts_pages_enabled'            => 0,
+            'mcp_cpt_enabled'                    => 0,
+            'mcp_taxonomies_enabled'             => 0,
+            'mcp_acf_enabled'                    => 0,
+            'mcp_toolkit_settings_enabled'       => 0,
+            'mcp_bb_enabled'                     => 0,
+            'mcp_acf_schema_enabled'             => 0,
+            'mcp_menus_enabled'                  => 0,
+            'mcp_maintenance_enabled'            => 0,
+            'mcp_options_enabled'                => 0,
+            'mcp_users_enabled'                  => 0,
         );
     }
 
@@ -111,8 +114,16 @@ class DS_Toolkit {
      */
     private function maybe_set_defaults() {
         $settings = get_option( 'ds_toolkit_settings', array() );
-        $changed  = false;
 
+        // Recover from a corrupted option value (e.g. a save that wrote an
+        // empty string instead of an array). Without this guard, the foreach
+        // below throws "Cannot access offset of type string on string" and
+        // takes the whole site down.
+        if ( ! is_array( $settings ) ) {
+            $settings = array();
+        }
+
+        $changed = false;
         foreach ( self::get_defaults() as $key => $value ) {
             if ( ! isset( $settings[ $key ] ) ) {
                 $settings[ $key ] = $value;
@@ -144,6 +155,9 @@ class DS_Toolkit {
         }
 
         $settings = get_option( 'ds_toolkit_settings', array() );
+        if ( ! is_array( $settings ) ) {
+            $settings = array();
+        }
 
         foreach ( $this->features as $key => $feature ) {
             if ( ! empty( $settings[ $key ] ) ) {

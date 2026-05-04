@@ -4,6 +4,15 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.2.2] - 2026-05-05
+### Fixed
+- **Fatal error** "Cannot access offset of type string on string" in `class-ds-toolkit.php` when saving the MCP tab with every checkbox unchecked. The empty POST caused WP to write the option as an empty string; `maybe_set_defaults()` then tried to index into a string and white-screened the site. Now both `maybe_set_defaults()` and `run()` coerce a non-array option back to `array()`, so a corrupted value self-heals on the next request.
+- **Toggles wouldn't turn off** on the Features and MCP tabs. Unchecked checkboxes don't POST anything, so the missing key was refilled from defaults on the next load and the toggle silently re-enabled itself. Each toggle now has a hidden `value="0"` input so the off state is explicitly submitted (mirrors the trick already used on Global CSS / Global JS).
+- **Saving one tab wiped the others.** `register_setting()` had no sanitize callback, so each form's POST replaced the entire option array. Backported the merge sanitize callback (LA branch `c087a19`) so each tab only updates the keys it owns.
+
+### Changed
+- **Fresh-install defaults**: only **LeagueApps Custom Login** and **Hide Beaver Builder Cloud Icon for Non-LeagueApps Users** are on by default. Global CSS, Global JS, ACF CSS Vars, `[getsubmenu]`, `[current_year]`, Forminator `{email_partner}`, `[child_pages]`, the UABB post-loop fix, and every MCP tool group now default to **off**. Existing installs keep their current settings — only newly seeded keys pick up the new defaults.
+
 ## [1.2.1] - 2026-05-02
 ### Fixed
 - UABB post loop fix — patch now tracks flag ownership so it only resets `$in_post_grid_loop` if it was the one that set it. Prevents conflict if UABB ships their own fix that sets the flag at the loop level.
