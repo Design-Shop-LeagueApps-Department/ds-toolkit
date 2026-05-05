@@ -22,6 +22,7 @@ class DS_Current_Year {
     }
 
     public function render() {
-        return date( 'Y' );
+        // wp_date honours the site's configured timezone instead of the server's.
+        return function_exists( 'wp_date' ) ? wp_date( 'Y' ) : date( 'Y' );
     }
 }

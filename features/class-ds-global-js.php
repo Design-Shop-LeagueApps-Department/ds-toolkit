@@ -8,8 +8,11 @@ class DS_Global_JS {
     }
 
     public function output_js() {
-        // Always output the plugin-managed JS file (survives updates).
-        $js = file_get_contents( DS_TOOLKIT_PATH . 'includes/defaults/global-js.js' );
+        // Static-cache so multiple wp_footer calls in the same request don't re-read from disk.
+        static $js = null;
+        if ( $js === null ) {
+            $js = (string) file_get_contents( DS_TOOLKIT_PATH . 'includes/defaults/global-js.js' );
+        }
         echo '<script id="ds-toolkit-global-js">' . "\n" . $js . "\n" . '</script>' . "\n";
     }
 }

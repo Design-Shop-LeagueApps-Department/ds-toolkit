@@ -79,21 +79,19 @@ class DS_Logo_Finder {
             wp_send_json_error( array( 'message' => 'File not found: ' . $filename ) );
         }
 
-        // Check if already imported
-        $existing = get_posts( array(
-            'post_type'      => 'attachment',
-            'post_status'    => 'inherit',
-            'posts_per_page' => 1,
-            'meta_query'     => array(
-                array(
-                    'key'     => '_wp_attached_file',
-                    'value'   => $filename,
-                    'compare' => 'LIKE',
-                ),
-            ),
+        // Check if already imported. Direct $wpdb query with an anchored trailing match
+        // (`%/<filename>`) is more selective than WP_Query's auto-wrapped `%<filename>%`
+        // and avoids the JOIN against wp_posts that meta_query would build.
+        global $wpdb;
+        $existing_id = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta}
+             WHERE meta_key = '_wp_attached_file'
+               AND meta_value LIKE %s
+             LIMIT 1",
+            '%' . $wpdb->esc_like( '/' . $filename )
         ) );
 
-        if ( ! empty( $existing ) ) {
+        if ( $existing_id ) {
             wp_send_json_success( array(
                 'status'  => 'exists',
                 'message' => $name . ' — already in Media Library',

@@ -111,6 +111,7 @@ class DS_Toolkit {
     /**
      * Fills in any missing settings keys with their defaults.
      * Runs on every load so existing installs pick up new feature defaults automatically.
+     * Returns the (possibly updated) settings array so run() can reuse it without a second get_option().
      */
     private function maybe_set_defaults() {
         $settings = get_option( 'ds_toolkit_settings', array() );
@@ -134,15 +135,20 @@ class DS_Toolkit {
         if ( $changed ) {
             update_option( 'ds_toolkit_settings', $settings );
         }
+
+        return $settings;
     }
 
     public function run() {
-        $this->maybe_set_defaults();
+        $settings = $this->maybe_set_defaults();
 
-        // MCP server must be loaded on every request (registers REST routes)
-        require_once DS_TOOLKIT_PATH . 'admin/class-ds-mcp-server.php';
-        $mcp_server = new DS_MCP_Server();
-        $mcp_server->init();
+        // The MCP server only needs to be alive for REST requests. Defer loading the
+        // 2.8k-line class file until rest_api_init fires so non-REST page loads
+        // (frontend, wp-admin) skip parsing it entirely.
+        add_action( 'rest_api_init', static function() {
+            require_once DS_TOOLKIT_PATH . 'admin/class-ds-mcp-server.php';
+            ( new DS_MCP_Server() )->register_routes();
+        } );
 
         if ( is_admin() ) {
             require_once DS_TOOLKIT_PATH . 'admin/class-ds-toolkit-admin.php';
@@ -152,11 +158,6 @@ class DS_Toolkit {
             require_once DS_TOOLKIT_PATH . 'includes/class-ds-toolkit-updater.php';
             $updater = new DS_Toolkit_Updater();
             $updater->init();
-        }
-
-        $settings = get_option( 'ds_toolkit_settings', array() );
-        if ( ! is_array( $settings ) ) {
-            $settings = array();
         }
 
         foreach ( $this->features as $key => $feature ) {

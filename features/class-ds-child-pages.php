@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *
  * Usage:
  *   [child_pages]
- *   [child_pages template="56369" columns="3" columns_tablet="2" columns_mobile="1"]
+ *   [child_pages template="56369" columns="3" columns_tablet="2" columns_mobile="1" limit="50"]
  *
  * Also registers:
  *   [get_parent_page_title] — outputs the title of the page where [child_pages] is placed.
@@ -59,6 +59,7 @@ class DS_Child_Pages {
                 'columns'        => $default_cols,
                 'columns_tablet' => $default_cols_tablet,
                 'columns_mobile' => $default_cols_mobile,
+                'limit'          => 50,
             ),
             $atts,
             'child_pages'
@@ -68,6 +69,8 @@ class DS_Child_Pages {
         $cols        = max( 1, absint( $atts['columns'] ) );
         $cols_tablet = max( 1, absint( $atts['columns_tablet'] ) );
         $cols_mobile = max( 1, absint( $atts['columns_mobile'] ) );
+        // Hard cap to keep an unbounded query + per-child BB render loop from blowing memory
+        $limit       = max( 1, min( 200, absint( $atts['limit'] ) ?: 50 ) );
 
         if ( ! $template_id ) {
             return '<!-- [child_pages] error: no template ID set -->';
@@ -87,7 +90,7 @@ class DS_Child_Pages {
             'post_parent'    => $parent_id,
             'orderby'        => 'menu_order title',
             'order'          => 'ASC',
-            'posts_per_page' => -1,
+            'posts_per_page' => $limit,
         ) );
 
         if ( empty( $children ) ) {

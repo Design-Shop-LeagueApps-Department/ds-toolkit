@@ -8,8 +8,11 @@ class DS_Global_CSS {
     }
 
     public function output_css() {
-        // Always output the plugin-managed CSS file (survives updates).
-        $plugin_css = file_get_contents( DS_TOOLKIT_PATH . 'includes/defaults/global-css.css' );
+        // Static-cache so multiple wp_head calls in the same request don't re-read from disk.
+        static $plugin_css = null;
+        if ( $plugin_css === null ) {
+            $plugin_css = (string) file_get_contents( DS_TOOLKIT_PATH . 'includes/defaults/global-css.css' );
+        }
         echo '<style id="ds-toolkit-global-css">' . "\n" . $plugin_css . "\n" . '</style>' . "\n";
 
         // Inject site-specific CSS variable overrides stored in wp_options (survives updates).

@@ -67,9 +67,20 @@ class DS_Getsubmenu {
                 }
             }
 
-            // Fall back to page title
+            // Fall back to page title (get_page_by_title was deprecated in WP 6.2)
             if ( ! $parent ) {
-                $parent = get_page_by_title( $label, OBJECT, 'page' );
+                $title_query = new WP_Query( array(
+                    'post_type'              => 'page',
+                    'post_status'            => 'publish',
+                    'title'                  => $label,
+                    'posts_per_page'         => 1,
+                    'no_found_rows'          => true,
+                    'update_post_meta_cache' => false,
+                    'update_post_term_cache' => false,
+                ) );
+                if ( ! empty( $title_query->posts ) ) {
+                    $parent = $title_query->posts[0];
+                }
             }
 
             if ( ! $parent || 'page' !== $parent->post_type ) {
@@ -77,18 +88,19 @@ class DS_Getsubmenu {
             }
 
             $children = get_posts( array(
-                'post_type'      => 'page',
-                'post_status'    => 'publish',
-                'post_parent'    => (int) $parent->ID,
-                'orderby'        => 'menu_order title',
-                'order'          => 'ASC',
-                'posts_per_page' => -1,
-                'fields'         => 'ids',
+                'post_type'              => 'page',
+                'post_status'            => 'publish',
+                'post_parent'            => (int) $parent->ID,
+                'orderby'                => 'menu_order title',
+                'order'                  => 'ASC',
+                'posts_per_page'         => 100,
+                'update_post_meta_cache' => false,
+                'update_post_term_cache' => false,
             ) );
 
-            foreach ( $children as $child_id ) {
-                $title = get_the_title( $child_id );
-                $url   = get_permalink( $child_id );
+            foreach ( $children as $child ) {
+                $title = $child->post_title;
+                $url   = get_permalink( $child );
                 if ( $title && $url ) {
                     $links[] = sprintf(
                         '<a href="%s">%s</a>',
