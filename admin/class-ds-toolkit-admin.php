@@ -209,6 +209,7 @@ class DS_Toolkit_Admin {
                 $child_pages_columns         = ! empty( $opts['child_pages_columns'] )        ? (int) $opts['child_pages_columns']        : 3;
                 $child_pages_columns_tablet  = ! empty( $opts['child_pages_columns_tablet'] ) ? (int) $opts['child_pages_columns_tablet'] : 2;
                 $child_pages_columns_mobile  = ! empty( $opts['child_pages_columns_mobile'] ) ? (int) $opts['child_pages_columns_mobile'] : 1;
+                $uabb_post_loop_fix_enabled  = ! empty( $opts['uabb_post_loop_fix_enabled'] );
                 require DS_TOOLKIT_PATH . 'admin/views/page-settings.php';
             }
             ?>

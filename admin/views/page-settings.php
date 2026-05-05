@@ -7,7 +7,8 @@
  *                      $current_year_enabled, $forminator_email_partner_enabled,
  *                      $forminator_email_partner_fallback, $child_pages_enabled,
  *                      $child_pages_template_id, $child_pages_columns,
- *                      $child_pages_columns_tablet, $child_pages_columns_mobile
+ *                      $child_pages_columns_tablet, $child_pages_columns_mobile,
+ *                      $uabb_post_loop_fix_enabled
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 ?>
@@ -61,6 +62,22 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <input type="hidden" name="ds_toolkit_settings[hide_fl_assistant]" value="0">
                 <input type="checkbox" id="hide_fl_assistant" name="ds_toolkit_settings[hide_fl_assistant]" value="1" <?php checked( $hide_fl_assistant ); ?>>
                 <label for="hide_fl_assistant"></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- UABB Advanced Posts featured-image loop fix -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-format-image"></span></div>
+            <div class="dst-card-info">
+                <strong>UABB Advanced Posts — Featured Image Loop Fix</strong>
+                <span>Patches the UABB Advanced Posts module bug where every post in a "Custom" layout shows the first post's featured image. Toggles Beaver Builder Theme Builder's <code>FLThemeBuilderFieldConnections::$in_post_grid_loop</code> flag around each post via UABB's <code>uabb_blog_posts_before_post</code> / <code>uabb_blog_posts_after_post</code> hooks. Works for any post type — Posts, Staff, Events, Teams, etc. Safe to leave on: the hooks only fire when UABB Advanced Posts is rendering, so sites without UABB are unaffected.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[uabb_post_loop_fix_enabled]" value="0">
+                <input type="checkbox" id="uabb_post_loop_fix_enabled" name="ds_toolkit_settings[uabb_post_loop_fix_enabled]" value="1" <?php checked( $uabb_post_loop_fix_enabled ); ?>>
+                <label for="uabb_post_loop_fix_enabled"></label>
             </div>
         </div>
     </div>
