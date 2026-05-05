@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.2.5] - 2026-05-05
+### Fixed
+- **UABB post-loop fix re-enabled on affected installs.** 1.2.4 restored the default for `uabb_post_loop_fix_enabled` to `1` and added a Features tab toggle, but `maybe_set_defaults()` only fills missing keys — so any site whose option was rebuilt by the 1.2.2 fatal-recovery path (or that fresh-installed 1.2.2/1.2.3) kept the value at `0` and had to enable the toggle by hand. Added a one-shot migration that flips the value to `1` once for affected installs and records `_dst_migrated_125_uabb_on` so the user can still toggle it off later without it bouncing back.
+
 ## [1.2.4] - 2026-05-05
 ### Added
 - **Features tab toggle for the UABB Advanced Posts featured-image loop fix.** The patch was registered as a feature in 1.2.0 but never had a UI row, so it couldn't be inspected or controlled. Now visible alongside the other feature toggles, with a description that explains it works on any post type (Posts, Staff, Events, Teams, etc.) and that the hooks only fire when UABB Advanced Posts is rendering — safe to leave on regardless of whether UABB is installed.
