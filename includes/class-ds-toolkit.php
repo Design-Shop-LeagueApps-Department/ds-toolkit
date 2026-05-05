@@ -134,6 +134,21 @@ class DS_Toolkit {
             }
         }
 
+        // One-shot migration: 1.2.2 / 1.2.3 shipped uabb_post_loop_fix_enabled
+        // defaulting to 0, and any site that hit the v1.2.1 fatal got the option
+        // rebuilt with that value by the is_array() recovery guard. The patch is
+        // a UABB compat fix — its hooks only fire when UABB Advanced Posts is
+        // rendering, so leaving it on is safe regardless. Flip it back to 1 once
+        // for affected installs, then mark the migration done so the user can
+        // still toggle it off later without us re-enabling on the next load.
+        if ( empty( $settings['_dst_migrated_125_uabb_on'] ) ) {
+            if ( isset( $settings['uabb_post_loop_fix_enabled'] ) && empty( $settings['uabb_post_loop_fix_enabled'] ) ) {
+                $settings['uabb_post_loop_fix_enabled'] = 1;
+            }
+            $settings['_dst_migrated_125_uabb_on'] = 1;
+            $changed                               = true;
+        }
+
         if ( $changed ) {
             update_option( 'ds_toolkit_settings', $settings );
         }
