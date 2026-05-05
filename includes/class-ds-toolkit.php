@@ -92,7 +92,9 @@ class DS_Toolkit {
             'child_pages_columns'                => 3,
             'child_pages_columns_tablet'         => 2,
             'child_pages_columns_mobile'         => 1,
-            'uabb_post_loop_fix_enabled'         => 0,
+            // Compat patch — only does anything when UABB Advanced Posts fires its
+            // hooks, so it's safe to default on. Sites without UABB are unaffected.
+            'uabb_post_loop_fix_enabled'         => 1,
             // MCP tool group access controls — off by default
             'mcp_posts_pages_enabled'            => 0,
             'mcp_cpt_enabled'                    => 0,

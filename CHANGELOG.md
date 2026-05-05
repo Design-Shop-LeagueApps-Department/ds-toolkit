@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.2.4] - 2026-05-05
+### Added
+- **Features tab toggle for the UABB Advanced Posts featured-image loop fix.** The patch was registered as a feature in 1.2.0 but never had a UI row, so it couldn't be inspected or controlled. Now visible alongside the other feature toggles, with a description that explains it works on any post type (Posts, Staff, Events, Teams, etc.) and that the hooks only fire when UABB Advanced Posts is rendering — safe to leave on regardless of whether UABB is installed.
+
+### Changed
+- **Default for `uabb_post_loop_fix_enabled` restored to `1`** (was `0` in 1.2.2/1.2.3). Unlike Global CSS / Global JS / MCP toggles, this is a compat patch — it only acts when UABB fires its per-post hooks, so defaulting on doesn't change behavior on sites that don't use UABB. Sites that hit the v1.2.1 fatal and got the option rebuilt from 1.2.2's defaults can now flip it back on from the Features tab without DB editing.
+
 ## [1.2.3] - 2026-05-05
 ### Performance
 - **`[child_pages]` shortcode** — capped `posts_per_page` at 50 (was unbounded `-1`) and added a new `limit` shortcode attribute (max 200). Each child renders a Beaver Builder saved layout, so on parent pages with many children the old query could exhaust memory.
