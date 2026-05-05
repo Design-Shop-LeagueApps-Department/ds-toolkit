@@ -1055,11 +1055,13 @@ class DS_MCP_Server {
         $filter_type = ! empty( $args['type'] ) ? sanitize_key( $args['type'] ) : '';
 
         $templates = get_posts( array(
-            'post_type'      => 'fl-builder-template',
-            'posts_per_page' => -1,
-            'post_status'    => 'publish',
-            'orderby'        => 'title',
-            'order'          => 'ASC',
+            'post_type'              => 'fl-builder-template',
+            'posts_per_page'         => 200,
+            'post_status'            => 'publish',
+            'orderby'                => 'title',
+            'order'                  => 'ASC',
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
         ) );
 
         $patterns = array(
@@ -2500,7 +2502,14 @@ class DS_MCP_Server {
         }
         global $wpdb;
         $deleted = $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_%' OR option_name LIKE '_site_transient_%'" );
-        return $this->tool_result( $id, array( 'success' => true, 'deleted_rows' => (int) $deleted ) );
+        // Persistent object caches (Redis/Memcached) hold transients in memory, not in wp_options.
+        // Flush them too so the tool actually clears transients on those hosts.
+        $object_cache_flushed = wp_using_ext_object_cache() ? wp_cache_flush() : false;
+        return $this->tool_result( $id, array(
+            'success'              => true,
+            'deleted_rows'         => (int) $deleted,
+            'object_cache_flushed' => (bool) $object_cache_flushed,
+        ) );
     }
 
     private function tool_search_replace( $id, $args ) {

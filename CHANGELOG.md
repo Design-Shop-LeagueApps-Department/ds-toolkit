@@ -4,6 +4,20 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.2.3] - 2026-05-05
+### Performance
+- **`[child_pages]` shortcode** — capped `posts_per_page` at 50 (was unbounded `-1`) and added a new `limit` shortcode attribute (max 200). Each child renders a Beaver Builder saved layout, so on parent pages with many children the old query could exhaust memory.
+- **`[getsubmenu]` shortcode** — capped `posts_per_page` at 100 (was unbounded `-1`); replaced deprecated `get_page_by_title()` (removed-in-WP-6.2 noise) with a `WP_Query` title lookup; switched the children loop to read titles off the post objects instead of re-fetching each via `get_the_title($id)`.
+- **Global CSS / Global JS** — static-cache the contents of `includes/defaults/global-css.css` and `global-js.js` per-request so multiple `wp_head`/`wp_footer` calls don't re-read from disk.
+- **ACF CSS Vars** — cache the rendered `<style>` block in object cache (group `ds_toolkit`, 1 hour TTL); auto-busts on `acf/save_post` so options-page edits flush immediately.
+- **MCP `bb_list_layout_templates`** — capped `posts_per_page` at 200 (was unbounded `-1`); skip post meta/term cache priming since only `ID` and `post_title` are read.
+- **MCP `delete_transients`** — also flushes the persistent object cache when one is in use, so transients held in Redis/Memcached actually get cleared (the SQL `DELETE` only ever touched `wp_options`). Response now includes `object_cache_flushed`.
+- **University Logo Finder import** — replaced the `meta_query LIKE '%filename%'` lookup with a direct `$wpdb->get_var` query using an anchored trailing match (`%/<filename>`). Avoids the WP_Query → wp_posts JOIN on every "is this logo already imported?" check (one per logo per import batch).
+- **Plugin bootstrap** — `DS_MCP_Server` is now loaded lazily on `rest_api_init` instead of being `require_once`'d on every request. Frontend and wp-admin page loads no longer parse the 2.8k-line MCP file. Also deduplicated a redundant `get_option('ds_toolkit_settings')` in `run()`.
+
+### Fixed
+- **`[current_year]` shortcode** — uses `wp_date('Y')` instead of `date('Y')` so the year reflects the site's configured timezone instead of the server's.
+
 ## [1.2.2] - 2026-05-05
 ### Fixed
 - **Fatal error** "Cannot access offset of type string on string" in `class-ds-toolkit.php` when saving the MCP tab with every checkbox unchecked. The empty POST caused WP to write the option as an empty string; `maybe_set_defaults()` then tried to index into a string and white-screened the site. Now both `maybe_set_defaults()` and `run()` coerce a non-array option back to `array()`, so a corrupted value self-heals on the next request.
