@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_Toolkit_Updater {
 
     private $slug = 'ds-toolkit';
-    private $repo = 'agabriel1590/ds-toolkit';
+    private $repo = 'Design-Shop-LeagueApps-Department/ds-toolkit';
 
     /**
      * Returns true if the site is a local/development environment.
@@ -178,8 +178,12 @@ class DS_Toolkit_Updater {
     public function fix_source_dir( $source, $remote_source, $upgrader, $hook_extra = array() ) {
         global $wp_filesystem;
 
-        // Only act on plugin installs or updates, not themes or core
-        if ( ! isset( $hook_extra['type'] ) || $hook_extra['type'] !== 'plugin' ) {
+        // Skip only when the upgrader explicitly says this is a theme/core
+        // job. Some cron/CLI auto-update paths (incl. WP Engine Smart Plugin
+        // Manager) omit hook_extra['type'] entirely — bailing on a missing
+        // type would skip the rename in exactly the context this fixes. The
+        // ds-toolkit.php existence check below is the real safety gate.
+        if ( isset( $hook_extra['type'] ) && $hook_extra['type'] !== 'plugin' ) {
             return $source;
         }
 

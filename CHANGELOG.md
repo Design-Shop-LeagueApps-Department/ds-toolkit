@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.2.7] - 2026-05-15
+### Fixed
+- **Auto-updates no longer deactivate the plugin into a long folder name.** The updater (and its `upgrader_source_selection` → `fix_source_dir` filter) was only instantiated under `is_admin()`. WP Engine Smart Plugin Manager, wp-cron auto-updates, and `wp plugin update` all run in CLI/cron context where `is_admin()` is false, so when the updater fell back to GitHub's raw zipball (release JSON cached during the ~10s window before CI attaches `ds-toolkit.zip`) the extracted `owner-repo-hash` folder was never renamed back to `ds-toolkit/`. WordPress then couldn't resolve the `active_plugins` path and silently deactivated the plugin. The updater now also loads under `wp_doing_cron()` and `WP_CLI`, and `fix_source_dir` no longer bails when an upgrader omits `hook_extra['type']`.
+
+### Changed
+- **Updater repo pointer updated to `Design-Shop-LeagueApps-Department/ds-toolkit`.** The hardcoded `agabriel1590/ds-toolkit` only worked via GitHub's redirect; the release `zipball_url` already pointed at the new org, lengthening the fallback folder name. Pointing directly at the current org removes that fragility.
+
 ## [1.2.6] - 2026-05-15
 ### Added
 - **`[ds_overlay_nav]` and `[ds_overlay_subs]` shortcodes** (contributed by @LouiePacheco, #7). Render a WordPress nav menu as a full-screen overlay: `[ds_overlay_nav menu="..."]` outputs auto-numbered top-level items, and `[ds_overlay_subs]` (same page, after the nav) outputs child-link blocks for items that have a submenu. Off by default; toggle on the Features tab. Markup is intentionally unstyled to pair with theme-side overlay CSS/JS. Maintainer note: the PR added the feature class only, so the registry entry, default key, and Features-tab toggle were wired up on merge.
