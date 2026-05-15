@@ -176,7 +176,17 @@ class DS_Toolkit {
             require_once DS_TOOLKIT_PATH . 'admin/class-ds-toolkit-admin.php';
             $admin = new DS_Toolkit_Admin();
             $admin->init();
+        }
 
+        // The updater must also load outside wp-admin: WP Engine Smart Plugin
+        // Manager, wp-cron auto-updates, and `wp plugin update` all run in
+        // CLI/cron context where is_admin() is false. Without it the
+        // upgrader_source_selection filter never registers, so a GitHub
+        // zipball fallback installs into a long owner-repo-hash folder and
+        // WordPress deactivates the plugin (active_plugins path no longer
+        // resolves). Loading it here keeps fix_source_dir on the hook in
+        // every update path.
+        if ( is_admin() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
             require_once DS_TOOLKIT_PATH . 'includes/class-ds-toolkit-updater.php';
             $updater = new DS_Toolkit_Updater();
             $updater->init();
