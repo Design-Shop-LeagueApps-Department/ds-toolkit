@@ -51,6 +51,10 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-uabb-post-loop-fix.php',
             'class' => 'DS_UABB_Post_Loop_Fix',
         ),
+        'overlay_nav_enabled' => array(
+            'file'  => 'features/class-ds-overlay-nav.php',
+            'class' => 'DS_Overlay_Nav',
+        ),
     );
 
     public static function activate() {
@@ -82,6 +86,7 @@ class DS_Toolkit {
             ),
             'getsubmenu_enabled'                  => 0,
             'current_year_enabled'               => 0,
+            'overlay_nav_enabled'                => 0,
             'forminator_email_partner_enabled'   => 0,
             'forminator_email_partner_fallback'  => 'designshop' . DS_TOOLKIT_ADMIN_DOMAIN,
             'global_css_enabled'                 => 0,

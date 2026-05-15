@@ -4,6 +4,11 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.2.6] - 2026-05-15
+### Added
+- **`[ds_overlay_nav]` and `[ds_overlay_subs]` shortcodes** (contributed by @LouiePacheco, #7). Render a WordPress nav menu as a full-screen overlay: `[ds_overlay_nav menu="..."]` outputs auto-numbered top-level items, and `[ds_overlay_subs]` (same page, after the nav) outputs child-link blocks for items that have a submenu. Off by default; toggle on the Features tab. Markup is intentionally unstyled to pair with theme-side overlay CSS/JS. Maintainer note: the PR added the feature class only, so the registry entry, default key, and Features-tab toggle were wired up on merge.
+- **`CONTRIBUTING.md` and a GitHub PR template.** Spell out the full feature-wiring checklist (registry entry + default + toggle) that the #7 PR missed, with an explicit instruction for AI assistants to read it before opening a PR. `main` had no contributor-facing guidance previously.
+
 ## [1.2.5] - 2026-05-05
 ### Fixed
 - **UABB post-loop fix re-enabled on affected installs.** 1.2.4 restored the default for `uabb_post_loop_fix_enabled` to `1` and added a Features tab toggle, but `maybe_set_defaults()` only fills missing keys — so any site whose option was rebuilt by the 1.2.2 fatal-recovery path (or that fresh-installed 1.2.2/1.2.3) kept the value at `0` and had to enable the toggle by hand. Added a one-shot migration that flips the value to `1` once for affected installs and records `_dst_migrated_125_uabb_on` so the user can still toggle it off later without it bouncing back.

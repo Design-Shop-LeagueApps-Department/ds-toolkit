@@ -200,6 +200,7 @@ class DS_Toolkit_Admin {
                 $acf_css_vars_mappings              = ! empty( $opts['acf_css_vars_mappings'] ) ? $opts['acf_css_vars_mappings'] : array();
                 $getsubmenu_enabled                 = ! empty( $opts['getsubmenu_enabled'] );
                 $current_year_enabled               = ! empty( $opts['current_year_enabled'] );
+                $overlay_nav_enabled                = ! empty( $opts['overlay_nav_enabled'] );
                 $forminator_email_partner_enabled   = ! empty( $opts['forminator_email_partner_enabled'] );
                 $forminator_email_partner_fallback  = ! empty( $opts['forminator_email_partner_fallback'] )
                     ? $opts['forminator_email_partner_fallback']
