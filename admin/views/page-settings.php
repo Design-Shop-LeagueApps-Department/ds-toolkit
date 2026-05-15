@@ -4,7 +4,8 @@
  * Rendered inside the shared wrap + header + tabs in DS_Toolkit_Admin::render_page().
  * Variables available: $enabled, $logo_id, $logo_url, $default_url, $hide_fl_assistant,
  *                      $acf_css_vars_enabled, $acf_css_vars_mappings, $getsubmenu_enabled,
- *                      $current_year_enabled, $forminator_email_partner_enabled,
+ *                      $current_year_enabled, $overlay_nav_enabled,
+ *                      $forminator_email_partner_enabled,
  *                      $forminator_email_partner_fallback, $child_pages_enabled,
  *                      $child_pages_template_id, $child_pages_columns,
  *                      $child_pages_columns_tablet, $child_pages_columns_mobile,
@@ -175,6 +176,33 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <p>Place this shortcode anywhere you want the year to appear and update itself automatically each year — no manual edits needed.</p>
                 <code>[current_year]</code>
                 <p>Example: &copy; <?php echo date( 'Y' ); ?> LeagueApps Design Shop — type it as: <code>&amp;copy; [current_year] LeagueApps Design Shop</code></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay Nav Shortcodes -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
+            <div class="dst-card-info">
+                <strong>[ds_overlay_nav] / [ds_overlay_subs] Shortcodes</strong>
+                <span>Renders a WordPress nav menu as a full-screen overlay: a numbered left panel and a matching sub-link right panel.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[overlay_nav_enabled]" value="0">
+                <input type="checkbox" id="overlay_nav_enabled" name="ds_toolkit_settings[overlay_nav_enabled]" value="1" <?php checked( $overlay_nav_enabled ); ?>>
+                <label for="overlay_nav_enabled"></label>
+            </div>
+        </div>
+
+        <div class="dst-card-row dst-shortcode-docs">
+            <div class="dst-card-icon"><span class="dashicons dashicons-info-outline"></span></div>
+            <div class="dst-card-info">
+                <strong>How to use it</strong>
+                <p>Place <code>[ds_overlay_nav]</code> in the left panel to output top-level menu items, numbered automatically. Place <code>[ds_overlay_subs]</code> in the right panel, on the same page and after <code>[ds_overlay_nav]</code>, to output the child-link blocks for any items that have a submenu.</p>
+                <code>[ds_overlay_nav menu="primary"]</code>
+                <code>[ds_overlay_subs]</code>
+                <p>The <code>menu</code> attribute accepts a menu name or slug (defaults to <code>primary</code>). Markup is unstyled by design — pair it with your theme's overlay-nav CSS/JS.</p>
             </div>
         </div>
     </div>
