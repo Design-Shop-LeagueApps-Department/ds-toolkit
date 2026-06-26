@@ -1,0 +1,52 @@
+/* Leagueapps Org Stats — static base styles. Dynamic values in includes/frontend.css.php */
+
+.ds-orgstats{position:relative;isolation:isolate;color:var(--fl-global-white);overflow:hidden;background:var(--fl-global-dark-background);}
+.ds-orgstats-bg{position:absolute;inset:0;z-index:-2;background-position:center;background-size:cover;background-repeat:no-repeat;opacity:.16;}
+.ds-orgstats-overlay{position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(10,40,18,.86),rgba(8,30,14,.94));}
+.ds-orgstats-wrap{width:100%;max-width:1280px;margin:0 auto;padding:0;}
+
+/* Header */
+.ds-orgstats-head{text-align:center;margin-bottom:46px;}
+.ds-orgstats-eyebrow{display:inline-flex;align-items:center;gap:12px;justify-content:center;font-weight:700;font-size:.74rem;letter-spacing:.28em;text-transform:uppercase;color:var(--fl-global-primary);}
+.ds-orgstats-eyebrow::before,.ds-orgstats-eyebrow::after{content:"";width:34px;height:2px;background:currentColor;display:inline-block;}
+.ds-orgstats-eyebrow--rule-before::after{display:none;}
+.ds-orgstats-eyebrow--rule-none::before,.ds-orgstats-eyebrow--rule-none::after{display:none;}
+.ds-orgstats-heading{font-size:clamp(2.1rem,5vw,3.4rem);line-height:.95;text-transform:uppercase;letter-spacing:.01em;font-weight:800;color:var(--fl-global-white);margin:14px 0 0;}
+.ds-orgstats-accent{color:var(--fl-global-primary);}
+
+/* Grid + items (clean grid-line borders: container draws top/left, items draw right/bottom) */
+.ds-orgstats-grid{display:grid;grid-template-columns:repeat(4,1fr);border-top:2px solid rgba(255,255,255,.22);border-left:2px solid rgba(255,255,255,.22);}
+.ds-orgstats-item{text-align:center;padding:40px 14px;border-right:2px solid rgba(255,255,255,.22);border-bottom:2px solid rgba(255,255,255,.22);}
+
+/* Figure */
+.ds-orgstats-num{display:flex;align-items:baseline;justify-content:center;font-size:clamp(3.4rem,7vw,5.2rem);line-height:1;font-weight:800;letter-spacing:.005em;color:var(--fl-global-white);}
+.ds-orgstats-affix{color:var(--fl-global-primary);}
+.ds-orgstats-label{font-size:.76rem;letter-spacing:.2em;text-transform:uppercase;font-weight:600;color:var(--fl-global-body);margin-top:12px;}
+
+/* ---- Image-card layout (each stat is a photo card with a dark overlay) ---- */
+.ds-orgstats--cards .ds-orgstats-grid{border:0;gap:24px;}
+.ds-orgstats--cards .ds-orgstats-item{position:relative;border:0;padding:0;min-height:360px;border-radius:var(--ds-radius);overflow:hidden;display:flex;background:rgba(255,255,255,.04);isolation:isolate;}
+.ds-orgstats-card-bg{position:absolute;inset:0;z-index:0;background-position:center;background-size:cover;background-repeat:no-repeat;}
+.ds-orgstats-card-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(10,20,12,.2),rgba(8,16,10,.78));pointer-events:none;}
+.ds-orgstats-item-inner{position:relative;z-index:2;width:100%;padding:32px;display:flex;flex-direction:column;}
+/* Content position within the card */
+.ds-orgstats-item--bottom-left .ds-orgstats-item-inner{justify-content:flex-end;align-items:flex-start;text-align:left;}
+.ds-orgstats-item--bottom-left .ds-orgstats-num{justify-content:flex-start;}
+.ds-orgstats-item--bottom-center .ds-orgstats-item-inner{justify-content:flex-end;align-items:center;text-align:center;}
+.ds-orgstats-item--center .ds-orgstats-item-inner{justify-content:center;align-items:center;text-align:center;}
+/* Card figures: clamp slightly smaller so they sit nicely inside the card */
+.ds-orgstats--cards .ds-orgstats-num{font-size:clamp(3rem,5.5vw,4.6rem);}
+.ds-orgstats--cards .ds-orgstats-label{margin-top:8px;}
+
+/* Responsive defaults (node-scoped dynamic rules in includes/ override these per-instance) */
+@media (max-width:980px){
+  .ds-orgstats-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:560px){
+  .ds-orgstats-grid{grid-template-columns:repeat(2,1fr);}
+  .ds-orgstats-head{margin-bottom:34px;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .ds-orgstats-value{transition:none;}
+}

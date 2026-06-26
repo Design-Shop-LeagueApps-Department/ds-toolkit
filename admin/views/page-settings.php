@@ -9,7 +9,10 @@
  *                      $forminator_email_partner_fallback, $child_pages_enabled,
  *                      $child_pages_template_id, $child_pages_columns,
  *                      $child_pages_columns_tablet, $child_pages_columns_mobile,
- *                      $uabb_post_loop_fix_enabled
+ *                      $uabb_post_loop_fix_enabled, $blueprint_version,
+ *                      $disable_comments_enabled, $theme_setting_enabled,
+ *                      $admin_menu_tidy_enabled, $ds_menu_module_enabled,
+ *                      $image_optimization_enabled
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 ?>
@@ -66,6 +69,88 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             </div>
         </div>
     </div>
+
+    <?php if ( $blueprint_version >= 6 ) : ?>
+    <!-- Disable Comments (blueprint generation 6+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-admin-comments"></span></div>
+            <div class="dst-card-info">
+                <strong>Disable Comments</strong>
+                <span>Turns WordPress comments off site-wide — closes comments and pings, hides existing comments, removes comment support from every post type, and cleans the admin (Comments menu, dashboard widget, admin-bar item). Replaces the standalone Disable Comments plugin. Auto-enabled on DSLP6 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[disable_comments_enabled]" value="0">
+                <input type="checkbox" id="disable_comments_enabled" name="ds_toolkit_settings[disable_comments_enabled]" value="1" <?php checked( $disable_comments_enabled ); ?>>
+                <label for="disable_comments_enabled"></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Setting page (blueprint generation 6+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-admin-customizer"></span></div>
+            <div class="dst-card-info">
+                <strong>Theme Setting (LeagueApps only)</strong>
+                <span>Registers the internal <strong>Theme Setting</strong> admin page directly below <strong>Partner Setting</strong>, visible only to LeagueApps email users. A synced surface for Beaver Builder &rsaquo; Global Styles (named global colors + Text/Heading/Link/Button defaults) reading/writing the same store, so edits here and in BB stay in sync. Auto-enabled on DSLP6 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[theme_setting_enabled]" value="0">
+                <input type="checkbox" id="theme_setting_enabled" name="ds_toolkit_settings[theme_setting_enabled]" value="1" <?php checked( $theme_setting_enabled ); ?>>
+                <label for="theme_setting_enabled"></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Menu Tidy (blueprint generation 6+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
+            <div class="dst-card-info">
+                <strong>Admin Menu Tidy</strong>
+                <span>Declutters the admin menu: moves Defender, Yoast, and Media Library Organizer under <strong>Tools</strong>. Hides ACF, Beaver Builder, and Appearance from non-LeagueApps users (left in place for LeagueApps). Capabilities are preserved, so it only relocates what a user can already access. Auto-enabled on DSLP6 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[admin_menu_tidy_enabled]" value="0">
+                <input type="checkbox" id="admin_menu_tidy_enabled" name="ds_toolkit_settings[admin_menu_tidy_enabled]" value="1" <?php checked( $admin_menu_tidy_enabled ); ?>>
+                <label for="admin_menu_tidy_enabled"></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- LeagueApps Menu module (blueprint generation 6+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-menu-alt3"></span></div>
+            <div class="dst-card-info">
+                <strong>LeagueApps Menu (Beaver Builder module)</strong>
+                <span>Registers an in-house <strong>LeagueApps Menu</strong> module in Beaver Builder: horizontal nav with dropdowns, per-item mega panels with a column count (add a <code>ds-cols-4</code> class to a menu item to override, <code>ds-no-mega</code> for a plain dropdown), and a full-screen hamburger overlay below a set breakpoint. Fully in-house (no UABB dependency). Auto-enabled on DSLP6 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[ds_menu_module_enabled]" value="0">
+                <input type="checkbox" id="ds_menu_module_enabled" name="ds_toolkit_settings[ds_menu_module_enabled]" value="1" <?php checked( $ds_menu_module_enabled ); ?>>
+                <label for="ds_menu_module_enabled"></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Optimization on Upload (blueprint generation 6+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-images-alt2"></span></div>
+            <div class="dst-card-info">
+                <strong>Image Optimization on Upload</strong>
+                <span>Downscales oversized images to a web-friendly <strong>2048px</strong> longest edge and re-encodes them as <strong>WebP</strong> (quality 82) the moment they're uploaded — before thumbnails are built, so every sub-size is WebP too. A partner dropping a 12 MB phone photo ends up with a lightweight WebP instead. Covers Media Library uploads and WP-CLI / sideload imports. Only touches JPEG/PNG (and oversized WebP); GIFs and SVGs pass through, and an already-small image that wouldn't benefit is left untouched. Auto-enabled on DSLP6 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[image_optimization_enabled]" value="0">
+                <input type="checkbox" id="image_optimization_enabled" name="ds_toolkit_settings[image_optimization_enabled]" value="1" <?php checked( $image_optimization_enabled ); ?>>
+                <label for="image_optimization_enabled"></label>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- UABB Advanced Posts featured-image loop fix -->
     <div class="dst-card">

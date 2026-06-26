@@ -1,0 +1,77 @@
+/* LeagueApps Menu — base/desktop styles. Dynamic colors/spacing/breakpoint live in includes/frontend.css.php */
+
+.ds-menu-wrap { position: relative; }
+.ds-menu, .ds-submenu { list-style: none; margin: 0; padding: 0; }
+
+/* ---- Desktop horizontal bar ---- */
+.ds-menu { display: flex; flex-wrap: wrap; align-items: center; gap: 0; }
+.ds-menu > .ds-menu-item { position: relative; }
+.ds-menu-item > a { display: flex; align-items: center; text-decoration: none; line-height: 1.3; transition: color .15s ease, background-color .15s ease; }
+.ds-menu-item > a > span { display: inline-block; }
+
+/* Submenu indicator (arrow icon / text) */
+.ds-sub-ind { display: inline-flex; align-items: center; margin-left: 6px; line-height: 1; }
+.ds-sub-ind-icon svg { display: block; transition: transform .2s ease; }
+.ds-menu > .ds-menu-item.has-children:hover > a .ds-sub-ind-icon svg,
+.ds-menu > .ds-menu-item.has-children:focus-within > a .ds-sub-ind-icon svg { transform: rotate(180deg); }
+
+/* Dropdowns (regular submenus) */
+.ds-menu .ds-submenu {
+	position: absolute; top: 100%; left: 0; min-width: 200px; z-index: 999;
+	opacity: 0; visibility: hidden; transform: translateY(6px);
+	transition: opacity .15s ease, transform .15s ease, visibility .15s;
+	box-shadow: 0 8px 24px rgba(0,0,0,.12); border-radius: var(--ds-radius); padding: 4px 0;
+}
+.ds-menu .ds-submenu .ds-submenu { top: 0; left: 100%; }
+.ds-menu-item:hover > .ds-submenu,
+.ds-menu-item:focus-within > .ds-submenu {
+	opacity: 1; visibility: visible; transform: translateY(0);
+}
+.ds-submenu .ds-menu-item > a { padding: 8px 18px; white-space: nowrap; }
+
+/* Mega panel */
+.ds-mega {
+	position: absolute; top: 100%; left: 0; z-index: 999;
+	display: grid; grid-template-columns: repeat(var(--ds-cols, 3), minmax(0, 1fr));
+	gap: 8px 28px; padding: 22px 26px; min-width: 460px; max-width: 90vw;
+	opacity: 0; visibility: hidden; transform: translateY(6px);
+	transition: opacity .15s ease, transform .15s ease, visibility .15s;
+	box-shadow: 0 12px 32px rgba(0,0,0,.14); border-radius: var(--ds-radius);
+}
+.ds-menu-item.is-mega:hover > .ds-mega,
+.ds-menu-item.is-mega:focus-within > .ds-mega { opacity: 1; visibility: visible; transform: translateY(0); }
+.ds-mega-col .ds-mega-head { display: block; font-weight: 700; text-decoration: none; padding: 4px 0 6px; }
+.ds-mega-col .ds-submenu { position: static; opacity: 1; visibility: visible; transform: none; box-shadow: none; padding: 0; min-width: 0; }
+.ds-mega-col .ds-submenu .ds-menu-item > a { padding: 4px 0; white-space: normal; }
+
+/* CTA button (last item) — colors / radius / padding / typography come from frontend.css.php */
+.ds-menu > .ds-menu-item.is-button { margin-left: 12px; }
+.ds-menu > .ds-menu-item.is-button > a { justify-content: center; }
+
+/* Hamburger + close + sub-toggle: hidden on desktop, shown in responsive CSS.
+   appearance:none + the scoped !important resets below stop a theme's <button>
+   styling (the green pills we saw) from leaking into these controls. The
+   hamburger's own bg/border are set from settings in frontend.css.php. */
+.ds-menu-toggle, .ds-menu-close, .ds-sub-toggle { display: none; -webkit-appearance: none; appearance: none; }
+.ds-menu-wrap .ds-sub-toggle, .ds-menu-wrap .ds-menu-close { background: none !important; border: 0 !important; box-shadow: none !important; }
+.ds-menu-toggle { align-items: center; gap: 9px; width: fit-content; background: none; border: 0; box-shadow: none; cursor: pointer; padding: 6px; font: inherit; color: inherit; }
+.ds-bars { position: relative; display: block; flex: 0 0 auto; width: 26px; height: 18px; }
+.ds-bars span { position: absolute; left: 0; right: 0; height: 2px; border-radius: 2px; background: currentColor; transition: top .25s ease, transform .25s ease, opacity .2s ease; }
+.ds-bars span:nth-child(1) { top: 2px; }
+.ds-bars span:nth-child(2) { top: 8px; }
+.ds-bars span:nth-child(3) { top: 14px; }
+.ds-menu-toggle-label { font-size: 15px; font-weight: 600; line-height: 1; letter-spacing: .02em; }
+
+/* open → bars animate into an X */
+.ds-menu-wrap.ds-menu-open .ds-bars span:nth-child(1) { top: 8px; transform: rotate(45deg); }
+.ds-menu-wrap.ds-menu-open .ds-bars span:nth-child(2) { opacity: 0; }
+.ds-menu-wrap.ds-menu-open .ds-bars span:nth-child(3) { top: 8px; transform: rotate(-45deg); }
+
+.ds-menu-close { position: absolute; top: 14px; right: 18px; font-size: 36px; line-height: 1; background: none; border: 0; cursor: pointer; }
+.ds-sub-toggle { background: none; border: 0; cursor: pointer; width: 38px; height: 38px; position: relative; }
+.ds-sub-toggle::before, .ds-sub-toggle::after { content: ""; position: absolute; left: 50%; top: 50%; width: 11px; height: 2px; background: currentColor; transform: translate(-50%,-50%); }
+.ds-sub-toggle::after { transform: translate(-50%,-50%) rotate(90deg); transition: transform .2s; }
+.ds-menu-item.ds-open > .ds-sub-toggle::after { transform: translate(-50%,-50%) rotate(0); }
+
+/* Lock page scroll while the mobile overlay is open */
+body.ds-menu-locked { overflow: hidden; }

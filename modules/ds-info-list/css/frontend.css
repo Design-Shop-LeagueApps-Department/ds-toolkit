@@ -1,0 +1,9 @@
+/* Leagueapps Info List — static base. Dynamic values in includes/frontend.css.php */
+.ds-info-list{display:flex;flex-direction:column;gap:12px;}
+.ds-info-item{display:inline-flex;align-items:center;gap:12px;text-decoration:none;max-width:100%;}
+.ds-info-ico{flex:0 0 auto;width:38px;height:38px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--fl-global-accent);color:var(--fl-global-white);}
+.ds-info-ico i{font-size:16px;line-height:1;display:block;}
+/* explicit colour so the text isn't tinted by the theme's content-link rule */
+.ds-info-item .ds-info-text{color:var(--fl-global-body);line-height:1.3;word-break:break-word;}
+.ds-info-item:hover .ds-info-text{text-decoration:underline;}
+.ds-info-item--plain{cursor:default;}

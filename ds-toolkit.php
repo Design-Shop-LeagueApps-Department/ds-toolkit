@@ -3,7 +3,7 @@
  * Plugin Name:       DS Toolkit
  * Plugin URI:        https://github.com/agabriel1590/ds-toolkit
  * Description:       Design Shop custom features and build toolkit.
- * Version:           1.2.7
+ * Version:           1.9.0
  * Author:            Alipio Gabriel
  * Author URI:        https://github.com/agabriel1590
  * Text Domain:       ds-toolkit
@@ -17,7 +17,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'DS_TOOLKIT_VERSION', '1.2.7' );
+define( 'DS_TOOLKIT_VERSION', '1.9.0' );
 define( 'DS_TOOLKIT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DS_TOOLKIT_URL', plugin_dir_url( __FILE__ ) );
 
@@ -29,6 +29,11 @@ define( 'DS_TOOLKIT_URL', plugin_dir_url( __FILE__ ) );
 if ( ! defined( 'DS_TOOLKIT_ADMIN_DOMAIN' ) ) {
     define( 'DS_TOOLKIT_ADMIN_DOMAIN', '@leagueapps.com' );
 }
+
+// Shared module helpers (CSS/colour/unit/button helpers + card/people markup
+// + SVG icon registry), loaded once so every in-house module can reuse them.
+require_once DS_TOOLKIT_PATH . 'includes/class-ds-module-ui.php';
+require_once DS_TOOLKIT_PATH . 'includes/class-ds-card.php';
 
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-toolkit.php';
 

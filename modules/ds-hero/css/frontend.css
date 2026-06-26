@@ -1,0 +1,120 @@
+/* Leagueapps Hero Banner — static base styles. Dynamic values in includes/frontend.css.php */
+
+.ds-hero{position:relative;display:flex;align-items:center;overflow:hidden;color:var(--fl-global-white,#fff);isolation:isolate;}
+
+/* Background layers */
+.ds-hero-bg{position:absolute;inset:0;z-index:0;background:var(--fl-global-dark-background,#0a3d14) center/cover no-repeat;}
+.ds-hero-img{width:100%;height:100%;object-fit:cover;display:block;}
+.ds-hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.ds-hero-slide{position:absolute;inset:0;background-position:center;background-size:cover;background-repeat:no-repeat;opacity:0;transition:opacity 1.2s ease;}
+.ds-hero-slide.is-active{opacity:1;}
+.ds-hero-overlay{position:absolute;inset:0;z-index:1;pointer-events:none;}
+
+/* Ken Burns (slow zoom). Duration for slides comes from --ds-hero-kb (the slide interval). */
+@keyframes dsHeroKB{from{transform:scale(1);}to{transform:scale(1.14);}}
+.ds-hero--kenburns .ds-hero-slide{transform:scale(1);will-change:transform;}
+.ds-hero--kenburns .ds-hero-slide.is-active{animation:dsHeroKB var(--ds-hero-kb,8s) ease-out forwards;}
+.ds-hero--kenburns .ds-hero-img{animation:dsHeroKB 18s ease-in-out infinite alternate;transform-origin:center;will-change:transform;}
+
+/* Content */
+.ds-hero-wrap{position:relative;z-index:2;width:100%;max-width:1280px;margin:0 auto;padding:0;}
+.ds-hero-inner{max-width:760px;}
+
+.ds-hero-eyebrow{display:inline-flex;align-items:center;gap:12px;font-weight:700;font-size:.74rem;letter-spacing:.28em;text-transform:uppercase;color:var(--fl-global-primary,#7ee29a);}
+.ds-hero-eyebrow::before{content:"";width:34px;height:2px;background:currentColor;display:inline-block;}
+
+.ds-hero-title{font-size:clamp(3.4rem,10vw,8rem);line-height:.92;text-transform:uppercase;letter-spacing:.01em;font-weight:700;color:var(--fl-global-white,#fff);margin:20px 0 0;overflow-wrap:normal;word-break:keep-all;hyphens:none;}
+.ds-hero-accent{color:var(--fl-global-primary,#7ee29a);}
+
+.ds-hero-sub{font-size:clamp(1.05rem,1.7vw,1.3rem);margin:24px 0 0;color:#e8efe6;font-weight:400;line-height:1.55;}
+
+.ds-hero-cta{display:flex;flex-wrap:wrap;gap:16px;margin-top:38px;}
+.ds-hero-btn{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:.82rem;letter-spacing:.14em;text-transform:uppercase;padding:15px 30px;border-radius:var(--ds-radius,4px);border:2px solid transparent;cursor:pointer;text-decoration:none;transition:transform .25s ease,background .25s ease,color .25s ease,box-shadow .25s ease;}
+.ds-hero-btn svg{width:15px;height:15px;transition:transform .25s ease;}
+.ds-hero-btn:hover svg{transform:translateX(4px);}
+/* color !important: these are <a> tags, so the theme's content link colour would
+   otherwise win and make button text the same green as the background. */
+.ds-hero-btn--primary{background:var(--fl-global-accent,#188830);color:var(--fl-global-white,#fff) !important;}
+.ds-hero-btn--primary:hover{transform:translateY(-2px);filter:brightness(.92);}
+.ds-hero-btn--ghost{background:transparent;color:var(--fl-global-white,#fff) !important;border-color:rgba(255,255,255,.55);}
+.ds-hero-btn--ghost:hover{background:var(--fl-global-white,#fff);color:var(--fl-global-dark-background,#0a3d14) !important;transform:translateY(-2px);}
+
+.ds-hero-proof{display:flex;gap:40px;margin-top:54px;flex-wrap:wrap;align-items:stretch;}
+.ds-hero-stat{display:flex;flex-direction:column;}
+.ds-hero-stat-n{font-size:2.4rem;line-height:1;color:var(--fl-global-white,#fff);font-weight:700;text-transform:uppercase;}
+.ds-hero-stat-l{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:#a9d8b3;margin-top:6px;font-weight:600;}
+.ds-hero-sep{width:1px;background:rgba(255,255,255,.25);align-self:stretch;}
+
+/* Center alignment variant */
+.ds-hero--center .ds-hero-inner{max-width:760px;margin:0 auto;text-align:center;}
+.ds-hero--center .ds-hero-eyebrow,.ds-hero--center .ds-hero-cta,.ds-hero--center .ds-hero-proof{justify-content:center;}
+.ds-hero--center .ds-hero-sub{margin-left:auto;margin-right:auto;}
+
+@media (max-width:600px){
+  .ds-hero-proof{gap:24px;}
+  .ds-hero-sep{display:none;}
+  .ds-hero-cta .ds-hero-btn{flex:1 1 100%;justify-content:center;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .ds-hero-slide{transition:none;}
+  .ds-hero--kenburns .ds-hero-slide.is-active,.ds-hero--kenburns .ds-hero-img{animation:none;transform:none;}
+}
+
+/* ---- Slideshow navigation (arrows + dots) ---- */
+/* :focus/:active re-assert position — a global theme rule (button:focus{position:relative})
+   outranks a single class and would otherwise drop the focused arrow into flow on click. */
+.ds-hero-nav,.ds-hero-nav:focus,.ds-hero-nav:active{position:absolute;top:50%;}
+.ds-hero-nav{transform:translateY(-50%);z-index:5;display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;padding:0;border:0;border-radius:50%;background:rgba(10,14,21,.35);color:var(--fl-global-white,#fff);cursor:pointer;transition:background .2s ease,transform .2s ease;}
+.ds-hero-nav:hover{background:rgba(10,14,21,.6);}
+.ds-hero-nav svg{width:22px;height:22px;display:block;}
+.ds-hero-nav--prev{left:18px;}
+.ds-hero-nav--next{right:18px;}
+.ds-hero-dots{position:absolute;left:0;right:0;bottom:22px;z-index:5;display:flex;justify-content:center;align-items:center;gap:10px;pointer-events:none;}
+.ds-hero-dot{width:10px;height:10px;padding:0;border:0;border-radius:50%;cursor:pointer;background:rgba(255,255,255,.45);pointer-events:auto;transition:background .2s ease,transform .2s ease;}
+.ds-hero-dot:hover{background:rgba(255,255,255,.8);}
+.ds-hero-dot.is-active{background:var(--fl-global-white,#fff);transform:scale(1.3);}
+
+/* Progress lines: thin bars that fill over the slide interval (cooldown to next slide). */
+.ds-hero-bars{position:absolute;left:0;right:0;bottom:26px;z-index:5;display:flex;justify-content:center;align-items:center;gap:10px;padding:0 24px;}
+.ds-hero-bar{position:relative;flex:0 1 56px;max-width:56px;height:3px;padding:0;border:0;border-radius:3px;background:rgba(255,255,255,.32);cursor:pointer;overflow:hidden;transition:height .2s ease,background .2s ease;}
+.ds-hero-bar:hover{background:rgba(255,255,255,.5);height:5px;}
+.ds-hero-bar-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--fl-global-white,#fff);border-radius:3px;}
+.ds-hero-bar.is-active .ds-hero-bar-fill{animation:dsHeroBar var(--ds-hero-bar-dur,6s) linear forwards;}
+@keyframes dsHeroBar{from{width:0;}to{width:100%;}}
+@media (max-width:600px){.ds-hero-nav{width:38px;height:38px;}.ds-hero-nav--prev{left:8px;}.ds-hero-nav--next{right:8px;}.ds-hero-bar{flex:1 1 auto;max-width:none;}}
+@media (prefers-reduced-motion:reduce){.ds-hero-bar.is-active .ds-hero-bar-fill{animation:none;width:100%;}}
+
+/* ============================ Style 2 — Page Banner ============================ */
+.ds-hero--banner{display:flex;align-items:center;position:relative;overflow:hidden;}
+.ds-hero--banner .ds-hero-wrap{position:relative;z-index:2;width:100%;max-width:1280px;margin:0 auto;}
+.ds-hero--banner .ds-hero-inner{max-width:900px;}
+/* Image scrim — designed darkening over the photo (sits with the overlay layer, under the text). */
+.ds-banner-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;}
+/* Parallax — give the background room to move; JS translates it on scroll. */
+.ds-banner--parallax{overflow:hidden;}
+.ds-banner--parallax .ds-hero-bg{height:128%;top:-14%;will-change:transform;}
+@media (prefers-reduced-motion:reduce){.ds-banner--parallax .ds-hero-bg{height:100%;top:0;transform:none !important;}}
+/* Font family / weight / transform come from the global Theme Setting heading + text
+   typography (emitted in includes/frontend.css.php); only size + spacing are set here. */
+.ds-hero--banner .ds-hero-title{font-size:clamp(2rem,4.6vw,3.6rem);line-height:1.05;margin:0;}
+.ds-hero--banner .ds-hero-sub{margin:14px 0 0;font-size:clamp(1rem,1.6vw,1.2rem);line-height:1.5;}
+/* Alignment */
+.ds-banner--left .ds-hero-inner{margin-left:0;margin-right:auto;text-align:left;}
+.ds-banner--center .ds-hero-inner{margin-left:auto;margin-right:auto;text-align:center;}
+.ds-banner--right .ds-hero-inner{margin-left:auto;margin-right:0;text-align:right;}
+/* Per-state text colour defaults (overridden by Title/Subtitle Colour when set) */
+.ds-banner--has-bg .ds-hero-title{color:var(--fl-global-white,#fff);}
+.ds-banner--has-bg .ds-hero-sub{color:#e9eef0;}
+.ds-banner--no-bg{background:var(--fl-global-light-background,#f2f4f6);}
+.ds-banner--no-bg .ds-hero-title{color:var(--fl-global-headings,#15171b);}
+.ds-banner--no-bg .ds-hero-sub{color:var(--fl-global-body,#5b6671);}
+
+/* Banner eyebrow + breadcrumbs */
+.ds-banner-eyebrow{display:inline-block;font-weight:700;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--fl-global-accent,#188830);margin:0 0 10px;}
+.ds-banner-crumbs{font-size:.78rem;letter-spacing:.03em;margin:0 0 12px;}
+.ds-hero--banner .ds-hero-sub + .ds-banner-crumbs{margin:18px 0 0;}
+.ds-banner-crumbs a{text-decoration:none;}
+.ds-banner-crumbs a:hover{text-decoration:underline;}
+.ds-banner--has-bg .ds-banner-crumbs,.ds-banner--has-bg .ds-banner-crumbs a,.ds-banner--has-bg .ds-banner-crumbs .breadcrumb_last{color:rgba(255,255,255,.85);}
+.ds-banner--no-bg .ds-banner-crumbs,.ds-banner--no-bg .ds-banner-crumbs a,.ds-banner--no-bg .ds-banner-crumbs .breadcrumb_last{color:var(--fl-global-body,#5b6671);}
