@@ -21,6 +21,8 @@ sponsors) assembled entirely from LeagueApps blocks.*
 
 All of these now live under one **"LeagueApps"** group in the builder:
 
+![The LeagueApps module group in the builder](./screenshots/leagueapps-modules-panel.png)
+
 | Block | What it does |
 |---|---|
 | **Hero Banner** | Big top-of-page banner (image, video, or slideshow) |
