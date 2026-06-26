@@ -1,6 +1,6 @@
 # DS Launchpad — What's New (staging preview)
 
-*Prepared 2026-06-22 · Status: **in staging**, not yet released.*
+*Prepared 2026-06-22. Status: **in staging**, not yet released.*
 
 ## The big picture
 
@@ -28,36 +28,36 @@ All of these now live under one **"LeagueApps"** group in the builder:
 | **Post Loop** | Lists of news, staff, teams, programs, sponsors, tournaments |
 | **Page Cards** | Grid of linked cards |
 | **Image Carousel** | Stacked image slider |
-| **Org Stats** | Headline numbers / the record |
+| **Org Stats** | Headline numbers and the record |
 | **Marquee** | Scrolling announcement ticker |
 | **Info List** | Icon-and-text lists |
 | **CTA** | Call-to-action band |
 | **Heading** | Styled section headings |
 | **Divider** | Decorative section dividers *(new this update)* |
-| **Team Detail** | Single-team roster / schedule layout |
+| **Team Detail** | Single-team roster and schedule layout |
 | **Content Router** | Shows the right layout for each page type |
 | **Partner Social** | Social links row |
 
 ## Newest additions (this update)
 
-- **Divider block** — horizontal or vertical dividers with effects: a gradient fade, a
-  "loading" light that runs along the line, a glow pulse, and marching dashes.
-- **Hero "Multiple Backgrounds"** — layer colours, gradients, and images behind the hero.
-- **Smarter Menu mega-menus** — pick which menu items open as mega-menus with a simple
+- **Divider block:** horizontal or vertical dividers with effects, including a gradient
+  fade, a "loading" light that runs along the line, a glow pulse, and marching dashes.
+- **Hero "Multiple Backgrounds":** layer colours, gradients, and images behind the hero.
+- **Smarter Menu mega-menus:** pick which menu items open as mega-menus with a simple
   search-and-click picker, set the number of columns, and style the panels.
-- **Simpler Post Loop for partners** — program and sponsor lists now live on one
+- **Simpler Post Loop for partners:** program and sponsor lists now live on one
   **Content** tab, and the technical **Query** tab is hidden when it isn't needed.
 
-![The new Divider block — effect options](./screenshots/leagueapps-divider-module.png)
+![The new Divider block, effect options](./screenshots/leagueapps-divider-module.png)
 
 ## Why it matters
 
-- **Faster builds** — partner sites snap together from ready-made, branded blocks.
-- **Consistent and on-brand** — every block automatically pulls the site's global colours
+- **Faster builds.** Partner sites snap together from ready-made, branded blocks.
+- **Consistent and on-brand.** Every block automatically pulls the site's global colours
   and fonts.
-- **Owned in-house** — no third-party module fees or lock-in; the Design Shop controls
+- **Owned in-house.** No third-party module fees or lock-in. The Design Shop controls
   every block.
-- **Easier for non-developers** — everything is point-and-click in the builder.
+- **Easier for non-developers.** Everything is point-and-click in the builder.
 
 ## Status
 
