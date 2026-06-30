@@ -1,0 +1,31 @@
+/* Leagueapps Heading — static base styles. Dynamic values in includes/frontend.css.php */
+
+.ds-heading{width:100%;}
+.ds-heading-inner{display:flex;flex-direction:column;gap:12px;}
+
+/* Alignment */
+.ds-heading--left  .ds-heading-inner{align-items:flex-start;text-align:left;}
+.ds-heading--center .ds-heading-inner{align-items:center;text-align:center;margin-left:auto;margin-right:auto;}
+.ds-heading--right .ds-heading-inner{align-items:flex-end;text-align:right;}
+
+/* Sub-heading — a plain <span>, never a heading tag (SEO-safe) */
+.ds-heading-sub{display:inline-flex;align-items:center;gap:14px;font-weight:700;font-size:.8rem;letter-spacing:.18em;text-transform:uppercase;color:var(--fl-global-accent);line-height:1.2;}
+.ds-heading-sub-text{display:inline-block;}
+
+/* Heading */
+.ds-heading-title{margin:0;line-height:1.05;letter-spacing:-.01em;color:var(--fl-global-headings);}
+.ds-heading-accent{color:var(--fl-global-accent);}
+
+/* Description: explicit theme body colour so it respects Theme Setting (not inherited black) */
+.ds-heading-desc,.ds-heading-desc p{margin:0;line-height:1.6;color:var(--fl-global-body);}
+.ds-heading-desc p{margin:0 0 .6em;}
+.ds-heading-desc p:last-child{margin-bottom:0;}
+
+/* Divider / eyebrow rule */
+.ds-heading-rule{display:flex;align-items:center;width:100%;}
+.ds-heading--center .ds-heading-rule{justify-content:center;}
+.ds-heading--right .ds-heading-rule{justify-content:flex-end;}
+.ds-heading-rule-line{display:block;width:48px;height:3px;background:var(--fl-global-accent);border-radius:2px;}
+
+/* Inline (eyebrow) rule sits inside the sub-heading flex, so it shrinks to its line */
+.ds-heading-sub .ds-heading-rule{width:auto;}

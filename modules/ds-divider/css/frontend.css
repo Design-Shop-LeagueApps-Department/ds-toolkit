@@ -1,0 +1,28 @@
+/* LeagueApps Divider — static structure + keyframes. Colours/sizes/effects are
+   emitted per-instance from includes/frontend.css.php. */
+
+.ds-divider { display: flex; width: 100%; line-height: 0; }
+.ds-divider--h.align-left   { justify-content: flex-start; }
+.ds-divider--h.align-center { justify-content: center; }
+.ds-divider--h.align-right  { justify-content: flex-end; }
+.ds-divider--v { justify-content: center; align-items: center; }
+
+.ds-divider-line { display: block; position: relative; overflow: hidden; }
+/* glow needs its box-shadow to spill out */
+.ds-divider.is-glow .ds-divider-line { overflow: visible; }
+
+/* Running light: a bright segment sweeps along the line. */
+@keyframes dsDivRunH { 0% { transform: translateX( -130% ); } 100% { transform: translateX( 130% ); } }
+@keyframes dsDivRunV { 0% { transform: translateY( -130% ); } 100% { transform: translateY( 130% ); } }
+
+/* Glow: the line breathes. */
+@keyframes dsDivGlow { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+
+/* Marching dashes: scroll the repeating gradient one cell. */
+@keyframes dsDivDashH { to { background-position: var( --ds-dash, 22px ) 0; } }
+@keyframes dsDivDashV { to { background-position: 0 var( --ds-dash, 22px ); } }
+
+@media ( prefers-reduced-motion: reduce ) {
+	.ds-divider .ds-divider-line,
+	.ds-divider .ds-divider-line::after { animation: none !important; }
+}

@@ -140,6 +140,11 @@ class DS_Toolkit_Admin {
                 <a href="<?php echo esc_url( $base_url ); ?>" class="dst-tab<?php echo $active_tab === 'features' ? ' is-active' : ''; ?>">
                     Features
                 </a>
+                <?php if ( DS_Toolkit::blueprint_version() >= 6 ) : ?>
+                <a href="<?php echo esc_url( $base_url . '&tab=general' ); ?>" class="dst-tab<?php echo $active_tab === 'general' ? ' is-active' : ''; ?>">
+                    General
+                </a>
+                <?php endif; ?>
                 <a href="<?php echo esc_url( $base_url . '&tab=logos' ); ?>" class="dst-tab<?php echo $active_tab === 'logos' ? ' is-active' : ''; ?>">
                     University Logo Finder
                 </a>
@@ -157,7 +162,12 @@ class DS_Toolkit_Admin {
             <?php
             $opts = get_option( 'ds_toolkit_settings', array() );
 
-            if ( $active_tab === 'logos' ) {
+            if ( $active_tab === 'general' && DS_Toolkit::blueprint_version() >= 6 ) {
+                $footer_copyright_text     = isset( $opts['footer_copyright_text'] ) ? $opts['footer_copyright_text'] : '';
+                $copyright_shortcode_enabled = ! empty( $opts['copyright_shortcode_enabled'] );
+                require DS_TOOLKIT_PATH . 'admin/views/page-general.php';
+
+            } elseif ( $active_tab === 'logos' ) {
                 require DS_TOOLKIT_PATH . 'admin/views/page-logo-finder.php';
 
             } elseif ( $active_tab === 'global-css' ) {
@@ -211,6 +221,13 @@ class DS_Toolkit_Admin {
                 $child_pages_columns_tablet  = ! empty( $opts['child_pages_columns_tablet'] ) ? (int) $opts['child_pages_columns_tablet'] : 2;
                 $child_pages_columns_mobile  = ! empty( $opts['child_pages_columns_mobile'] ) ? (int) $opts['child_pages_columns_mobile'] : 1;
                 $uabb_post_loop_fix_enabled  = ! empty( $opts['uabb_post_loop_fix_enabled'] );
+                // Blueprint-gated feature toggles — only surfaced on qualifying installs.
+                $blueprint_version        = DS_Toolkit::blueprint_version();
+                $disable_comments_enabled = ! empty( $opts['disable_comments_enabled'] );
+                $theme_setting_enabled    = ! empty( $opts['theme_setting_enabled'] );
+                $admin_menu_tidy_enabled  = ! empty( $opts['admin_menu_tidy_enabled'] );
+                $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );
+                $image_optimization_enabled = ! empty( $opts['image_optimization_enabled'] );
                 require DS_TOOLKIT_PATH . 'admin/views/page-settings.php';
             }
             ?>

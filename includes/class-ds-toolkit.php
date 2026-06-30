@@ -55,7 +55,155 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-overlay-nav.php',
             'class' => 'DS_Overlay_Nav',
         ),
+
+        // --- Blueprint generation 6+ features --------------------------------
+        // 'min_blueprint' gates a feature to a blueprint generation: it only
+        // loads, defaults on, and shows a toggle on sites stamped at that
+        // generation or higher (see blueprint_version()). Older / unstamped
+        // DSLP installs never see these — no toggle, no auto-enable, the class
+        // is never even instantiated.
+        'disable_comments_enabled' => array(
+            'file'          => 'features/class-ds-disable-comments.php',
+            'class'         => 'DS_Disable_Comments',
+            'min_blueprint' => 6,
+        ),
+        'copyright_shortcode_enabled' => array(
+            'file'          => 'features/class-ds-copyright.php',
+            'class'         => 'DS_Copyright',
+            'min_blueprint' => 6,
+        ),
+        'theme_setting_enabled' => array(
+            'file'          => 'features/class-ds-theme-setting.php',
+            'class'         => 'DS_Theme_Setting',
+            'min_blueprint' => 6,
+        ),
+        'admin_menu_tidy_enabled' => array(
+            'file'          => 'features/class-ds-admin-menu.php',
+            'class'         => 'DS_Admin_Menu',
+            'min_blueprint' => 6,
+        ),
+        'ds_menu_module_enabled' => array(
+            'file'          => 'features/class-ds-menu.php',
+            'class'         => 'DS_Menu',
+            'min_blueprint' => 6,
+        ),
+        'ds_social_module_enabled' => array(
+            'file'          => 'features/class-ds-social.php',
+            'class'         => 'DS_Social',
+            'min_blueprint' => 6,
+        ),
+        'ds_social_card_enabled' => array(
+            'file'          => 'features/class-ds-social-card.php',
+            'class'         => 'DS_Social_Card',
+            'min_blueprint' => 6,
+        ),
+        'ds_hero_module_enabled' => array(
+            'file'          => 'features/class-ds-hero.php',
+            'class'         => 'DS_Hero',
+            'min_blueprint' => 6,
+        ),
+        'ds_cta_module_enabled' => array(
+            'file'          => 'features/class-ds-cta.php',
+            'class'         => 'DS_CTA',
+            'min_blueprint' => 6,
+        ),
+        'ds_marquee_module_enabled' => array(
+            'file'          => 'features/class-ds-marquee.php',
+            'class'         => 'DS_Marquee',
+            'min_blueprint' => 6,
+        ),
+        'ds_post_loop_module_enabled' => array(
+            'file'          => 'features/class-ds-post-loop.php',
+            'class'         => 'DS_Post_Loop',
+            'min_blueprint' => 6,
+        ),
+        'ds_orgstats_module_enabled' => array(
+            'file'          => 'features/class-ds-orgstats.php',
+            'class'         => 'DS_OrgStats',
+            'min_blueprint' => 6,
+        ),
+        'ds_carousel_module_enabled' => array(
+            'file'          => 'features/class-ds-carousel.php',
+            'class'         => 'DS_Carousel',
+            'min_blueprint' => 6,
+        ),
+        'ds_heading_module_enabled' => array(
+            'file'          => 'features/class-ds-heading.php',
+            'class'         => 'DS_Heading',
+            'min_blueprint' => 6,
+        ),
+        'ds_divider_module_enabled' => array(
+            'file'          => 'features/class-ds-divider.php',
+            'class'         => 'DS_Divider',
+            'min_blueprint' => 6,
+        ),
+        'image_optimization_enabled' => array(
+            'file'          => 'features/class-ds-image-optimization.php',
+            'class'         => 'DS_Image_Optimization',
+            'min_blueprint' => 6,
+        ),
+        'page_banner_sync_enabled' => array(
+            'file'          => 'features/class-ds-page-banner.php',
+            'class'         => 'DS_Page_Banner',
+            'min_blueprint' => 6,
+        ),
+        'ds_content_router_module_enabled' => array(
+            'file'          => 'features/class-ds-content-router.php',
+            'class'         => 'DS_Content_Router',
+            'min_blueprint' => 6,
+        ),
+        'ds_info_list_module_enabled' => array(
+            'file'          => 'features/class-ds-info-list.php',
+            'class'         => 'DS_Info_List',
+            'min_blueprint' => 6,
+        ),
+        'ds_page_cards_module_enabled' => array(
+            'file'          => 'features/class-ds-page-cards.php',
+            'class'         => 'DS_Page_Cards',
+            'min_blueprint' => 6,
+        ),
+        'ds_team_detail_module_enabled' => array(
+            'file'          => 'features/class-ds-team-detail.php',
+            'class'         => 'DS_Team_Detail',
+            'min_blueprint' => 6,
+        ),
+        'ds_builder_defaults_enabled' => array(
+            'file'          => 'features/class-ds-builder-defaults.php',
+            'class'         => 'DS_Builder_Defaults',
+            'min_blueprint' => 6,
+        ),
     );
+
+    /**
+     * True only for users whose email matches DS_TOOLKIT_ADMIN_DOMAIN.
+     * Shared gate for LeagueApps-only UI (the admin settings page and the
+     * internal Theme Setting options page).
+     */
+    public static function is_leagueapps_user() {
+        $user = wp_get_current_user();
+        if ( ! $user || ! $user->exists() || empty( $user->user_email ) ) {
+            return false;
+        }
+        return (bool) preg_match( '/' . preg_quote( DS_TOOLKIT_ADMIN_DOMAIN, '/' ) . '$/i', $user->user_email );
+    }
+
+    /**
+     * The blueprint generation this site was built from.
+     *
+     * Carried as a DB option so it travels when an install is cloned from the
+     * blueprint (fleet sites are provisioned by copying the blueprint's
+     * database). A wp-config constant override wins if defined. The toolkit
+     * only ever READS this — it must never write it on activation, or every
+     * site that activates the plugin would stamp itself as the latest
+     * generation. Returns 0 for legacy / unstamped installs (DSLP4, DSLP5,
+     * ad-hoc sites).
+     */
+    public static function blueprint_version() {
+        if ( defined( 'DS_BLUEPRINT_VERSION' ) ) {
+            return (int) DS_BLUEPRINT_VERSION;
+        }
+        return (int) get_option( 'ds_blueprint_version', 0 );
+    }
 
     public static function activate() {
         $settings = get_option( 'ds_toolkit_settings', array() );
@@ -73,7 +221,7 @@ class DS_Toolkit {
         // On fresh install only the core LeagueApps-branding features are on.
         // Everything else is opt-in so a new site doesn't get unexpected CSS/JS,
         // shortcodes, or MCP tools the moment the plugin is activated.
-        return array(
+        $defaults = array(
             'enable_login_branding' => 1,
             'hide_fl_assistant'     => 1,
             'acf_css_vars_enabled'  => 0,
@@ -113,6 +261,39 @@ class DS_Toolkit {
             'mcp_options_enabled'                => 0,
             'mcp_users_enabled'                  => 0,
         );
+
+        // Blueprint-gated defaults. These keys are added ONLY on sites stamped
+        // at the required generation, so older / unstamped installs never gain
+        // the option keys (and therefore never show the toggles). On qualifying
+        // sites they default ON — that's the "auto-enable on DSLP6+" behavior.
+        $bp = self::blueprint_version();
+        if ( $bp >= 6 ) {
+            $defaults['disable_comments_enabled']    = 1;
+            $defaults['copyright_shortcode_enabled'] = 1;
+            $defaults['footer_copyright_text']       = '&copy; {year} LeagueApps Design Shop';
+            $defaults['theme_setting_enabled']        = 1;
+            $defaults['admin_menu_tidy_enabled']      = 1;
+            $defaults['ds_menu_module_enabled']       = 1;
+            $defaults['ds_social_module_enabled']     = 1;
+            $defaults['ds_social_card_enabled']       = 1;
+            $defaults['ds_hero_module_enabled']       = 1;
+            $defaults['ds_cta_module_enabled']        = 1;
+            $defaults['ds_marquee_module_enabled']    = 1;
+            $defaults['ds_post_loop_module_enabled']  = 1;
+            $defaults['ds_orgstats_module_enabled']   = 1;
+            $defaults['ds_carousel_module_enabled']   = 1;
+            $defaults['ds_heading_module_enabled']    = 1;
+            $defaults['ds_divider_module_enabled']    = 1;
+            $defaults['image_optimization_enabled']   = 1;
+            $defaults['page_banner_sync_enabled']     = 1;
+            $defaults['ds_content_router_module_enabled'] = 1;
+            $defaults['ds_info_list_module_enabled']  = 1;
+            $defaults['ds_page_cards_module_enabled'] = 1;
+            $defaults['ds_team_detail_module_enabled'] = 1;
+            $defaults['ds_builder_defaults_enabled']   = 1;
+        }
+
+        return $defaults;
     }
 
     /**
@@ -192,7 +373,14 @@ class DS_Toolkit {
             $updater->init();
         }
 
+        $blueprint = self::blueprint_version();
+
         foreach ( $this->features as $key => $feature ) {
+            // Blueprint-gated features never load below their required
+            // generation, even if the settings key was somehow set.
+            if ( ! empty( $feature['min_blueprint'] ) && $blueprint < (int) $feature['min_blueprint'] ) {
+                continue;
+            }
             if ( ! empty( $settings[ $key ] ) ) {
                 require_once DS_TOOLKIT_PATH . $feature['file'];
                 $instance = new $feature['class']( $settings );

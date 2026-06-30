@@ -1,0 +1,97 @@
+/* Leagueapps Marquee — static base styles + keyframes.
+   Configurable values (colours, height, speed, gap, border, typography) live in
+   includes/frontend.css.php and are node-scoped so they win over these defaults. */
+
+/* Keyframes are namespaced (dsmq…) so they never collide with a page's own
+   @keyframes ticker / pulseDot. */
+@keyframes dsmqScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+@keyframes dsmqPulse  { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+/* ---- Bar ---- */
+.ds-marquee {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 34px;
+  overflow: hidden;
+  background: var(--fl-global-dark-background);
+  border-bottom: 1px solid color-mix(in srgb, var(--fl-global-accent) 18%, transparent);
+}
+
+/* ---- Pinned label ---- */
+.ds-marquee-label {
+  flex: 0 0 auto;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 16px;
+  background: var(--fl-global-accent);
+  color: var(--fl-global-dark-background);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ds-marquee-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fl-global-dark-background);
+  animation: dsmqPulse 1.4s infinite;
+}
+
+/* ---- Scrolling track ---- */
+.ds-marquee-viewport {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.ds-marquee-track {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  white-space: nowrap;
+  will-change: transform;
+  animation: dsmqScroll 32s linear infinite;
+}
+.ds-marquee-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 38px;
+  padding-left: 38px;
+}
+
+/* ---- Items + separators ---- */
+.ds-marquee-item {
+  color: var(--fl-global-body);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+a.ds-marquee-item--link { transition: color .15s ease; cursor: pointer; }
+a.ds-marquee-item--link:hover { color: var(--fl-global-white); }
+.ds-marquee-sep {
+  color: var(--fl-global-accent);
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* ---- Direction + hover pause ---- */
+.ds-marquee--right .ds-marquee-track { animation-direction: reverse; }
+.ds-marquee--pause:hover .ds-marquee-track { animation-play-state: paused; }
+
+/* Builder-only empty hint. */
+.ds-marquee-empty { padding: 0 16px; align-self: center; font-size: 12px; opacity: .7; color: var(--fl-global-body); }
+
+/* Respect reduced-motion: stop the scroll and let the first items rest in view. */
+@media (prefers-reduced-motion: reduce) {
+  .ds-marquee-track { animation: none; }
+  .ds-marquee-dot   { animation: none; }
+}

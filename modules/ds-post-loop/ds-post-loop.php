@@ -1,0 +1,1402 @@
+<?php
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+require_once DS_TOOLKIT_PATH . 'includes/class-ds-module-ui.php';
+
+/**
+ * LeagueApps Post Loop — an in-house Beaver Builder query-loop module.
+ *
+ * Powerful, query-driven loop over any post type. The Query tab is the SINGLE
+ * source of truth for WHAT is fetched (Post Type + number + order + taxonomy);
+ * a single "Card Layout" picker decides HOW each result is drawn (News, Staff,
+ * Athletes, Team, or a Custom HTML loop). Internal markup keeps the .ds-news-*
+ * class names + style1/style2 layout keys for backward-compatibility.
+ *
+ * A multi-STYLE module (same pattern as ds-hero / ds-cta). Style 1 is the
+ * "Featured + Grid" layout (modeled on the threehl home design): a header row
+ * ({a}accent{/a} heading + a "See all" angled button), then a grid with one big
+ * FEATURED card (background image, gradient overlay, badge, title, excerpt,
+ * "Read More") spanning two rows on the left, and a grid of small news cards
+ * (category eyebrow, title, date, chevron) on the right.
+ *
+ * Content is QUERY-DRIVEN (a "Query" tab): it pulls posts from any public post
+ * type with order / taxonomy filters; the newest/first post becomes the
+ * featured card and the rest fill the loop. The loop card can render with the
+ * built-in design OR a "Custom" layout where the editor supplies HTML and/or a
+ * shortcode (e.g. [fl_builder_insert_layout id=123]) rendered once per post with
+ * that post's data in scope.
+ *
+ * HOW TO ADD A NEW LAYOUT:
+ *   1. Add a key + label to self::card_layouts().
+ *   2. Add a render_<key>() method (reuse run_query() / collect_items() helpers).
+ *   3. Map the key to that method in render_loop(), and list its option sections
+ *      under the `card_layout` select's `toggle`.
+ *   4. Scope style CSS under the auto-printed `.ds-news--<key>` modifier class.
+ *
+ * No UABB dependency; fully SSH-editable.
+ *
+ * @class DS_Post_Loop_Module
+ */
+class DS_Post_Loop_Module extends FLBuilderModule {
+
+	public function __construct() {
+		parent::__construct( array(
+			'name'            => __( 'Post Loop', 'ds-toolkit' ),
+			'description'     => __( 'Query-driven post loop (News, with Staff / Team / Athletes presets to come). Multiple layouts.', 'ds-toolkit' ),
+			'category'        => __( 'LeagueApps', 'ds-toolkit' ),
+			'dir'             => DS_TOOLKIT_PATH . 'modules/ds-post-loop/',
+			'url'             => DS_TOOLKIT_URL . 'modules/ds-post-loop/',
+			'partial_refresh' => false,
+			'editor_export'   => false,
+		) );
+		$this->add_css( 'font-awesome-5' );
+	}
+
+	/**
+	 * Layout options for the Layout dropdown. The News-specific designs first, then
+	 * the universal "Loop Card" — always offered for every content type (it loops any
+	 * post type into a grid of built-in or custom cards). Layout keys kept for data compat.
+	 */
+	public static function card_layouts() {
+		return array(
+			'news_featured'  => __( 'News: Featured + Grid', 'ds-toolkit' ),
+			'news_grid'      => __( 'News: Card Grid', 'ds-toolkit' ),
+			'staff_card'     => __( 'Staff: Cards', 'ds-toolkit' ),
+			'athlete_photo'  => __( 'Athletes: Photo Cards', 'ds-toolkit' ),
+			'athlete_logo'   => __( 'Athletes: Logo Row (dark)', 'ds-toolkit' ),
+			'athlete_action' => __( 'Athletes: Action Cards', 'ds-toolkit' ),
+			'team_list'      => __( 'Teams: List', 'ds-toolkit' ),
+			'sponsor'        => __( 'Sponsors: Grid (manual list)', 'ds-toolkit' ),
+			'program'        => __( 'Custom Program Card (manual list)', 'ds-toolkit' ),
+			'tournament'     => __( 'Tournament Cards (events, upcoming)', 'ds-toolkit' ),
+			'custom'         => __( 'Custom Loop Layout', 'ds-toolkit' ),
+		);
+	}
+	/** Public post types for the Query tab's Post Type select. */
+	public static function post_type_options() {
+		$out = array();
+		foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $pt ) {
+			if ( 'attachment' === $pt->name ) { continue; }
+			$out[ $pt->name ] = $pt->label ? $pt->label : $pt->name;
+		}
+		if ( empty( $out ) ) { $out = array( 'post' => __( 'Posts', 'ds-toolkit' ) ); }
+		return $out;
+	}
+
+	/**
+	 * Fallback image for a post with no featured image: the Theme Setting
+	 * Social Card (so empty cards still show a branded image, not a blank box).
+	 */
+	private static function placeholder_image() {
+		return DS_Card::placeholder_image();
+	}
+
+	/** Heading markup: escape, {a}..{/a} -> accent span, newlines -> <br>. */
+	private function heading_html( $raw ) {
+		$h = esc_html( (string) $raw );
+		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-news-accent">', '</span>' ), $h );
+		return nl2br( $h );
+	}
+
+	/** Normalise a BB link field (string URL or {url,target} object/array). */
+	private function link_parts( $link ) {
+		return DS_Card::link_parts( $link );
+	}
+
+	/**
+	 * Run the configured post query and return a normalised item list. Each item
+	 * is an array: id, image(url), eyebrow, title, date, excerpt, url, target.
+	 * Item 0 is the featured card; the rest are loop cards.
+	 */
+	/**
+	 * The ONE query: built entirely from the Query tab (Post Type + number + order +
+	 * offset + taxonomy filter). Single source of truth for WHAT the loop fetches.
+	 */
+	private function run_query() {
+		$s     = $this->settings;
+
+		// Archive source: render whatever the CURRENT archive query returns (taxonomy
+		// term, category, tag, CPT archive) so ONE loop powers any archive — the engine
+		// behind the Themer archive template (mirrors DS5's blog-posts main_query).
+		if ( ( $s->source ?? 'custom' ) === 'archive' && ! empty( $GLOBALS['wp_query'] ) && is_a( $GLOBALS['wp_query'], 'WP_Query' ) ) {
+			$qv = $GLOBALS['wp_query']->query_vars;
+			$qv['post_status']         = 'publish';
+			$qv['ignore_sticky_posts'] = true;
+			return new WP_Query( $qv );
+		}
+
+		$ptype = preg_replace( '/[^a-z0-9_-]/', '', (string) ( $s->post_type ?? 'post' ) ) ?: 'post';
+		$num   = (int) ( $s->posts_per_page ?? 5 );
+		$ob    = in_array( $s->order_by ?? 'date', array( 'date', 'title', 'menu_order', 'rand', 'modified', 'meta_value', 'meta_value_num' ), true ) ? $s->order_by : 'date';
+		$order = ( strtoupper( (string) ( $s->order ?? 'DESC' ) ) === 'ASC' ) ? 'ASC' : 'DESC';
+
+		$args = array(
+			'post_type'           => $ptype,
+			'post_status'         => 'publish',
+			'posts_per_page'      => $num > 0 ? $num : -1,
+			'orderby'             => $ob,
+			'order'               => $order,
+			'offset'              => max( 0, (int) ( $s->offset ?? 0 ) ),
+			'ignore_sticky_posts' => true,
+			'no_found_rows'       => true,
+		);
+
+		// On a single view, optionally drop the post being viewed so a "More News /
+		// Related" strip never relists the current article.
+		if ( ( $s->exclude_current ?? 'no' ) === 'yes' && is_singular() ) {
+			$args['post__not_in'] = array( get_queried_object_id() );
+		}
+
+		// Order by a custom meta field (e.g. an ACF key). Falls back to date if no key.
+		if ( 'meta_value' === $ob || 'meta_value_num' === $ob ) {
+			$mk = trim( (string) ( $s->order_meta_key ?? '' ) );
+			if ( '' !== $mk ) { $args['meta_key'] = $mk; } else { $args['orderby'] = 'date'; }
+		}
+
+		// Taxonomy filter: terms come from the per-taxonomy suggest field flt_<tax>
+		// (comma-separated term IDs). Falls back to the legacy filter_terms text field.
+		$tax = trim( (string) ( $s->filter_tax ?? '' ) );
+		if ( '' !== $tax && taxonomy_exists( $tax ) ) {
+			$field_key = 'flt_' . str_replace( '-', '_', $tax );
+			$raw       = $s->$field_key ?? '';
+			if ( is_array( $raw ) ) { $raw = implode( ',', $raw ); }
+			if ( '' === trim( (string) $raw ) && isset( $s->filter_terms ) ) { $raw = (string) $s->filter_terms; }
+			$list = array_filter( array_map( 'trim', explode( ',', (string) $raw ) ) );
+			if ( ! empty( $list ) ) {
+				$numeric = count( $list ) === count( array_filter( $list, 'is_numeric' ) );
+				$args['tax_query'] = array(
+					array(
+						'taxonomy' => $tax,
+						'field'    => $numeric ? 'term_id' : 'slug',
+						'terms'    => $list,
+					),
+				);
+			}
+		}
+
+		return new WP_Query( $args );
+	}
+
+	/**
+	 * Run the query and normalise to item arrays for the News / Custom layouts.
+	 */
+	private function collect_items() {
+		$s    = $this->settings;
+		$dfmt = trim( (string) ( $s->date_format ?? '' ) ) ?: 'M Y';
+		$tax  = trim( (string) ( $s->filter_tax ?? '' ) );
+
+		$items = array();
+		$q     = $this->run_query();
+		foreach ( $q->posts as $p ) {
+			$terms_obj = get_the_category( $p->ID );
+			$eyebrow   = ! empty( $terms_obj ) ? $terms_obj[0]->name : '';
+			if ( '' === $eyebrow && '' !== $tax ) {
+				$pt = get_the_terms( $p->ID, $tax );
+				if ( $pt && ! is_wp_error( $pt ) ) { $eyebrow = $pt[0]->name; }
+			}
+			$items[] = array(
+				'id'      => $p->ID,
+				'image'   => get_the_post_thumbnail_url( $p->ID, 'large' ) ?: self::placeholder_image(),
+				'eyebrow' => $eyebrow,
+				'title'   => get_the_title( $p->ID ),
+				'date'    => get_the_date( $dfmt, $p->ID ),
+				'excerpt' => wp_strip_all_tags( get_the_excerpt( $p->ID ) ),
+				'url'     => get_permalink( $p->ID ),
+				'target'  => '_self',
+			);
+		}
+		wp_reset_postdata();
+
+		return $items;
+	}
+	/** ACF get_field with a graceful fallback when ACF is inactive. */
+	private function acf( $key, $id ) {
+		return function_exists( 'get_field' ) ? get_field( $key, $id ) : get_post_meta( $id, $key, true );
+	}
+
+	/** Resolve an ACF/photo value to a URL. */
+	private function acf_image_url( $val, $size = 'large' ) {
+		return DS_Card::photo_url( $val, $size );
+	}
+
+	/** Top-level entry — dispatch to the selected Content Type. */
+	public function render_loop() {
+		$layout = isset( $this->settings->card_layout ) ? preg_replace( '/[^a-z0-9_]/', '', $this->settings->card_layout ) : 'news_featured';
+		$map = array(
+			'news_featured'  => 'render_style1',
+			'news_grid'      => 'render_style2',
+			'staff_card'     => 'render_staff_card',
+			'athlete_photo'  => 'render_athlete_photo',
+			'athlete_logo'   => 'render_athlete_logo',
+			'athlete_action' => 'render_athlete_action',
+			'team_list'      => 'render_team_list',
+			'sponsor'        => 'render_sponsor',
+			'program'        => 'render_program',
+			'tournament'     => 'render_tournament',
+			'custom'         => 'render_cardloop',
+		);
+		$method = isset( $map[ $layout ] ) ? $map[ $layout ] : 'render_style1';
+		if ( ! method_exists( $this, $method ) ) { $method = 'render_style1'; }
+		$this->$method();
+	}
+
+	/** A round contact/social icon link. */
+	private function contact_icon( $href, $svg, $label ) {
+		if ( '' === trim( (string) $href ) ) { return ''; }
+		return '<a class="ds-people-ico" href="' . esc_attr( $href ) . '" aria-label="' . esc_attr( $label ) . '" target="_blank" rel="noopener noreferrer">' . $svg . '</a>';
+	}
+
+	/**
+	 * Stretched link covering a whole CPT card, pointing at the post's permalink.
+	 * Renders as an absolutely-positioned overlay (see CSS) so the entire card is
+	 * clickable while nested links (contact icons) stay clickable above it.
+	 */
+	private function card_link( $id ) {
+		if ( ( $this->settings->card_link ?? 'yes' ) === 'no' ) { return ''; } // "Link Card to Post" off.
+		return DS_Card::stretched_link( get_permalink( $id ), get_the_title( $id ) );
+	}
+
+	/** Staff Cards — photo + name + title + contact/social icons (screenshot 1). */
+	public function render_staff_card() {
+		$s  = $this->settings;
+		$ph = self::placeholder_image();
+		$q  = $this->run_query();
+
+		echo '<section class="ds-news ds-people ds-people--staff"><div class="ds-news-wrap">';
+		$this->render_head();
+
+		if ( ! $q->have_posts() ) {
+			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Staff entries published yet.', 'ds-toolkit' ) . '</p>'; }
+			echo '</div></section>';
+			return;
+		}
+
+		// SVG icons (shared registry).
+		$ic_mail  = DS_Card::icon( 'mail' );
+		$ic_phone = DS_Card::icon( 'phone' );
+		$ic_ig    = DS_Card::icon( 'instagram' );
+		$ic_in    = DS_Card::icon( 'linkedin' );
+		$ic_fb    = DS_Card::icon( 'facebook' );
+		$ic_x     = DS_Card::icon( 'x' );
+
+		$this->loop_open( 'ds-people-grid' );
+		while ( $q->have_posts() ) {
+			$q->the_post();
+			$id    = get_the_ID();
+			$img   = get_the_post_thumbnail_url( $id, 'large' ) ?: $ph;
+			$name  = get_the_title( $id );
+			$title = (string) get_post_meta( $id, 'staff_title', true );
+
+			$icons  = '';
+			if ( ( $s->staff_show_email ?? 'yes' ) === 'yes' ) { $em = (string) get_post_meta( $id, 'staff_email', true ); $icons .= $em ? '<a class="ds-people-ico" href="mailto:' . esc_attr( $em ) . '" aria-label="' . esc_attr__( 'Email', 'ds-toolkit' ) . '">' . $ic_mail . '</a>' : ''; }
+			if ( ( $s->staff_show_phone ?? 'yes' ) === 'yes' ) { $tel = (string) get_post_meta( $id, 'staff_phone', true ); $icons .= $tel ? '<a class="ds-people-ico" href="tel:' . esc_attr( preg_replace( '/[^0-9+]/', '', $tel ) ) . '" aria-label="' . esc_attr__( 'Phone', 'ds-toolkit' ) . '">' . $ic_phone . '</a>' : ''; }
+			if ( ( $s->staff_show_social ?? 'yes' ) === 'yes' ) {
+				$icons .= $this->contact_icon( get_post_meta( $id, 'staff_instagram', true ), $ic_ig, 'Instagram' );
+				$icons .= $this->contact_icon( get_post_meta( $id, 'staff_linkedin', true ), $ic_in, 'LinkedIn' );
+				$icons .= $this->contact_icon( get_post_meta( $id, 'staff_facebook', true ), $ic_fb, 'Facebook' );
+				$icons .= $this->contact_icon( get_post_meta( $id, 'staff_x', true ), $ic_x, 'X' );
+			}
+
+			echo '<div class="ds-people-card">'; echo $this->card_link( $id );
+			echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
+			echo '<div class="ds-people-body">';
+			if ( '' !== $name )  { echo '<h3 class="ds-people-name">' . esc_html( $name ) . '</h3>'; }
+			if ( '' !== $title ) { echo '<span class="ds-people-role">' . esc_html( $title ) . '</span>'; }
+			if ( '' !== $icons ) { echo '<div class="ds-people-contacts">' . $icons . '</div>'; }
+			echo '</div></div>';
+		}
+		$this->loop_close(); echo '</div></section>';
+		wp_reset_postdata();
+	}
+
+	/* ------------------------------------------------------- Commitments / Athletes */
+
+	/** Photo Cards — portrait photo + name + school (screenshot 2). */
+	public function render_athlete_photo() {
+		$ph = self::placeholder_image();
+		$q  = $this->run_query();
+		echo '<section class="ds-news ds-people ds-people--commit ds-commit--photo"><div class="ds-news-wrap">';
+		$this->render_head();
+		if ( ! $q->have_posts() ) { if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Commitments published yet.', 'ds-toolkit' ) . '</p>'; } echo '</div></section>'; return; }
+		$this->loop_open( 'ds-people-grid' );
+		while ( $q->have_posts() ) { $q->the_post(); $id = get_the_ID();
+			$img    = get_the_post_thumbnail_url( $id, 'large' ) ?: $ph;
+			$name   = get_the_title( $id );
+			$school = (string) get_post_meta( $id, 'school_name', true );
+			echo '<div class="ds-commit-card">'; echo $this->card_link( $id );
+			echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
+			echo '<div class="ds-people-body">';
+			if ( '' !== $name )   { echo '<h3 class="ds-people-name">' . esc_html( $name ) . '</h3>'; }
+			if ( '' !== $school ) { echo '<span class="ds-people-role">' . esc_html( $school ) . '</span>'; }
+			echo '</div></div>';
+		}
+		$this->loop_close(); echo '</div></section>';
+		wp_reset_postdata();
+	}
+
+	/** Logo Row — dark horizontal card: school logo + name + school (screenshot 3). */
+	public function render_athlete_logo() {
+		$q = $this->run_query();
+		echo '<section class="ds-news ds-people ds-people--commit ds-commit--logo"><div class="ds-news-wrap">';
+		$this->render_head();
+		if ( ! $q->have_posts() ) { if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Commitments published yet.', 'ds-toolkit' ) . '</p>'; } echo '</div></section>'; return; }
+		$this->loop_open( 'ds-people-grid' );
+		while ( $q->have_posts() ) { $q->the_post(); $id = get_the_ID();
+			$logo   = $this->acf_image_url( $this->acf( 'school_logo', $id ) );
+			$name   = get_the_title( $id );
+			$school = (string) get_post_meta( $id, 'school_name', true );
+			echo '<div class="ds-commit-row">'; echo $this->card_link( $id );
+			echo '<div class="ds-commit-row-logo">' . ( $logo ? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $school ) . '" loading="lazy" />' : '' ) . '</div>';
+			echo '<div class="ds-commit-row-body">';
+			if ( '' !== $name )   { echo '<h3 class="ds-people-name">' . esc_html( $name ) . '</h3>'; }
+			if ( '' !== $school ) { echo '<span class="ds-people-role">' . esc_html( $school ) . '</span>'; }
+			echo '</div></div>';
+		}
+		$this->loop_close(); echo '</div></section>';
+		wp_reset_postdata();
+	}
+
+	/** Action Cards — action photo + logo + name + "year | school" (screenshot 4). */
+	public function render_athlete_action() {
+		$ph = self::placeholder_image();
+		$q  = $this->run_query();
+		echo '<section class="ds-news ds-people ds-people--commit ds-commit--action"><div class="ds-news-wrap">';
+		$this->render_head();
+		if ( ! $q->have_posts() ) { if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Commitments published yet.', 'ds-toolkit' ) . '</p>'; } echo '</div></section>'; return; }
+		$this->loop_open( 'ds-people-grid' );
+		while ( $q->have_posts() ) { $q->the_post(); $id = get_the_ID();
+			$img    = get_the_post_thumbnail_url( $id, 'large' ) ?: $ph;
+			$logo   = $this->acf_image_url( $this->acf( 'school_logo', $id ) );
+			$name   = get_the_title( $id );
+			$school = (string) get_post_meta( $id, 'school_name', true );
+			$year   = (string) $this->acf( 'year', $id );
+			$meta   = trim( $year . ( ( '' !== $year && '' !== $school ) ? ' | ' : '' ) . $school );
+			echo '<div class="ds-commit-action">'; echo $this->card_link( $id );
+			echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
+			echo '<div class="ds-commit-action-body">';
+			echo '<div class="ds-commit-action-logo">' . ( $logo ? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $school ) . '" loading="lazy" />' : '' ) . '</div>';
+			echo '<div class="ds-commit-action-text">';
+			if ( '' !== $name ) { echo '<h3 class="ds-people-name">' . esc_html( $name ) . '</h3>'; }
+			if ( '' !== $meta ) { echo '<span class="ds-people-role">' . esc_html( $meta ) . '</span>'; }
+			echo '</div></div></div>';
+		}
+		$this->loop_close(); echo '</div></section>';
+		wp_reset_postdata();
+	}
+
+	/* ------------------------------------------------------------------------ Team */
+
+	/** Team List — full-width rows, name + arrow / external-link button (screenshot 5). */
+	public function render_team_list() {
+		$q = $this->run_query();
+		echo '<section class="ds-news ds-teams"><div class="ds-news-wrap">';
+		$this->render_head();
+		if ( ! $q->have_posts() ) { if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Teams published yet.', 'ds-toolkit' ) . '</p>'; } echo '</div></section>'; return; }
+		$arrow = DS_Card::icon( 'arrow' );
+		$ext   = DS_Card::icon( 'external' );
+		echo '<div class="ds-teams-list">';
+		while ( $q->have_posts() ) { $q->the_post(); $id = get_the_ID();
+			$name    = get_the_title( $id );
+			$extlink = trim( (string) $this->acf( 'team_external_link', $id ) );
+			$is_ext  = '' !== $extlink;
+			$url     = $is_ext ? $extlink : get_permalink( $id );
+			$tgt     = $is_ext ? ' target="_blank" rel="noopener noreferrer"' : '';
+			echo '<a class="ds-team-row" href="' . esc_url( $url ) . '"' . $tgt . '>';
+			echo '<span class="ds-team-name">' . esc_html( $name ) . '</span>';
+			echo '<span class="ds-team-btn">' . ( $is_ext ? $ext : $arrow ) . '</span>';
+			echo '</a>';
+		}
+		$this->loop_close(); echo '</div></section>';
+		wp_reset_postdata();
+	}
+
+	/** Items wrapper open: a CSS grid, or a carousel track when Display = Carousel. */
+	private function loop_open( $grid_class ) {
+		$s = $this->settings;
+		$dmode = $s->display ?? 'grid';
+		if ( 'paginated' === $dmode ) {
+			$pp = max( 1, (int) ( $s->pag_per_page ?? 6 ) );
+			$pt = in_array( $s->pag_type ?? 'numbers', array( 'numbers', 'loadmore' ), true ) ? ( $s->pag_type ?? 'numbers' ) : 'numbers';
+			echo '<div class="ds-looppage" data-perpage="' . $pp . '" data-pagtype="' . esc_attr( $pt ) . '"><div class="' . esc_attr( $grid_class ) . '">';
+			return;
+		}
+		if ( 'carousel' !== $dmode ) { echo '<div class="' . esc_attr( $grid_class ) . '">'; return; }
+		$data = ' data-autoplay="' . ( ( $s->car_autoplay ?? 'no' ) === 'yes' ? 'yes' : 'no' ) . '"'
+			. ' data-interval="' . max( 1, (int) ( $s->car_interval ?? 5 ) ) . '"'
+			. ' data-loop="' . ( ( $s->car_loop ?? 'yes' ) === 'yes' ? 'yes' : 'no' ) . '"'
+			. ' data-pause="' . ( ( $s->car_pause_hover ?? 'yes' ) === 'yes' ? 'yes' : 'no' ) . '"'
+			. ' data-drag="' . ( ( $s->car_drag ?? 'yes' ) === 'yes' ? 'yes' : 'no' ) . '"'
+			. ' data-speed="' . max( 100, (int) ( $s->car_speed ?? 500 ) ) . '"';
+		echo '<div class="ds-loopcar">';
+		if ( ( $s->car_arrows ?? 'yes' ) === 'yes' ) {
+			echo '<button type="button" class="ds-loopcar-nav ds-loopcar-nav--prev" aria-label="' . esc_attr__( 'Previous', 'ds-toolkit' ) . '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>';
+			echo '<button type="button" class="ds-loopcar-nav ds-loopcar-nav--next" aria-label="' . esc_attr__( 'Next', 'ds-toolkit' ) . '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
+		}
+		echo '<div class="ds-loopcar-viewport"><div class="ds-loopcar-track ' . esc_attr( $grid_class ) . '"' . $data . '>';
+	}
+
+	/** Items wrapper close (matches loop_open). */
+	private function loop_close() {
+		$s = $this->settings;
+		$dmode = $s->display ?? 'grid';
+		if ( 'paginated' === $dmode ) { echo '</div><div class="ds-looppage-nav"></div></div>'; return; }
+		if ( 'carousel' !== $dmode ) { echo '</div>'; return; }
+		echo '</div></div>';
+		if ( ( $s->car_dots ?? 'yes' ) === 'yes' ) { echo '<div class="ds-loopcar-dots"></div>'; }
+		echo '</div>';
+	}
+
+	/** Optional header row: {a}accent{/a} heading + "see all" button. */
+	private function render_head() {
+		$s = $this->settings;
+		if ( ( $s->show_header ?? 'yes' ) !== 'yes' ) { return; }
+		$show_btn = ( $s->show_button ?? 'yes' ) === 'yes';
+		$has_h    = ! empty( $s->heading );
+		if ( ! $has_h && ! $show_btn ) { return; }
+
+		echo '<div class="ds-news-head">';
+		if ( $has_h ) {
+			echo '<h2 class="ds-news-heading">' . $this->heading_html( $s->heading ) . '</h2>';
+		}
+		if ( $show_btn ) {
+			$txt = trim( (string) ( $s->button_text ?? '' ) );
+			if ( '' !== $txt ) {
+				list( $url, $target ) = $this->link_parts( $s->button_link ?? '' );
+				$rel = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
+				echo '<a class="ds-news-seeall" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>' . esc_html( $txt ) . '</a>';
+			}
+		}
+		echo '</div>';
+	}
+
+	/** Built-in featured card. */
+	private function render_featured( $f ) {
+		$s        = $this->settings;
+		$readmore = trim( (string) ( $s->readmore_text ?? '' ) );
+		$badge    = trim( (string) ( $s->featured_badge ?? '' ) );
+		if ( '' === $badge ) { $badge = (string) ( $f['eyebrow'] ?? '' ); }
+
+		$img  = $f['image'] ?? '';
+		$url  = $f['url'] ?: '#';
+		$tar  = $f['target'] ?: '_self';
+		$rel  = '_blank' === $tar ? ' rel="noopener noreferrer"' : '';
+
+		echo '<a class="ds-news-feature" href="' . esc_url( $url ) . '" target="' . esc_attr( $tar ) . '"' . $rel . '>';
+		echo '<div class="ds-news-feature-bg"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
+		echo '<div class="ds-news-feature-overlay" aria-hidden="true"></div>';
+		echo '<div class="ds-news-feature-body">';
+		if ( '' !== $badge )              { echo '<span class="ds-news-badge">' . esc_html( $badge ) . '</span>'; }
+		if ( '' !== ( $f['title'] ?? '' ) )   { echo '<h3 class="ds-news-feature-title">' . esc_html( $f['title'] ) . '</h3>'; }
+		if ( '' !== ( $f['excerpt'] ?? '' ) ) { echo '<p class="ds-news-feature-excerpt">' . esc_html( $f['excerpt'] ) . '</p>'; }
+		if ( '' !== $readmore ) {
+			echo '<span class="ds-news-readmore">' . esc_html( $readmore ) . ' <span class="ds-news-readmore-arrow" aria-hidden="true">&rarr;</span></span>';
+		}
+		echo '</div></a>';
+	}
+
+	/** Built-in small loop card. */
+	private function render_card( $c ) {
+		$url = $c['url'] ?: '#';
+		$tar = $c['target'] ?: '_self';
+		$rel = '_blank' === $tar ? ' rel="noopener noreferrer"' : '';
+		echo '<a class="ds-news-card" href="' . esc_url( $url ) . '" target="' . esc_attr( $tar ) . '"' . $rel . '>';
+		echo '<div class="ds-news-card-top">';
+		if ( '' !== ( $c['eyebrow'] ?? '' ) ) { echo '<span class="ds-news-card-cat">' . esc_html( $c['eyebrow'] ) . '</span>'; }
+		if ( '' !== ( $c['title'] ?? '' ) )   { echo '<h3 class="ds-news-card-title">' . esc_html( $c['title'] ) . '</h3>'; }
+		echo '</div>';
+		echo '<div class="ds-news-card-foot">';
+		echo '<span class="ds-news-card-date">' . esc_html( $c['date'] ?? '' ) . '</span>';
+		echo '<span class="ds-news-card-chevron" aria-hidden="true">&rsaquo;</span>';
+		echo '</div>';
+		echo '</a>';
+	}
+
+	/**
+	 * Custom loop card: render the editor's HTML / shortcode template once per
+	 * post, with that post's data in scope. Supports simple {tokens} and any
+	 * WordPress shortcode (incl. [fl_builder_insert_layout id=…]) which resolves
+	 * against the current post via setup_postdata().
+	 */
+	private function render_custom( $c, $tpl ) {
+		$tpl = (string) $tpl;
+		if ( '' === trim( $tpl ) ) { return; }
+
+		$map = array(
+			'{id}'         => (string) ( $c['id'] ?? '' ),
+			'{title}'      => esc_html( $c['title'] ?? '' ),
+			'{permalink}'  => esc_url( $c['url'] ?? '#' ),
+			'{url}'        => esc_url( $c['url'] ?? '#' ),
+			'{date}'       => esc_html( $c['date'] ?? '' ),
+			'{category}'   => esc_html( $c['eyebrow'] ?? '' ),
+			'{excerpt}'    => esc_html( $c['excerpt'] ?? '' ),
+			'{image}'      => esc_url( $c['image'] ?? '' ),
+			'{thumb_url}'  => esc_url( $c['image'] ?? '' ),
+		);
+		$html = strtr( $tpl, $map );
+
+		$pid = (int) ( $c['id'] ?? 0 );
+		echo '<div class="ds-news-custom-item">';
+		if ( $pid ) {
+			global $post;
+			$saved = $post;
+			$post  = get_post( $pid );
+			setup_postdata( $post );
+			echo do_shortcode( $html );
+			wp_reset_postdata();
+			$post = $saved;
+		} else {
+			echo do_shortcode( $html );
+		}
+		echo '</div>';
+	}
+
+	/** Style 1 — featured card + grid of loop cards. */
+	public function render_style1() {
+		$s = $this->settings;
+
+		$mods = 'ds-news ds-news--style1';
+
+		echo '<section class="' . esc_attr( $mods ) . '"><div class="ds-news-wrap">';
+
+		$this->render_head();
+
+		$items = $this->collect_items();
+		if ( empty( $items ) ) {
+			if ( FLBuilderModel::is_builder_active() ) {
+				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No posts found for this query. Publish posts of the selected type, or adjust the Query tab.', 'ds-toolkit' ) . '</p>';
+			}
+			echo '</div></section>';
+			return;
+		}
+
+		$featured = array_shift( $items );
+
+		echo '<div class="ds-news-grid">';
+		$this->render_featured( $featured );
+		foreach ( $items as $card ) {
+			$this->render_card( $card );
+		}
+		echo '</div></div></section>';
+	}
+
+	/** A Style 2 card: image + pill badge, then date, title, Read More link. */
+	private function render_card2( $c ) {
+		$s        = $this->settings;
+		$url      = $c['url'] ?: '#';
+		$tar      = $c['target'] ?: '_self';
+		$rel      = '_blank' === $tar ? ' rel="noopener noreferrer"' : '';
+		$img      = $c['image'] ?? '';
+		$pill     = trim( (string) ( $c['eyebrow'] ?? '' ) );
+		$readmore = trim( (string) ( $s->readmore2_text ?? '' ) );
+
+		echo '<a class="ds-news-card2" href="' . esc_url( $url ) . '" target="' . esc_attr( $tar ) . '"' . $rel . '>';
+		echo '<div class="ds-news-card2-media">';
+		if ( $img ) { echo '<div class="ds-news-card2-img" style="background-image:url(' . esc_url( $img ) . ')"></div>'; }
+		if ( '' !== $pill ) { echo '<span class="ds-news-card2-pill">' . esc_html( $pill ) . '</span>'; }
+		echo '</div>';
+		echo '<div class="ds-news-card2-body">';
+		if ( '' !== ( $c['date'] ?? '' ) )  { echo '<span class="ds-news-card2-date">' . esc_html( $c['date'] ) . '</span>'; }
+		if ( '' !== ( $c['title'] ?? '' ) ) { echo '<h3 class="ds-news-card2-title">' . esc_html( $c['title'] ) . '</h3>'; }
+		if ( '' !== $readmore ) {
+			echo '<span class="ds-news-card2-more">' . esc_html( $readmore ) . ' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>';
+		}
+		echo '</div></a>';
+	}
+
+	/** Style 2 — uniform grid of pill cards. */
+	public function render_style2() {
+		$s = $this->settings;
+
+		$mods = 'ds-news ds-news--style2';
+
+		echo '<section class="' . esc_attr( $mods ) . '"><div class="ds-news-wrap">';
+		$this->render_head();
+
+		$items = $this->collect_items();
+		if ( empty( $items ) ) {
+			if ( FLBuilderModel::is_builder_active() ) {
+				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No posts found for this query. Publish posts of the selected type, or adjust the Query tab.', 'ds-toolkit' ) . '</p>';
+			}
+			echo '</div></section>';
+			return;
+		}
+
+		$this->loop_open( 'ds-news-grid2' );
+		foreach ( $items as $card ) {
+			$this->render_card2( $card );
+		}
+		$this->loop_close(); echo '</div></section>';
+	}
+
+	/**
+	 * Custom Loop Layout — the universal layout (available for ANY content type).
+	 * Loops the queried posts and renders the editor's own HTML / shortcode once per
+	 * post (e.g. a saved BB layout: [fl_builder_insert_layout id="123"]). Ideal for
+	 * CPTs (Staff / Team / Athletes) once they exist. Columns/gap are configurable.
+	 */
+	/** Sponsor Grid — a manual list of logos (image + caption + url + description), no query. */
+	public function render_sponsor() {
+		$s     = $this->settings;
+		$items = ( isset( $s->sponsors ) && is_array( $s->sponsors ) ) ? $s->sponsors : array();
+		echo '<section class="ds-news ds-people ds-sponsors"><div class="ds-news-wrap">';
+		$this->render_head();
+		if ( empty( $items ) ) {
+			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No sponsors yet. Add them in the Query tab (Sponsors list).', 'ds-toolkit' ) . '</p>'; }
+			echo '</div></section>'; return;
+		}
+		$this->loop_open( 'ds-sponsor-grid' );
+		foreach ( $items as $it ) {
+			$it   = (object) $it;
+			$img  = $this->acf_image_url( $it->sponsor_image ?? '' ) ?: self::placeholder_image();
+			$cap  = trim( (string) ( $it->sponsor_caption ?? '' ) );
+			$desc = trim( (string) ( $it->sponsor_desc ?? '' ) );
+			list( $url, $target ) = $this->link_parts( $it->sponsor_url ?? '' );
+			$has = ( '' !== $url && '#' !== $url );
+			echo '<div class="ds-sponsor-card">';
+			if ( $has ) { echo '<a class="ds-card-link" href="' . esc_url( $url ) . '"' . ( '_blank' === $target ? ' target="_blank" rel="noopener"' : '' ) . ' aria-label="' . esc_attr( $cap ) . '"></a>'; }
+			if ( '' !== $img )  { echo '<div class="ds-sponsor-logo"><img src="' . esc_url( $img ) . '" alt="' . esc_attr( $cap ) . '" loading="lazy" /></div>'; }
+			if ( '' !== $cap )  { echo '<h3 class="ds-sponsor-name">' . esc_html( $cap ) . '</h3>'; }
+			if ( '' !== $desc ) { echo '<p class="ds-sponsor-desc">' . esc_html( $desc ) . '</p>'; }
+			echo '</div>';
+		}
+		$this->loop_close();
+		echo '</div></section>';
+	}
+
+	/** Parse an event_date free-text value (e.g. "July 18-20, 2026") to a timestamp; 0 if unknown. */
+	private function parse_event_date( $str ) {
+		$str = trim( (string) $str );
+		if ( '' === $str ) { return 0; }
+		$norm = preg_replace( '/(\d{1,2})\s*[\x{2013}\x{2014}-]\s*\d{1,2}/u', '$1', $str ); // "18-20" -> "18"
+		$ts = strtotime( $norm );
+		return $ts ? (int) $ts : 0;
+	}
+
+	/** Tournament Cards — upcoming events (by the event_date ACF field), image with an overlapping details card. */
+	public function render_tournament() {
+		$s     = $this->settings;
+		$ptype = preg_replace( '/[^a-z0-9_-]/', '', (string) ( $s->post_type ?? 'event' ) );
+		if ( '' === $ptype || 'post' === $ptype ) { $ptype = 'event'; }
+		$limit = (int) ( $s->posts_per_page ?? 6 ); if ( $limit <= 0 ) { $limit = 6; }
+		$posts = get_posts( array( 'post_type' => $ptype, 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'date', 'order' => 'DESC' ) );
+		$today = strtotime( 'today' );
+		$items = array();
+		foreach ( $posts as $p ) {
+			$raw = function_exists( 'get_field' ) ? (string) get_field( 'event_date', $p->ID ) : (string) get_post_meta( $p->ID, 'event_date', true );
+			$ts  = $this->parse_event_date( $raw );
+			if ( $ts && $ts < $today ) { continue; } // past events are dropped
+			$items[] = array( 'p' => $p, 'ts' => $ts ? $ts : PHP_INT_MAX, 'raw' => $raw );
+		}
+		usort( $items, function ( $a, $b ) { return $a['ts'] <=> $b['ts']; } ); // upcoming first (event_date ascending)
+		$items = array_slice( $items, 0, $limit );
+
+		echo '<section class="ds-news ds-tourn"><div class="ds-news-wrap">';
+		$this->render_head();
+		if ( empty( $items ) ) {
+			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No upcoming events. Publish events with a future Event Date.', 'ds-toolkit' ) . '</p>'; }
+			echo '</div></section>'; return;
+		}
+		$cal = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
+		$pin = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+		$btn = trim( (string) ( $s->tourn_btn ?? '' ) ); if ( '' === $btn ) { $btn = __( 'View More', 'ds-toolkit' ); }
+		$this->loop_open( 'ds-tourn-grid' );
+		foreach ( $items as $it ) {
+			$p = $it['p']; $pid = $p->ID;
+			$url = get_permalink( $pid ); $title = get_the_title( $pid );
+			// Main (back) banner = the Featured image; the Event Image sits small & centered, overlapping it.
+			$feat = has_post_thumbnail( $pid ) ? (string) get_the_post_thumbnail_url( $pid, 'large' ) : '';
+			if ( '' === $feat ) { $feat = self::placeholder_image(); }
+			$evt  = $this->acf_image_url( ( function_exists( 'get_field' ) ? get_field( 'event_image', $pid ) : '' ) ?: '' );
+			$loc = function_exists( 'get_field' ) ? trim( (string) get_field( 'event_location', $pid ) ) : '';
+			echo '<a class="ds-tourn-card" href="' . esc_url( $url ) . '">';
+			echo '<div class="ds-tourn-img"' . ( $feat ? ' style="background-image:url(' . esc_url( $feat ) . ')"' : '' ) . '>';
+			if ( '' !== $evt ) { echo '<span class="ds-tourn-logo"><img src="' . esc_url( $evt ) . '" alt="" loading="lazy" /></span>'; }
+			echo '</div>';
+			echo '<div class="ds-tourn-body">';
+			echo '<h3 class="ds-tourn-title">' . esc_html( $title ) . '</h3>';
+			echo '<div class="ds-tourn-meta">';
+			if ( '' !== $it['raw'] ) { echo '<span class="ds-tourn-date">' . $cal . '<span>' . esc_html( $it['raw'] ) . '</span></span>'; }
+			if ( '' !== $loc )       { echo '<span class="ds-tourn-loc">' . $pin . '<span>' . esc_html( $loc ) . '</span></span>'; }
+			echo '</div>';
+			echo '<span class="ds-tourn-btn">' . esc_html( $btn ) . '</span>';
+			echo '</div></a>';
+		}
+		$this->loop_close();
+		echo '</div></section>';
+	}
+
+	public function render_program() {
+		$s     = $this->settings;
+		$items = ( isset( $s->programs ) && is_array( $s->programs ) ) ? $s->programs : array();
+		// A custom Button Radius opts out of the theme Button Shape (clip-path) so the
+		// radius shows; blank keeps the theme shape (button follows the theme by default).
+		$btn_cls = 'ds-program-btn' . ( ( $s->pg_btn_style ?? 'theme' ) === 'custom' ? ' ds-no-clip' : '' );
+		echo '<section class="ds-news ds-programs"><div class="ds-news-wrap">';
+		$this->render_head();
+		if ( empty( $items ) ) {
+			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No program cards yet. Add them in the Query tab (Program Cards list).', 'ds-toolkit' ) . '</p>'; }
+			echo '</div></section>'; return;
+		}
+		$this->loop_open( 'ds-program-grid' );
+		foreach ( $items as $it ) {
+			$it    = (object) $it;
+			$icon  = trim( (string) ( $it->prog_icon ?? '' ) );
+			$img   = $this->acf_image_url( $it->prog_image ?? '' );
+			$date  = trim( (string) ( $it->prog_date ?? '' ) );
+			$sub   = trim( (string) ( $it->prog_subheading ?? '' ) );
+			$title = trim( (string) ( $it->prog_title ?? '' ) );
+			$desc  = trim( (string) ( $it->prog_desc ?? '' ) );
+			list( $url, $target ) = $this->link_parts( $it->prog_url ?? '' );
+			$hasurl = ( '' !== $url && '#' !== $url );
+			$tgt    = ( '_blank' === $target ) ? ' target="_blank" rel="noopener"' : '';
+			$btn    = trim( (string) ( $it->prog_btn ?? '' ) );
+			echo '<div class="ds-program-card">';
+			if ( $hasurl && '' === $btn ) { echo '<a class="ds-card-link" href="' . esc_url( $url ) . '"' . $tgt . ' aria-label="' . esc_attr( $title ) . '"></a>'; }
+			if ( '' !== $icon )    { echo '<span class="ds-program-ico"><i class="' . esc_attr( $icon ) . '" aria-hidden="true"></i></span>'; }
+			elseif ( '' !== $img ) { echo '<div class="ds-program-media"><img src="' . esc_url( $img ) . '" alt="' . esc_attr( $title ) . '" loading="lazy" /></div>'; }
+			echo '<div class="ds-program-body">';
+			if ( '' !== $date )  { echo '<span class="ds-program-date">' . esc_html( $date ) . '</span>'; }
+			if ( '' !== $sub )   { echo '<span class="ds-program-sub">' . esc_html( $sub ) . '</span>'; }
+			if ( '' !== $title ) { echo '<h3 class="ds-program-title">' . esc_html( $title ) . '</h3>'; }
+			if ( '' !== $desc )  { echo '<p class="ds-program-desc">' . esc_html( $desc ) . '</p>'; }
+			if ( '' !== $btn && $hasurl ) { echo '<a class="' . esc_attr( $btn_cls ) . '" href="' . esc_url( $url ) . '"' . $tgt . '>' . esc_html( $btn ) . '</a>'; }
+			echo '</div></div>';
+		}
+		$this->loop_close();
+		echo '</div></section>';
+	}
+
+	public function render_cardloop() {
+		$s   = $this->settings;
+		$tpl = (string) ( $s->loop_custom ?? '' );
+
+		echo '<section class="ds-news ds-news--cardloop"><div class="ds-news-wrap">';
+		$this->render_head();
+
+		$items = $this->collect_items();
+		if ( empty( $items ) ) {
+			if ( FLBuilderModel::is_builder_active() ) {
+				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No posts found for this query. Publish posts of the selected type, or adjust the Query tab.', 'ds-toolkit' ) . '</p>';
+			}
+			echo '</div></section>';
+			return;
+		}
+
+		if ( '' === trim( $tpl ) ) {
+			if ( FLBuilderModel::is_builder_active() ) {
+				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'Add your HTML / shortcode in the "Custom Item Markup" field — it is rendered once per post.', 'ds-toolkit' ) . '</p>';
+			}
+			echo '</div></section>';
+			return;
+		}
+
+		$this->loop_open( 'ds-news-loopgrid' );
+		foreach ( $items as $card ) {
+			$this->render_custom( $card, $tpl );
+		}
+		$this->loop_close(); echo '</div></section>';
+	}
+}
+
+FLBuilder::register_settings_form( 'ds_sponsor_form', array(
+	'title' => __( 'Sponsor', 'ds-toolkit' ),
+	'tabs'  => array(
+		'general' => array(
+			'title'    => '',
+			'sections' => array(
+				'general' => array(
+					'title'  => '',
+					'fields' => array(
+						'sponsor_image'   => array( 'type' => 'photo', 'label' => __( 'Logo / Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ) ),
+						'sponsor_caption' => array( 'type' => 'text', 'label' => __( 'Caption / Name', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
+						'sponsor_url'     => array( 'type' => 'link', 'label' => __( 'Link URL', 'ds-toolkit' ), 'connections' => array( 'url' ) ),
+						'sponsor_desc'    => array( 'type' => 'textarea', 'label' => __( 'Description', 'ds-toolkit' ), 'rows' => 3 ),
+					),
+				),
+			),
+		),
+	),
+) );
+
+FLBuilder::register_settings_form( 'ds_program_form', array(
+	'title' => __( 'Program', 'ds-toolkit' ),
+	'tabs'  => array(
+		'general' => array(
+			'title'    => '',
+			'sections' => array(
+				'general' => array(
+					'title'  => '',
+					'fields' => array(
+						'prog_icon'       => array( 'type' => 'icon', 'label' => __( 'Icon', 'ds-toolkit' ), 'show_remove' => true, 'help' => __( 'Optional. Shown instead of the image when set.', 'ds-toolkit' ) ),
+						'prog_image'      => array( 'type' => 'photo', 'label' => __( 'Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Used when no icon is set.', 'ds-toolkit' ) ),
+						'prog_date'       => array( 'type' => 'text', 'label' => __( 'Date', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
+						'prog_subheading' => array( 'type' => 'text', 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
+						'prog_title'      => array( 'type' => 'text', 'label' => __( 'Title', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
+						'prog_desc'       => array( 'type' => 'textarea', 'label' => __( 'Description', 'ds-toolkit' ), 'rows' => 3, 'connections' => array( 'string' ) ),
+						'prog_url'        => array( 'type' => 'link', 'label' => __( 'Link', 'ds-toolkit' ), 'show_target' => true, 'connections' => array( 'url' ) ),
+						'prog_btn'        => array( 'type' => 'text', 'label' => __( 'Button Text', 'ds-toolkit' ), 'help' => __( 'Optional. With text a button shows; blank makes the whole card the link.', 'ds-toolkit' ) ),
+					),
+				),
+			),
+		),
+	),
+) );
+
+$ds_pl_form = array(
+	'content' => array(
+		'title'    => __( 'Content', 'ds-toolkit' ),
+		'sections' => array(
+			'card_layout_sec' => array(
+				'title'  => __( 'Layout', 'ds-toolkit' ),
+				'fields' => array(
+					'card_layout' => array(
+						'type'    => 'select',
+						'label'   => __( 'Card Layout', 'ds-toolkit' ),
+						'default' => 'news_featured',
+						'options' => DS_Post_Loop_Module::card_layouts(),
+						'help'    => __( 'How each result is presented. The Query tab decides WHICH posts are pulled (Post Type + filters). Set Post Type to match the card (Staff card uses the Staff type, etc.).', 'ds-toolkit' ),
+						'toggle'  => array(
+							'news_featured'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'layout', 'featured', 'cards', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
+							'news_grid'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'cards2', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'staff_card'     => array( 'sections' => array( 'header', 'query', 'query_filter', 'staff_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_photo'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_logo'   => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_action' => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'team_list'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'team_list_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
+							'custom'         => array( 'sections' => array( 'header', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'sponsor'        => array( 'sections' => array( 'header', 'sponsors_sec', 'sponsor_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
+							'program'        => array( 'sections' => array( 'header', 'programs_sec', 'program_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
+							'tournament'     => array( 'sections' => array( 'header', 'query', 'query_filter', 'tournament_opts', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+						),
+					),
+				),
+			),
+			// Sits directly below the Layout selector. Only revealed when the
+			// "Custom Loop Layout" is selected (it IS content: your per-post markup).
+			'loopcard' => array(
+				'title'  => __( 'Custom Loop Layout', 'ds-toolkit' ),
+				'fields' => array(
+					'loop_custom' => array(
+						'type'        => 'code',
+						'editor'      => 'html',
+						'mode'        => 'html',
+						'label'       => __( 'Custom Item Markup', 'ds-toolkit' ),
+						'rows'        => 14,
+						'default'     => "<article class=\"my-card\">\n\t<a href=\"{permalink}\">\n\t\t<img src=\"{image}\" alt=\"{title}\" />\n\t\t<span class=\"cat\">{category}</span>\n\t\t<h3>{title}</h3>\n\t\t<time>{date}</time>\n\t</a>\n</article>",
+						'connections' => array( 'string' ),
+						'help'        => __( 'Rendered once per post. Use the connect (+) icon to insert a dynamic field, the {tokens} below, or any shortcode (e.g. a saved layout: [fl_builder_insert_layout id="123"]). Tokens: {title} {permalink} {date} {category} {excerpt} {image} {id}. Shortcodes + dynamic fields resolve against each post.', 'ds-toolkit' ),
+						'preview'     => array( 'type' => 'none' ),
+					),
+					'loop_cols' => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ), 'help' => __( 'Grid columns wrapping your items. Defaults: 2 on tablet, 1 on mobile.', 'ds-toolkit' ) ),
+					'loop_gap'  => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+				),
+			),
+			// Program Cards manual list: content (not a query), so it lives on the Content
+			// tab below Layout. Revealed only when Card Layout = Program (card_layout toggle).
+			'programs_sec' => array(
+				'title'       => __( 'Program Cards (manual list)', 'ds-toolkit' ),
+				'description' => __( 'Build each card by hand: date, sub-heading, title, description, a link/button, and an icon or image.', 'ds-toolkit' ),
+				'fields' => array(
+					'programs' => array(
+						'type'         => 'form',
+						'label'        => __( 'Program', 'ds-toolkit' ),
+						'form'         => 'ds_program_form',
+						'preview_text' => 'prog_title',
+						'multiple'     => true,
+					),
+				),
+			),
+			// Sponsors manual list: content, not a query — Content tab, revealed only when
+			// Card Layout = Sponsor (card_layout toggle).
+			'sponsors_sec' => array(
+				'title'  => __( 'Sponsors (manual list)', 'ds-toolkit' ),
+				'fields' => array(
+					'sponsors' => array(
+						'type'         => 'form',
+						'label'        => __( 'Sponsor', 'ds-toolkit' ),
+						'form'         => 'ds_sponsor_form',
+						'preview_text' => 'sponsor_caption',
+						'multiple'     => true,
+					),
+				),
+			),
+			'header' => array(
+				'title'  => __( 'Header', 'ds-toolkit' ),
+				'fields' => array(
+					'show_header'  => array(
+						'type'    => 'select',
+						'label'   => __( 'Show Header', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'heading', 'show_button', 'header_divider' ) ) ),
+					),
+					'heading'      => array(
+						'type'    => 'textarea',
+						'label'   => __( 'Heading', 'ds-toolkit' ),
+						'rows'    => 2,
+						'default' => '{a}Lorem{/a} Ipsum',
+						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent.', 'ds-toolkit' ),
+					),
+					'show_button'  => array(
+						'type'    => 'select',
+						'label'   => __( 'Show Button', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'button_text', 'button_link' ) ) ),
+					),
+					'button_text'  => array( 'type' => 'text', 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
+					'button_link'  => array( 'type' => 'link', 'label' => __( 'Button Link', 'ds-toolkit' ), 'show_target' => true, 'default' => '/news/', 'connections' => array( 'url' ) ),
+					'header_divider'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Header Divider', 'ds-toolkit' ),
+						'default' => 'none',
+						'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'solid' => __( 'Solid', 'ds-toolkit' ), 'dashed' => __( 'Dashed', 'ds-toolkit' ), 'dotted' => __( 'Dotted', 'ds-toolkit' ) ),
+						'help'    => __( 'Draws a line between the header and the content below.', 'ds-toolkit' ),
+						'toggle'  => array(
+							'solid'  => array( 'fields' => array( 'header_divider_w', 'header_divider_color', 'header_divider_gap' ) ),
+							'dashed' => array( 'fields' => array( 'header_divider_w', 'header_divider_color', 'header_divider_gap' ) ),
+							'dotted' => array( 'fields' => array( 'header_divider_w', 'header_divider_color', 'header_divider_gap' ) ),
+						),
+					),
+					'header_divider_w'     => array( 'type' => 'unit', 'label' => __( 'Divider Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 10, 'step' => 1 ) ),
+					'header_divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'header_divider_gap'   => array( 'type' => 'unit', 'label' => __( 'Space Below Divider', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 80, 'step' => 1 ) ),
+				),
+			),
+			'ds_display' => array(
+				'title'  => __( 'Display', 'ds-toolkit' ),
+				'fields' => array(
+					'display' => array(
+						'type'    => 'select',
+						'label'   => __( 'Display As', 'ds-toolkit' ),
+						'default' => 'grid',
+						'options' => array( 'grid' => __( 'Grid', 'ds-toolkit' ), 'carousel' => __( 'Carousel', 'ds-toolkit' ), 'paginated' => __( 'Grid + Pagination', 'ds-toolkit' ) ),
+						'toggle'  => array(
+							'carousel'  => array( 'fields' => array( 'car_per_view', 'car_gap', 'car_autoplay', 'car_loop', 'car_pause_hover', 'car_drag', 'car_arrows', 'car_dots', 'car_speed', 'car_nav_color' ) ),
+							'paginated' => array( 'fields' => array( 'pag_per_page', 'pag_type', 'pag_color', 'pag_text_color' ) ),
+						),
+					),
+					'car_per_view'   => array( 'type' => 'unit', 'label' => __( 'Slides Per View', 'ds-toolkit' ), 'default' => '4', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ), 'help' => __( 'How many cards show at once. Defaults: tablet 2, mobile 1.', 'ds-toolkit' ) ),
+					'car_gap'        => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'car_autoplay'   => array( 'type' => 'select', 'label' => __( 'Autoplay', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'car_interval' ) ) ) ),
+					'car_interval'   => array( 'type' => 'unit', 'label' => __( 'Interval', 'ds-toolkit' ), 'default' => '5', 'description' => 's', 'slider' => array( 'min' => 2, 'max' => 15, 'step' => 1 ) ),
+					'car_loop'       => array( 'type' => 'select', 'label' => __( 'Loop', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+					'car_pause_hover'=> array( 'type' => 'select', 'label' => __( 'Pause on Hover', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+					'car_drag'       => array( 'type' => 'select', 'label' => __( 'Drag / Swipe', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+					'car_arrows'     => array( 'type' => 'select', 'label' => __( 'Arrows', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+					'car_dots'       => array( 'type' => 'select', 'label' => __( 'Dots', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+					'car_speed'      => array( 'type' => 'unit', 'label' => __( 'Transition Speed', 'ds-toolkit' ), 'default' => '500', 'description' => 'ms', 'slider' => array( 'min' => 150, 'max' => 1200, 'step' => 50 ) ),
+					'car_nav_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Arrows / Dots Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pag_per_page'   => array( 'type' => 'unit', 'label' => __( 'Items Per Page', 'ds-toolkit' ), 'default' => '6', 'slider' => array( 'min' => 1, 'max' => 24, 'step' => 1 ) ),
+					'pag_type'       => array( 'type' => 'select', 'label' => __( 'Pagination Style', 'ds-toolkit' ), 'default' => 'numbers', 'options' => array( 'numbers' => __( 'Page Numbers', 'ds-toolkit' ), 'loadmore' => __( 'Load More button', 'ds-toolkit' ) ) ),
+					'pag_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Active / Button Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pag_text_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+				),
+			),
+		),
+	),
+	'query'   => array(
+		'title'    => __( 'Query', 'ds-toolkit' ),
+		'sections' => array(
+			'query' => array(
+				'title'  => __( 'Posts', 'ds-toolkit' ),
+				'fields' => array(
+					'source'         => array( 'type' => 'select', 'label' => __( 'Source', 'ds-toolkit' ), 'default' => 'custom', 'options' => array( 'custom' => __( 'This query (below)', 'ds-toolkit' ), 'archive' => __( 'Current archive (main query)', 'ds-toolkit' ) ), 'help' => __( 'On an archive template choose “Current archive” to loop whatever the archive shows (team-category term, category, tag, CPT archive). Otherwise build a custom query below.', 'ds-toolkit' ), 'toggle' => array( 'custom' => array( 'fields' => array( 'post_type', 'posts_per_page', 'order_by', 'order', 'offset', 'exclude_current' ) ) ) ),
+					'post_type'      => array( 'type' => 'select', 'label' => __( 'Post Type', 'ds-toolkit' ), 'default' => 'post', 'options' => DS_Post_Loop_Module::post_type_options() ),
+					'posts_per_page' => array( 'type' => 'unit', 'label' => __( 'Number of Posts', 'ds-toolkit' ), 'default' => '5', 'slider' => array( 'min' => 1, 'max' => 12, 'step' => 1 ), 'help' => __( 'Total posts pulled. The first one becomes the large featured card; the rest fill the loop.', 'ds-toolkit' ) ),
+					'order_by'       => array(
+						'type'    => 'select',
+						'label'   => __( 'Order By', 'ds-toolkit' ),
+						'default' => 'date',
+						'options' => array(
+							'date'           => __( 'Date', 'ds-toolkit' ),
+							'modified'       => __( 'Last Modified', 'ds-toolkit' ),
+							'title'          => __( 'Title', 'ds-toolkit' ),
+							'menu_order'     => __( 'Menu Order / Nested Pages position', 'ds-toolkit' ),
+							'meta_value'     => __( 'Custom Field (text)', 'ds-toolkit' ),
+							'meta_value_num' => __( 'Custom Field (number)', 'ds-toolkit' ),
+							'rand'           => __( 'Random', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'meta_value'     => array( 'fields' => array( 'order_meta_key' ) ),
+							'meta_value_num' => array( 'fields' => array( 'order_meta_key' ) ),
+						),
+						'help'    => __( 'Menu Order follows the drag order set by the Nested Pages plugin (and any post type’s Page Attributes order).', 'ds-toolkit' ),
+					),
+					'order_meta_key' => array( 'type' => 'text', 'label' => __( 'Custom Field Key', 'ds-toolkit' ), 'default' => '', 'help' => __( 'The meta_key to order by, e.g. an ACF field name. Pick the (number) option above for numeric fields.', 'ds-toolkit' ) ),
+					'order'          => array(
+						'type'    => 'select',
+						'label'   => __( 'Order', 'ds-toolkit' ),
+						'default' => 'DESC',
+						'options' => array( 'DESC' => __( 'Descending (newest first)', 'ds-toolkit' ), 'ASC' => __( 'Ascending (oldest first)', 'ds-toolkit' ) ),
+					),
+					'offset'         => array( 'type' => 'unit', 'label' => __( 'Offset', 'ds-toolkit' ), 'default' => '0', 'slider' => array( 'min' => 0, 'max' => 20, 'step' => 1 ), 'help' => __( 'Skip this many posts from the start of the result set.', 'ds-toolkit' ) ),
+					'exclude_current' => array( 'type' => 'select', 'label' => __( 'Exclude Current Post', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ), 'help' => __( 'On a single post / CPT view, leave out the post being viewed — ideal for a “More News / Related” strip.', 'ds-toolkit' ) ),
+					'date_format'    => array( 'type' => 'text', 'label' => __( 'Date Format', 'ds-toolkit' ), 'default' => 'M Y', 'help' => __( 'PHP date format for the card date (e.g. M Y → Jun 2026).', 'ds-toolkit' ) ),
+				),
+			),
+			'query_filter' => array(
+				'title'  => __( 'Taxonomy Filter', 'ds-toolkit' ),
+				// Fields injected after the form is defined (one term-suggest field per
+				// public taxonomy, revealed by the Taxonomy selector's toggle).
+				'fields' => array(),
+			),
+		),
+	),
+	'style'   => array(
+		'title'    => __( 'Style', 'ds-toolkit' ),
+		'sections' => array(
+			'layout' => array(
+				'title'  => __( 'Layout', 'ds-toolkit' ),
+				'fields' => array(
+					'gap'             => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '20', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'feature_width'   => array( 'type' => 'text', 'label' => __( 'Featured Column Width', 'ds-toolkit' ), 'default' => '1.4fr', 'help' => __( 'CSS track size for the featured column (e.g. 1.4fr, 1.6fr, 480px).', 'ds-toolkit' ) ),
+					'feature_min_h'   => array( 'type' => 'unit', 'label' => __( 'Featured Min Height', 'ds-toolkit' ), 'default' => '420', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 240, 'max' => 700, 'step' => 10 ) ),
+					'card_min_h'      => array( 'type' => 'unit', 'label' => __( 'Card Min Height', 'ds-toolkit' ), 'default' => '195', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 120, 'max' => 400, 'step' => 5 ) ),
+				),
+			),
+			'featured' => array(
+				'title'  => __( 'Featured Card', 'ds-toolkit' ),
+				'fields' => array(
+					'featured_badge'  => array( 'type' => 'text', 'label' => __( 'Badge Override', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Optional. Overrides the featured badge text (defaults to the post’s category).', 'ds-toolkit' ) ),
+					'feature_bg'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Fallback Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Shown behind / when a post has no featured image.', 'ds-toolkit' ) ),
+					'overlay_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Overlay Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'overlay_top'     => array( 'type' => 'unit', 'label' => __( 'Overlay Top Opacity', 'ds-toolkit' ), 'default' => '15', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+					'overlay_bottom'  => array( 'type' => 'unit', 'label' => __( 'Overlay Bottom Opacity', 'ds-toolkit' ), 'default' => '92', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+					'badge_bg'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Badge Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'badge_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Badge Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'feature_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Featured Title', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'excerpt_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Excerpt Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'readmore_text'   => array( 'type' => 'text', 'label' => __( 'Read More Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
+					'readmore_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Read More Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+				),
+			),
+			'cards' => array(
+				'title'  => __( 'Loop Cards', 'ds-toolkit' ),
+				'fields' => array(
+					'card_bg'            => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'card_border_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Border', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'card_hover_border'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Hover Border', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'card_border_width'  => array( 'type' => 'unit', 'label' => __( 'Card Border Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 6, 'step' => 1 ) ),
+					'card_radius'        => array( 'type' => 'unit', 'label' => __( 'Card Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+					'category_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Category Eyebrow', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'card_title_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Title', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'date_color'         => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Date', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'chevron_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Chevron', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+				),
+			),
+			// --- Style 2 only: card grid ---
+			'cards2' => array(
+				'title'  => __( 'Cards', 'ds-toolkit' ),
+				'fields' => array(
+					'cols2'           => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '4', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
+					'gap2'            => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '20', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'card2_min'       => array( 'type' => 'unit', 'label' => __( 'Image Height', 'ds-toolkit' ), 'default' => '210', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 120, 'max' => 400, 'step' => 5 ) ),
+					'card2_radius'    => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+					'card2_bg'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'card2_border'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Border', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'card2_border_w'  => array( 'type' => 'unit', 'label' => __( 'Border Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 6, 'step' => 1 ) ),
+					'pill2_bg'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Pill Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pill2_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Pill Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'title2_color'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'date2_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Date', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'readmore2_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Read More', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'readmore2_text'  => array( 'type' => 'text', 'label' => __( 'Read More Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
+				),
+			),
+			// --- Staff card layout options ---
+			'staff_card' => array(
+				'title'  => __( 'Staff Cards', 'ds-toolkit' ),
+				'fields' => array(
+					'staff_cols'        => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '4', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ), 'help' => __( 'Defaults: 2 on tablet, 1 on mobile.', 'ds-toolkit' ) ),
+					'staff_gap'         => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'card_link'         => array( 'type' => 'select', 'label' => __( 'Link Card to Post', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'help' => __( 'Makes the whole card a clickable link to the post. Turn off to remove the card link (contact / social icons stay clickable).', 'ds-toolkit' ) ),
+					'staff_photo_ratio' => array(
+						'type'    => 'select',
+						'label'   => __( 'Photo Ratio', 'ds-toolkit' ),
+						'default' => '3 / 4',
+						'options' => array( '3 / 4' => __( 'Portrait 3:4', 'ds-toolkit' ), '4 / 5' => __( 'Portrait 4:5', 'ds-toolkit' ), '1 / 1' => __( 'Square 1:1', 'ds-toolkit' ), '4 / 3' => __( 'Landscape 4:3', 'ds-toolkit' ) ),
+					),
+					'staff_card_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'staff_card_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+					'staff_name_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Name', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'staff_role_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'staff_ico_size'    => array( 'type' => 'unit', 'label' => __( 'Icon Size', 'ds-toolkit' ), 'default' => '38', 'description' => 'px', 'slider' => array( 'min' => 24, 'max' => 72, 'step' => 1 ), 'help' => __( 'Diameter of the round contact / social icons; the glyph scales with it.', 'ds-toolkit' ) ),
+					'staff_ico_bg'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Icon Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'staff_ico_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Icon Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'staff_ico_hover'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Icon Hover Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'staff_show_email'  => array( 'type' => 'select', 'label' => __( 'Show Email', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+					'staff_show_phone'  => array( 'type' => 'select', 'label' => __( 'Show Phone', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+					'staff_show_social' => array( 'type' => 'select', 'label' => __( 'Show Social', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+					'staff_name_typo'   => array( 'type' => 'typography', 'label' => __( 'Name Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-people-name' ) ),
+					'staff_role_typo'   => array( 'type' => 'typography', 'label' => __( 'Title Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-people-role' ) ),
+				),
+			),
+			// --- Commitments / Athletes card options (shared by Photo / Logo / Action) ---
+			'commit_card' => array(
+				'title'  => __( 'Commitment Cards', 'ds-toolkit' ),
+				'fields' => array(
+					'commit_cols'        => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '4', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ), 'help' => __( 'Logo Row reads better at 1-2 columns. Defaults: 2 tablet, 1 mobile.', 'ds-toolkit' ) ),
+					'commit_gap'         => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'card_link'          => array( 'type' => 'select', 'label' => __( 'Link Card to Post', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'help' => __( 'Makes the whole card a clickable link to the post. Turn off to remove the card link.', 'ds-toolkit' ) ),
+					'commit_photo_ratio' => array( 'type' => 'select', 'label' => __( 'Photo Ratio (Photo / Action)', 'ds-toolkit' ), 'default' => '3 / 4', 'options' => array( '3 / 4' => __( 'Portrait 3:4', 'ds-toolkit' ), '4 / 5' => __( 'Portrait 4:5', 'ds-toolkit' ), '1 / 1' => __( 'Square 1:1', 'ds-toolkit' ), '4 / 3' => __( 'Landscape 4:3', 'ds-toolkit' ) ) ),
+					'commit_card_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'commit_dark_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Logo Row Background (dark)', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'commit_radius'      => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+					'commit_border_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'commit_border_width'=> array( 'type' => 'unit', 'label' => __( 'Border Width', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 8, 'step' => 1 ) ),
+					'commit_name_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Name', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'commit_school_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'School / Meta', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'commit_name_typo'   => array( 'type' => 'typography', 'label' => __( 'Name Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-people-name' ) ),
+					'commit_meta_typo'   => array( 'type' => 'typography', 'label' => __( 'School / Meta Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-people-role' ) ),
+				),
+			),
+			// --- Team list options ---
+			'team_list_opts' => array(
+				'title'  => __( 'Team List', 'ds-toolkit' ),
+				'fields' => array(
+					'team_gap'          => array( 'type' => 'unit', 'label' => __( 'Row Gap', 'ds-toolkit' ), 'default' => '14', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+					'team_row_bg'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Row Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'team_row_border'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Row Border', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'team_row_border_w' => array( 'type' => 'unit', 'label' => __( 'Row Border Width', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 6, 'step' => 1 ) ),
+					'team_row_radius'   => array( 'type' => 'unit', 'label' => __( 'Row Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 24, 'step' => 1 ) ),
+					'team_name_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Team Name', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'team_btn_bg'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'team_btn_color'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Icon', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'team_name_typo'    => array( 'type' => 'typography', 'label' => __( 'Team Name Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-team-name' ) ),
+				),
+			),
+			// --- Display: Grid / Carousel / Paginated (card-grid layouts) ---
+			'hover' => array(
+				'title'  => __( 'Hover & Animation', 'ds-toolkit' ),
+				'fields' => array(
+					'hover_effect' => array(
+						'type'    => 'select',
+						'label'   => __( 'Hover Effect', 'ds-toolkit' ),
+						'default' => 'lift',
+						'options' => array(
+							'none'   => __( 'None', 'ds-toolkit' ),
+							'lift'   => __( 'Lift', 'ds-toolkit' ),
+							'grow'   => __( 'Grow', 'ds-toolkit' ),
+							'zoom'   => __( 'Zoom Image', 'ds-toolkit' ),
+							'shadow' => __( 'Shadow', 'ds-toolkit' ),
+							'border' => __( 'Border Highlight', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'lift'   => array( 'fields' => array( 'hover_distance', 'hover_speed', 'hover_shadow_color' ) ),
+							'grow'   => array( 'fields' => array( 'hover_scale', 'hover_speed', 'hover_shadow_color' ) ),
+							'zoom'   => array( 'fields' => array( 'hover_scale', 'hover_speed' ) ),
+							'shadow' => array( 'fields' => array( 'hover_speed', 'hover_shadow_color' ) ),
+							'border' => array( 'fields' => array( 'hover_speed', 'hover_border_color' ) ),
+						),
+						'help'    => __( 'Animation when a card is hovered. Applies to every card layout.', 'ds-toolkit' ),
+					),
+					'hover_distance'     => array( 'type' => 'unit', 'label' => __( 'Lift Distance', 'ds-toolkit' ), 'default' => '6', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+					'hover_scale'        => array( 'type' => 'unit', 'label' => __( 'Scale', 'ds-toolkit' ), 'default' => '105', 'description' => '%', 'slider' => array( 'min' => 100, 'max' => 120, 'step' => 1 ) ),
+					'hover_speed'        => array( 'type' => 'unit', 'label' => __( 'Transition Speed', 'ds-toolkit' ), 'default' => '300', 'description' => 'ms', 'slider' => array( 'min' => 100, 'max' => 800, 'step' => 25 ) ),
+					'hover_shadow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Shadow Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'hover_border_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Hover Border Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'hover_bg'           => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Hover Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Optional. Colour the card fades to on hover (any layout).', 'ds-toolkit' ) ),
+				),
+			),
+			'card_border' => array(
+				'title'  => __( 'Card Border', 'ds-toolkit' ),
+				'fields' => array(
+					'card_bd_style' => array(
+						'type'    => 'select',
+						'label'   => __( 'Border Style', 'ds-toolkit' ),
+						'default' => 'default',
+						'options' => array(
+							'default' => __( 'Theme Default', 'ds-toolkit' ),
+							'none'    => __( 'None', 'ds-toolkit' ),
+							'solid'   => __( 'Solid', 'ds-toolkit' ),
+							'dashed'  => __( 'Dashed', 'ds-toolkit' ),
+							'dotted'  => __( 'Dotted', 'ds-toolkit' ),
+							'double'  => __( 'Double', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'solid'  => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
+							'dashed' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
+							'dotted' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
+							'double' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
+						),
+						'help'    => __( 'Border around each card. “Theme Default” keeps the layout’s built-in border.', 'ds-toolkit' ),
+					),
+					'card_bd_width'  => array( 'type' => 'unit', 'label' => __( 'Border Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 10, 'step' => 1 ) ),
+					'card_bd_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Color', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'card_bd_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank keeps the layout default.', 'ds-toolkit' ) ),
+				),
+			),
+			'tournament_opts' => array(
+				'title'       => __( 'Tournament Cards', 'ds-toolkit' ),
+				'description' => __( 'Ordering is automatic: upcoming events first, sorted by the Event Date field, with past events hidden. (The Query tab\'s Order By / Order do not apply to this layout.)', 'ds-toolkit' ),
+				'fields' => array(
+					'tn_cols'        => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'slider' => array( 'min' => 1, 'max' => 5, 'step' => 1 ) ),
+					'tn_gap'         => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '28', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'tn_img_ratio'   => array( 'type' => 'select', 'label' => __( 'Image Ratio', 'ds-toolkit' ), 'default' => '16 / 10', 'options' => array( '16 / 9' => '16:9', '16 / 10' => '16:10', '4 / 3' => '4:3', '3 / 2' => '3:2', '1 / 1' => '1:1' ) ),
+					'tn_logo_size'   => array( 'type' => 'unit', 'label' => __( 'Event Image Size', 'ds-toolkit' ), 'default' => '96', 'description' => 'px', 'slider' => array( 'min' => 48, 'max' => 200, 'step' => 1 ), 'help' => __( 'Size of the small Event Image centered over the featured image. Shown only when an event has an Event Image.', 'ds-toolkit' ) ),
+					'tn_logo_shape'  => array( 'type' => 'select', 'label' => __( 'Event Image Shape', 'ds-toolkit' ), 'default' => 'circle', 'options' => array( 'circle' => __( 'Circle', 'ds-toolkit' ), 'square' => __( 'Rounded square', 'ds-toolkit' ) ) ),
+					'tn_overlap'     => array( 'type' => 'unit', 'label' => __( 'Card Overlap', 'ds-toolkit' ), 'default' => '48', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 120, 'step' => 1 ), 'help' => __( 'How far the details card pulls up over the image.', 'ds-toolkit' ) ),
+					'tn_inset'       => array( 'type' => 'unit', 'label' => __( 'Card Side Inset', 'ds-toolkit' ), 'default' => '18', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ), 'help' => __( 'Horizontal inset of the details card from the image edges.', 'ds-toolkit' ) ),
+					'tn_align'       => array( 'type' => 'select', 'label' => __( 'Alignment', 'ds-toolkit' ), 'default' => 'center', 'options' => array( 'center' => __( 'Center', 'ds-toolkit' ), 'left' => __( 'Left', 'ds-toolkit' ) ) ),
+					'tn_card_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Details Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'tn_pad'         => array( 'type' => 'unit', 'label' => __( 'Details Padding', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'tn_radius'      => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank = global Theme Setting corner radius.', 'ds-toolkit' ) ),
+					'tn_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'tn_meta_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Date / Location Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'tn_icon_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Meta Icon Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
+					'tourn_btn'      => array( 'type' => 'text', 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => 'View More' ),
+					'tn_title_typo'  => array( 'type' => 'typography', 'label' => __( 'Title Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-tourn-title' ) ),
+					'tn_meta_typo'   => array( 'type' => 'typography', 'label' => __( 'Date / Location Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-tourn-meta' ) ),
+				),
+			),
+			'program_opts' => array(
+				'title'  => __( 'Program Cards', 'ds-toolkit' ),
+				'fields' => array(
+					'pg_cols'        => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
+					'pg_gap'         => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'pg_align'       => array( 'type' => 'select', 'label' => __( 'Alignment', 'ds-toolkit' ), 'default' => 'left', 'options' => array( 'left' => __( 'Left', 'ds-toolkit' ), 'center' => __( 'Center', 'ds-toolkit' ) ) ),
+					'pg_same_height' => array( 'type' => 'select', 'label' => __( 'Card Height', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Equal (match tallest in row)', 'ds-toolkit' ), 'no' => __( 'Natural (fit content)', 'ds-toolkit' ) ), 'help' => __( 'Equal makes every card in a row the same height (buttons line up at the bottom).', 'ds-toolkit' ) ),
+					'pg_card_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_pad'         => array( 'type' => 'unit', 'label' => __( 'Card Padding', 'ds-toolkit' ), 'default' => '28', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'pg_img_h'       => array( 'type' => 'unit', 'label' => __( 'Image Height', 'ds-toolkit' ), 'default' => '180', 'description' => 'px', 'slider' => array( 'min' => 80, 'max' => 360, 'step' => 1 ), 'help' => __( 'Image height for items that use an image (not an icon).', 'ds-toolkit' ) ),
+					'pg_icon_size'   => array( 'type' => 'unit', 'label' => __( 'Icon Size', 'ds-toolkit' ), 'default' => '40', 'description' => 'px', 'slider' => array( 'min' => 16, 'max' => 96, 'step' => 1 ) ),
+					'pg_icon_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Icon Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
+					'pg_date_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Date Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
+					'pg_sub_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Sub-heading Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_desc_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Description Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_btn_style'      => array( 'type' => 'select', 'label' => __( 'Button Style', 'ds-toolkit' ), 'default' => 'theme', 'options' => array( 'theme' => __( 'Theme button (default)', 'ds-toolkit' ), 'custom' => __( 'Custom', 'ds-toolkit' ) ), 'toggle' => array( 'custom' => array( 'fields' => array( 'pg_btn_bg', 'pg_btn_color', 'pg_btn_hover_bg', 'pg_btn_hover_color', 'pg_btn_radius' ) ) ), 'help' => __( 'Theme button follows Theme Setting (colour + shape). Choose Custom to style this card\'s button below.', 'ds-toolkit' ) ),
+					'pg_btn_bg'         => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the global Button colour.', 'ds-toolkit' ) ),
+					'pg_btn_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_btn_hover_bg'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Hover Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_btn_hover_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Hover Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_btn_radius'     => array( 'type' => 'unit', 'label' => __( 'Button Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank = follow the theme Button Shape. Set a value for a custom rounded button (overrides the theme shape for this card).', 'ds-toolkit' ) ),
+					'pg_date_typo'      => array( 'type' => 'typography', 'label' => __( 'Date Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-date' ) ),
+					'pg_sub_typo'       => array( 'type' => 'typography', 'label' => __( 'Sub-heading Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-sub' ) ),
+					'pg_title_typo'     => array( 'type' => 'typography', 'label' => __( 'Title Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-title' ) ),
+					'pg_desc_typo'      => array( 'type' => 'typography', 'label' => __( 'Description Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-desc' ) ),
+					'pg_btn_typo'       => array( 'type' => 'typography', 'label' => __( 'Button Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-btn' ) ),
+				),
+			),
+			'sponsor_opts' => array(
+				'title'  => __( 'Sponsor Grid', 'ds-toolkit' ),
+				'fields' => array(
+					'sp_cols'       => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '4', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
+					'sp_gap'        => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'sp_logo_h'     => array( 'type' => 'unit', 'label' => __( 'Logo Max Height', 'ds-toolkit' ), 'default' => '70', 'description' => 'px', 'slider' => array( 'min' => 30, 'max' => 180, 'step' => 1 ) ),
+					'sp_pad'        => array( 'type' => 'unit', 'label' => __( 'Card Padding', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'sp_card_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'sp_name_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Caption Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'sp_desc_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Description Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'sp_grayscale'  => array( 'type' => 'select', 'label' => __( 'Greyscale Logos', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes (colour on hover)', 'ds-toolkit' ) ) ),
+				),
+			),
+			'header_style' => array(
+				'title'  => __( 'Header & Section', 'ds-toolkit' ),
+				'fields' => array(
+					'section_bg'          => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Section Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'heading_color'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'heading_accent_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Accent', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'heading_typography'  => array( 'type' => 'typography', 'label' => __( 'Heading Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-heading' ) ),
+					'btn_global' => array(
+						'type'    => 'select',
+						'label'   => __( 'Button Style', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array(
+							'yes'    => __( 'Match site Button (Theme Setting)', 'ds-toolkit' ),
+							'dark'   => __( 'Dark', 'ds-toolkit' ),
+							'accent' => __( 'Heading Accent colour', 'ds-toolkit' ),
+						),
+						'help'    => __( 'The “See all” button inherits the global Button (background, hover, radius, typography) from Theme Setting by default.', 'ds-toolkit' ),
+						'toggle'  => array( 'dark' => array( 'fields' => array( 'btn_dark_bg', 'btn_dark_color' ) ) ),
+					),
+					'btn_dark_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'btn_dark_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+				),
+			),
+			'typography' => array(
+				'title'  => __( 'Typography', 'ds-toolkit' ),
+				'fields' => array(
+					'feature_title_typography' => array( 'type' => 'typography', 'label' => __( 'Featured Title', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-feature-title' ) ),
+					'excerpt_typography'       => array( 'type' => 'typography', 'label' => __( 'Featured Excerpt', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-feature-excerpt' ) ),
+					'badge_typography'         => array( 'type' => 'typography', 'label' => __( 'Badge', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-badge' ) ),
+					'card_title_typography'    => array( 'type' => 'typography', 'label' => __( 'Card Title', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-title' ) ),
+					'card_cat_typography'      => array( 'type' => 'typography', 'label' => __( 'Card Category', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-cat' ) ),
+					'card_date_typography'     => array( 'type' => 'typography', 'label' => __( 'Card Date', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-date' ) ),
+				),
+			),
+			'spacing' => array(
+				'title'  => __( 'Spacing', 'ds-toolkit' ),
+				'fields' => array(
+					'content_width'     => array(
+						'type'    => 'select',
+						'label'   => __( 'Content Width', 'ds-toolkit' ),
+						'default' => 'boxed',
+						'options' => array(
+							'boxed'  => __( 'Boxed (max 1280px)', 'ds-toolkit' ),
+							'full'   => __( 'Full width (fill container)', 'ds-toolkit' ),
+							'custom' => __( 'Custom max-width', 'ds-toolkit' ),
+						),
+						'toggle'  => array( 'custom' => array( 'fields' => array( 'content_max_width' ) ) ),
+						'help'    => __( 'Full width lets this fill a full-width row/column; use the row/column padding for side spacing.', 'ds-toolkit' ),
+					),
+					'content_max_width' => array( 'type' => 'unit', 'label' => __( 'Max Width', 'ds-toolkit' ), 'default' => '1280', 'description' => 'px', 'slider' => array( 'min' => 480, 'max' => 1920, 'step' => 10 ) ),
+					'padding' => array(
+						'type'       => 'dimension',
+						'label'      => __( 'Padding', 'ds-toolkit' ),
+						'default'    => '0',
+						'units'      => array( 'px' ),
+						'slider'     => true,
+						'responsive' => true,
+						'help'       => __( 'Inner spacing around the content. 0 = compact / flush.', 'ds-toolkit' ),
+					),
+					'margin'  => array(
+						'type'       => 'dimension',
+						'label'      => __( 'Margin', 'ds-toolkit' ),
+						'default'    => '0',
+						'units'      => array( 'px' ),
+						'slider'     => true,
+						'responsive' => true,
+						'help'       => __( 'Outer spacing around the whole section. 0 = compact / flush.', 'ds-toolkit' ),
+					),
+				),
+			),
+		),
+	),
+);
+// Shared "Border & Divider" section appended to the Style tab for every layout.
+$ds_pl_form['style']['sections'] = array_merge( $ds_pl_form['style']['sections'], DS_Module_UI::border_section( false ) );
+
+/* Taxonomy filter — a Taxonomy selector plus one term-suggest (autocomplete + pills)
+   field per public taxonomy, revealed by the selector's toggle. Built dynamically so
+   it always matches the site's registered taxonomies. */
+$ds_pl_taxes = array();
+foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $ds_tx ) {
+	if ( 'post_format' === $ds_tx->name ) { continue; }
+	$ds_pl_taxes[ $ds_tx->name ] = $ds_tx->label;
+}
+$ds_tax_fields = array(
+	'filter_tax' => array(
+		'type'    => 'select',
+		'label'   => __( 'Filter by Taxonomy', 'ds-toolkit' ),
+		'default' => '',
+		'options' => array_merge( array( '' => __( '— No filter —', 'ds-toolkit' ) ), $ds_pl_taxes ),
+		'toggle'  => array(),
+		'help'    => __( 'Limit the loop to specific terms. Choose a taxonomy, then add terms below (they appear as pills).', 'ds-toolkit' ),
+	),
+);
+foreach ( $ds_pl_taxes as $ds_tx_name => $ds_tx_label ) {
+	$ds_field = 'flt_' . str_replace( '-', '_', $ds_tx_name );
+	$ds_tax_fields['filter_tax']['toggle'][ $ds_tx_name ] = array( 'fields' => array( $ds_field ) );
+	$ds_tax_fields[ $ds_field ] = array(
+		'type'   => 'suggest',
+		'label'  => sprintf( __( '%s Terms', 'ds-toolkit' ), $ds_tx_label ),
+		'action' => 'fl_as_terms',
+		'data'   => $ds_tx_name,
+		'help'   => __( 'Type to search; selected terms show as pills. Leave empty for all terms in this taxonomy.', 'ds-toolkit' ),
+	);
+}
+$ds_pl_form['query']['sections']['query_filter']['fields'] = $ds_tax_fields;
+
+FLBuilder::register_module( 'DS_Post_Loop_Module', $ds_pl_form );

@@ -1,0 +1,197 @@
+/* Leagueapps News — static base styles. Dynamic values in includes/frontend.css.php */
+
+.ds-news{}
+.ds-news-wrap{width:100%;max-width:1280px;margin:0 auto;padding:0;}
+
+/* Header row */
+.ds-news-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:44px;flex-wrap:wrap;}
+.ds-news-heading{font-size:clamp(2.4rem,5vw,3.75rem);line-height:.9;letter-spacing:-.01em;text-transform:uppercase;font-weight:900;margin:0;color:var(--fl-global-headings);}
+.ds-news-accent{color:var(--fl-global-accent);}
+.ds-news-seeall{display:inline-block;font-weight:800;font-size:.875rem;letter-spacing:.1em;text-transform:uppercase;color:var(--fl-global-white);text-decoration:none;background:var(--fl-global-headings);padding:13px 26px;white-space:nowrap;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);transition:filter .2s ease,transform .2s ease;}
+.ds-news-seeall:hover{filter:brightness(1.12);transform:translateY(-1px);}
+
+/* Grid: featured (1.4fr, spans 2 rows) + two columns of small cards */
+.ds-news-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:20px;}
+
+/* Featured card */
+.ds-news-feature{position:relative;grid-column:1;grid-row:1 / span 2;display:flex;flex-direction:column;justify-content:flex-end;text-decoration:none;min-height:420px;overflow:hidden;background:var(--fl-global-accent);}
+.ds-news-feature-bg{position:absolute;inset:0;background-position:center;background-size:cover;background-repeat:no-repeat;transition:transform .6s ease;}
+.ds-news-feature-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,20,40,.15) 40%,rgba(6,12,24,.92) 100%);}
+.ds-news-feature-body{position:relative;padding:34px;}
+.ds-news-badge{display:inline-block;font-weight:800;font-size:.6875rem;letter-spacing:.16em;text-transform:uppercase;color:var(--fl-global-headings);background:var(--fl-global-accent);padding:5px 11px;margin-bottom:14px;}
+.ds-news-feature-title{font-size:2.625rem;line-height:.92;color:var(--fl-global-white);text-transform:uppercase;font-weight:800;margin:0;max-width:420px;}
+.ds-news-feature-excerpt{margin:12px 0 0;font-size:.9375rem;line-height:1.5;color:#c3cfdd;max-width:380px;}
+.ds-news-readmore{display:inline-block;margin-top:18px;font-weight:800;font-size:.8125rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fl-global-accent);}
+.ds-news-readmore-arrow{display:inline-block;transition:transform .25s ease;}
+
+/* Small cards */
+.ds-news-card{position:relative;display:flex;flex-direction:column;justify-content:space-between;text-decoration:none;background:var(--fl-global-light-background);padding:22px;min-height:195px;border:1px solid #d4dae2;transition:transform .25s ease,border-color .25s ease,box-shadow .25s ease;}
+.ds-news-card-cat{font-weight:700;font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase;color:var(--fl-global-accent);}
+.ds-news-card-title{margin:10px 0 0;font-weight:800;font-size:1.3125rem;line-height:1.05;color:var(--fl-global-headings);text-transform:uppercase;}
+.ds-news-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:18px;}
+.ds-news-card-date{font-weight:700;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:#8b97a4;}
+.ds-news-card-chevron{font-weight:800;font-size:1.375rem;line-height:1;color:var(--fl-global-accent);}
+
+/* Custom loop item (HTML / shortcode) — a plain grid child; the markup styles itself */
+.ds-news-custom-item{position:relative;display:block;min-width:0;}
+.ds-news-custom-item>*{height:100%;}
+
+/* Interactions */
+.ds-news-feature:hover .ds-news-feature-bg{transform:scale(1.05);}
+.ds-news-feature:hover .ds-news-readmore-arrow{transform:translateX(5px);}
+
+/* Responsive (defaults; dynamic css emits node-scoped overrides that win) */
+@media (max-width:960px){
+  .ds-news-grid{grid-template-columns:1fr 1fr;}
+  .ds-news-feature{grid-column:1 / -1;grid-row:auto;min-height:340px;}
+}
+@media (max-width:560px){
+  .ds-news-grid{grid-template-columns:1fr;}
+  .ds-news-feature{min-height:280px;}
+}
+@media (prefers-reduced-motion:reduce){
+  .ds-news-card,.ds-news-feature-bg,.ds-news-readmore-arrow,.ds-news-seeall{transition:none;}
+}
+
+/* ---- Style 2: uniform pill-card grid ---- */
+.ds-news--style2 .ds-news-grid2{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;}
+.ds-news--style2 .ds-news-card2{display:flex;flex-direction:column;background:var(--fl-global-light-background);border:1px solid #e2e6ea;border-radius:var(--ds-radius);overflow:hidden;text-decoration:none;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;}
+.ds-news--style2 .ds-news-card2-media{position:relative;}
+.ds-news--style2 .ds-news-card2-img{height:210px;background:var(--fl-global-headings) center/cover no-repeat;}
+.ds-news--style2 .ds-news-card2-pill{position:absolute;top:14px;left:14px;background:var(--fl-global-accent);color:var(--fl-global-white);font-weight:700;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;padding:6px 12px;}
+.ds-news--style2 .ds-news-card2-body{padding:22px 22px 24px;display:flex;flex-direction:column;gap:8px;flex:1;}
+.ds-news--style2 .ds-news-card2-date{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#8b97a4;font-weight:600;}
+.ds-news--style2 .ds-news-card2-title{font-size:1.15rem;line-height:1.25;font-weight:700;color:var(--fl-global-headings);margin:0;}
+.ds-news--style2 .ds-news-card2-more{display:inline-flex;align-items:center;gap:8px;margin-top:auto;padding-top:6px;font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fl-global-accent);}
+.ds-news--style2 .ds-news-card2-more svg{width:14px;height:14px;transition:transform .25s ease;}
+.ds-news--style2 .ds-news-card2:hover .ds-news-card2-more svg{transform:translateX(4px);}
+@media (max-width:980px){.ds-news--style2 .ds-news-grid2{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:560px){.ds-news--style2 .ds-news-grid2{grid-template-columns:1fr;}}
+
+/* ---- Custom Loop Layout: grid wrapping the editor's per-post markup ---- */
+.ds-news--cardloop .ds-news-loopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+.ds-news--cardloop .ds-news-loopgrid > .ds-news-custom-item{min-width:0;}
+@media (max-width:980px){.ds-news--cardloop .ds-news-loopgrid{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:560px){.ds-news--cardloop .ds-news-loopgrid{grid-template-columns:1fr;}}
+
+/* ============================ People layouts (Staff / Commitments) ============================ */
+.ds-people-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;}
+.ds-people-card{display:flex;flex-direction:column;overflow:hidden;border-radius:var(--ds-radius);background:var(--fl-global-light-background);}
+.ds-people-photo{aspect-ratio:3 / 4;background:var(--fl-global-headings) center/cover no-repeat;}
+.ds-people-body{padding:20px 18px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.ds-people-name{font-size:1.15rem;font-weight:800;text-transform:uppercase;letter-spacing:.02em;margin:0;color:var(--fl-global-headings);line-height:1.15;}
+.ds-people-role{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:var(--fl-global-body);}
+.ds-people-contacts{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;justify-content:center;}
+.ds-people-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:var(--fl-global-accent);color:var(--fl-global-white);text-decoration:none;transition:background .2s ease,transform .2s ease;}
+.ds-people-ico:hover{transform:translateY(-2px);}
+.ds-people-ico svg{width:18px;height:18px;display:block;}
+@media (max-width:980px){.ds-people-grid{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:560px){.ds-people-grid{grid-template-columns:1fr;}}
+
+/* ---- Commitments: Photo Cards (shot 2) ---- */
+.ds-commit--photo .ds-commit-card{display:flex;flex-direction:column;overflow:hidden;border:2px solid var(--fl-global-accent);border-radius:var(--ds-radius);background:var(--fl-global-light-background);}
+.ds-commit--photo .ds-people-photo{aspect-ratio:3 / 4;}
+.ds-commit--photo .ds-people-body{padding:18px 16px 22px;}
+
+/* ---- Commitments: Logo Row, dark, centred (shot 3) ---- */
+.ds-commit--logo .ds-commit-row{display:flex;flex-direction:column;align-items:center;text-align:center;background:var(--fl-global-dark-background);border-radius:6px;padding:22px;height:100%;}
+.ds-commit--logo .ds-commit-row-logo{width:100%;display:flex;align-items:center;justify-content:center;height:56px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.15);}
+.ds-commit--logo .ds-commit-row-logo img{max-height:56px;max-width:170px;object-fit:contain;}
+.ds-commit--logo .ds-commit-row-body{display:flex;flex-direction:column;gap:4px;}
+.ds-commit--logo .ds-people-name{color:var(--fl-global-white);}
+.ds-commit--logo .ds-people-role{color:#aeb4c2;}
+
+/* ---- Commitments: Action Cards (shot 4) ---- */
+.ds-commit--action .ds-commit-action{display:flex;flex-direction:column;overflow:hidden;border-radius:var(--ds-radius);background:var(--fl-global-light-background);border:1px solid #e2e6ea;}
+.ds-commit--action .ds-people-photo{aspect-ratio:3 / 4;}
+.ds-commit--action .ds-commit-action-body{display:flex;align-items:center;gap:14px;padding:14px 16px;}
+.ds-commit--action .ds-commit-action-logo{flex:0 0 auto;width:50px;height:50px;display:flex;align-items:center;justify-content:center;border:1px solid #e2e6ea;border-radius:var(--ds-radius);background:var(--fl-global-white);}
+.ds-commit--action .ds-commit-action-logo img{max-width:100%;max-height:100%;object-fit:contain;}
+.ds-commit--action .ds-commit-action-text{display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;}
+.ds-commit--action .ds-people-name{font-size:1.05rem;}
+.ds-commit--action .ds-people-role{letter-spacing:.04em;}
+
+/* ============================ Team list (shot 5) ============================ */
+.ds-teams-list{display:flex;flex-direction:column;gap:14px;}
+.ds-team-row{display:flex;align-items:center;justify-content:space-between;gap:18px;background:var(--fl-global-light-background);border:2px solid var(--fl-global-accent);border-radius:var(--ds-radius);padding:13px 14px 13px 24px;text-decoration:none;transition:transform .2s ease,box-shadow .2s ease;}
+.ds-team-name{font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--fl-global-headings);font-size:1.05rem;line-height:1.1;}
+.ds-team-btn{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-width:54px;height:38px;background:var(--fl-global-accent);color:var(--fl-global-white);border-radius:var(--ds-radius);transition:background .2s ease;}
+.ds-team-btn svg{width:18px;height:18px;display:block;}
+
+/* ============================ Display: Carousel ============================ */
+.ds-loopcar{position:relative;}
+.ds-loopcar-viewport{overflow:hidden;width:100%;}
+.ds-loopcar-track{display:flex !important;gap:var(--lc-gap,24px);will-change:transform;grid-template-columns:none !important;}
+.ds-loopcar-track > *{flex:0 0 calc((100% - (var(--lc-pv,4) - 1) * var(--lc-gap,24px)) / var(--lc-pv,4));min-width:0;}
+/* :focus/:active re-assert position (theme's button:focus{position:relative} would drop it into flow) */
+.ds-loopcar-nav,.ds-loopcar-nav:focus,.ds-loopcar-nav:active{position:absolute;top:50%;}
+.ds-loopcar-nav{transform:translateY(-50%);z-index:5;width:44px;height:44px;border:0;border-radius:50%;background:rgba(15,18,24,.5);color:var(--fl-global-white);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .2s ease;}
+.ds-loopcar-nav:hover{background:rgba(15,18,24,.78);}
+.ds-loopcar-nav svg{width:20px;height:20px;display:block;}
+.ds-loopcar-nav--prev{left:-6px;}
+.ds-loopcar-nav--next{right:-6px;}
+.ds-loopcar-dots{display:flex;justify-content:center;align-items:center;gap:9px;margin-top:22px;}
+.ds-loopcar-dot{width:9px;height:9px;padding:0;border:0;border-radius:50%;background:rgba(20,20,20,.25);cursor:pointer;transition:background .2s ease,transform .2s ease;}
+.ds-loopcar-dot:hover{background:rgba(20,20,20,.5);}
+.ds-loopcar-dot.is-active{background:var(--fl-global-accent);transform:scale(1.3);}
+.ds-loopcar.is-static .ds-loopcar-track{justify-content:center;}
+.ds-loopcar.is-static .ds-loopcar-nav,.ds-loopcar.is-static .ds-loopcar-dots{display:none;}
+@media (max-width:600px){.ds-loopcar-nav{width:38px;height:38px;}.ds-loopcar-nav--prev{left:2px;}.ds-loopcar-nav--next{right:2px;}}
+@media (prefers-reduced-motion:reduce){.ds-loopcar-track{transition:none !important;}}
+
+/* ============================ Display: Pagination ============================ */
+.ds-looppage-nav{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:30px;flex-wrap:wrap;}
+.ds-looppage-page{min-width:40px;height:40px;padding:0 12px;border:1px solid rgba(0,0,0,.15);background:var(--fl-global-white);color:var(--fl-global-headings);font-weight:700;border-radius:var(--ds-radius);cursor:pointer;transition:background .2s ease,color .2s ease,border-color .2s ease;}
+.ds-looppage-page:hover{border-color:var(--fl-global-accent);}
+.ds-looppage-page.is-active{background:var(--fl-global-accent);color:var(--fl-global-white);border-color:var(--fl-global-accent);}
+.ds-looppage-loadmore{display:inline-flex;align-items:center;justify-content:center;padding:13px 30px;background:var(--fl-global-accent);color:var(--fl-global-white);font-weight:800;text-transform:uppercase;letter-spacing:.08em;border:0;border-radius:var(--ds-radius);cursor:pointer;transition:filter .2s ease;}
+.ds-looppage-loadmore:hover{filter:brightness(1.1);}
+.ds-looppage-hidden{display:none !important;}
+
+/* Stretched card link: the whole CPT card (Staff / Athletes) clicks through to the
+   post, while contact icons stay clickable above the overlay. Team list links already. */
+.ds-people-card,.ds-commit-card,.ds-commit-row,.ds-commit-action{position:relative;cursor:pointer;}
+.ds-card-link{position:absolute;inset:0;z-index:1;border-radius:inherit;font-size:0;text-decoration:none;}
+.ds-people-contacts{position:relative;z-index:2;}
+.ds-people-contacts a{position:relative;}
+
+/* Sponsor Grid (manual list: logo + caption + description, optional link) */
+.ds-sponsor-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;}
+.ds-sponsor-card{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:24px;background:var(--fl-global-light-background);border-radius:6px;}
+.ds-sponsor-logo{display:flex;align-items:center;justify-content:center;width:100%;height:70px;}
+.ds-sponsor-logo img{max-width:100%;max-height:70px;width:auto;height:auto;object-fit:contain;display:block;}
+.ds-sponsor-name{margin:0;font-weight:700;font-size:1rem;line-height:1.2;color:var(--fl-global-headings);}
+.ds-sponsor-desc{margin:0;font-size:.85rem;line-height:1.5;color:var(--fl-global-body);}
+@media (max-width:992px){.ds-sponsor-grid{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:600px){.ds-sponsor-grid{grid-template-columns:1fr;}}
+
+/* ── Custom Program cards (manual list) ───────────────────────────────────── */
+.ds-program-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+.ds-program-card{position:relative;display:flex;flex-direction:column;gap:10px;padding:28px;background:var(--fl-global-light-background);border-radius:var(--ds-radius);align-items:flex-start;text-align:left;height:100%;}
+.ds-program-ico{display:inline-flex;color:var(--fl-global-accent);font-size:40px;line-height:1;}
+.ds-program-media{width:100%;height:180px;border-radius:var(--ds-radius);overflow:hidden;}
+.ds-program-media img{width:100%;height:100%;object-fit:cover;display:block;}
+.ds-program-body{display:flex;flex-direction:column;gap:6px;width:100%;}
+.ds-program-date{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--fl-global-accent);}
+.ds-program-sub{font-size:.85rem;font-weight:600;opacity:.85;}
+.ds-program-title{margin:0;color:var(--fl-global-headings);font-size:1.25rem;line-height:1.2;}
+.ds-program-desc{margin:0;color:var(--fl-global-body);font-size:.95rem;line-height:1.5;}
+.fl-builder-content .ds-program-card .ds-program-btn{align-self:flex-start;margin-top:6px;display:inline-block;background:var(--fl-global-button);color:var(--fl-global-white);padding:10px 22px;border-radius:6px;font-weight:700;font-size:.82rem;letter-spacing:1px;text-transform:uppercase;text-decoration:none;transition:background .2s ease;position:relative;z-index:2;}
+.fl-builder-content .ds-program-card .ds-program-btn:hover,.fl-builder-content .ds-program-card:hover .ds-program-btn{background:var(--fl-global-accent);color:var(--fl-global-white);}
+
+/* ── Tournament cards (events): center-center image + overlapping details card ── */
+.ds-tourn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;}
+.ds-tourn-card{position:relative;display:flex;flex-direction:column;text-decoration:none;color:inherit;}
+.ds-tourn-img{position:relative;width:100%;aspect-ratio:16 / 10;background:#ececec center center/cover no-repeat;border-radius:var(--ds-radius);}
+/* Event image: small, centered, overlapping the featured-image banner (logo-friendly: contained, not cropped). */
+.ds-tourn-logo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:96px;height:96px;border-radius:50%;overflow:hidden;background:var(--fl-global-white);box-shadow:0 10px 28px -10px rgba(10,30,60,.45);display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;}
+.ds-tourn-logo img{width:100%;height:100%;object-fit:contain;display:block;}
+.ds-tourn-body{position:relative;z-index:1;margin:-48px 18px 0;background:var(--fl-global-light-background);border-radius:var(--ds-radius);padding:24px;box-shadow:0 16px 40px -20px rgba(10,30,60,.25);display:flex;flex-direction:column;gap:12px;text-align:center;align-items:center;}
+.ds-tourn-title{margin:0;color:var(--fl-global-headings);font-size:1.2rem;line-height:1.2;}
+.ds-tourn-meta{display:flex;flex-direction:column;gap:6px;align-items:center;width:100%;}
+.ds-tourn-date,.ds-tourn-loc{display:inline-flex;align-items:center;gap:7px;font-size:.85rem;color:var(--fl-global-body);line-height:1.3;}
+.ds-tourn-date svg,.ds-tourn-loc svg{width:15px;height:15px;flex:0 0 auto;color:var(--fl-global-accent);}
+.ds-tourn-btn{margin-top:6px;display:inline-block;background:var(--fl-global-button);color:var(--fl-global-white);padding:11px 26px;font-weight:700;font-size:.8rem;letter-spacing:1px;text-transform:uppercase;border-radius:6px;}
+.ds-tourn-card:hover .ds-tourn-btn{background:var(--fl-global-accent);}
+@media(max-width:1024px){.ds-tourn-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.ds-tourn-grid{grid-template-columns:1fr;}}

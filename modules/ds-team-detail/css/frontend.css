@@ -1,0 +1,44 @@
+/* Leagueapps Team Detail — single-team body. */
+
+/* Grid: with a featured image -> 2 columns; without -> single full-width column. */
+.ds-teamdetail{display:grid;grid-template-columns:1fr;gap:40px;align-items:start;}
+.ds-teamdetail--hasimg{grid-template-columns:38% 1fr;}
+
+.ds-teamdetail-media img{width:100%;height:auto;display:block;border-radius:var(--ds-radius,8px);}
+
+.ds-teamdetail-main{display:flex;flex-direction:column;gap:36px;min-width:0;}
+
+.ds-teamdetail-section{min-width:0;}
+.ds-teamdetail-title{margin:0;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--fl-global-headings);line-height:1.1;}
+.ds-teamdetail-divider{display:block;width:48px;height:3px;border-radius:2px;background:var(--fl-global-accent);margin:10px 0 16px;}
+.ds-teamdetail-body{color:var(--fl-global-body);line-height:1.6;}
+.ds-teamdetail-body > :first-child{margin-top:0;}
+.ds-teamdetail-body > :last-child{margin-bottom:0;}
+
+/* Coach cards (same visual language as the Staff/Coaches grid). */
+/* Equal columns inside a width-capped grid: cards stay a sensible portrait size
+   whether the layout is 60% (with image) or 100% (no image), and never shrink to
+   their min-content. The per-node CSS sets the real column count + max-width. */
+.ds-teamdetail .ds-people-grid{display:grid;gap:20px;}
+.ds-teamdetail .ds-people-grid--coaches{grid-template-columns:repeat(2,1fr);max-width:540px;}
+.ds-teamdetail .ds-people-card{position:relative;display:flex;flex-direction:column;overflow:hidden;border-radius:var(--ds-radius);background:var(--fl-global-light-background);}
+/* Stretched card link: whole card clicks through to the coach profile; contact
+   icons sit above it (z-index) so they stay independently clickable. */
+.ds-teamdetail .ds-people-card:has(.ds-card-link){cursor:pointer;}
+.ds-teamdetail .ds-card-link{position:absolute;inset:0;z-index:1;border-radius:inherit;font-size:0;text-decoration:none;}
+.ds-teamdetail .ds-people-photo{aspect-ratio:3 / 4;background:var(--fl-global-headings) center/cover no-repeat;}
+.ds-teamdetail .ds-people-body{padding:18px 16px 22px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:5px;}
+.ds-teamdetail .ds-people-name{font-size:1.1rem;font-weight:800;text-transform:uppercase;letter-spacing:.02em;margin:0;color:var(--fl-global-headings);line-height:1.15;}
+.ds-teamdetail .ds-people-role{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:var(--fl-global-body);}
+.ds-teamdetail .ds-people-contacts{position:relative;z-index:2;display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;justify-content:center;}
+.ds-teamdetail .ds-people-contacts a{position:relative;}
+.ds-teamdetail .ds-people-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:var(--fl-global-accent);color:var(--fl-global-white);text-decoration:none;transition:background .2s ease,transform .2s ease;}
+.ds-teamdetail .ds-people-ico:hover{transform:translateY(-2px);}
+.ds-teamdetail .ds-people-ico svg{width:18px;height:18px;display:block;}
+
+@media (max-width:768px){
+	.ds-teamdetail--hasimg{grid-template-columns:1fr;}
+}
+@media (max-width:480px){
+	.ds-teamdetail .ds-people-grid--coaches{grid-template-columns:1fr;max-width:none;}
+}
