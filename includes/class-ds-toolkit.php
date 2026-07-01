@@ -205,6 +205,33 @@ class DS_Toolkit {
         return (int) get_option( 'ds_blueprint_version', 0 );
     }
 
+    /**
+     * The in-house "LeagueApps" Beaver Builder module features (settings key => label).
+     * These are purely additive builder blocks, so they are opt-in on ANY blueprint:
+     * their toggles are shown on the Settings page regardless of blueprint, they load
+     * whenever their toggle is on (the blueprint gate is bypassed for modules in run()),
+     * and they still default ON for blueprint 6+ builds via get_defaults(). Existing
+     * blueprint-5 sites see them OFF until an admin turns one on.
+     */
+    public static function module_features() {
+        return array(
+            'ds_cta_module_enabled'            => 'CTA',
+            'ds_content_router_module_enabled' => 'Content Router',
+            'ds_divider_module_enabled'        => 'Divider',
+            'ds_heading_module_enabled'        => 'Heading',
+            'ds_hero_module_enabled'           => 'Hero Banner',
+            'ds_carousel_module_enabled'       => 'Image Carousel',
+            'ds_info_list_module_enabled'      => 'Info List',
+            'ds_marquee_module_enabled'        => 'Marquee',
+            'ds_menu_module_enabled'           => 'Menu',
+            'ds_orgstats_module_enabled'       => 'Org Stats',
+            'ds_page_cards_module_enabled'     => 'Page Cards',
+            'ds_social_module_enabled'         => 'Partner Social',
+            'ds_post_loop_module_enabled'      => 'Post Loop',
+            'ds_team_detail_module_enabled'    => 'Team Detail',
+        );
+    }
+
     public static function activate() {
         $settings = get_option( 'ds_toolkit_settings', array() );
 
@@ -373,12 +400,16 @@ class DS_Toolkit {
             $updater->init();
         }
 
-        $blueprint = self::blueprint_version();
+        $blueprint    = self::blueprint_version();
+        $module_keys  = self::module_features();
 
         foreach ( $this->features as $key => $feature ) {
-            // Blueprint-gated features never load below their required
-            // generation, even if the settings key was somehow set.
-            if ( ! empty( $feature['min_blueprint'] ) && $blueprint < (int) $feature['min_blueprint'] ) {
+            // Blueprint-gated features never load below their required generation,
+            // EXCEPT the LeagueApps modules: those are additive builder blocks that
+            // are opt-in on any blueprint (off by default below their generation),
+            // so an existing site can enable individual blocks without a blueprint bump.
+            $is_module = isset( $module_keys[ $key ] );
+            if ( ! empty( $feature['min_blueprint'] ) && ! $is_module && $blueprint < (int) $feature['min_blueprint'] ) {
                 continue;
             }
             if ( ! empty( $settings[ $key ] ) ) {
