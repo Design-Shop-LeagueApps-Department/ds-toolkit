@@ -70,6 +70,25 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
     </div>
 
+    <!-- LeagueApps modules (Beaver Builder blocks) — opt-in on ANY blueprint, off by default below gen 6 -->
+    <p class="dst-section-title">LeagueApps Modules (Beaver Builder blocks)</p>
+    <div class="dst-card">
+        <?php foreach ( DS_Toolkit::module_features() as $mod_key => $mod_label ) : ?>
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-screenoptions"></span></div>
+            <div class="dst-card-info">
+                <strong><?php echo esc_html( $mod_label ); ?></strong>
+                <span>Adds the <strong><?php echo esc_html( $mod_label ); ?></strong> block to the Beaver Builder &ldquo;LeagueApps&rdquo; group.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[<?php echo esc_attr( $mod_key ); ?>]" value="0">
+                <input type="checkbox" id="<?php echo esc_attr( $mod_key ); ?>" name="ds_toolkit_settings[<?php echo esc_attr( $mod_key ); ?>]" value="1" <?php checked( ! empty( $ds_module_states[ $mod_key ] ) ); ?>>
+                <label for="<?php echo esc_attr( $mod_key ); ?>"></label>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
     <?php if ( $blueprint_version >= 6 ) : ?>
     <!-- Disable Comments (blueprint generation 6+) -->
     <div class="dst-card">
@@ -115,22 +134,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <input type="hidden" name="ds_toolkit_settings[admin_menu_tidy_enabled]" value="0">
                 <input type="checkbox" id="admin_menu_tidy_enabled" name="ds_toolkit_settings[admin_menu_tidy_enabled]" value="1" <?php checked( $admin_menu_tidy_enabled ); ?>>
                 <label for="admin_menu_tidy_enabled"></label>
-            </div>
-        </div>
-    </div>
-
-    <!-- LeagueApps Menu module (blueprint generation 6+) -->
-    <div class="dst-card">
-        <div class="dst-card-row">
-            <div class="dst-card-icon"><span class="dashicons dashicons-menu-alt3"></span></div>
-            <div class="dst-card-info">
-                <strong>LeagueApps Menu (Beaver Builder module)</strong>
-                <span>Registers an in-house <strong>LeagueApps Menu</strong> module in Beaver Builder: horizontal nav with dropdowns, per-item mega panels with a column count (add a <code>ds-cols-4</code> class to a menu item to override, <code>ds-no-mega</code> for a plain dropdown), and a full-screen hamburger overlay below a set breakpoint. Fully in-house (no UABB dependency). Auto-enabled on DSLP6 builds.</span>
-            </div>
-            <div class="dst-toggle">
-                <input type="hidden" name="ds_toolkit_settings[ds_menu_module_enabled]" value="0">
-                <input type="checkbox" id="ds_menu_module_enabled" name="ds_toolkit_settings[ds_menu_module_enabled]" value="1" <?php checked( $ds_menu_module_enabled ); ?>>
-                <label for="ds_menu_module_enabled"></label>
             </div>
         </div>
     </div>

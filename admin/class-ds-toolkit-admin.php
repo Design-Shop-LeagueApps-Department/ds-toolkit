@@ -228,6 +228,11 @@ class DS_Toolkit_Admin {
                 $admin_menu_tidy_enabled  = ! empty( $opts['admin_menu_tidy_enabled'] );
                 $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );
                 $image_optimization_enabled = ! empty( $opts['image_optimization_enabled'] );
+                // Per-module on/off states for the always-visible "LeagueApps Modules" section.
+                $ds_module_states = array();
+                foreach ( DS_Toolkit::module_features() as $mod_key => $mod_label ) {
+                    $ds_module_states[ $mod_key ] = ! empty( $opts[ $mod_key ] );
+                }
                 require DS_TOOLKIT_PATH . 'admin/views/page-settings.php';
             }
             ?>
