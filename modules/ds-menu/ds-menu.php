@@ -241,6 +241,7 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 							'left'   => __( 'Left', 'ds-toolkit' ),
 							'center' => __( 'Center', 'ds-toolkit' ),
 							'right'  => __( 'Right', 'ds-toolkit' ),
+							'justify' => __( 'Justify (even spacing)', 'ds-toolkit' ),
 						),
 					),
 				),
