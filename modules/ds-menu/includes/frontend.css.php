@@ -28,7 +28,7 @@ $osubbg     = $col( $settings->overlay_sub_bg ?? '' );        // overlay submenu
 $dgap       = isset( $settings->dropdown_gap ) && '' !== $settings->dropdown_gap ? (int) $settings->dropdown_gap : 0; // desktop bar -> dropdown gap
 $bp         = isset( $settings->breakpoint ) && '' !== $settings->breakpoint ? (int) $settings->breakpoint : 1000;
 $align      = $settings->alignment ?? 'right';
-$justify    = ( 'center' === $align ) ? 'center' : ( ( 'left' === $align ) ? 'flex-start' : 'flex-end' );
+$justify    = array( 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end', 'justify' => 'space-between' )[ $align ] ?? 'flex-end';
 
 // Hamburger button (responsive). Defaults: transparent, borderless.
 $tbg   = $col( $settings->toggle_bg ?? '' ) ?: 'transparent';

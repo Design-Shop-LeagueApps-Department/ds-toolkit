@@ -57,7 +57,7 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 		if ( ( $s->{ $key . '_show' } ?? 'yes' ) !== 'yes' ) { return ''; }
 		$field = trim( (string) ( $s->{ $key . '_field' } ?? '' ) );
 		if ( '' === $field ) { $field = $def_field; }
-		$raw = (string) get_field( $field, $pid );
+		$raw = function_exists( 'get_field' ) ? (string) get_field( $field, $pid ) : (string) get_post_meta( $pid, $field, true );
 		if ( ! $this->has_content( $raw ) ) { return ''; }
 		$title = (string) ( $s->{ $key . '_title' } ?? $def_title );
 		return $this->section_html( $title, $tag, apply_filters( 'the_content', $raw ) );
@@ -68,7 +68,7 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 		$s = $this->settings;
 		if ( ( $s->coach_show ?? 'yes' ) !== 'yes' ) { return ''; }
 		$field = trim( (string) ( $s->coach_field ?? '' ) ); if ( '' === $field ) { $field = 'team_coach'; }
-		$rel = get_field( $field, $pid );
+		$rel = function_exists( 'get_field' ) ? get_field( $field, $pid ) : get_post_meta( $pid, $field, true );
 
 		$ids = array();
 		if ( is_array( $rel ) ) {
