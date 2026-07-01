@@ -73,21 +73,50 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     <!-- LeagueApps modules (Beaver Builder blocks) — opt-in on ANY blueprint, off by default below gen 6 -->
     <p class="dst-section-title">LeagueApps Modules (Beaver Builder blocks)</p>
     <div class="dst-card">
-        <?php foreach ( DS_Toolkit::module_features() as $mod_key => $mod_label ) : ?>
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-grid-view"></span></div>
+            <div class="dst-card-info">
+                <strong>Enable all modules</strong>
+                <span>Quick switch to turn every LeagueApps block on (or off) at once. Each block can still be toggled individually below. Remember to Save.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="checkbox" id="dst-modules-all">
+                <label for="dst-modules-all"></label>
+            </div>
+        </div>
+        <?php foreach ( DS_Toolkit::module_features() as $mod_key => $mod ) : ?>
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-screenoptions"></span></div>
             <div class="dst-card-info">
-                <strong><?php echo esc_html( $mod_label ); ?></strong>
-                <span>Adds the <strong><?php echo esc_html( $mod_label ); ?></strong> block to the Beaver Builder &ldquo;LeagueApps&rdquo; group.</span>
+                <strong><?php echo esc_html( $mod['label'] ); ?></strong>
+                <span><?php echo esc_html( $mod['desc'] ); ?></span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[<?php echo esc_attr( $mod_key ); ?>]" value="0">
-                <input type="checkbox" id="<?php echo esc_attr( $mod_key ); ?>" name="ds_toolkit_settings[<?php echo esc_attr( $mod_key ); ?>]" value="1" <?php checked( ! empty( $ds_module_states[ $mod_key ] ) ); ?>>
+                <input type="checkbox" class="dst-module-toggle" id="<?php echo esc_attr( $mod_key ); ?>" name="ds_toolkit_settings[<?php echo esc_attr( $mod_key ); ?>]" value="1" <?php checked( ! empty( $ds_module_states[ $mod_key ] ) ); ?>>
                 <label for="<?php echo esc_attr( $mod_key ); ?>"></label>
             </div>
         </div>
         <?php endforeach; ?>
     </div>
+    <script>
+    ( function () {
+        var all  = document.getElementById( 'dst-modules-all' );
+        var mods = [].slice.call( document.querySelectorAll( '.dst-module-toggle' ) );
+        if ( ! all || ! mods.length ) { return; }
+        function sync() {
+            var on = mods.filter( function ( c ) { return c.checked; } ).length;
+            all.checked       = ( on === mods.length );
+            all.indeterminate = ( on > 0 && on < mods.length );
+        }
+        all.addEventListener( 'change', function () {
+            mods.forEach( function ( c ) { c.checked = all.checked; } );
+            all.indeterminate = false;
+        } );
+        mods.forEach( function ( c ) { c.addEventListener( 'change', sync ); } );
+        sync();
+    } )();
+    </script>
 
     <?php if ( $blueprint_version >= 6 ) : ?>
     <!-- Disable Comments (blueprint generation 6+) -->

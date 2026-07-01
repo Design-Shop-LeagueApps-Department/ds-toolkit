@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.2] - 2026-07-02
+### Added
+- **LeagueApps Modules settings: per-module descriptions + an "Enable all" switch.** Each of the 14 module toggles now shows a short description of what the block does, and a top **Enable all modules** switch turns every block on or off at once (it checks/unchecks the individual toggles, which remain the source of truth and still save per-module).
+
 ## [1.9.1] - 2026-07-01
 ### Added
 - **LeagueApps modules are now opt-in on any blueprint.** A new **LeagueApps Modules** section on Settings → DS Toolkit lists all 14 in-house Beaver Builder blocks (Hero, Menu, Post Loop, Page Cards, Image Carousel, Org Stats, Marquee, Info List, CTA, Heading, Divider, Team Detail, Content Router, Partner Social) with a per-module toggle, shown **regardless of blueprint**. Existing blueprint-5 sites can now enable individual blocks without a full blueprint bump; the toggles are **off by default** below blueprint 6, so auto-updates change nothing. The blueprint gate is bypassed for these module features only (they are additive builder blocks); the behavioral features (image optimization, disable comments, admin-menu tidy, theme setting) stay gated to blueprint 6. New builds (blueprint 6+) still get every module on by default.
