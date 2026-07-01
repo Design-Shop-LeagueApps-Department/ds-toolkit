@@ -230,7 +230,7 @@ class DS_Toolkit_Admin {
                 $image_optimization_enabled = ! empty( $opts['image_optimization_enabled'] );
                 // Per-module on/off states for the always-visible "LeagueApps Modules" section.
                 $ds_module_states = array();
-                foreach ( DS_Toolkit::module_features() as $mod_key => $mod_label ) {
+                foreach ( DS_Toolkit::module_features() as $mod_key => $mod_meta ) {
                     $ds_module_states[ $mod_key ] = ! empty( $opts[ $mod_key ] );
                 }
                 require DS_TOOLKIT_PATH . 'admin/views/page-settings.php';

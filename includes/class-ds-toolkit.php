@@ -215,20 +215,20 @@ class DS_Toolkit {
      */
     public static function module_features() {
         return array(
-            'ds_cta_module_enabled'            => 'CTA',
-            'ds_content_router_module_enabled' => 'Content Router',
-            'ds_divider_module_enabled'        => 'Divider',
-            'ds_heading_module_enabled'        => 'Heading',
-            'ds_hero_module_enabled'           => 'Hero Banner',
-            'ds_carousel_module_enabled'       => 'Image Carousel',
-            'ds_info_list_module_enabled'      => 'Info List',
-            'ds_marquee_module_enabled'        => 'Marquee',
-            'ds_menu_module_enabled'           => 'Menu',
-            'ds_orgstats_module_enabled'       => 'Org Stats',
-            'ds_page_cards_module_enabled'     => 'Page Cards',
-            'ds_social_module_enabled'         => 'Partner Social',
-            'ds_post_loop_module_enabled'      => 'Post Loop',
-            'ds_team_detail_module_enabled'    => 'Team Detail',
+            'ds_hero_module_enabled'           => array( 'label' => 'Hero Banner',     'desc' => 'Full-width hero (image, video, or slideshow) with overlay, eyebrow, headline, and call-to-action buttons.' ),
+            'ds_menu_module_enabled'           => array( 'label' => 'Menu',            'desc' => 'Responsive navigation bar with dropdowns, mega-menus, and a full-screen mobile overlay.' ),
+            'ds_post_loop_module_enabled'      => array( 'label' => 'Post Loop',       'desc' => 'Lists of news, staff, teams, programs, sponsors, or tournaments in a range of card layouts.' ),
+            'ds_page_cards_module_enabled'     => array( 'label' => 'Page Cards',      'desc' => 'A grid of linked cards built from child pages or a manual list.' ),
+            'ds_carousel_module_enabled'       => array( 'label' => 'Image Carousel',  'desc' => 'A stacked-deck image slider with captions, arrows, and dots.' ),
+            'ds_orgstats_module_enabled'       => array( 'label' => 'Org Stats',       'desc' => 'Headline stat figures (the record) as plain figures or photo cards.' ),
+            'ds_marquee_module_enabled'        => array( 'label' => 'Marquee',         'desc' => 'A scrolling announcement ticker with a pinned label.' ),
+            'ds_info_list_module_enabled'      => array( 'label' => 'Info List',       'desc' => 'An icon-and-text list for hours, contact details, or quick facts.' ),
+            'ds_cta_module_enabled'            => array( 'label' => 'CTA',             'desc' => 'A call-to-action band with a heading, text, and buttons.' ),
+            'ds_heading_module_enabled'        => array( 'label' => 'Heading',         'desc' => 'A styled section heading with an eyebrow line and accent options.' ),
+            'ds_divider_module_enabled'        => array( 'label' => 'Divider',         'desc' => 'A horizontal or vertical divider with gradient-fade, running-light, glow, and dashed effects.' ),
+            'ds_team_detail_module_enabled'    => array( 'label' => 'Team Detail',     'desc' => 'A single-team layout: roster, schedule, and coaches.' ),
+            'ds_content_router_module_enabled' => array( 'label' => 'Content Router',  'desc' => 'Renders the right body layout for each page type (single vs. archive) from one Themer template.' ),
+            'ds_social_module_enabled'         => array( 'label' => 'Partner Social',  'desc' => "A row of the partner's social-media links." ),
         );
     }
 
