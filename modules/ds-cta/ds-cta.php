@@ -217,6 +217,7 @@ class DS_CTA_Module extends FLBuilderModule {
 
 			if ( 'text' === $type ) {
 				echo '<div class="ds-cta-bento-cell ds-cta-bento-text"' . $span . '>';
+				if ( ! empty( $cell->eyebrow ) ) { echo '<div class="ds-cta-bento-eyebrow">' . esc_html( $cell->eyebrow ) . '</div>'; }
 				if ( ! empty( $cell->title ) ) { echo '<h3 class="ds-cta-bento-title">' . esc_html( $cell->title ) . '</h3>'; }
 				if ( ! empty( $cell->desc ) ) { echo '<div class="ds-cta-bento-celldesc">' . wpautop( wp_kses_post( $cell->desc ) ) . '</div>'; }
 				$lt = trim( (string) ( $cell->link_text ?? '' ) );
@@ -231,6 +232,7 @@ class DS_CTA_Module extends FLBuilderModule {
 				$attr = $has ? ' href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel : '';
 				echo '<' . $tag . ' class="ds-cta-bento-cell ds-cta-bento-img"' . $span . $attr . '>';
 				echo '<div class="ds-cta-bento-bg"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
+				if ( ! empty( $cell->eyebrow ) ) { echo '<div class="ds-cta-bento-eyebrow">' . esc_html( $cell->eyebrow ) . '</div>'; }
 				echo '</' . $tag . '>';
 			}
 		}
@@ -625,6 +627,10 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 				'fields' => array(
 					'row_height' => array( 'type' => 'unit', 'label' => __( 'Row Height', 'ds-toolkit' ), 'default' => '220', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 120, 'max' => 400, 'step' => 10 ) ),
 					'bento_radius' => array( 'type' => 'unit', 'label' => __( 'Cell Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Rounds every bento cell (image + text cells).', 'ds-toolkit' ) ),
+					'bento_border_width' => array( 'type' => 'unit', 'label' => __( 'Cell Border Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 10, 'step' => 1 ), 'help' => __( 'Border around every bento cell. Blank or 0 = no border.', 'ds-toolkit' ) ),
+					'bento_border_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Cell Border Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-line-color)', 'show_reset' => true, 'show_alpha' => true ),
+					'bento_eyebrow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Eyebrow Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Colour of the cell eyebrow label. Blank = accent on text cells, white on image cells.', 'ds-toolkit' ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-bento-eyebrow', 'property' => 'color' ) ),
+					'bento_eyebrow_typography' => array( 'type' => 'typography', 'label' => __( 'Eyebrow Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-bento-eyebrow' ) ),
 					'cell_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Cell Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
 					'img_cell_bg' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Image Cell Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Shows behind image cells (visible with transparent logos or while the image loads).', 'ds-toolkit' ) ),
 					'btn_global' => array( 'type' => 'select', 'label' => __( 'Button Style', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Match site Button (Theme Setting)', 'ds-toolkit' ), 'no' => __( 'Accent colour', 'ds-toolkit' ) ), 'help' => __( 'Text-cell buttons inherit the global Button (background, hover, radius, typography) from Theme Setting by default.', 'ds-toolkit' ) ),

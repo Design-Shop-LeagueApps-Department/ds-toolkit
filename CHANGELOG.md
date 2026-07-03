@@ -4,6 +4,15 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.3] - 2026-07-04
+### Added
+- **CTA (Bento) — cell borders.** New **Cell Border Width** + **Cell Border Colour** options (Style → Bento), global-colour connected. Blank/0 = no border, so existing instances are unchanged.
+- **CTA (Bento) — eyebrow style controls.** New **Eyebrow Colour** and **Eyebrow Typography** (responsive, live preview) in Style → Bento. Blank colour keeps the defaults (accent on text cells, white pill on image cells).
+
+### Fixed
+- **CTA (Bento) — the cell Eyebrow now actually renders.** The card form saved an Eyebrow for every bento cell but Style 3 never output it. Text cells now show it as a small accent label above the title; image cells show it as a rounded dark pill overlaid bottom-left.
+- **CTA (Bento) — responsive Columns / Gap / Row Height now work.** The tablet and mobile values of the Columns and Gap fields were ignored (tablet was hardcoded to 2 columns, mobile to 1), and the tablet Row Height was emitted before the hardcoded `grid-auto-rows: auto` so it never applied. All three now honour their tablet/mobile values; blank still falls back to the original 2-up / 1-up defaults.
+
 ## [1.9.2] - 2026-07-02
 ### Added
 - **LeagueApps Modules settings: per-module descriptions + an "Enable all" switch.** Each of the 14 module toggles now shows a short description of what the block does, and a top **Enable all modules** switch turns every block on or off at once (it checks/unchecks the individual toggles, which remain the source of truth and still save per-module).

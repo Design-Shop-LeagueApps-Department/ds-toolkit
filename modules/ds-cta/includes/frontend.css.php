@@ -72,11 +72,17 @@ if ( 'style3' === $style ) {
 	$gap3  = $u( $settings->gap ?? '', 16 );
 	$rh    = $u( $settings->row_height ?? '', 220 );
 	echo "$node .ds-cta-bento { grid-template-columns: repeat({$cols3}, 1fr); gap: {$gap3}px; grid-auto-rows: {$rh}px; }\n";
-	if ( '' !== ( $settings->row_height_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-cta-bento { grid-auto-rows: " . (int) $settings->row_height_medium . "px; } }\n"; }
-	// Responsive: tablet -> 2 cols with auto-height rows (text cells can't be clipped),
-	// mobile -> single column. Span resets use !important to beat the per-cell inline spans.
-	echo "@media (max-width:{$bpm}px){ $node .ds-cta-bento { grid-template-columns: repeat(2,1fr); grid-auto-rows: auto; } $node .ds-cta-bento-cell { grid-column: span 1 !important; grid-row: span 1 !important; } $node .ds-cta-bento-img { min-height: {$rh}px; } }\n";
-	echo "@media (max-width:{$bpr}px){ $node .ds-cta-bento { grid-template-columns: 1fr; } }\n";
+	// Responsive: honour the Columns / Gap / Row Height tablet + mobile values; blank
+	// keeps the original defaults (tablet 2-up with auto rows, mobile 1-up). Span resets
+	// use !important to beat the per-cell inline spans.
+	$cols3m = ( '' !== ( $settings->columns_medium ?? '' ) ) ? max( 1, (int) $settings->columns_medium ) : 2;
+	$cols3r = ( '' !== ( $settings->columns_responsive ?? '' ) ) ? max( 1, (int) $settings->columns_responsive ) : 1;
+	$gap3m  = ( '' !== ( $settings->gap_medium ?? '' ) ) ? ' gap: ' . (int) $settings->gap_medium . 'px;' : '';
+	$gap3r  = ( '' !== ( $settings->gap_responsive ?? '' ) ) ? ' gap: ' . (int) $settings->gap_responsive . 'px;' : '';
+	$rhm    = ( '' !== ( $settings->row_height_medium ?? '' ) ) ? ( (int) $settings->row_height_medium ) . 'px' : 'auto';
+	$rhr    = ( '' !== ( $settings->row_height_responsive ?? '' ) ) ? ' grid-auto-rows: ' . (int) $settings->row_height_responsive . 'px;' : '';
+	echo "@media (max-width:{$bpm}px){ $node .ds-cta-bento { grid-template-columns: repeat({$cols3m},1fr); grid-auto-rows: {$rhm};{$gap3m} } $node .ds-cta-bento-cell { grid-column: span 1 !important; grid-row: span 1 !important; } $node .ds-cta-bento-img { min-height: {$rh}px; } }\n";
+	echo "@media (max-width:{$bpr}px){ $node .ds-cta-bento { grid-template-columns: repeat({$cols3r},1fr);{$gap3r}{$rhr} } }\n";
 	$cellbg = $col( $settings->cell_bg ?? '' );
 	if ( '' !== $cellbg ) { echo "$node .ds-cta-bento-text { background: {$cellbg}; }\n"; }
 	$imgbg = $col( $settings->img_cell_bg ?? '' );
@@ -86,6 +92,20 @@ if ( 'style3' === $style ) {
 	// Cell corner radius (image + text cells).
 	$brad = ( isset( $settings->bento_radius ) && '' !== $settings->bento_radius ) ? ( (int) $settings->bento_radius ) . 'px' : 'var(--ds-radius)';
 	echo "$node .ds-cta-bento-cell { border-radius: {$brad}; }\n";
+
+	// Cell border (blank/0 width = none).
+	$bbw = ( isset( $settings->bento_border_width ) && '' !== $settings->bento_border_width ) ? (int) $settings->bento_border_width : 0;
+	if ( $bbw > 0 ) {
+		$bbc = $col( $settings->bento_border_color ?? '' ) ?: 'var(--fl-global-line-color)';
+		echo "$node .ds-cta-bento-cell { border: {$bbw}px solid {$bbc}; }\n";
+	}
+
+	// Cell eyebrow colour (blank = static defaults: accent on text cells, white pill on image cells).
+	$beye = $col( $settings->bento_eyebrow_color ?? '' );
+	if ( '' !== $beye ) { echo "$node .ds-cta-bento-eyebrow { color: {$beye}; }\n"; }
+	if ( class_exists( 'FLBuilderCSS' ) ) {
+		FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'bento_eyebrow_typography', 'selector' => "$node .ds-cta-bento-eyebrow" ) );
+	}
 
 	// Bento button: respect the Theme Setting global Button by default.
 	$btn_global = ( $settings->btn_global ?? 'yes' ) === 'yes';

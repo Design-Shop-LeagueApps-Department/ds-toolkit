@@ -73,6 +73,9 @@
 .ds-cta--style3 .ds-cta-bento-celldesc strong,.ds-cta--style3 .ds-cta-bento-celldesc b{color:var(--fl-global-white);}
 .ds-cta--style3 .ds-cta-bento-btn{align-self:flex-start;display:inline-block;background:var(--fl-global-accent);color:var(--fl-global-white);font-weight:700;font-size:.78rem;letter-spacing:.1em;text-transform:uppercase;padding:13px 22px;text-decoration:none;transition:filter .2s ease,transform .2s ease;}
 .ds-cta--style3 .ds-cta-bento-btn:hover{filter:brightness(1.08);transform:translateY(-1px);}
+/* Cell eyebrow: small accent label in text cells; overlay pill on image cells. */
+.ds-cta--style3 .ds-cta-bento-eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fl-global-accent);margin:0 0 10px;}
+.ds-cta--style3 .ds-cta-bento-img .ds-cta-bento-eyebrow{position:absolute;left:14px;bottom:12px;z-index:1;margin:0;padding:7px 13px;border-radius:999px;background:color-mix(in srgb, var(--fl-global-dark-background) 78%, transparent);color:var(--fl-global-white);}
 
 /* ---- Style 4: Big Hero contact CTA (sub-heading, heading, partner contact + social, big button over a background image) ---- */
 .ds-cta--style4{position:relative;display:flex;align-items:center;min-height:520px;overflow:hidden;isolation:isolate;}
