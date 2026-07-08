@@ -238,3 +238,51 @@
 		jQuery(document).on('fl-builder.layout-rendered', function () { boot(); });
 	}
 })();
+
+/* ---- Style 3: reels strip (inline video + arrow scroll). Idempotent. ---- */
+(function () {
+	function initReels(root) {
+		if (root.dsReelInit) return;
+		var track = root.querySelector('.ds-reels-track');
+		if (!track) { return; }
+		root.dsReelInit = true;
+		var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+		[].slice.call(root.querySelectorAll('.ds-reel-card.has-video')).forEach(function (card) {
+			var btn = card.querySelector('.ds-reel-play');
+			function play() {
+				if (card.dsPlaying) return;
+				card.dsPlaying = true;
+				// pause any other playing reel in this module
+				[].slice.call(root.querySelectorAll('video.ds-reel-video')).forEach(function (o) { o.pause(); });
+				var v = document.createElement('video');
+				v.className = 'ds-reel-video';
+				v.src = card.getAttribute('data-video') || '';
+				v.controls = true; v.autoplay = true; v.playsInline = true;
+				v.setAttribute('playsinline', '');
+				card.appendChild(v);
+				if (btn) btn.style.display = 'none';
+				v.addEventListener('ended', function () { v.remove(); if (btn) btn.style.display = ''; card.dsPlaying = false; });
+			}
+			card.addEventListener('click', function (e) { e.preventDefault(); play(); });
+		});
+
+		function step(dir) {
+			var card = track.querySelector('.ds-reel-card');
+			var gap = parseFloat(getComputedStyle(track).gap) || 24;
+			var w = card ? card.getBoundingClientRect().width + gap : 320;
+			track.scrollBy({ left: dir * w, behavior: reduce ? 'auto' : 'smooth' });
+		}
+		[].slice.call(root.querySelectorAll('.ds-reel-nav--prev')).forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); step(-1); }); });
+		[].slice.call(root.querySelectorAll('.ds-reel-nav--next')).forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); step(1); }); });
+	}
+
+	function bootReels(root) {
+		(root || document).querySelectorAll('.ds-carousel--style3').forEach(initReels);
+	}
+	if (document.readyState !== 'loading') bootReels();
+	else document.addEventListener('DOMContentLoaded', function () { bootReels(); });
+	if (window.jQuery) {
+		jQuery(document).on('fl-builder.layout-rendered', function () { bootReels(); });
+	}
+})();
