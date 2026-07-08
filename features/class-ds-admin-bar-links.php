@@ -19,6 +19,22 @@ class DS_Admin_Bar_Links {
 
 	public function init() {
 		add_action( 'admin_bar_menu', array( $this, 'add_links' ), 82 );
+		add_action( 'admin_bar_menu', array( $this, 'remove_noise' ), 999 );
+	}
+
+	/**
+	 * Declutters the toolbar for everyone: the theme Customizer link (the fleet
+	 * styles through Theme Setting / Beaver Builder, not the Customizer), the
+	 * plugin-updates counter (updates are managed centrally / auto-update), and
+	 * the WP Engine Quick Links host menu. Capabilities are untouched — the
+	 * screens themselves stay reachable directly.
+	 *
+	 * @param WP_Admin_Bar $bar
+	 */
+	public function remove_noise( $bar ) {
+		$bar->remove_node( 'customize' );
+		$bar->remove_node( 'updates' );
+		$bar->remove_node( 'wpengine_adminbar' ); // WP Engine "Quick Links" (mu-plugin)
 	}
 
 	/** @param WP_Admin_Bar $bar */
