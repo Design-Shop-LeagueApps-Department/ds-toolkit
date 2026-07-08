@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.15] - 2026-07-09
+### Changed
+- **Admin toolbar decluttered.** The toolbar quick-links feature now also removes the **Customize** link (the fleet styles through Theme Setting / Beaver Builder, not the Customizer), the **updates counter**, and the **WP Engine Quick Links** menu. Capabilities are untouched — those screens stay reachable by URL; only the toolbar noise goes.
+
 ## [1.9.14] - 2026-07-09
 ### Added
 - **Theme Setting — Featured Image Banner control.** New checkbox list inside **General → Page Banner Background (No Image)**: which content types may use their **Featured Image** as the banner photo on their single pages. Unchecked types always show the **text-only banner** over the No-Image background (colour / pattern) configured right below it. **Staff is off by default** — portrait headshots crop badly in a wide banner, so staff singles now show a clean heading banner automatically (no setting change needed). Existing behaviour for pages, posts, teams, etc. is unchanged.
