@@ -249,9 +249,12 @@ class DS_Hero_Module extends FLBuilderModule {
 				$imv = get_field( 'page_hero_banner_image', $pid ); if ( is_array( $imv ) ) { $img = $imv['url'] ?? ''; }
 				$vid = get_field( 'video_page_hero_banner', $pid ); if ( is_array( $vid ) ) { $video = $vid['url'] ?? ''; }
 			}
-			// Fallback: a post's Featured Image becomes the banner background (single
-			// Staff / Team / Athlete pages get their photo automatically). Singular only.
-			if ( '' === $img && '' === $video && has_post_thumbnail( $pid ) ) {
+			// Fallback: a post's Featured Image becomes the banner background — but only
+			// for post types allowed in Theme Setting -> Page Banner (Featured Image
+			// Banner). Staff is off by default: portrait headshots crop badly here, so
+			// staff singles get the text-only banner over the No-Image background.
+			$feat_ok = class_exists( 'DS_Theme_Setting' ) ? DS_Theme_Setting::banner_featured_allowed( get_post_type( $pid ) ) : true;
+			if ( '' === $img && '' === $video && $feat_ok && has_post_thumbnail( $pid ) ) {
 				$img = (string) get_the_post_thumbnail_url( $pid, 'full' );
 			}
 		}
