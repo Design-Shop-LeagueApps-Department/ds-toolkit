@@ -271,10 +271,18 @@ class DS_Hero_Module extends FLBuilderModule {
 
 		// Hide the auto heading/subtitle when there's a background image/video, for a
 		// clean image-only banner.
-		// Hide the auto title when the module says so, OR site-wide via Theme Setting
-		// -> Page Banner -> "Title on Photo Banners" (module Yes still wins per page).
-		$ts_hide   = class_exists( 'DS_Theme_Setting' ) && DS_Theme_Setting::banner_photo_title_hidden();
-		$hide_text = ( ( ( $s->banner_hide_text ?? 'no' ) === 'yes' ) || $ts_hide ) && $has_bg;
+		// Title on photo banners: the Theme Setting (Page Banner -> Title on Photo
+		// Banners) is the SITE-WIDE authority. Only the module's new explicit
+		// per-page values (force_show / force_hide) override it. Legacy baked
+		// values ('yes'/'no' from older blueprints) follow the Theme Setting too —
+		// they were build-time defaults, not per-page choices, and previously made
+		// the site-wide control impossible to honour.
+		$ts_hide = class_exists( 'DS_Theme_Setting' ) && DS_Theme_Setting::banner_photo_title_hidden();
+		$mode    = (string) ( $s->banner_hide_text ?? '' );
+		if ( 'force_show' === $mode )     { $hide = false; }
+		elseif ( 'force_hide' === $mode ) { $hide = true; }
+		else                              { $hide = $ts_hide; }
+		$hide_text = $hide && $has_bg;
 		if ( $hide_text ) {
 			$heading = ''; $sub = '';
 		} elseif ( '' === $heading && FLBuilderModel::is_builder_active() ) {
@@ -357,10 +365,11 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'banner_hide_text' => array(
 						'type'    => 'select',
 						'label'   => __( 'Text When Image Present', 'ds-toolkit' ),
-						'default' => 'no',
+						'default' => '',
 						'options' => array(
-							'no'  => __( 'Show heading & subtitle', 'ds-toolkit' ),
-							'yes' => __( 'Hide (image only)', 'ds-toolkit' ),
+							''           => __( 'Theme Setting default (recommended)', 'ds-toolkit' ),
+							'force_show' => __( 'Always show (this instance)', 'ds-toolkit' ),
+							'force_hide' => __( 'Always hide — image only (this instance)', 'ds-toolkit' ),
 						),
 						'help'    => __( 'When the banner has a background image or video, hide the auto heading / subtitle for a clean image-only banner.', 'ds-toolkit' ),
 					),

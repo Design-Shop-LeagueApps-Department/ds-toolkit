@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.22] - 2026-07-10
+### Fixed
+- **Banner title on photo banners now obeys the Theme Setting.** Root cause of "Title on Photo Banners = Show" doing nothing on fleet sites: older blueprints baked the Hero module's per-instance "Hide (image only)" into the base template, and that value always beat the Theme Setting — the site-wide control could never win. Precedence flipped: **Theme Setting → Page Banner → Title on Photo Banners is the site-wide authority**; legacy baked module values follow it; only the module's new explicit per-instance choices ("Always show" / "Always hide — image only") override it. Verified against the live fleet test page markup.
+
 ## [1.9.21] - 2026-07-10
 ### Changed
 - **Admin toolbar: content actions moved to the end.** Final order after the site name: **Theme Setting · DS Toolkit · (Yoast) · + New · Edit Page · Beaver Builder** — the editing trio grouped at the last part of the bar.
