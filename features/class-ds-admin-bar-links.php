@@ -18,6 +18,13 @@ class DS_Admin_Bar_Links {
 	}
 
 	public function init() {
+		// HARD LOCK: every toolbar customisation in this class (links, declutter,
+		// reorder) is Launchpad 6+ ONLY. The feature registry already gates this
+		// via min_blueprint => 6; this guard makes the lock explicit even if the
+		// settings key were ever set on an older install.
+		if ( DS_Toolkit::blueprint_version() < 6 ) {
+			return;
+		}
 		add_action( 'admin_bar_menu', array( $this, 'add_links' ), 82 );
 		add_action( 'admin_bar_menu', array( $this, 'remove_noise' ), 999 );
 		add_action( 'admin_bar_menu', array( $this, 'reorder' ), 2000 );
@@ -32,7 +39,10 @@ class DS_Admin_Bar_Links {
 	 * @param WP_Admin_Bar $bar
 	 */
 	public function reorder( $bar ) {
-		$sequence = array( 'fl-builder-frontend-edit-link', 'ds-theme-setting', 'ds-toolkit-settings', 'wpseo-menu' );
+		// Final order after the site name: Theme Setting, DS Toolkit, (Yoast…),
+		// then the CONTENT ACTIONS grouped at the very end of the bar:
+		// + New · Edit Page · Beaver Builder.
+		$sequence = array( 'ds-theme-setting', 'ds-toolkit-settings', 'wpseo-menu', 'new-content', 'edit', 'fl-builder-frontend-edit-link' );
 		$nodes    = array();
 		foreach ( $sequence as $nid ) {
 			$n = $bar->get_node( $nid );
