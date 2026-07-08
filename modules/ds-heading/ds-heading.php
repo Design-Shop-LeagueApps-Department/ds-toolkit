@@ -46,6 +46,7 @@ class DS_Heading_Module extends FLBuilderModule {
 	private function heading_html( $raw ) {
 		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
 		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-heading-accent">', '</span>' ), $h );
+		$h = str_replace( array( '{outline}', '{/outline}' ), array( '<span class="ds-outline-text">', '</span>' ), $h );
 		return nl2br( $h );
 	}
 
@@ -157,7 +158,7 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'rows'        => 2,
 						'default'     => 'Section {a}Heading{/a}',
 						'connections' => array( 'string' ),
-						'help'        => __( 'Wrap a word in {a}…{/a} to colour it with the accent. Line breaks are kept. Use the connect (+) icon to pull a dynamic field (post title, ACF, etc.).', 'ds-toolkit' ),
+						'help'        => __( 'Wrap a word in {a}…{/a} to colour it with the accent. Line breaks are kept. Use the connect (+) icon to pull a dynamic field (post title, ACF, etc.). {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 					'heading_tag'         => array(
 						'type'    => 'select',
@@ -242,6 +243,8 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 					'subheading_color'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
 					'heading_color'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
 					'heading_accent_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Accent {a}…{/a}', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
+					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
 					'description_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Description', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
 				),
 			),

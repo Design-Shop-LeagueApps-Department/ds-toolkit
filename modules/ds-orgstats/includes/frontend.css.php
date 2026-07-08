@@ -163,3 +163,8 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		}
 	}
 }
+
+/* ---- Outline text ({outline}...{/outline}) per-module override: blank = Theme Setting. ---- */
+$oc_ov = DS_Module_UI::color( $settings->outline_color ?? '' );
+if ( '' !== $oc_ov ) { echo "$node { --ds-outline-c: {$oc_ov}; }\n"; }
+if ( isset( $settings->outline_width ) && '' !== $settings->outline_width ) { echo "$node { --ds-outline-w: " . max( 1, (int) $settings->outline_width ) . "px; }\n"; }

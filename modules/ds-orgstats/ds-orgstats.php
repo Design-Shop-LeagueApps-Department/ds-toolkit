@@ -49,6 +49,7 @@ class DS_OrgStats_Module extends FLBuilderModule {
 	private function heading_html( $raw ) {
 		$h = esc_html( (string) $raw );
 		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-orgstats-accent">', '</span>' ), $h );
+		$h = str_replace( array( '{outline}', '{/outline}' ), array( '<span class="ds-outline-text">', '</span>' ), $h );
 		return nl2br( $h );
 	}
 
@@ -255,7 +256,7 @@ FLBuilder::register_module( 'DS_OrgStats_Module', array(
 						'rows'        => 2,
 						'default'     => 'Lorem {a}Ipsum{/a}',
 						'connections' => array( 'string' ),
-						'help'        => __( 'Line breaks kept. Wrap a word in {a}…{/a} to colour it with the accent.', 'ds-toolkit' ),
+						'help'        => __( 'Line breaks kept. Wrap a word in {a}…{/a} to colour it with the accent. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 				),
 			),
@@ -395,6 +396,8 @@ FLBuilder::register_module( 'DS_OrgStats_Module', array(
 					'eyebrow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Eyebrow', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank falls back to the global Accent colour. The leading rule tracks this colour.', 'ds-toolkit' ) ),
 					'heading_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'accent_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Accent (heading word, prefix, suffix)', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank falls back to the global Accent colour.', 'ds-toolkit' ) ),
+					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
+					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
 					'number_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Number', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'label_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Label', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
 				),

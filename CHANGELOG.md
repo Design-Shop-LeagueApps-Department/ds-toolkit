@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.19] - 2026-07-10
+### Added
+- **Outline Text.** Wrap a word in `{outline}…{/outline}` in any LeagueApps module heading (Hero, Heading, CTA, Post Loop, Org Stats) and it renders **transparent with a stroked border** (`-webkit-text-stroke`). The site-wide default (stroke colour + width) lives in **Theme Setting → General → Outline Text** (blank colour = the text's own colour as the stroke); each module's Style tab gains **Outline Text Colour / Width** overrides (blank = theme default, via CSS variables).
+- **CTA — Card Shadow.** New Style option (None / Soft / Medium / Strong) that shadows the cards / tiles / cells of whichever CTA style is selected.
+- **Theme Setting — Title Colour (no image).** Companion to "Title Colour (on photo)": sets the banner title colour for pages whose banner has **no** photo/video. (Fleet report: the photo colour was working — verified in the served CSS — but the tested page had a no-image banner, which had no control until now.)
+
 ## [1.9.18] - 2026-07-09
 ### Changed
 - **Theme Setting — accordion renamed "Page Banner Background (No Image)" → "Page Banner".** The section now covers all banner behaviour (Featured Image Banner per post type, Title on Photo Banners + colour, and the no-image background), so the old name no longer fit. The background controls sit under a "Background (when the banner has no image)" sub-heading; the Hero module's help text referencing the old name was updated too. Settings and stored values are unchanged.

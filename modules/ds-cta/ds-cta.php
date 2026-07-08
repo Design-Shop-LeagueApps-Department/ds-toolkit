@@ -50,6 +50,7 @@ class DS_CTA_Module extends FLBuilderModule {
 	private function heading_html( $raw ) {
 		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
 		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-cta-accent">', '</span>' ), $h );
+		$h = str_replace( array( '{outline}', '{/outline}' ), array( '<span class="ds-outline-text">', '</span>' ), $h );
 		return nl2br( $h );
 	}
 
@@ -458,7 +459,7 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 						'label'   => __( 'Heading', 'ds-toolkit' ),
 						'rows'    => 2,
 						'default' => '{a}Lorem{/a} Ipsum Dolor',
-						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent.', 'ds-toolkit' ),
+						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 					'header_label' => array( 'type' => 'text', 'label' => __( 'Right-side Label', 'ds-toolkit' ), 'default' => 'Lorem ipsum →' ),
 					'header_desc'  => array( 'type' => 'textarea', 'label' => __( 'Header Description', 'ds-toolkit' ), 'rows' => 3, 'help' => __( 'Paragraph beside the heading (Bento / Style 3).', 'ds-toolkit' ) ),
@@ -506,7 +507,7 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 						'label'   => __( 'Heading', 'ds-toolkit' ),
 						'rows'    => 2,
 						'default' => 'Questions? {a}Contact Us.{/a}',
-						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the accent. Line breaks are kept.', 'ds-toolkit' ),
+						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the accent. Line breaks are kept. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 					'hero_align'        => array(
 						'type'    => 'select',
@@ -697,6 +698,20 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 				'title'  => __( 'Colours', 'ds-toolkit' ),
 				'fields' => array(
 					'accent_color'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Accent (eyebrow, chevron, bar)', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
+					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
+					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
+					'cta_shadow' => array(
+						'type'    => 'select',
+						'label'   => __( 'Card Shadow', 'ds-toolkit' ),
+						'default' => '',
+						'options' => array(
+							''       => __( 'None', 'ds-toolkit' ),
+							'soft'   => __( 'Soft', 'ds-toolkit' ),
+							'medium' => __( 'Medium', 'ds-toolkit' ),
+							'strong' => __( 'Strong', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Drop shadow on the cards / tiles / cells of the selected style.', 'ds-toolkit' ),
+					),
 					'title_color'         => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Title', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'card_bg'             => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
 					'header_color'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Header Text', 'ds-toolkit' ), 'default' => 'var(--fl-global-headings)', 'show_reset' => true ),
