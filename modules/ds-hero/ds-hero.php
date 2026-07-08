@@ -270,7 +270,10 @@ class DS_Hero_Module extends FLBuilderModule {
 
 		// Hide the auto heading/subtitle when there's a background image/video, for a
 		// clean image-only banner.
-		$hide_text = ( ( $s->banner_hide_text ?? 'no' ) === 'yes' ) && $has_bg;
+		// Hide the auto title when the module says so, OR site-wide via Theme Setting
+		// -> Page Banner -> "Title on Photo Banners" (module Yes still wins per page).
+		$ts_hide   = class_exists( 'DS_Theme_Setting' ) && DS_Theme_Setting::banner_photo_title_hidden();
+		$hide_text = ( ( ( $s->banner_hide_text ?? 'no' ) === 'yes' ) || $ts_hide ) && $has_bg;
 		if ( $hide_text ) {
 			$heading = ''; $sub = '';
 		} elseif ( '' === $heading && FLBuilderModel::is_builder_active() ) {
