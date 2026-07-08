@@ -815,7 +815,7 @@ JS;
                     $this->acc_end();
 
                     $bnbg_img = $mod( 'ds-banner-nobg-image' );
-                    $this->acc( 'Page Banner Background (No Image)', false );
+                    $this->acc( 'Page Banner', false );
                         ?>
                         <div class="ds-ts-field"><label>Featured Image Banner</label><div class="ds-ts-input">
                             <input type="hidden" name="general[banner_featured_types_set]" value="1">
@@ -837,7 +837,8 @@ JS;
                         $this->field_close();
                         $this->color_field( 'Title Colour (on photo)', 'general[banner_photo_title_color]', $mod( 'ds-banner-photo-title-color', '' ) );
                         echo '<p class="ds-ts-help">When the banner <strong>has</strong> a photo or video: show or hide the auto page title, and optionally set its colour (blank = the default light title). The Hero Banner module can still override both per page.</p>';
-                                                $this->color_field( 'Background Color', 'general[banner_nobg_color]', $mod( 'ds-banner-nobg-color', 'var(--fl-global-light-background)' ) );
+                                                echo '<p style="margin:18px 0 6px;font-weight:600;border-top:1px solid #e2e4e7;padding-top:14px;">Background (when the banner has no image)</p>';
+                        $this->color_field( 'Background Color', 'general[banner_nobg_color]', $mod( 'ds-banner-nobg-color', 'var(--fl-global-light-background)' ) );
                         ?>
                         <div class="ds-ts-field ds-ts-media"><label>Pattern / Image</label><div class="ds-ts-input">
                             <input type="hidden" class="ds-ts-media-url" name="general[banner_nobg_image]" value="<?php echo esc_attr( $bnbg_img ); ?>">
