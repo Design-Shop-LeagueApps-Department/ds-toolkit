@@ -73,7 +73,7 @@ class DS_Page_Cards_Module extends FLBuilderModule {
 		}
 
 		$h .= '<div class="dst-card-body">';
-		$h .= '<h3 class="dst-card-title">' . esc_html( $title ) . '</h3>';
+		$h .= '<h3 class="dst-card-title">' . DS_Module_UI::inline( $title ) . '</h3>';
 
 		if ( ( $s->show_excerpt ?? 'no' ) === 'yes' ) {
 			$ex = trim( (string) $child->post_excerpt ); // manual excerpt only (BB page content isn't excerpt-friendly).

@@ -4,6 +4,18 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.6] - 2026-07-06
+### Added
+- **Reels Strip — Media Library videos.** New **Video (Media Library)** field per slide (Beaver's native video picker) for uploading/picking MP4s; takes priority over the Video URL field (kept for externally-hosted files).
+- **Reels Strip — Autoplay Videos.** Optional Instagram-style behaviour: videos autoplay muted + looped while on screen and pause off-screen (IntersectionObserver); click pauses/resumes. Reduced-motion visitors get click-to-play instead.
+- **Reels Strip — Play Button styles.** Circle (default), **Icon only** (no circle, larger glyph with drop shadow), or **Hidden** (the whole card is the play target). Colour fields show per style; the button auto-hides in autoplay mode.
+
+### Fixed
+- **Post Loop — inline HTML now works in titles.** The section heading and every card title (featured / news grid / card grid / tournament / program / staff names + roles / team names / the `{title}` custom-loop token) now go through the shared safe inline-HTML whitelist, so `<span>` styling renders instead of printing literally. Also swept the last stragglers elsewhere: Page Cards titles, Team Detail coaches-section title, and Images/Videos Carousel captions.
+- **Post Loop — Tournament button now follows Theme Setting → Elements → Button** (background, text, hover, border-radius, typography). It previously only borrowed the button colour with a hardcoded 6px radius.
+- **Page Cards — the "Button (follows theme)" link style now actually follows the theme Button** (bg, text, hover, radius, typography); it previously had no sync behind the label.
+- **Reels Strip — clicks on the native video controls** (pause / scrub / fullscreen) no longer re-trigger the card's play handler.
+
 ## [1.9.5] - 2026-07-05
 ### Added
 - **Images/Videos Carousel — Style 3: Reels Strip.** A new multi-column style (modeled on an Instagram-reels strip): portrait cards side by side, each an **image or an MP4 video**. The slide form gains a **Video URL (MP4)** field — a video card shows a centred play button over its poster image and plays inline on click (playing one pauses the others); an image card stays a plain (optionally linked) card. Style → Reels Strip controls: responsive **Columns** (default 5 / 3 / 2) + **Gap**, **Card Aspect Ratio** (9:16 default, 3:4, 4:5, 1:1), **Corner Radius** (blank = Theme Setting radius), **Arrows** (steps one card; the strip always swipes/scrolls with snap), and **Play Button** background + icon colours. Honours `prefers-reduced-motion`; play button has a `:focus-visible` ring; JS is idempotent and re-inits on builder partial refresh; imageless slides fall back to the Social Card.
