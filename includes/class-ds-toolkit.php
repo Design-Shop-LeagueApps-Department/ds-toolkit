@@ -172,6 +172,11 @@ class DS_Toolkit {
             'class'         => 'DS_Builder_Defaults',
             'min_blueprint' => 6,
         ),
+        'ds_admin_bar_links_enabled' => array(
+            'file'          => 'features/class-ds-admin-bar-links.php',
+            'class'         => 'DS_Admin_Bar_Links',
+            'min_blueprint' => 6,
+        ),
     );
 
     /**
@@ -318,6 +323,7 @@ class DS_Toolkit {
             $defaults['ds_page_cards_module_enabled'] = 1;
             $defaults['ds_team_detail_module_enabled'] = 1;
             $defaults['ds_builder_defaults_enabled']   = 1;
+            $defaults['ds_admin_bar_links_enabled']    = 1;
         }
 
         return $defaults;

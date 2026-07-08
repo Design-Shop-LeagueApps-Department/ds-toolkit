@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.7] - 2026-07-06
+### Added
+- **Admin toolbar quick links** (`ds_admin_bar_links_enabled`, blueprint 6+, auto-on): **Theme Setting** and, beside it, **DS Toolkit** in the WP admin bar (wp-admin and front end). LeagueApps-email users only, and each link also requires its page's capability (Theme Setting: `edit_posts` + the feature enabled; DS Toolkit: `manage_options`), so partners never see them and there are no dead links.
+
 ## [1.9.6] - 2026-07-06
 ### Added
 - **Reels Strip — Media Library videos.** New **Video (Media Library)** field per slide (Beaver's native video picker) for uploading/picking MP4s; takes priority over the Video URL field (kept for externally-hosted files).
