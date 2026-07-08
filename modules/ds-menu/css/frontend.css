@@ -22,7 +22,11 @@
 	transition: opacity .15s ease, transform .15s ease, visibility .15s;
 	box-shadow: 0 8px 24px rgba(0,0,0,.12); border-radius: var(--ds-radius); padding: 4px 0;
 }
+.ds-menu .ds-submenu .ds-menu-item { position: relative; } /* anchor flyouts to their OWN row, not the panel top */
 .ds-menu .ds-submenu .ds-submenu { top: 0; left: 100%; }
+/* Edge flip (class set by js when a panel would overflow the viewport's right edge). */
+.ds-menu .ds-submenu .ds-menu-item.ds-flip > .ds-submenu { left: auto; right: 100%; }
+.ds-menu > .ds-menu-item.ds-flip > .ds-submenu { left: auto; right: 0; }
 .ds-menu-item:hover > .ds-submenu,
 .ds-menu-item:focus-within > .ds-submenu {
 	opacity: 1; visibility: visible; transform: translateY(0);
