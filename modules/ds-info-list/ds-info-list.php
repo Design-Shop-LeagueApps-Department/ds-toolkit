@@ -18,8 +18,8 @@ class DS_Info_List_Module extends FLBuilderModule {
 
 	public function __construct() {
 		parent::__construct( array(
-			'name'            => __( 'Info List', 'ds-toolkit' ),
-			'description'     => __( 'Icon + text + link rows bound to ACF fields; empty rows hide automatically.', 'ds-toolkit' ),
+			'name'            => __( 'Post Details', 'ds-toolkit' ),
+			'description'     => __( 'Icon + text + link rows from the current post\'s ACF fields — for Themer single templates (staff, events). Empty rows hide automatically.', 'ds-toolkit' ),
 			'category'        => __( 'LeagueApps', 'ds-toolkit' ),
 			'dir'             => DS_TOOLKIT_PATH . 'modules/ds-info-list/',
 			'url'             => DS_TOOLKIT_URL . 'modules/ds-info-list/',
@@ -78,6 +78,18 @@ class DS_Info_List_Module extends FLBuilderModule {
 	}
 
 	public function render() {
+		// Re-entry guard. A row's Value connected to "Post Content" (or a
+		// [wpbb post:content] shortcode) on a normal page renders the page
+		// inside itself -> infinite recursion -> memory exhaustion. Render
+		// once per request depth; a nested call bails out empty.
+		static $depth = 0;
+		if ( $depth > 0 ) { return; }
+		$depth++;
+		$this->render_inner();
+		$depth--;
+	}
+
+	private function render_inner() {
 		$s     = $this->settings;
 		$items = ( isset( $s->items ) && is_array( $s->items ) ) ? $s->items : array();
 		$out   = '';
@@ -232,3 +244,19 @@ FLBuilder::register_module( 'DS_Info_List_Module', array(
 		),
 	),
 ) );
+
+/* Offer this module in the builder panel ONLY while editing a Themer layout
+   (fl-theme-layout): its rows read ACF fields off the rendered post, which is
+   meaningless on a normal page and — via a "Post Content" connection — can even
+   recurse. Instances already placed on pages keep rendering (the flag only
+   controls the panel listing). */
+add_filter( 'fl_builder_register_module', function ( $enabled, $instance ) {
+	if ( ! isset( $instance->slug ) || 'ds-info-list' !== $instance->slug ) {
+		return $enabled;
+	}
+	$pid = class_exists( 'FLBuilderModel' ) ? FLBuilderModel::get_post_id() : 0;
+	if ( ! $pid ) {
+		return $enabled;
+	}
+	return 'fl-theme-layout' === get_post_type( $pid );
+}, 10, 2 );

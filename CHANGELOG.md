@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.8] - 2026-07-07
+### Changed
+- **Renamed "Info List" → "Post Details"** and scoped it to its intended context: the module now only appears in the builder panel while editing a **Themer layout** (via the `fl_builder_register_module` filter). Its rows read ACF fields off the rendered post, which is meaningless on a normal page. Instances already placed on pages keep rendering — the gate only controls the panel listing. Slug (`ds-info-list`) and saved settings unchanged.
+
+### Fixed
+- **Post Details — editor memory error on normal pages.** A row's Value connected to the "Post Content" dynamic field (or a `[wpbb post:content]` shortcode) on a regular page rendered the page inside itself (infinite recursion → memory exhaustion in the builder). `render()` now has a re-entry guard, so the loop physically can't happen even on existing page instances.
+
 ## [1.9.7] - 2026-07-06
 ### Added
 - **Admin toolbar quick links** (`ds_admin_bar_links_enabled`, blueprint 6+, auto-on): **Theme Setting** and, beside it, **DS Toolkit** in the WP admin bar (wp-admin and front end). LeagueApps-email users only, and each link also requires its page's capability (Theme Setting: `edit_posts` + the feature enabled; DS Toolkit: `manage_options`), so partners never see them and there are no dead links.
