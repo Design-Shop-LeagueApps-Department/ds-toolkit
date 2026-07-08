@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.18] - 2026-07-09
+### Changed
+- **Theme Setting — accordion renamed "Page Banner Background (No Image)" → "Page Banner".** The section now covers all banner behaviour (Featured Image Banner per post type, Title on Photo Banners + colour, and the no-image background), so the old name no longer fit. The background controls sit under a "Background (when the banner has no image)" sub-heading; the Hero module's help text referencing the old name was updated too. Settings and stored values are unchanged.
+
 ## [1.9.17] - 2026-07-09
 ### Fixed
 - **Menu — nested submenu overlap.** Two flyout bugs on deep dropdowns (e.g. a "More" item near the right edge): the nested flyout anchored to the **top of the whole panel** instead of its own row (submenu items were never positioned), and it always opened **rightward**, clipping off-screen / overlapping near the viewport edge. Flyouts now align to their row, and a lightweight edge check flips any dropdown or flyout to open **leftward** when it would overflow the right edge. Desktop only; the mobile overlay is untouched.
