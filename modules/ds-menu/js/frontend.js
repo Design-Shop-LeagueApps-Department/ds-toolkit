@@ -87,7 +87,29 @@
 		} );
 	}
 
-	function boot() { document.querySelectorAll( '.ds-menu-wrap' ).forEach( init ); }
+	/* Edge flip: when a dropdown / nested flyout would overflow the viewport's
+	   right edge (e.g. the last "More" item), flip it to open leftward instead
+	   of overlapping or clipping. Desktop only — the overlay renders submenus
+	   statically. Measured on hover (panels have layout while hidden). */
+	function initFlip( wrap ) {
+		if ( wrap.dsFlipInit ) { return; }
+		wrap.dsFlipInit = true;
+		wrap.addEventListener( 'mouseover', function ( e ) {
+			if ( wrap.classList.contains( 'ds-menu-open' ) ) { return; } // mobile overlay
+			var li = e.target && e.target.closest ? e.target.closest( '.ds-menu-item.has-children' ) : null;
+			if ( ! li || ! wrap.contains( li ) ) { return; }
+			var sub = null;
+			for ( var i = 0; i < li.children.length; i++ ) {
+				if ( li.children[ i ].classList && li.children[ i ].classList.contains( 'ds-submenu' ) ) { sub = li.children[ i ]; break; }
+			}
+			if ( ! sub ) { return; }
+			li.classList.remove( 'ds-flip' );
+			var r = sub.getBoundingClientRect();
+			if ( r.width > 0 && r.right > window.innerWidth - 8 ) { li.classList.add( 'ds-flip' ); }
+		} );
+	}
+
+	function boot() { document.querySelectorAll( '.ds-menu-wrap' ).forEach( function ( w ) { init( w ); initFlip( w ); } ); }
 
 	if ( 'loading' !== document.readyState ) { boot(); } else { document.addEventListener( 'DOMContentLoaded', boot ); }
 	// Re-init after a Beaver Builder partial refresh while editing.
