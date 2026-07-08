@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.20] - 2026-07-10
+### Changed
+- **Description / body textareas are now WYSIWYG editors** across the LeagueApps modules (like the Program card in 1.9.12): CTA bento-cell Description + Header Description, Post Loop Sponsor Description, Hero Subtext + Banner Subtitle, and the Heading module Description. All render sanitised HTML (`wp_kses_post`, auto-paragraphs). **Heading fields intentionally stay plain textareas** — a visual editor injects `<p>` wrappers, which would corrupt the `<h1>/<h2>` markup; they keep their `{a}` / `{outline}` tokens and line-break support.
+
 ## [1.9.19] - 2026-07-10
 ### Added
 - **Outline Text.** Wrap a word in `{outline}…{/outline}` in any LeagueApps module heading (Hero, Heading, CTA, Post Loop, Org Stats) and it renders **transparent with a stroked border** (`-webkit-text-stroke`). The site-wide default (stroke colour + width) lives in **Theme Setting → General → Outline Text** (blank colour = the text's own colour as the stroke); each module's Style tab gains **Outline Text Colour / Width** overrides (blank = theme default, via CSS variables).

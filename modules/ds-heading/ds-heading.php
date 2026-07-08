@@ -186,7 +186,7 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
 						'toggle'  => array( 'yes' => array( 'fields' => array( 'description' ) ) ),
 					),
-					'description'      => array( 'type' => 'textarea', 'label' => __( 'Description', 'ds-toolkit' ), 'rows' => 4, 'connections' => array( 'string' ), 'help' => __( 'Paragraph under the heading. Line breaks kept; basic inline HTML (e.g. <strong>, <a>) allowed. Use the connect (+) icon for a dynamic field.', 'ds-toolkit' ) ),
+					'description'      => array( 'type' => 'editor', 'media_buttons' => false, 'wpautop' => false, 'label' => __( 'Description', 'ds-toolkit' ), 'rows' => 4, 'connections' => array( 'string' ), 'help' => __( 'Paragraph under the heading. Line breaks kept; basic inline HTML (e.g. <strong>, <a>) allowed. Use the connect (+) icon for a dynamic field.', 'ds-toolkit' ) ),
 				),
 			),
 		),

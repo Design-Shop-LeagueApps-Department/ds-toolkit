@@ -202,7 +202,7 @@ class DS_Hero_Module extends FLBuilderModule {
 			echo '<h1 class="ds-hero-title">' . $this->heading_html( $s->heading ) . '</h1>';
 		}
 		if ( ! empty( $s->subtext ) ) {
-			echo '<p class="ds-hero-sub">' . nl2br( esc_html( $s->subtext ) ) . '</p>';
+			echo '<div class="ds-hero-sub">' . wpautop( wp_kses_post( $s->subtext ) ) . '</div>';
 		}
 
 		$b1 = $this->button( $s->btn1_text ?? '', $s->btn1_link ?? '', $s->btn1_style ?? 'primary', true );
@@ -314,7 +314,7 @@ class DS_Hero_Module extends FLBuilderModule {
 		if ( '' !== $crumbs && 'top' === $crumb_pos ) { echo $crumbs; }
 		if ( '' !== $eyebrow ) { echo '<span class="ds-banner-eyebrow">' . esc_html( $eyebrow ) . '</span>'; }
 		if ( '' !== $heading ) { echo '<h1 class="ds-hero-title">' . $this->heading_html( $heading ) . '</h1>'; }
-		if ( '' !== $sub )     { echo '<p class="ds-hero-sub">' . nl2br( esc_html( $sub ) ) . '</p>'; }
+		if ( '' !== $sub )     { echo '<div class="ds-hero-sub">' . wpautop( wp_kses_post( $sub ) ) . '</div>'; }
 		if ( '' !== $crumbs && 'below' === $crumb_pos ) { echo $crumbs; }
 		echo '</div></div></section>';
 	}
@@ -351,7 +351,7 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 				'fields'      => array(
 					'banner_eyebrow'  => array( 'type' => 'text', 'label' => __( 'Sub-heading (eyebrow)', 'ds-toolkit' ), 'default' => '', 'connections' => array( 'string' ), 'help' => __( 'Small line above the heading (optional).', 'ds-toolkit' ) ),
 					'banner_heading'  => array( 'type' => 'text', 'label' => __( 'Heading', 'ds-toolkit' ), 'default' => '', 'connections' => array( 'string' ), 'help' => __( 'Blank = the page’s Banner Title, or the page name.', 'ds-toolkit' ) ),
-					'banner_subtitle' => array( 'type' => 'textarea', 'label' => __( 'Subtitle', 'ds-toolkit' ), 'default' => '', 'rows' => 2, 'connections' => array( 'string' ), 'help' => __( 'Blank = the page’s Banner Subtitle.', 'ds-toolkit' ) ),
+					'banner_subtitle' => array( 'type' => 'editor', 'media_buttons' => false, 'wpautop' => false, 'label' => __( 'Subtitle', 'ds-toolkit' ), 'default' => '', 'rows' => 2, 'connections' => array( 'string' ), 'help' => __( 'Blank = the page’s Banner Subtitle.', 'ds-toolkit' ) ),
 					'banner_image'    => array( 'type' => 'photo', 'label' => __( 'Background Photo', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Blank = the page’s Banner photo.', 'ds-toolkit' ) ),
 					'banner_video'    => array( 'type' => 'text', 'label' => __( 'Background Video URL', 'ds-toolkit' ), 'default' => '', 'connections' => array( 'string' ), 'help' => __( 'Optional MP4 URL. Blank = the page’s Banner video.', 'ds-toolkit' ) ),
 					'banner_hide_text' => array(
@@ -392,7 +392,7 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'help'    => __( 'Line breaks are kept. Wrap a word in {a}…{/a} to colour it with the accent colour. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 					'subtext' => array(
-						'type'    => 'textarea',
+						'type'    => 'editor', 'media_buttons' => false, 'wpautop' => false,
 						'label'   => __( 'Subtext', 'ds-toolkit' ),
 						'rows'    => 3,
 						'default' => 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.',
