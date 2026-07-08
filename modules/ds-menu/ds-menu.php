@@ -143,7 +143,9 @@ class DS_Menu_Module extends FLBuilderModule {
 		$button_on = $is_top && isset( $this->settings->last_item_button ) && 'yes' === $this->settings->last_item_button;
 		$last_id   = ( $button_on && ! empty( $children[ $parent ] ) ) ? (int) end( $children[ $parent ] )->ID : 0;
 
-		echo '<ul class="' . ( $is_top ? 'ds-menu' : 'ds-submenu' ) . '">';
+		echo '<ul class="' . ( $is_top ? 'ds-menu' : 'ds-submenu' ) . '">';		
+		$sep_on = $is_top && ( $this->settings->bar_divider_style ?? 'none' ) !== 'none';
+		$sep_first = true;
 		foreach ( $children[ $parent ] as $item ) {
 			$has_children = ! empty( $children[ $item->ID ] );
 			$classes      = is_array( $item->classes ) ? $item->classes : array();
@@ -171,6 +173,12 @@ class DS_Menu_Module extends FLBuilderModule {
 			$extra = array_filter( $classes, function( $c ) { return $c && 0 !== strpos( $c, 'ds-cols-' ) && 'ds-no-mega' !== $c; } );
 			if ( $extra ) { $li_class .= ' ' . implode( ' ', array_map( 'sanitize_html_class', $extra ) ); }
 
+			// Bar divider: a real flex-item separator between top-level items (centres
+			// correctly for every alignment incl. Justify). Skipped before the CTA button.
+			if ( $sep_on ) {
+				if ( ! $sep_first && ! $is_button ) { echo '<li class="ds-menu-sep" aria-hidden="true"><span></span></li>'; }
+				$sep_first = false;
+			}
 			echo '<li class="' . esc_attr( $li_class ) . '">';
 			$target = $item->target ? ' target="' . esc_attr( $item->target ) . '" rel="noopener"' : '';
 			// CTA buttons never get the submenu indicator.
@@ -380,6 +388,26 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 				'fields' => array(
 					'text_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
 					'hover_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Hover / Active Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
+					'bar_divider_style'  => array(
+						'type'    => 'select',
+						'label'   => __( 'Item Divider', 'ds-toolkit' ),
+						'default' => 'none',
+						'options' => array(
+							'none'   => __( 'None', 'ds-toolkit' ),
+							'solid'  => __( 'Solid', 'ds-toolkit' ),
+							'dashed' => __( 'Dashed', 'ds-toolkit' ),
+							'dotted' => __( 'Dotted', 'ds-toolkit' ),
+						),
+						'help'    => __( 'A small vertical divider between top-level items on the desktop bar — pairs nicely with the Justify alignment. Hidden in the mobile overlay and never shown before the CTA button.', 'ds-toolkit' ),
+						'toggle'  => array(
+							'solid'  => array( 'fields' => array( 'bar_divider_color', 'bar_divider_height', 'bar_divider_width' ) ),
+							'dashed' => array( 'fields' => array( 'bar_divider_color', 'bar_divider_height', 'bar_divider_width' ) ),
+							'dotted' => array( 'fields' => array( 'bar_divider_color', 'bar_divider_height', 'bar_divider_width' ) ),
+						),
+					),
+					'bar_divider_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider Color', 'ds-toolkit' ), 'default' => 'var(--fl-global-line-color)', 'show_reset' => true, 'show_alpha' => true ),
+					'bar_divider_height' => array( 'type' => 'unit', 'label' => __( 'Divider Height', 'ds-toolkit' ), 'default' => '18', 'description' => 'px', 'slider' => array( 'min' => 6, 'max' => 60, 'step' => 1 ) ),
+					'bar_divider_width'  => array( 'type' => 'unit', 'label' => __( 'Divider Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
 					'hover_weight' => array(
 						'type'    => 'select',
 						'label'   => __( 'Hover Font Weight', 'ds-toolkit' ),

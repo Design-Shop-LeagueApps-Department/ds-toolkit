@@ -42,6 +42,19 @@ $tbord = ( $tbw > 0 && $tbc ) ? "{$tbw}px solid {$tbc}" : '0';
 ?>
 <?php /* Item Spacing is a real GAP between items (independent of the link's own padding). */ ?>
 <?php echo $node; ?> .ds-menu { justify-content: <?php echo $justify; ?>; column-gap: <?php echo $spacing; ?>px; }
+<?php
+/* ---- Item divider: a small vertical rule between top-level items (desktop bar only).
+        Rendered as a real flex item so it centres for every alignment incl. Justify. ---- */
+$bds = $settings->bar_divider_style ?? 'none';
+if ( in_array( $bds, array( 'solid', 'dashed', 'dotted' ), true ) ) {
+	$bdc = $col( $settings->bar_divider_color ?? '' ) ?: 'var(--fl-global-line-color)';
+	$bdh = isset( $settings->bar_divider_height ) && '' !== $settings->bar_divider_height ? (int) $settings->bar_divider_height : 18;
+	$bdw = isset( $settings->bar_divider_width ) && '' !== $settings->bar_divider_width ? (int) $settings->bar_divider_width : 1;
+	echo "$node .ds-menu > .ds-menu-sep { list-style: none; display: flex; align-items: center; }\n";
+	echo "$node .ds-menu > .ds-menu-sep > span { display: block; width: 0; height: {$bdh}px; border-left: {$bdw}px {$bds} {$bdc}; }\n";
+	echo "@media (max-width: {$bp}px) { $node .ds-menu-sep { display: none !important; } }\n";
+}
+?>
 <?php echo $node; ?> .ds-menu > .ds-menu-item > a { padding: <?php echo $barpv; ?>px <?php echo $barph; ?>px; <?php if ( $text ) { echo 'color:' . $text . ';'; } ?> }
 <?php if ( $hover ) : ?>
 <?php echo $node; ?> .ds-menu > .ds-menu-item > a:hover,

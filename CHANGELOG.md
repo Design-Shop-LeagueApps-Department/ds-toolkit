@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.11] - 2026-07-09
+### Added
+- **Menu — Item Divider.** New Style → Menu Bar option: a small vertical divider between top-level items (Solid / Dashed / Dotted, with colour, height, and width controls; colour defaults to the global line colour). Rendered as a real flex item, so it centres correctly for **every alignment including Justify**. Desktop bar only (hidden in the mobile overlay) and never shown before the CTA button.
+
 ## [1.9.10] - 2026-07-09
 ### Fixed
 - **Post Loop — Program card buttons now anchor to the card bottom.** With Same Height on, the Learn More / CTA button sat directly under the text, so buttons across a row didn't line up. The button now pins to the bottom of the card (`margin-top:auto` in the card's flex column), so all buttons align horizontally regardless of text length. No change for cards without Same Height.
