@@ -500,10 +500,10 @@ FLBuilder::register_module( 'DS_Carousel_Module', array(
 				'label'   => __( 'Auto Scroll', 'ds-toolkit' ),
 				'default' => 'no',
 				'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ),
-				'help'    => __( 'The strip advances one card at a time on a timer (loops back to the start). Pauses while hovering or interacting; off for reduced-motion visitors.', 'ds-toolkit' ),
+				'help'    => __( 'The strip drifts continuously in a seamless infinite loop (it never rewinds). Pauses while hovering or interacting and while off-screen; off for reduced-motion visitors.', 'ds-toolkit' ),
 				'toggle'  => array( 'yes' => array( 'fields' => array( 'reel_autoscroll_interval' ) ) ),
 			),
-			'reel_autoscroll_interval' => array( 'type' => 'unit', 'label' => __( 'Scroll Every', 'ds-toolkit' ), 'default' => '4', 'description' => 's', 'slider' => array( 'min' => 1, 'max' => 15, 'step' => 0.5 ) ),
+			'reel_autoscroll_interval' => array( 'type' => 'unit', 'label' => __( 'Speed', 'ds-toolkit' ), 'default' => '4', 'description' => __( 's per card', 'ds-toolkit' ), 'help' => __( 'Seconds each card takes to drift past. Lower = faster.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 15, 'step' => 0.5 ) ),
 			'reel_autoplay' => array(
 				'type'    => 'select',
 				'label'   => __( 'Autoplay Videos', 'ds-toolkit' ),
