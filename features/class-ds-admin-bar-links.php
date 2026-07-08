@@ -20,6 +20,27 @@ class DS_Admin_Bar_Links {
 	public function init() {
 		add_action( 'admin_bar_menu', array( $this, 'add_links' ), 82 );
 		add_action( 'admin_bar_menu', array( $this, 'remove_noise' ), 999 );
+		add_action( 'admin_bar_menu', array( $this, 'reorder' ), 2000 );
+	}
+
+	/**
+	 * Groups the content actions side by side: + New, Edit Page, Beaver Builder,
+	 * then Theme Setting and DS Toolkit (other nodes, e.g. Yoast, move after).
+	 * Works by removing and re-adding nodes in the desired order — the admin bar
+	 * renders root nodes in insertion order.
+	 *
+	 * @param WP_Admin_Bar $bar
+	 */
+	public function reorder( $bar ) {
+		$sequence = array( 'fl-builder-frontend-edit-link', 'ds-theme-setting', 'ds-toolkit-settings', 'wpseo-menu' );
+		$nodes    = array();
+		foreach ( $sequence as $nid ) {
+			$n = $bar->get_node( $nid );
+			if ( $n ) { $nodes[ $nid ] = $n; $bar->remove_node( $nid ); }
+		}
+		foreach ( $sequence as $nid ) {
+			if ( isset( $nodes[ $nid ] ) ) { $bar->add_node( (array) $nodes[ $nid ] ); }
+		}
 	}
 
 	/**

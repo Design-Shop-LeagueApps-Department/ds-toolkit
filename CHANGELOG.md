@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.16] - 2026-07-09
+### Added
+- **Theme Setting — Title on Photo Banners.** In General → Page Banner Background (No Image): choose whether page banners that **have** a photo/video show the auto page title (**Show** / **Hide** for an image-only banner), plus an optional **Title Colour (on photo)** (blank = the default light title). Site-wide defaults; the Hero Banner module can still override both per page.
+
+### Changed
+- **Admin toolbar order.** The content actions now sit side by side: **+ New · Edit Page · Beaver Builder**, followed by **Theme Setting · DS Toolkit** (other nodes such as Yoast move after).
+
 ## [1.9.15] - 2026-07-09
 ### Changed
 - **Admin toolbar decluttered.** The toolbar quick-links feature now also removes the **Customize** link (the fleet styles through Theme Setting / Beaver Builder, not the Customizer), the **updates counter**, and the **WP Engine Quick Links** menu. Capabilities are untouched — those screens stay reachable by URL; only the toolbar noise goes.

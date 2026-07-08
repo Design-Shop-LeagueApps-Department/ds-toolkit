@@ -146,6 +146,11 @@ CSS;
      * Default (never saved yet): every eligible type EXCEPT staff — portrait
      * headshots crop badly in a wide banner.
      */
+    /** Site-wide default: hide the auto title/subtitle on banners that HAVE a photo/video. */
+    public static function banner_photo_title_hidden() {
+        return 'hide' === get_theme_mod( 'ds-banner-photo-title', 'show' );
+    }
+
     public static function banner_featured_types() {
         $mod = get_theme_mod( 'ds-banner-featured-types', null );
         if ( is_array( $mod ) ) {
@@ -178,6 +183,10 @@ CSS;
         if ( '' !== $blend && 'normal' !== $blend ) { $decl .= 'background-blend-mode:' . $blend . ';'; }
         if ( '' === $decl ) { return; }
         echo '<style id="ds-banner-nobg-css">.ds-banner--no-bg{' . $decl . '}</style>' . "\n";
+        $pt_color = (string) get_theme_mod( 'ds-banner-photo-title-color', '' );
+        if ( '' !== $pt_color ) {
+            echo '<style id="ds-banner-photo-title-css">.ds-banner--has-bg .ds-hero-title{color:' . esc_html( $pt_color ) . ';}</style>' . "\n";
+        }
     }
 
     /**
@@ -823,7 +832,12 @@ JS;
                             <p class="ds-ts-help" style="margin:4px 0 0">Content types that may use their <strong>Featured Image</strong> as the banner photo on their single pages. Unchecked types always show the <strong>text-only banner</strong> over the background below &mdash; recommended off for <strong>Staff</strong>, whose portrait headshots crop badly in a wide banner.</p>
                         </div></div>
                         <?php
-                        $this->color_field( 'Background Color', 'general[banner_nobg_color]', $mod( 'ds-banner-nobg-color', 'var(--fl-global-light-background)' ) );
+                        $this->field_open( 'Title on Photo Banners' );
+                        echo $this->sel( 'general[banner_photo_title]', $mod( 'ds-banner-photo-title', 'show' ), array( 'show' => 'Show title', 'hide' => 'Hide title (image-only banner)' ) );
+                        $this->field_close();
+                        $this->color_field( 'Title Colour (on photo)', 'general[banner_photo_title_color]', $mod( 'ds-banner-photo-title-color', '' ) );
+                        echo '<p class="ds-ts-help">When the banner <strong>has</strong> a photo or video: show or hide the auto page title, and optionally set its colour (blank = the default light title). The Hero Banner module can still override both per page.</p>';
+                                                $this->color_field( 'Background Color', 'general[banner_nobg_color]', $mod( 'ds-banner-nobg-color', 'var(--fl-global-light-background)' ) );
                         ?>
                         <div class="ds-ts-field ds-ts-media"><label>Pattern / Image</label><div class="ds-ts-input">
                             <input type="hidden" class="ds-ts-media-url" name="general[banner_nobg_image]" value="<?php echo esc_attr( $bnbg_img ); ?>">
@@ -1068,6 +1082,8 @@ JS;
             if ( isset( $g['banner_featured_types_set'] ) ) {
                 set_theme_mod( 'ds-banner-featured-types', array_map( 'sanitize_key', (array) ( $g['banner_featured_types'] ?? array() ) ) );
             }
+            set_theme_mod( 'ds-banner-photo-title', ( $g['banner_photo_title'] ?? 'show' ) === 'hide' ? 'hide' : 'show' );
+            set_theme_mod( 'ds-banner-photo-title-color', $this->sanitize_color( $g['banner_photo_title_color'] ?? '' ) );
             set_theme_mod( 'ds-corner-radius', isset( $g['corner_radius'] ) && '' !== $g['corner_radius'] ? max( 0, min( 60, (int) $g['corner_radius'] ) ) : 8 );
             // Custom code: LeagueApps-only surface; stored raw like the BB theme's Code section.
             set_theme_mod( 'fl-css-code', isset( $g['css_code'] ) ? trim( $g['css_code'] ) : '' );
