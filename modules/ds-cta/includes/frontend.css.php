@@ -120,18 +120,8 @@ if ( 'style3' === $style ) {
 		if ( '' !== ( $tl . $tr . $bl . $brr ) ) { $ru = function( $v ) { return ( '' === $v ? '0' : (int) $v ) . 'px'; }; $gradius = $ru( $tl ) . ' ' . $ru( $tr ) . ' ' . $ru( $brr ) . ' ' . $ru( $bl ); }
 	}
 	if ( $btn_global && $gs ) {
-		$gbg = $col( $gs->button_background ?? '' ); $gtext = $col( $gs->button_color ?? '' );
-		$gbgh = $col( $gs->button_hover_background ?? '' ) ?: $gbg; $gtexth = $col( $gs->button_hover_color ?? '' ) ?: $gtext;
-		$p = '';
-		if ( $gbg )   { $p .= "background:{$gbg} !important;"; }
-		if ( $gtext ) { $p .= "color:{$gtext} !important;"; }
-		if ( '' !== $gradius ) { $p .= "border-radius:{$gradius};"; }
-		if ( '' !== $p ) { echo "$node .ds-cta-bento-btn { {$p} }\n"; }
-		if ( $gbgh || $gtexth ) { echo "$node .ds-cta-bento-btn:hover { " . ( $gbgh ? "background:{$gbgh} !important;" : '' ) . ( $gtexth ? "color:{$gtexth} !important;" : '' ) . "filter:none; }\n"; }
-		if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
-			$gt = (object) array( 'gbtypo' => $gs->button_typography, 'gbtypo_large' => $gs->button_typography_large ?? '', 'gbtypo_medium' => $gs->button_typography_medium ?? '', 'gbtypo_responsive' => $gs->button_typography_responsive ?? '' );
-			FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => "$node .ds-cta-bento-btn" ) );
-		}
+		// FULL theme Button sync (bg, text, hover, border + radius + shadow, typography).
+		DS_Module_UI::global_button_css( "$node .ds-cta-bento-btn" );
 	} elseif ( $accent ) {
 		echo "$node .ds-cta-bento-btn { background: {$accent} !important; color: var(--fl-global-white) !important; }\n";
 	}
@@ -252,23 +242,8 @@ if ( 'style3' === $style ) {
 	$mode = $settings->hero_btn_global ?? 'global';
 	$gs   = class_exists( 'FLBuilderGlobalStyles' ) ? FLBuilderGlobalStyles::get_settings( false ) : null;
 	if ( 'global' === $mode && $gs ) {
-		$gbg = $col( $gs->button_background ?? '' ); $gtext = $col( $gs->button_color ?? '' );
-		$gbgh = $col( $gs->button_hover_background ?? '' ) ?: $gbg; $gtexth = $col( $gs->button_hover_color ?? '' ) ?: $gtext;
-		$gradius = '';
-		$bb = isset( $gs->button_border ) ? (array) $gs->button_border : array();
-		$r  = isset( $bb['radius'] ) ? (array) $bb['radius'] : array();
-		$tl = $r['top_left'] ?? ''; $tr = $r['top_right'] ?? ''; $bl = $r['bottom_left'] ?? ''; $brr = $r['bottom_right'] ?? '';
-		if ( '' !== ( $tl . $tr . $bl . $brr ) ) { $ru = function( $v ) { return ( '' === $v ? '0' : (int) $v ) . 'px'; }; $gradius = $ru( $tl ) . ' ' . $ru( $tr ) . ' ' . $ru( $brr ) . ' ' . $ru( $bl ); }
-		$p = '';
-		if ( $gbg )   { $p .= "background:{$gbg} !important;"; }
-		if ( $gtext ) { $p .= "color:{$gtext} !important;"; }
-		if ( '' !== $gradius ) { $p .= "border-radius:{$gradius};"; }
-		if ( '' !== $p ) { echo "$node .ds-cta-hero-btn { {$p} }\n"; }
-		if ( $gbgh || $gtexth ) { echo "$node .ds-cta-hero-btn:hover { " . ( $gbgh ? "background:{$gbgh} !important;" : '' ) . ( $gtexth ? "color:{$gtexth} !important;" : '' ) . "filter:none; }\n"; }
-		if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
-			$gt = (object) array( 'gbtypo' => $gs->button_typography, 'gbtypo_large' => $gs->button_typography_large ?? '', 'gbtypo_medium' => $gs->button_typography_medium ?? '', 'gbtypo_responsive' => $gs->button_typography_responsive ?? '' );
-			FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => "$node .ds-cta-hero-btn" ) );
-		}
+		// FULL theme Button sync (bg, text, hover, border + radius + shadow, typography).
+		DS_Module_UI::global_button_css( "$node .ds-cta-hero-btn" );
 	} elseif ( 'custom' === $mode ) {
 		$cbg = $col( $settings->hero_btn_bg ?? '' ); $ctx = $col( $settings->hero_btn_text_color ?? '' );
 		$cbgh = $col( $settings->hero_btn_hover_bg ?? '' ) ?: $cbg; $ctxh = $col( $settings->hero_btn_hover_text ?? '' ) ?: $ctx;

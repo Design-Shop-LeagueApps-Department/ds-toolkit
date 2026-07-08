@@ -65,6 +65,64 @@ class DS_Module_UI {
 		return $c ? "color-mix(in srgb, {$c} {$opacity_pct}%, transparent)" : '';
 	}
 
+	/**
+	 * Emit the FULL Theme Setting global Button style onto a selector:
+	 * background, text colour, hover colours, complete border (style/width/
+	 * colour + radius + box-shadow via FLBuilderCSS::border_field_rule), and
+	 * typography. One call per button surface keeps every module's "match the
+	 * site Button" mode honest — including borders and shadow.
+	 *
+	 * @param string      $selector       Full selector (already node-scoped).
+	 * @param string|null $hover_selector Hover selector; null derives ":hover".
+	 * @return bool True when global styles existed and something was emitted.
+	 */
+	public static function global_button_css( $selector, $hover_selector = null ) {
+		if ( ! class_exists( 'FLBuilderGlobalStyles' ) ) { return false; }
+		$gs = FLBuilderGlobalStyles::get_settings( false );
+		if ( ! $gs ) { return false; }
+		if ( null === $hover_selector ) { $hover_selector = $selector . ':hover'; }
+
+		$bg    = self::color( $gs->button_background ?? '' );
+		$text  = self::color( $gs->button_color ?? '' );
+		$bgh   = self::color( $gs->button_hover_background ?? '' ) ?: $bg;
+		$texth = self::color( $gs->button_hover_color ?? '' ) ?: $text;
+
+		$p = '';
+		if ( $bg )   { $p .= "background:{$bg} !important;"; }
+		if ( $text ) { $p .= "color:{$text} !important;"; }
+		if ( '' !== $p ) { echo "{$selector} { {$p} }\n"; }
+		if ( $bgh || $texth ) {
+			echo "{$hover_selector} { " . ( $bgh ? "background:{$bgh} !important;" : '' ) . ( $texth ? "color:{$texth} !important;" : '' ) . "filter:none; }\n";
+		}
+
+		// Full border: style/width/colour + corner radius + box-shadow. Deferred
+		// via FLBuilderCSS (the module css.php runner flushes it).
+		if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_border ) ) {
+			// Deep-cast: the compound holds NESTED objects (radius / shadow / width);
+			// a top-level (array) cast would leave them stdClass and border_field_rule
+			// would silently skip them (is_array checks) — the shadow especially.
+			$border = json_decode( wp_json_encode( $gs->button_border ), true );
+			FLBuilderCSS::border_field_rule( array(
+				'settings'     => (object) array( 'gbborder' => is_array( $border ) ? $border : array() ),
+				'setting_name' => 'gbborder',
+				'selector'     => $selector,
+			) );
+			$bh = self::color( $gs->button_border_hover_color ?? '' );
+			if ( $bh ) { echo "{$hover_selector} { border-color:{$bh}; }\n"; }
+		}
+
+		if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
+			$gt = (object) array(
+				'gbtypo'            => $gs->button_typography,
+				'gbtypo_large'      => $gs->button_typography_large ?? '',
+				'gbtypo_medium'     => $gs->button_typography_medium ?? '',
+				'gbtypo_responsive' => $gs->button_typography_responsive ?? '',
+			);
+			FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => $selector ) );
+		}
+		return true;
+	}
+
 	/** [ medium, responsive ] global breakpoints in px, with Beaver Builder defaults. */
 	public static function breakpoints() {
 		$g  = class_exists( 'FLBuilderModel' ) ? FLBuilderModel::get_global_settings() : null;

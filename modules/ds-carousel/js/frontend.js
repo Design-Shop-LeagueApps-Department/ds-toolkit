@@ -314,6 +314,26 @@
 		}
 		[].slice.call(root.querySelectorAll('.ds-reel-nav--prev')).forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); step(-1); }); });
 		[].slice.call(root.querySelectorAll('.ds-reel-nav--next')).forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); step(1); }); });
+
+		// Auto scroll: advance one card on a timer, loop to the start at the end.
+		// Pauses on hover / touch / focus; disabled entirely for reduced motion.
+		if (track.getAttribute('data-autoscroll') === 'yes' && !reduce) {
+			var ms = Math.max(1, parseFloat(track.getAttribute('data-interval') || '4')) * 1000;
+			var paused = false, timer = null;
+			function tick() {
+				if (paused) return;
+				var atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+				if (atEnd) { track.scrollTo({ left: 0, behavior: 'smooth' }); }
+				else { step(1); }
+			}
+			function start() { if (!timer) timer = window.setInterval(tick, ms); }
+			function stop()  { if (timer) { window.clearInterval(timer); timer = null; } }
+			['mouseenter', 'touchstart', 'pointerdown', 'focusin'].forEach(function (t) { track.addEventListener(t, function () { paused = true; }, { passive: true }); });
+			['mouseleave', 'focusout'].forEach(function (t) { track.addEventListener(t, function () { paused = false; }, { passive: true }); });
+			if ('IntersectionObserver' in window) {
+				new IntersectionObserver(function (en) { (en[0] && en[0].isIntersecting) ? start() : stop(); }, { threshold: 0.1 }).observe(track);
+			} else { start(); }
+		}
 	}
 
 	function bootReels(root) {

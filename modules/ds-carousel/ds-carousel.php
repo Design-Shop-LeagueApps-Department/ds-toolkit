@@ -306,7 +306,9 @@ class DS_Carousel_Module extends FLBuilderModule {
 		$play = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
 
 		echo '<div class="ds-reels-wrap">';
-		echo '<div class="ds-reels-track" data-autoplay="' . esc_attr( ( $s->reel_autoplay ?? 'no' ) === 'yes' ? 'yes' : 'no' ) . '">';
+		$asc = ( $s->reel_autoscroll ?? 'no' ) === 'yes' ? 'yes' : 'no';
+		$asi = max( 1, (float) ( $s->reel_autoscroll_interval ?? 4 ) );
+		echo '<div class="ds-reels-track" data-autoplay="' . esc_attr( ( $s->reel_autoplay ?? 'no' ) === 'yes' ? 'yes' : 'no' ) . '" data-autoscroll="' . esc_attr( $asc ) . '" data-interval="' . esc_attr( $asi ) . '">';
 		foreach ( $slides as $slide ) {
 			$slide = (object) $slide;
 			$img   = ! empty( $slide->image ) ? $this->photo_url( $slide->image, 'large' ) : '';
@@ -493,6 +495,15 @@ FLBuilder::register_module( 'DS_Carousel_Module', array(
 					),
 					'reel_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank = the Theme Setting corner radius.', 'ds-toolkit' ) ),
 					'reel_arrows' => array( 'type' => 'select', 'label' => __( 'Arrows', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No (swipe / scroll only)', 'ds-toolkit' ) ) ),
+			'reel_autoscroll' => array(
+				'type'    => 'select',
+				'label'   => __( 'Auto Scroll', 'ds-toolkit' ),
+				'default' => 'no',
+				'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ),
+				'help'    => __( 'The strip advances one card at a time on a timer (loops back to the start). Pauses while hovering or interacting; off for reduced-motion visitors.', 'ds-toolkit' ),
+				'toggle'  => array( 'yes' => array( 'fields' => array( 'reel_autoscroll_interval' ) ) ),
+			),
+			'reel_autoscroll_interval' => array( 'type' => 'unit', 'label' => __( 'Scroll Every', 'ds-toolkit' ), 'default' => '4', 'description' => 's', 'slider' => array( 'min' => 1, 'max' => 15, 'step' => 0.5 ) ),
 			'reel_autoplay' => array(
 				'type'    => 'select',
 				'label'   => __( 'Autoplay Videos', 'ds-toolkit' ),
