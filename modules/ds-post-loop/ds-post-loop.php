@@ -758,7 +758,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			if ( '' !== $date )  { echo '<span class="ds-program-date">' . esc_html( $date ) . '</span>'; }
 			if ( '' !== $sub )   { echo '<span class="ds-program-sub">' . esc_html( $sub ) . '</span>'; }
 			if ( '' !== $title ) { echo '<h3 class="ds-program-title">' . DS_Module_UI::inline( $title ) . '</h3>'; }
-			if ( '' !== $desc )  { echo '<p class="ds-program-desc">' . esc_html( $desc ) . '</p>'; }
+			if ( '' !== $desc )  { echo '<div class="ds-program-desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>'; }
 			if ( '' !== $btn && $hasurl ) { echo '<a class="' . esc_attr( $btn_cls ) . '" href="' . esc_url( $url ) . '"' . $tgt . '>' . esc_html( $btn ) . '</a>'; }
 			echo '</div></div>';
 		}
@@ -832,7 +832,7 @@ FLBuilder::register_settings_form( 'ds_program_form', array(
 						'prog_date'       => array( 'type' => 'text', 'label' => __( 'Date', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
 						'prog_subheading' => array( 'type' => 'text', 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
 						'prog_title'      => array( 'type' => 'text', 'label' => __( 'Title', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
-						'prog_desc'       => array( 'type' => 'textarea', 'label' => __( 'Description', 'ds-toolkit' ), 'rows' => 3, 'connections' => array( 'string' ) ),
+						'prog_desc'       => array( 'type' => 'editor', 'label' => __( 'Description', 'ds-toolkit' ), 'media_buttons' => false, 'rows' => 6, 'wpautop' => false, 'connections' => array( 'string' ) ),
 						'prog_url'        => array( 'type' => 'link', 'label' => __( 'Link', 'ds-toolkit' ), 'show_target' => true, 'connections' => array( 'url' ) ),
 						'prog_btn'        => array( 'type' => 'text', 'label' => __( 'Button Text', 'ds-toolkit' ), 'help' => __( 'Optional. With text a button shows; blank makes the whole card the link.', 'ds-toolkit' ) ),
 					),

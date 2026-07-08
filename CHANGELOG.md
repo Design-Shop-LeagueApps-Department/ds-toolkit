@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.12] - 2026-07-09
+### Fixed
+- **Program cards — buttons now truly bottom-anchor.** The 1.9.10 `margin-top:auto` was correct but the button sits inside `.ds-program-body`, which only sized to its content, so there was no space to push into. The body now stretches to fill the card (`flex:1 1 auto`), and buttons line up across a Same Height row for real this time. Verified against the live markup on the fleet test site.
+
+### Changed
+- **Program card Description is now a WordPress WYSIWYG editor** (like the Beaver Builder Text Editor field) instead of a plain textarea, and it renders as real HTML (`wp_kses_post`, auto-paragraphs). Typed markup in existing descriptions (e.g. `<br>`, `<b>…</b>`) now renders instead of printing literally.
+
 ## [1.9.11] - 2026-07-09
 ### Added
 - **Menu — Item Divider.** New Style → Menu Bar option: a small vertical divider between top-level items (Solid / Dashed / Dotted, with colour, height, and width controls; colour defaults to the global line colour). Rendered as a real flex item, so it centres correctly for **every alignment including Justify**. Desktop bar only (hidden in the mobile overlay) and never shown before the CTA button.

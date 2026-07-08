@@ -171,7 +171,9 @@
 .ds-program-ico{display:inline-flex;color:var(--fl-global-accent);font-size:40px;line-height:1;}
 .ds-program-media{width:100%;height:180px;border-radius:var(--ds-radius);overflow:hidden;}
 .ds-program-media img{width:100%;height:100%;object-fit:cover;display:block;}
-.ds-program-body{display:flex;flex-direction:column;gap:6px;width:100%;}
+.ds-program-body{display:flex;flex-direction:column;gap:6px;width:100%;flex:1 1 auto;}
+.ds-program-desc p{margin:0 0 .6em;}
+.ds-program-desc p:last-child{margin-bottom:0;}
 .ds-program-date{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--fl-global-accent);}
 .ds-program-sub{font-size:.85rem;font-weight:600;opacity:.85;}
 .ds-program-title{margin:0;color:var(--fl-global-headings);font-size:1.25rem;line-height:1.2;}
