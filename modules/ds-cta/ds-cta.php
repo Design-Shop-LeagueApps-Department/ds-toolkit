@@ -48,7 +48,7 @@ class DS_CTA_Module extends FLBuilderModule {
 
 	/** Heading markup: escape, {a}..{/a} -> accent span, newlines -> <br>. */
 	private function heading_html( $raw ) {
-		$h = esc_html( (string) $raw );
+		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
 		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-cta-accent">', '</span>' ), $h );
 		return nl2br( $h );
 	}
@@ -122,9 +122,9 @@ class DS_CTA_Module extends FLBuilderModule {
 			echo '<div class="ds-cta-card-overlay" aria-hidden="true"></div>';
 			echo '<div class="ds-cta-card-body">';
 			if ( ! empty( $card->eyebrow ) ) {
-				echo '<div class="ds-cta-card-eyebrow">' . esc_html( $card->eyebrow ) . '</div>';
+				echo '<div class="ds-cta-card-eyebrow">' . DS_Module_UI::inline( $card->eyebrow ) . '</div>';
 			}
-			echo '<div class="ds-cta-card-row"><h3 class="ds-cta-card-title">' . esc_html( $card->title ?? '' ) . '</h3>';
+			echo '<div class="ds-cta-card-row"><h3 class="ds-cta-card-title">' . DS_Module_UI::inline( $card->title ?? '' ) . '</h3>';
 			echo '<span class="ds-cta-card-chevron" aria-hidden="true">&rsaquo;</span></div>';
 			echo '</div>';
 			echo '<span class="ds-cta-card-bar" aria-hidden="true"></span>';
@@ -172,8 +172,8 @@ class DS_CTA_Module extends FLBuilderModule {
 			echo '<div class="ds-cta-tile-bg"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
 			echo '<div class="ds-cta-tile-overlay" aria-hidden="true"></div>';
 			echo '<div class="ds-cta-tile-body">';
-			if ( ! empty( $card->eyebrow ) ) { echo '<div class="ds-cta-tile-num">' . esc_html( $card->eyebrow ) . '</div>'; }
-			echo '<h3 class="ds-cta-tile-title">' . esc_html( $card->title ?? '' ) . '</h3>';
+			if ( ! empty( $card->eyebrow ) ) { echo '<div class="ds-cta-tile-num">' . DS_Module_UI::inline( $card->eyebrow ) . '</div>'; }
+			echo '<h3 class="ds-cta-tile-title">' . DS_Module_UI::inline( $card->title ?? '' ) . '</h3>';
 			if ( '' !== $lt ) { echo '<span class="ds-cta-tile-go">' . esc_html( $lt ) . ' ' . $arrow . '</span>'; }
 			echo '</div>';
 			echo '</a>';
@@ -217,8 +217,8 @@ class DS_CTA_Module extends FLBuilderModule {
 
 			if ( 'text' === $type ) {
 				echo '<div class="ds-cta-bento-cell ds-cta-bento-text"' . $span . '>';
-				if ( ! empty( $cell->eyebrow ) ) { echo '<div class="ds-cta-bento-eyebrow">' . esc_html( $cell->eyebrow ) . '</div>'; }
-				if ( ! empty( $cell->title ) ) { echo '<h3 class="ds-cta-bento-title">' . esc_html( $cell->title ) . '</h3>'; }
+				if ( ! empty( $cell->eyebrow ) ) { echo '<div class="ds-cta-bento-eyebrow">' . DS_Module_UI::inline( $cell->eyebrow ) . '</div>'; }
+				if ( ! empty( $cell->title ) ) { echo '<h3 class="ds-cta-bento-title">' . DS_Module_UI::inline( $cell->title ) . '</h3>'; }
 				if ( ! empty( $cell->desc ) ) { echo '<div class="ds-cta-bento-celldesc">' . wpautop( wp_kses_post( $cell->desc ) ) . '</div>'; }
 				$lt = trim( (string) ( $cell->link_text ?? '' ) );
 				if ( '' !== $lt ) {
@@ -320,7 +320,7 @@ class DS_CTA_Module extends FLBuilderModule {
 		if ( ( $s->hero_show_eyebrow ?? 'yes' ) === 'yes' && ! empty( $s->hero_eyebrow ) ) {
 			echo '<div class="ds-cta-hero-eyebrow">';
 			if ( ( $s->hero_eyebrow_line ?? 'yes' ) === 'yes' ) { echo '<span class="ds-cta-hero-eyebrow-line" aria-hidden="true"></span>'; }
-			echo '<span>' . esc_html( $s->hero_eyebrow ) . '</span></div>';
+			echo '<span>' . DS_Module_UI::inline( $s->hero_eyebrow ) . '</span></div>';
 		}
 
 		// Heading.
@@ -629,6 +629,18 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					'bento_radius' => array( 'type' => 'unit', 'label' => __( 'Cell Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Rounds every bento cell (image + text cells).', 'ds-toolkit' ) ),
 					'bento_border_width' => array( 'type' => 'unit', 'label' => __( 'Cell Border Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 10, 'step' => 1 ), 'help' => __( 'Border around every bento cell. Blank or 0 = no border.', 'ds-toolkit' ) ),
 					'bento_border_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Cell Border Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-line-color)', 'show_reset' => true, 'show_alpha' => true ),
+					'bento_shadow' => array(
+						'type'    => 'select',
+						'label'   => __( 'Cell Shadow', 'ds-toolkit' ),
+						'default' => '',
+						'options' => array(
+							''       => __( 'None', 'ds-toolkit' ),
+							'soft'   => __( 'Soft', 'ds-toolkit' ),
+							'medium' => __( 'Medium', 'ds-toolkit' ),
+							'strong' => __( 'Strong', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Drop shadow on every bento cell.', 'ds-toolkit' ),
+					),
 					'bento_eyebrow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Eyebrow Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Colour of the cell eyebrow label. Blank = accent on text cells, white on image cells.', 'ds-toolkit' ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-bento-eyebrow', 'property' => 'color' ) ),
 					'bento_eyebrow_typography' => array( 'type' => 'typography', 'label' => __( 'Eyebrow Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-bento-eyebrow' ) ),
 					'cell_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Cell Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),

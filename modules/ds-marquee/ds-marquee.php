@@ -70,7 +70,7 @@ class DS_Marquee_Module extends FLBuilderModule {
 				esc_html( $text )
 			);
 		}
-		return '<span class="ds-marquee-item">' . esc_html( $text ) . '</span>';
+		return '<span class="ds-marquee-item">' . DS_Module_UI::inline( $text ) . '</span>';
 	}
 
 	/** Build one full group: every item followed by a separator glyph. */
@@ -120,7 +120,7 @@ class DS_Marquee_Module extends FLBuilderModule {
 			if ( ( $s->show_dot ?? 'yes' ) === 'yes' ) {
 				echo '<span class="ds-marquee-dot" aria-hidden="true"></span>';
 			}
-			echo '<span class="ds-marquee-label-text">' . esc_html( $s->label_text ) . '</span>';
+			echo '<span class="ds-marquee-label-text">' . DS_Module_UI::inline( $s->label_text ) . '</span>';
 			echo '</div>';
 		}
 

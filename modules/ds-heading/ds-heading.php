@@ -44,7 +44,7 @@ class DS_Heading_Module extends FLBuilderModule {
 
 	/** Heading markup: escape, {a}..{/a} -> accent span, newlines -> <br>. */
 	private function heading_html( $raw ) {
-		$h = esc_html( (string) $raw );
+		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
 		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-heading-accent">', '</span>' ), $h );
 		return nl2br( $h );
 	}
@@ -56,7 +56,7 @@ class DS_Heading_Module extends FLBuilderModule {
 
 	/** Sub-heading element (always a <span>, optionally carrying an inline rule). */
 	private function subheading_html( $inline_rule ) {
-		$txt = '<span class="ds-heading-sub-text">' . esc_html( $this->settings->subheading ) . '</span>';
+		$txt = '<span class="ds-heading-sub-text">' . DS_Module_UI::inline( $this->settings->subheading ) . '</span>';
 		if ( $inline_rule ) {
 			return '<span class="ds-heading-sub ds-heading-sub--withrule">' . $this->rule_html() . $txt . '</span>';
 		}

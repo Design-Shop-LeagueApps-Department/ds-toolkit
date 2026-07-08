@@ -36,6 +36,29 @@ class DS_Module_UI {
 		return '' === $c ? $fallback : $c;
 	}
 
+	/**
+	 * Editor-authored title/label text: allow safe INLINE HTML (span/strong/em/
+	 * b/i/u/small/mark/br, class + style attrs where sensible) and escape all
+	 * else. Lets an editor write e.g. Lorem <span style="color:#069e33">Ipsum</span>
+	 * in a Title field. style attributes are sanitised by WP's safecss filter.
+	 * Use for MODULE FIELDS only — keep esc_html() for WP post titles.
+	 */
+	public static function inline( $text ) {
+		return wp_kses( (string) $text, array(
+			'span'   => array( 'class' => true, 'style' => true ),
+			'strong' => array( 'class' => true, 'style' => true ),
+			'b'      => array(),
+			'em'     => array( 'class' => true, 'style' => true ),
+			'i'      => array( 'class' => true ),
+			'u'      => array(),
+			'small'  => array(),
+			'mark'   => array( 'class' => true, 'style' => true ),
+			'br'     => array(),
+			'sup'    => array(),
+			'sub'    => array(),
+		) );
+	}
+
 	/** color() wrapped in color-mix() at $opacity_pct toward transparent; '' if blank. Works on hex AND var(). */
 	public static function mix( $v, $opacity_pct ) {
 		$c = self::color( $v );

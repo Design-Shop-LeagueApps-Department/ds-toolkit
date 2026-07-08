@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.4] - 2026-07-05
+### Added
+- **Inline HTML in module title fields.** Editor-authored title / eyebrow / label fields across the LeagueApps modules (Hero heading, Heading title + subheading, CTA heading + card/tile/bento titles and eyebrows, Team Detail section titles, Org Stats eyebrow + labels, Marquee items + label, Info List text) now accept safe inline HTML — `span` (class/style), `strong`, `em`, `b`, `i`, `u`, `small`, `mark`, `br`, `sup`, `sub` — via a shared `DS_Module_UI::inline()` kses whitelist, so e.g. `Lorem <span style="color:#069e33">Ipsum</span>` renders instead of printing literally. `style` attributes are sanitised by WP's safecss filter; everything else is still escaped. WP post titles remain fully escaped.
+- **Image Carousel — Height option.** New Sizing → **Height** select (Aspect ratio (default) / Small 300px / Medium 420px / Tall 560px / Custom with responsive per-breakpoint values): a fixed deck height that replaces the aspect ratio; slide images keep covering the card. The matching utility classes `height-small` / `height-medium` / `height-tall` (on the module, column, or row) now also work, emitted with enough specificity to beat the per-node aspect rule.
+- **CTA (Bento) — Cell Shadow.** New Style → Bento **Cell Shadow** option (None / Soft / Medium / Strong) alongside the 1.9.3 border controls.
+
 ## [1.9.3] - 2026-07-04
 ### Added
 - **CTA (Bento) — cell borders.** New **Cell Border Width** + **Cell Border Colour** options (Style → Bento), global-colour connected. Blank/0 = no border, so existing instances are unchanged.
