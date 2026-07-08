@@ -83,3 +83,14 @@
 @media (prefers-reduced-motion:reduce){
   .ds-carousel--style2 .ds-logos-track{transition:none;}
 }
+
+/* Height utility classes: add `height-small` / `height-medium` / `height-tall` to the
+   module (Advanced → Class), or its column/row, to force a fixed deck height instead of
+   the aspect ratio. The .fl-builder-content prefix out-specifies the per-node aspect rule.
+   Prefer the Sizing → Height option; these classes are the shorthand equivalent. */
+.fl-builder-content .height-small  .ds-carousel-framewrap,
+.fl-builder-content .fl-module.height-small  .ds-carousel-framewrap { height: 300px; aspect-ratio: auto; }
+.fl-builder-content .height-medium .ds-carousel-framewrap,
+.fl-builder-content .fl-module.height-medium .ds-carousel-framewrap { height: 420px; aspect-ratio: auto; }
+.fl-builder-content .height-tall   .ds-carousel-framewrap,
+.fl-builder-content .fl-module.height-tall   .ds-carousel-framewrap { height: 560px; aspect-ratio: auto; }

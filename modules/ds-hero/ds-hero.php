@@ -31,7 +31,7 @@ class DS_Hero_Module extends FLBuilderModule {
 
 	/** Heading markup: escape, turn {a}..{/a} into an accent span, newlines into <br>. */
 	private function heading_html( $raw ) {
-		$h = esc_html( (string) $raw );
+		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
 		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-hero-accent">', '</span>' ), $h );
 		return nl2br( $h );
 	}

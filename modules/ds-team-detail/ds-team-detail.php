@@ -42,7 +42,7 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 	private function section_html( $title, $tag, $body, $extra_class = '' ) {
 		$head = '';
 		if ( '' !== trim( (string) $title ) ) {
-			$head  = '<' . $tag . ' class="ds-teamdetail-title">' . esc_html( $title ) . '</' . $tag . '>';
+			$head  = '<' . $tag . ' class="ds-teamdetail-title">' . DS_Module_UI::inline( $title ) . '</' . $tag . '>';
 			if ( ( $this->settings->divider_show ?? 'yes' ) === 'yes' ) {
 				$head .= '<span class="ds-teamdetail-divider" aria-hidden="true"></span>';
 			}

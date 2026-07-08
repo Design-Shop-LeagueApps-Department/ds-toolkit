@@ -404,6 +404,24 @@ FLBuilder::register_module( 'DS_Carousel_Module', array(
 				'title'  => __( 'Sizing', 'ds-toolkit' ),
 				'fields' => array(
 					'max_width'   => array( 'type' => 'unit', 'label' => __( 'Card Width', 'ds-toolkit' ), 'default' => '540', 'description' => 'px', 'slider' => array( 'min' => 240, 'max' => 900, 'step' => 10 ) ),
+					'deck_height' => array(
+						'type'    => 'select',
+						'label'   => __( 'Height', 'ds-toolkit' ),
+						'default' => '',
+						'options' => array(
+							''       => __( 'Aspect ratio (below)', 'ds-toolkit' ),
+							'small'  => __( 'Small (300px)', 'ds-toolkit' ),
+							'medium' => __( 'Medium (420px)', 'ds-toolkit' ),
+							'tall'   => __( 'Tall (560px)', 'ds-toolkit' ),
+							'custom' => __( 'Custom', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Fixed deck height instead of an aspect ratio. Images always cover the card (never stretched).', 'ds-toolkit' ),
+						'toggle'  => array(
+							''       => array( 'fields' => array( 'aspect' ) ),
+							'custom' => array( 'fields' => array( 'deck_height_custom' ) ),
+						),
+					),
+					'deck_height_custom' => array( 'type' => 'unit', 'label' => __( 'Custom Height', 'ds-toolkit' ), 'default' => '420', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 160, 'max' => 800, 'step' => 10 ) ),
 					'aspect'      => array(
 						'type'    => 'select',
 						'label'   => __( 'Aspect Ratio', 'ds-toolkit' ),

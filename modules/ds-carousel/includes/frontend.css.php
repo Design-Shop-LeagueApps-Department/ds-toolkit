@@ -75,8 +75,21 @@ if ( 'style2' === $style ) {
 $mw  = $u( $settings->max_width ?? '', 540 );
 echo "$node .ds-carousel-stage { max-width: {$mw}px; }\n";
 
-$ar = preg_replace( '/[^0-9 \/]/', '', (string) ( $settings->aspect ?? '4 / 5' ) ) ?: '4 / 5';
-echo "$node .ds-carousel-framewrap { aspect-ratio: {$ar}; }\n";
+/* Height: a preset / custom FIXED height beats the aspect ratio; blank = aspect (original). */
+$dh_preset = (string) ( $settings->deck_height ?? '' );
+$dh_map    = array( 'small' => 300, 'medium' => 420, 'tall' => 560 );
+$dh        = $dh_map[ $dh_preset ] ?? 0;
+if ( 'custom' === $dh_preset ) { $dh = $u( $settings->deck_height_custom ?? '', 420 ); }
+if ( $dh > 0 ) {
+	echo "$node .ds-carousel-framewrap { height: {$dh}px; aspect-ratio: auto; }\n";
+	if ( 'custom' === $dh_preset ) {
+		if ( '' !== ( $settings->deck_height_custom_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-carousel-framewrap { height: " . (int) $settings->deck_height_custom_medium . "px; } }\n"; }
+		if ( '' !== ( $settings->deck_height_custom_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-carousel-framewrap { height: " . (int) $settings->deck_height_custom_responsive . "px; } }\n"; }
+	}
+} else {
+	$ar = preg_replace( '/[^0-9 \/]/', '', (string) ( $settings->aspect ?? '4 / 5' ) ) ?: '4 / 5';
+	echo "$node .ds-carousel-framewrap { aspect-ratio: {$ar}; }\n";
+}
 
 $crad = ( isset( $settings->card_radius ) && '' !== $settings->card_radius ) ? ( (int) $settings->card_radius ) . 'px' : 'var(--ds-radius)';
 echo "$node .ds-carousel-slide { border-radius: {$crad}; }\n";

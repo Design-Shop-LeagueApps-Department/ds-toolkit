@@ -109,7 +109,7 @@ class DS_Info_List_Module extends FLBuilderModule {
 			$icon  = trim( (string) ( $it->icon ?? '' ) );
 
 			$ic    = '' !== $icon ? '<span class="ds-info-ico"><i class="' . esc_attr( $icon ) . '" aria-hidden="true"></i></span>' : '';
-			$inner = $ic . '<span class="ds-info-text">' . esc_html( $text ) . '</span>';
+			$inner = $ic . '<span class="ds-info-text">' . DS_Module_UI::inline( $text ) . '</span>';
 
 			if ( '' !== $href ) {
 				$ext  = ( 0 === strpos( $href, 'http' ) ) ? ' target="_blank" rel="noopener noreferrer"' : '';

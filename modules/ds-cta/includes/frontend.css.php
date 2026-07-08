@@ -94,6 +94,8 @@ if ( 'style3' === $style ) {
 	echo "$node .ds-cta-bento-cell { border-radius: {$brad}; }\n";
 
 	// Cell border (blank/0 width = none).
+	$bsh = array( 'soft' => '0 4px 14px rgba(0,0,0,.10)', 'medium' => '0 8px 24px rgba(0,0,0,.16)', 'strong' => '0 16px 40px rgba(0,0,0,.24)' )[ $settings->bento_shadow ?? '' ] ?? '';
+	if ( '' !== $bsh ) { echo "$node .ds-cta-bento-cell { box-shadow: {$bsh}; }\n"; }
 	$bbw = ( isset( $settings->bento_border_width ) && '' !== $settings->bento_border_width ) ? (int) $settings->bento_border_width : 0;
 	if ( $bbw > 0 ) {
 		$bbc = $col( $settings->bento_border_color ?? '' ) ?: 'var(--fl-global-line-color)';

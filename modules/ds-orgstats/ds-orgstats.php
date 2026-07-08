@@ -92,7 +92,7 @@ class DS_OrgStats_Module extends FLBuilderModule {
 			echo '<div class="ds-orgstats-head">';
 			if ( ! empty( $s->eyebrow ) ) {
 				$erule = in_array( $s->eyebrow_rule ?? 'before', array( 'none', 'before', 'both' ), true ) ? ( $s->eyebrow_rule ?? 'before' ) : 'before';
-				echo '<span class="ds-orgstats-eyebrow ds-orgstats-eyebrow--rule-' . esc_attr( $erule ) . '">' . esc_html( $s->eyebrow ) . '</span>';
+				echo '<span class="ds-orgstats-eyebrow ds-orgstats-eyebrow--rule-' . esc_attr( $erule ) . '">' . DS_Module_UI::inline( $s->eyebrow ) . '</span>';
 			}
 			if ( ! empty( $s->heading ) ) {
 				echo '<h2 class="ds-orgstats-heading">' . $this->heading_html( $s->heading ) . '</h2>';
@@ -142,7 +142,7 @@ class DS_OrgStats_Module extends FLBuilderModule {
 			echo '<span class="ds-orgstats-value">' . esc_html( $number ) . '</span>';
 			if ( '' !== $suffix ) { echo '<span class="ds-orgstats-affix ds-orgstats-suffix">' . esc_html( $suffix ) . '</span>'; }
 			echo '</div>';
-			if ( '' !== $label ) { echo '<div class="ds-orgstats-label">' . esc_html( $label ) . '</div>'; }
+			if ( '' !== $label ) { echo '<div class="ds-orgstats-label">' . DS_Module_UI::inline( $label ) . '</div>'; }
 			if ( $cards ) { echo '</div>'; }
 			echo '</div>';
 		}
