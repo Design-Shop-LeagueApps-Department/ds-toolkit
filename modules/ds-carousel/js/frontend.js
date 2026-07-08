@@ -315,24 +315,57 @@
 		[].slice.call(root.querySelectorAll('.ds-reel-nav--prev')).forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); step(-1); }); });
 		[].slice.call(root.querySelectorAll('.ds-reel-nav--next')).forEach(function (b) { b.addEventListener('click', function (e) { e.preventDefault(); step(1); }); });
 
-		// Auto scroll: advance one card on a timer, loop to the start at the end.
-		// Pauses on hover / touch / focus; disabled entirely for reduced motion.
+		// Auto scroll: a CONTINUOUS, seamless infinite loop (marquee style). The
+		// card set is cloned and scrollLeft wraps at the original width, so the
+		// strip drifts forever without ever visibly rewinding. The interval
+		// setting = seconds each card takes to pass (speed). Pauses on hover /
+		// touch / focus and while off-screen; disabled for reduced motion.
 		if (track.getAttribute('data-autoscroll') === 'yes' && !reduce) {
-			var ms = Math.max(1, parseFloat(track.getAttribute('data-interval') || '4')) * 1000;
-			var paused = false, timer = null;
-			function tick() {
-				if (paused) return;
-				var atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
-				if (atEnd) { track.scrollTo({ left: 0, behavior: 'smooth' }); }
-				else { step(1); }
+			var perCard = Math.max(0.5, parseFloat(track.getAttribute('data-interval') || '4'));
+			var originals = [].slice.call(track.children);
+			if (originals.length) {
+				track.style.scrollSnapType = 'none'; // snap would fight the drift
+				var setWidth = 0;
+				var measure = function () {
+					var last = originals[originals.length - 1];
+					var gap = parseFloat(getComputedStyle(track).gap) || 24;
+					setWidth = last.offsetLeft + last.offsetWidth + gap - originals[0].offsetLeft;
+				};
+				measure();
+				// Clone the set until there's enough runway to wrap invisibly.
+				var copies = 0;
+				while (track.scrollWidth < track.clientWidth + setWidth * 2 && copies < 6) {
+					originals.forEach(function (el) {
+						var c = el.cloneNode(true);
+						c.setAttribute('data-ds-clone', '1');
+						c.setAttribute('aria-hidden', 'true');
+						track.appendChild(c);
+					});
+					copies++;
+				}
+				var pausedHover = false, pausedUser = 0, visible = true, lastT = 0;
+				function frame(t) {
+					window.requestAnimationFrame(frame);
+					if (!lastT) { lastT = t; return; }
+					var dt = (t - lastT) / 1000; lastT = t;
+					if (pausedHover || !visible || t < pausedUser) return;
+					var card = originals[0];
+					var speed = (card ? card.offsetWidth : 300) / perCard; // px per second
+					track.scrollLeft += speed * dt;
+					if (setWidth > 0 && track.scrollLeft >= setWidth) { track.scrollLeft -= setWidth; }
+				}
+				['mouseenter', 'touchstart', 'pointerdown', 'focusin'].forEach(function (t) { track.addEventListener(t, function () { pausedHover = true; }, { passive: true }); });
+				['mouseleave', 'focusout', 'touchend', 'touchcancel'].forEach(function (t) { track.addEventListener(t, function () { pausedHover = false; }, { passive: true }); });
+				// Arrow clicks pause the drift briefly so manual steps are not overridden.
+				[].slice.call(root.querySelectorAll('.ds-reel-nav--prev, .ds-reel-nav--next')).forEach(function (b) {
+					b.addEventListener('click', function () { pausedUser = performance.now() + 4000; });
+				});
+				if ('IntersectionObserver' in window) {
+					new IntersectionObserver(function (en) { visible = !!(en[0] && en[0].isIntersecting); }, { threshold: 0.05 }).observe(track);
+				}
+				window.addEventListener('resize', measure);
+				window.requestAnimationFrame(frame);
 			}
-			function start() { if (!timer) timer = window.setInterval(tick, ms); }
-			function stop()  { if (timer) { window.clearInterval(timer); timer = null; } }
-			['mouseenter', 'touchstart', 'pointerdown', 'focusin'].forEach(function (t) { track.addEventListener(t, function () { paused = true; }, { passive: true }); });
-			['mouseleave', 'focusout'].forEach(function (t) { track.addEventListener(t, function () { paused = false; }, { passive: true }); });
-			if ('IntersectionObserver' in window) {
-				new IntersectionObserver(function (en) { (en[0] && en[0].isIntersecting) ? start() : stop(); }, { threshold: 0.1 }).observe(track);
-			} else { start(); }
 		}
 	}
 
