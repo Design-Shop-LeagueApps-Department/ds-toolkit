@@ -118,3 +118,7 @@
 .ds-banner-crumbs a:hover{text-decoration:underline;}
 .ds-banner--has-bg .ds-banner-crumbs,.ds-banner--has-bg .ds-banner-crumbs a,.ds-banner--has-bg .ds-banner-crumbs .breadcrumb_last{color:rgba(255,255,255,.85);}
 .ds-banner--no-bg .ds-banner-crumbs,.ds-banner--no-bg .ds-banner-crumbs a,.ds-banner--no-bg .ds-banner-crumbs .breadcrumb_last{color:var(--fl-global-body,#5b6671);}
+
+/* WYSIWYG subtext/subtitle paragraphs (rendered in a div wrapper). */
+.ds-hero-sub p{margin:0 0 .6em;}
+.ds-hero-sub p:last-child{margin-bottom:0;}

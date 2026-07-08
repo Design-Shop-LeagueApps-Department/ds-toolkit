@@ -122,3 +122,7 @@
 @media (prefers-reduced-motion:reduce){
   .ds-cta--style4 .ds-cta-hero-bg,.ds-cta--style4 .ds-cta-hero-btn,.ds-cta--style4 .ds-cta-hero-btn-arrow svg,.ds-cta--style4 .ds-cta-hero-social-link{transition:none;}
 }
+
+/* WYSIWYG descriptions render <p>s inside the desc containers. */
+.ds-cta--style3 .ds-cta-bento-desc p{margin:0 0 .6em;}
+.ds-cta--style3 .ds-cta-bento-desc p:last-child{margin-bottom:0;}

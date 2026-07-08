@@ -197,3 +197,7 @@
 .ds-tourn-card:hover .ds-tourn-btn{background:var(--fl-global-accent);}
 @media(max-width:1024px){.ds-tourn-grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:600px){.ds-tourn-grid{grid-template-columns:1fr;}}
+
+/* WYSIWYG sponsor description paragraphs. */
+.ds-sponsor-desc p{margin:0 0 .5em;}
+.ds-sponsor-desc p:last-child{margin-bottom:0;}

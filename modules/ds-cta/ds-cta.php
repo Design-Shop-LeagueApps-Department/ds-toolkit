@@ -191,7 +191,7 @@ class DS_CTA_Module extends FLBuilderModule {
 		if ( ( $s->show_header ?? 'yes' ) === 'yes' && ( ! empty( $s->heading ) || ! empty( $s->header_desc ) ) ) {
 			echo '<div class="ds-cta-bento-head">';
 			if ( ! empty( $s->heading ) ) { echo '<h2 class="ds-cta-heading">' . $this->heading_html( $s->heading ) . '</h2>'; }
-			if ( ! empty( $s->header_desc ) ) { echo '<p class="ds-cta-bento-desc">' . nl2br( esc_html( $s->header_desc ) ) . '</p>'; }
+			if ( ! empty( $s->header_desc ) ) { echo '<div class="ds-cta-bento-desc">' . wpautop( wp_kses_post( $s->header_desc ) ) . '</div>'; }
 			echo '</div>';
 		}
 
@@ -404,7 +404,7 @@ FLBuilder::register_settings_form( 'ds_cta_card_form', array(
 							'toggle'  => array( 'text' => array( 'fields' => array( 'desc' ) ) ),
 							'help'    => __( 'Bento (Style 3) only. Image cells use the Background Image; Text cells use Title + Description + the Link Text button.', 'ds-toolkit' ),
 						),
-						'desc'     => array( 'type' => 'textarea', 'label' => __( 'Description', 'ds-toolkit' ), 'rows' => 3, 'help' => __( 'Plain text; line breaks kept. Basic inline HTML (e.g. <strong>, <a>) is allowed.', 'ds-toolkit' ) ),
+						'desc'     => array( 'type' => 'editor', 'media_buttons' => false, 'rows' => 6, 'wpautop' => false, 'label' => __( 'Description', 'ds-toolkit' ) ),
 						'col_span' => array( 'type' => 'unit', 'label' => __( 'Column Span', 'ds-toolkit' ), 'default' => '1', 'slider' => array( 'min' => 1, 'max' => 4, 'step' => 1 ) ),
 						'row_span' => array( 'type' => 'unit', 'label' => __( 'Row Span', 'ds-toolkit' ), 'default' => '1', 'slider' => array( 'min' => 1, 'max' => 3, 'step' => 1 ) ),
 					),
@@ -462,7 +462,7 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 					'header_label' => array( 'type' => 'text', 'label' => __( 'Right-side Label', 'ds-toolkit' ), 'default' => 'Lorem ipsum →' ),
-					'header_desc'  => array( 'type' => 'textarea', 'label' => __( 'Header Description', 'ds-toolkit' ), 'rows' => 3, 'help' => __( 'Paragraph beside the heading (Bento / Style 3).', 'ds-toolkit' ) ),
+					'header_desc'  => array( 'type' => 'editor', 'media_buttons' => false, 'rows' => 6, 'wpautop' => false, 'label' => __( 'Header Description', 'ds-toolkit' ), 'help' => __( 'Paragraph beside the heading (Bento / Style 3).', 'ds-toolkit' ) ),
 				),
 			),
 			'cards' => array(

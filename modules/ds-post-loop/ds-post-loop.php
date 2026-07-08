@@ -657,7 +657,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			if ( $has ) { echo '<a class="ds-card-link" href="' . esc_url( $url ) . '"' . ( '_blank' === $target ? ' target="_blank" rel="noopener"' : '' ) . ' aria-label="' . esc_attr( $cap ) . '"></a>'; }
 			if ( '' !== $img )  { echo '<div class="ds-sponsor-logo"><img src="' . esc_url( $img ) . '" alt="' . esc_attr( $cap ) . '" loading="lazy" /></div>'; }
 			if ( '' !== $cap )  { echo '<h3 class="ds-sponsor-name">' . esc_html( $cap ) . '</h3>'; }
-			if ( '' !== $desc ) { echo '<p class="ds-sponsor-desc">' . esc_html( $desc ) . '</p>'; }
+			if ( '' !== $desc ) { echo '<div class="ds-sponsor-desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>'; }
 			echo '</div>';
 		}
 		$this->loop_close();
@@ -811,7 +811,7 @@ FLBuilder::register_settings_form( 'ds_sponsor_form', array(
 						'sponsor_image'   => array( 'type' => 'photo', 'label' => __( 'Logo / Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ) ),
 						'sponsor_caption' => array( 'type' => 'text', 'label' => __( 'Caption / Name', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
 						'sponsor_url'     => array( 'type' => 'link', 'label' => __( 'Link URL', 'ds-toolkit' ), 'connections' => array( 'url' ) ),
-						'sponsor_desc'    => array( 'type' => 'textarea', 'label' => __( 'Description', 'ds-toolkit' ), 'rows' => 3 ),
+						'sponsor_desc'    => array( 'type' => 'editor', 'media_buttons' => false, 'rows' => 6, 'wpautop' => false, 'label' => __( 'Description', 'ds-toolkit' ) ),
 					),
 				),
 			),
