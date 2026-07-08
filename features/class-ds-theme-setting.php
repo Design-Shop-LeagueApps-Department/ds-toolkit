@@ -183,9 +183,16 @@ CSS;
         if ( '' !== $blend && 'normal' !== $blend ) { $decl .= 'background-blend-mode:' . $blend . ';'; }
         if ( '' === $decl ) { return; }
         echo '<style id="ds-banner-nobg-css">.ds-banner--no-bg{' . $decl . '}</style>' . "\n";
+        $o_color = (string) get_theme_mod( 'ds-outline-color', '' );
+        $o_width = max( 1, (int) get_theme_mod( 'ds-outline-width', 2 ) );
+        echo '<style id="ds-outline-text-css">.ds-outline-text{color:transparent;-webkit-text-stroke:var(--ds-outline-w,' . $o_width . 'px) var(--ds-outline-c,' . ( '' !== $o_color ? esc_html( $o_color ) : 'currentColor' ) . ');}</style>' . "\n";
         $pt_color = (string) get_theme_mod( 'ds-banner-photo-title-color', '' );
         if ( '' !== $pt_color ) {
             echo '<style id="ds-banner-photo-title-css">.ds-banner--has-bg .ds-hero-title{color:' . esc_html( $pt_color ) . ';}</style>' . "\n";
+        }
+        $nt_color = (string) get_theme_mod( 'ds-banner-nobg-title-color', '' );
+        if ( '' !== $nt_color ) {
+            echo '<style id="ds-banner-nobg-title-css">.ds-banner--no-bg .ds-hero-title{color:' . esc_html( $nt_color ) . ';}</style>' . "\n";
         }
     }
 
@@ -836,6 +843,7 @@ JS;
                         echo $this->sel( 'general[banner_photo_title]', $mod( 'ds-banner-photo-title', 'show' ), array( 'show' => 'Show title', 'hide' => 'Hide title (image-only banner)' ) );
                         $this->field_close();
                         $this->color_field( 'Title Colour (on photo)', 'general[banner_photo_title_color]', $mod( 'ds-banner-photo-title-color', '' ) );
+                        $this->color_field( 'Title Colour (no image)', 'general[banner_nobg_title_color]', $mod( 'ds-banner-nobg-title-color', '' ) );
                         echo '<p class="ds-ts-help">When the banner <strong>has</strong> a photo or video: show or hide the auto page title, and optionally set its colour (blank = the default light title). The Hero Banner module can still override both per page.</p>';
                                                 echo '<p style="margin:18px 0 6px;font-weight:600;border-top:1px solid #e2e4e7;padding-top:14px;">Background (when the banner has no image)</p>';
                         $this->color_field( 'Background Color', 'general[banner_nobg_color]', $mod( 'ds-banner-nobg-color', 'var(--fl-global-light-background)' ) );
@@ -858,6 +866,14 @@ JS;
                     	echo '<input type="number" min="0" max="60" name="general[corner_radius]" value="' . esc_attr( $mod( 'ds-corner-radius', '8' ) ) . '" class="small-text" style="width:90px"> <span style="opacity:.6">px</span>';
                     	$this->field_close();
                     	echo '<p class="ds-ts-help">One global corner radius for the LeagueApps card surfaces (cards, image tiles). Modules with their Corner Radius left blank inherit this; set a value on a module to override it there.</p>';
+                    $this->acc_end();
+
+                    $this->acc( 'Outline Text', false );
+                        $this->color_field( 'Outline Colour', 'general[outline_color]', $mod( 'ds-outline-color', '' ) );
+                        $this->field_open( 'Outline Width' );
+                        echo '<input type="number" min="1" max="8" name="general[outline_width]" value="' . esc_attr( $mod( 'ds-outline-width', '2' ) ) . '" class="small-text" style="width:90px"> <span style="opacity:.6">px</span>';
+                        $this->field_close();
+                        echo '<p class="ds-ts-help">Site-wide default for <strong>outlined text</strong>: wrap a word in <code>{outline}&hellip;{/outline}</code> in any LeagueApps module heading and it renders transparent with this stroke. Blank colour = the text&rsquo;s own colour as the stroke. Each module&rsquo;s Style tab can override both per instance.</p>';
                     $this->acc_end();
 
                     $card_id  = (int) get_option( 'ds_social_card_id', 0 );
@@ -1085,7 +1101,10 @@ JS;
             }
             set_theme_mod( 'ds-banner-photo-title', ( $g['banner_photo_title'] ?? 'show' ) === 'hide' ? 'hide' : 'show' );
             set_theme_mod( 'ds-banner-photo-title-color', $this->sanitize_color( $g['banner_photo_title_color'] ?? '' ) );
+            set_theme_mod( 'ds-banner-nobg-title-color', $this->sanitize_color( $g['banner_nobg_title_color'] ?? '' ) );
             set_theme_mod( 'ds-corner-radius', isset( $g['corner_radius'] ) && '' !== $g['corner_radius'] ? max( 0, min( 60, (int) $g['corner_radius'] ) ) : 8 );
+            set_theme_mod( 'ds-outline-color', $this->sanitize_color( $g['outline_color'] ?? '' ) );
+            set_theme_mod( 'ds-outline-width', isset( $g['outline_width'] ) && '' !== $g['outline_width'] ? max( 1, min( 8, (int) $g['outline_width'] ) ) : 2 );
             // Custom code: LeagueApps-only surface; stored raw like the BB theme's Code section.
             set_theme_mod( 'fl-css-code', isset( $g['css_code'] ) ? trim( $g['css_code'] ) : '' );
             set_theme_mod( 'fl-js-code', isset( $g['js_code'] ) ? trim( $g['js_code'] ) : '' );

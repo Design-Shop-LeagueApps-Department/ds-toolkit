@@ -95,6 +95,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	private function heading_html( $raw ) {
 		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
 		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-news-accent">', '</span>' ), $h );
+		$h = str_replace( array( '{outline}', '{/outline}' ), array( '<span class="ds-outline-text">', '</span>' ), $h );
 		return nl2br( $h );
 	}
 
@@ -935,7 +936,7 @@ $ds_pl_form = array(
 						'label'   => __( 'Heading', 'ds-toolkit' ),
 						'rows'    => 2,
 						'default' => '{a}Lorem{/a} Ipsum',
-						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent.', 'ds-toolkit' ),
+						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 					'show_button'  => array(
 						'type'    => 'select',
@@ -1298,6 +1299,8 @@ $ds_pl_form = array(
 					'section_bg'          => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Section Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'heading_color'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'heading_accent_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Accent', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
+					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
 					'heading_typography'  => array( 'type' => 'typography', 'label' => __( 'Heading Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-heading' ) ),
 					'btn_global' => array(
 						'type'    => 'select',

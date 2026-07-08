@@ -33,6 +33,7 @@ class DS_Hero_Module extends FLBuilderModule {
 	private function heading_html( $raw ) {
 		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
 		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-hero-accent">', '</span>' ), $h );
+		$h = str_replace( array( '{outline}', '{/outline}' ), array( '<span class="ds-outline-text">', '</span>' ), $h );
 		return nl2br( $h );
 	}
 
@@ -388,7 +389,7 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'label'   => __( 'Headline', 'ds-toolkit' ),
 						'rows'    => 3,
 						'default' => "Lorem Ipsum\nDolor {a}Sit{/a}",
-						'help'    => __( 'Line breaks are kept. Wrap a word in {a}…{/a} to colour it with the accent colour.', 'ds-toolkit' ),
+						'help'    => __( 'Line breaks are kept. Wrap a word in {a}…{/a} to colour it with the accent colour. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 					'subtext' => array(
 						'type'    => 'textarea',
@@ -638,6 +639,8 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'eyebrow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Eyebrow', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
 					'title_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Headline', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'accent_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Accent Word', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true, 'help' => __( 'Colour of {a}…{/a} text and the primary button.', 'ds-toolkit' ) ),
+					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
+					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
 					'sub_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Subtext', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'stat_num_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Stat Number', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'stat_label_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Stat Label', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),

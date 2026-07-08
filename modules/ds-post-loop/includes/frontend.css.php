@@ -486,3 +486,8 @@ if ( ( $settings->card_layout ?? '' ) === 'program' ) {
 		if ( '' !== $bhd ) { echo "$node .ds-programs .ds-program-card .ds-program-btn:hover,$node .ds-programs .ds-program-card:hover .ds-program-btn{{$bhd}}\n"; }
 	}
 }
+
+/* ---- Outline text ({outline}...{/outline}) per-module override: blank = Theme Setting. ---- */
+$oc_ov = DS_Module_UI::color( $settings->outline_color ?? '' );
+if ( '' !== $oc_ov ) { echo "$node { --ds-outline-c: {$oc_ov}; }\n"; }
+if ( isset( $settings->outline_width ) && '' !== $settings->outline_width ) { echo "$node { --ds-outline-w: " . max( 1, (int) $settings->outline_width ) . "px; }\n"; }

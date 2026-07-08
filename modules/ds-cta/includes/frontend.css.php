@@ -333,3 +333,12 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		}
 	}
 }
+
+/* ---- Outline text ({outline}...{/outline}) per-module override: blank = Theme Setting. ---- */
+$oc_ov = DS_Module_UI::color( $settings->outline_color ?? '' );
+if ( '' !== $oc_ov ) { echo "$node { --ds-outline-c: {$oc_ov}; }\n"; }
+if ( isset( $settings->outline_width ) && '' !== $settings->outline_width ) { echo "$node { --ds-outline-w: " . max( 1, (int) $settings->outline_width ) . "px; }\n"; }
+
+/* ---- Card shadow (all styles): soft / medium / strong. ---- */
+$csh = array( 'soft' => '0 4px 14px rgba(0,0,0,.10)', 'medium' => '0 8px 24px rgba(0,0,0,.16)', 'strong' => '0 16px 40px rgba(0,0,0,.24)' )[ $settings->cta_shadow ?? '' ] ?? '';
+if ( '' !== $csh ) { echo "$node .ds-cta-card, $node .ds-cta-tile, $node .ds-cta-bento-cell, $node .ds-cta-hero-box { box-shadow: {$csh}; }\n"; }
