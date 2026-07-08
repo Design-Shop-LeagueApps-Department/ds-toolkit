@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.9] - 2026-07-08
+### Fixed
+- **"Match site Button" now truly matches — everywhere, including borders and shadow.** Root cause found on a live fleet test (risevolleyball): with Button Shape = **Default**, the Theme Setting emitted no shape CSS at all, so the blueprint's decorative clip-path baked into module buttons (e.g. the Post Loop "See all" parallelogram) was never cleared — the button ignored the theme radius no matter what the sync emitted. Default now emits an explicit clip-path **reset** across all button surfaces. On top of that, every module's global-button mode previously synced only background / text / hover / radius / typography; a new shared `DS_Module_UI::global_button_css()` also syncs the **full border (style / width / colour), border hover colour, and box-shadow** from Theme Setting → Elements → Button. Rewired: **Hero Banner** primary (ghost keeps radius + typography), **Menu CTA (Last Item)**, **Post Loop** "See all" + **Tournament** + **Program** (theme mode), **Page Cards** button, **CTA** bento + hero buttons.
+
+### Added
+- **Images/Videos Carousel — Auto Scroll (Reels Strip).** The strip advances one card at a time on a timer (interval setting, default 4s) and loops back to the start. Pauses on hover / touch / focus, only runs while on screen, and stays off for reduced-motion visitors.
+
 ## [1.9.8] - 2026-07-07
 ### Changed
 - **Renamed "Info List" → "Post Details"** and scoped it to its intended context: the module now only appears in the builder panel while editing a **Themer layout** (via the `fl_builder_register_module` filter). Its rows read ACF fields off the rendered post, which is meaningless on a normal page. Instances already placed on pages keep rendering — the gate only controls the panel listing. Slug (`ds-info-list`) and saved settings unchanged.

@@ -256,26 +256,9 @@ if ( ( $settings->last_item_button ?? 'no' ) === 'yes' ) {
 
 	if ( $gs && ( $settings->button_global ?? 'yes' ) === 'yes' ) {
 		$cta_global = true;
-		$gbg    = $col( $gs->button_background ?? '' );
-		$gtext  = $col( $gs->button_color ?? '' );
-		$gbgh   = $col( $gs->button_hover_background ?? '' ) ?: $gbg;
-		$gtexth = $col( $gs->button_hover_color ?? '' ) ?: $gtext;
-		$d = '';
-		if ( $gbg )   { $d .= "background:{$gbg};"; }
-		if ( $gtext ) { $d .= "color:{$gtext};"; }
-		if ( '' !== $gbtn_radius ) { $d .= "border-radius:{$gbtn_radius};"; }
-		$d .= "padding:0.6em {$bpad}px;";
-		echo "$cta { {$d} }\n";
-		if ( $gbgh || $gtexth ) { echo "$cta_hover {" . ( $gbgh ? "background:{$gbgh};" : '' ) . ( $gtexth ? "color:{$gtexth};" : '' ) . "}\n"; }
-		if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
-			$gt = (object) array(
-				'gbtypo'            => $gs->button_typography,
-				'gbtypo_large'      => $gs->button_typography_large ?? '',
-				'gbtypo_medium'     => $gs->button_typography_medium ?? '',
-				'gbtypo_responsive' => $gs->button_typography_responsive ?? '',
-			);
-			FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => $cta ) );
-		}
+		// FULL theme Button sync (bg, text, hover, border + radius + shadow, typography).
+		DS_Module_UI::global_button_css( $cta, $cta_hover );
+		echo "$cta { padding:0.6em {$bpad}px; }\n";
 	} else {
 		$bbg    = $col( $settings->button_bg ?? '' ) ?: 'var(--fl-global-button)';
 		$btext  = $col( $settings->button_text ?? '' ) ?: 'var(--fl-global-white)';

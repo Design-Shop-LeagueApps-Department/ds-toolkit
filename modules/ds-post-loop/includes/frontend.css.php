@@ -169,26 +169,8 @@ if ( $hac ) { echo "$node .ds-news-accent { color: {$hac}; }\n"; }
 $btn = $settings->btn_global ?? 'yes';
 $gs  = class_exists( 'FLBuilderGlobalStyles' ) ? FLBuilderGlobalStyles::get_settings( false ) : null;
 if ( 'yes' === $btn && $gs ) {
-	$gbg    = $col( $gs->button_background ?? '' );
-	$gtext  = $col( $gs->button_color ?? '' );
-	$gbgh   = $col( $gs->button_hover_background ?? '' ) ?: $gbg;
-	$gtexth = $col( $gs->button_hover_color ?? '' ) ?: $gtext;
-	// Border radius compound (CSS order TL TR BR BL).
-	$gradius = '';
-	$bb = isset( $gs->button_border ) ? (array) $gs->button_border : array();
-	$r  = isset( $bb['radius'] ) ? (array) $bb['radius'] : array();
-	$tl = $r['top_left'] ?? ''; $tr = $r['top_right'] ?? ''; $bl = $r['bottom_left'] ?? ''; $brr = $r['bottom_right'] ?? '';
-	if ( '' !== ( $tl . $tr . $bl . $brr ) ) { $ru = function( $v ) { return ( '' === $v ? '0' : (int) $v ) . 'px'; }; $gradius = $ru( $tl ) . ' ' . $ru( $tr ) . ' ' . $ru( $brr ) . ' ' . $ru( $bl ); }
-	$p = '';
-	if ( $gbg )   { $p .= "background:{$gbg} !important;"; }
-	if ( $gtext ) { $p .= "color:{$gtext} !important;"; }
-	if ( '' !== $gradius ) { $p .= "border-radius:{$gradius};"; } // theme Button Shape (clip-path) still applies; radius shows only when shape = Default.
-	if ( '' !== $p ) { echo "$node .ds-news-seeall { {$p} }\n"; }
-	if ( $gbgh || $gtexth ) { echo "$node .ds-news-seeall:hover { " . ( $gbgh ? "background:{$gbgh} !important;" : '' ) . ( $gtexth ? "color:{$gtexth} !important;" : '' ) . "filter:none; }\n"; }
-	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
-		$gt = (object) array( 'gbtypo' => $gs->button_typography, 'gbtypo_large' => $gs->button_typography_large ?? '', 'gbtypo_medium' => $gs->button_typography_medium ?? '', 'gbtypo_responsive' => $gs->button_typography_responsive ?? '' );
-		FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => "$node .ds-news-seeall" ) );
-	}
+	// FULL theme Button sync (bg, text, hover, border + radius + shadow, typography).
+	DS_Module_UI::global_button_css( "$node .ds-news-seeall" );
 } elseif ( 'accent' === $btn ) {
 	$ac = $col( $settings->heading_accent_color ?? 'var(--fl-global-accent)' );
 	echo "$node .ds-news-seeall { background: {$ac} !important; color: var(--fl-global-white) !important; }\n";
@@ -199,28 +181,9 @@ if ( 'yes' === $btn && $gs ) {
 	if ( $dtx ) { echo "$node .ds-news-seeall { color: {$dtx} !important; }\n"; }
 }
 
-// ---- Tournament card button: follow the Theme Setting global Button (bg, text, hover,
-//      radius, typography) — the static CSS only borrowed its colour before. ----
+// ---- Tournament card button: FULL theme Button sync (incl. border + shadow). ----
 if ( $gs && ( $settings->card_layout ?? '' ) === 'tournament' ) {
-	$tbg    = $col( $gs->button_background ?? '' );
-	$ttext  = $col( $gs->button_color ?? '' );
-	$tbgh   = $col( $gs->button_hover_background ?? '' ) ?: $tbg;
-	$ttexth = $col( $gs->button_hover_color ?? '' ) ?: $ttext;
-	$tradius = '';
-	$tbb = isset( $gs->button_border ) ? (array) $gs->button_border : array();
-	$trr = isset( $tbb['radius'] ) ? (array) $tbb['radius'] : array();
-	$ttl = $trr['top_left'] ?? ''; $ttr = $trr['top_right'] ?? ''; $tbl = $trr['bottom_left'] ?? ''; $tbr = $trr['bottom_right'] ?? '';
-	if ( '' !== ( $ttl . $ttr . $tbl . $tbr ) ) { $tru = function( $v ) { return ( '' === $v ? '0' : (int) $v ) . 'px'; }; $tradius = $tru( $ttl ) . ' ' . $tru( $ttr ) . ' ' . $tru( $tbr ) . ' ' . $tru( $tbl ); }
-	$tp = '';
-	if ( $tbg )   { $tp .= "background:{$tbg} !important;"; }
-	if ( $ttext ) { $tp .= "color:{$ttext} !important;"; }
-	if ( '' !== $tradius ) { $tp .= "border-radius:{$tradius};"; }
-	if ( '' !== $tp ) { echo "$node .ds-tourn-btn { {$tp} }\n"; }
-	if ( $tbgh || $ttexth ) { echo "$node .ds-tourn-card:hover .ds-tourn-btn { " . ( $tbgh ? "background:{$tbgh} !important;" : '' ) . ( $ttexth ? "color:{$ttexth} !important;" : '' ) . " }\n"; }
-	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
-		$tgt = (object) array( 'gbtypo' => $gs->button_typography, 'gbtypo_large' => $gs->button_typography_large ?? '', 'gbtypo_medium' => $gs->button_typography_medium ?? '', 'gbtypo_responsive' => $gs->button_typography_responsive ?? '' );
-		FLBuilderCSS::typography_field_rule( array( 'settings' => $tgt, 'setting_name' => 'gbtypo', 'selector' => "$node .ds-tourn-btn" ) );
-	}
+	DS_Module_UI::global_button_css( "$node .ds-tourn-btn", "$node .ds-tourn-btn:hover, $node .ds-tourn-card:hover .ds-tourn-btn" );
 }
 
 // ---- Spacing: padding on the wrap, margin on the section (deferred) ----
@@ -506,6 +469,13 @@ if ( ( $settings->card_layout ?? '' ) === 'program' ) {
 	$pc = $col( $settings->pg_sub_color ?? '' );   if ( $pc ) { echo "$node .ds-program-sub{color:{$pc};}\n"; }
 	$pc = $col( $settings->pg_title_color ?? '' ); if ( $pc ) { echo "$node .ds-program-title{color:{$pc};}\n"; }
 	$pc = $col( $settings->pg_desc_color ?? '' );  if ( $pc ) { echo "$node .ds-program-desc{color:{$pc};}\n"; }
+	if ( ( $settings->pg_btn_style ?? 'theme' ) !== 'custom' ) {
+		// FULL theme Button sync (bg, text, hover, border + radius + shadow, typography).
+		DS_Module_UI::global_button_css(
+			"$node .ds-programs .ds-program-card .ds-program-btn",
+			"$node .ds-programs .ds-program-card .ds-program-btn:hover, $node .ds-programs .ds-program-card:hover .ds-program-btn"
+		);
+	}
 	if ( ( $settings->pg_btn_style ?? 'theme' ) === 'custom' ) {
 		$bbg = $col( $settings->pg_btn_bg ?? '' ); $btc = $col( $settings->pg_btn_color ?? '' );
 		$bdecl = ''; if ( $bbg ) { $bdecl .= "background:{$bbg};"; } if ( $btc ) { $bdecl .= "color:{$btc};"; }

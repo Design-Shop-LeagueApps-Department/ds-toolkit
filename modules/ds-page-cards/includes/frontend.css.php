@@ -45,29 +45,7 @@ if ( ( $settings->image_position ?? 'top' ) === 'left' ) {
 if ( $tc = $col( $settings->title_color ?? '' ) )   { echo "$node .dst-card-title{color:$tc;}\n"; }
 if ( $ec = $col( $settings->excerpt_color ?? '' ) ) { echo "$node .dst-card-excerpt{color:$ec;}\n"; }
 
-// ---- "Button" link style: follow the Theme Setting global Button (the static CSS only
-//      borrowed its colour; radius/typography/hover now sync too). ----
-if ( ( $settings->button_style ?? 'link' ) === 'button' && class_exists( 'FLBuilderGlobalStyles' ) ) {
-	$gs = FLBuilderGlobalStyles::get_settings( false );
-	if ( $gs ) {
-		$gbg    = $col( $gs->button_background ?? '' );
-		$gtext  = $col( $gs->button_color ?? '' );
-		$gbgh   = $col( $gs->button_hover_background ?? '' ) ?: $gbg;
-		$gtexth = $col( $gs->button_hover_color ?? '' ) ?: $gtext;
-		$gradius = '';
-		$bb = isset( $gs->button_border ) ? (array) $gs->button_border : array();
-		$r  = isset( $bb['radius'] ) ? (array) $bb['radius'] : array();
-		$tl = $r['top_left'] ?? ''; $tr = $r['top_right'] ?? ''; $bl = $r['bottom_left'] ?? ''; $brr = $r['bottom_right'] ?? '';
-		if ( '' !== ( $tl . $tr . $bl . $brr ) ) { $ru = function( $v ) { return ( '' === $v ? '0' : (int) $v ) . 'px'; }; $gradius = $ru( $tl ) . ' ' . $ru( $tr ) . ' ' . $ru( $brr ) . ' ' . $ru( $bl ); }
-		$p = '';
-		if ( $gbg )   { $p .= "background:{$gbg} !important;"; }
-		if ( $gtext ) { $p .= "color:{$gtext} !important;"; }
-		if ( '' !== $gradius ) { $p .= "border-radius:{$gradius};"; }
-		if ( '' !== $p ) { echo "$node .dst-card-btn--button { {$p} }\n"; }
-		if ( $gbgh || $gtexth ) { echo "$node .dst-card:hover .dst-card-btn--button { " . ( $gbgh ? "background:{$gbgh} !important;" : '' ) . ( $gtexth ? "color:{$gtexth} !important;" : '' ) . " }\n"; }
-		if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
-			$gt = (object) array( 'gbtypo' => $gs->button_typography, 'gbtypo_large' => $gs->button_typography_large ?? '', 'gbtypo_medium' => $gs->button_typography_medium ?? '', 'gbtypo_responsive' => $gs->button_typography_responsive ?? '' );
-			FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => "$node .dst-card-btn--button" ) );
-		}
-	}
+// ---- "Button" link style: FULL theme Button sync (bg, text, hover, border + radius + shadow, typography). ----
+if ( ( $settings->button_style ?? 'link' ) === 'button' ) {
+	DS_Module_UI::global_button_css( "$node .dst-card-btn--button", "$node .dst-card-btn--button:hover, $node .dst-card:hover .dst-card-btn--button" );
 }

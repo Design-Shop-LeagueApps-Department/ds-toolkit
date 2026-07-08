@@ -230,19 +230,30 @@ CSS;
         );
     }
 
-    /** Front-end CSS for a chosen button shape (empty for Default / unknown). */
+    /** Front-end CSS for a chosen button shape. Default emits a clip-path RESET:
+     *  several blueprint modules ship a decorative clip-path in their static CSS
+     *  (e.g. the Post Loop "See all" parallelogram), and without this reset the
+     *  Default shape's "standard button with the global radius" never actually
+     *  showed — the static clip stayed and the button ignored the Theme Setting. */
     public static function button_style_css( $style ) {
         $styles = self::button_styles();
         if ( ! isset( $styles[ $style ] ) || '' === $styles[ $style ]['clip'] ) {
-            return '';
+            $sel = self::button_shape_selectors();
+            return "{$sel}{-webkit-clip-path:none;clip-path:none;}";
         }
         $clip = $styles[ $style ]['clip'];
         // Filled site-button surfaces: standard BB/UABB buttons (.fl-button — UABB
         // buttons get it via Global JS), the nav CTA (DS Menu is-button), and the
         // hero primary CTA. Outline/ghost buttons are left alone — a clip-path
         // would slice their visible border.
-        $sel = '.fl-button, a.fl-button, .ds-menu-item.is-button, .ds-hero-btn--primary, .ds-cta-bento-btn, .ds-cta-hero-btn, .ds-news-seeall, .forminator-custom-form button.forminator-button-submit, .dst-card-btn--button, .ds-program-btn, .ds-tourn-btn';
-        return "{$sel}:not(.ds-no-clip){overflow:hidden;-webkit-clip-path:{$clip};clip-path:{$clip};border-radius:0 !important;}";
+        $sel = self::button_shape_selectors( ':not(.ds-no-clip)' );
+        return "{$sel}{overflow:hidden;-webkit-clip-path:{$clip};clip-path:{$clip};border-radius:0 !important;}";
+    }
+
+    /** The button surfaces the Button Shape system owns (shared by shape + Default reset). */
+    private static function button_shape_selectors( $suffix = '' ) {
+        $list = array( '.fl-button', 'a.fl-button', '.ds-menu-item.is-button', '.ds-hero-btn--primary', '.ds-cta-bento-btn', '.ds-cta-hero-btn', '.ds-news-seeall', '.forminator-custom-form button.forminator-button-submit', '.dst-card-btn--button', '.ds-program-btn', '.ds-tourn-btn' );
+        return implode( $suffix . ', ', $list ) . $suffix;
     }
 
     /* ----------------------------------------------------------------- Menu */

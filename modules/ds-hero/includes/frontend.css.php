@@ -188,17 +188,10 @@ if ( $gs ) {
 }
 
 if ( $btn_global && $gs ) {
-	$gbg    = $col( $gs->button_background ?? '' );
-	$gtext  = $col( $gs->button_color ?? '' );
-	$gbgh   = $col( $gs->button_hover_background ?? '' ) ?: $gbg;
-	$gtexth = $col( $gs->button_hover_color ?? '' ) ?: $gtext;
-	$p = '';
-	if ( $gbg )   { $p .= "background:{$gbg} !important;"; }
-	if ( $gtext ) { $p .= "color:{$gtext} !important;"; }
-	if ( '' !== $p ) { echo "$node .ds-hero-btn--primary { {$p} }\n"; }
-	if ( $gbgh || $gtexth ) { echo "$node .ds-hero-btn--primary:hover { " . ( $gbgh ? "background:{$gbgh} !important;" : '' ) . ( $gtexth ? "color:{$gtexth} !important;" : '' ) . "filter:none; }\n"; }
-	// Corner radius + typography on BOTH buttons so the ghost matches the theme too.
-	if ( '' !== $gradius ) { echo "$node .ds-hero-btn { border-radius: {$gradius}; }\n"; }
+	// FULL theme Button sync (bg, text, hover, border + radius + shadow, typography).
+	DS_Module_UI::global_button_css( "$node .ds-hero-btn--primary" );
+	// Corner radius + typography on the GHOST button too so it matches the theme.
+	if ( '' !== $gradius ) { echo "$node .ds-hero-btn--ghost { border-radius: {$gradius}; }\n"; }
 	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
 		$gt = (object) array(
 			'gbtypo'            => $gs->button_typography,
@@ -206,7 +199,7 @@ if ( $btn_global && $gs ) {
 			'gbtypo_medium'     => $gs->button_typography_medium ?? '',
 			'gbtypo_responsive' => $gs->button_typography_responsive ?? '',
 		);
-		FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => "$node .ds-hero-btn" ) );
+		FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => "$node .ds-hero-btn--ghost" ) );
 	}
 } else {
 	// Accent colour primary button.
