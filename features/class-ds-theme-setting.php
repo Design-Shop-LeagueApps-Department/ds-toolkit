@@ -139,6 +139,31 @@ CSS;
      * Site-wide default background for the Page Banner (Leagueapps Hero Banner)
      * when a page has NO banner photo / video. The hero module can override per page.
      */
+    /**
+     * Post types allowed to use their Featured Image as the page-banner
+     * background (the Hero Banner Style 2 fallback). Types NOT in the list
+     * always get the text-only banner over the "No Image" background below.
+     * Default (never saved yet): every eligible type EXCEPT staff — portrait
+     * headshots crop badly in a wide banner.
+     */
+    public static function banner_featured_types() {
+        $mod = get_theme_mod( 'ds-banner-featured-types', null );
+        if ( is_array( $mod ) ) {
+            return array_map( 'sanitize_key', $mod );
+        }
+        $out = array();
+        foreach ( get_post_types( array( 'public' => true ), 'names' ) as $pt ) {
+            if ( 'attachment' === $pt || 'staff' === $pt ) { continue; }
+            if ( post_type_supports( $pt, 'thumbnail' ) ) { $out[] = $pt; }
+        }
+        return $out;
+    }
+
+    /** True when $post_type may use its Featured Image as the banner background. */
+    public static function banner_featured_allowed( $post_type ) {
+        return in_array( (string) $post_type, self::banner_featured_types(), true );
+    }
+
     public function output_banner_nobg_css() {
         $color = (string) get_theme_mod( 'ds-banner-nobg-color', 'var(--fl-global-light-background)' );
         $image = (string) get_theme_mod( 'ds-banner-nobg-image', '' );
@@ -782,6 +807,22 @@ JS;
 
                     $bnbg_img = $mod( 'ds-banner-nobg-image' );
                     $this->acc( 'Page Banner Background (No Image)', false );
+                        ?>
+                        <div class="ds-ts-field"><label>Featured Image Banner</label><div class="ds-ts-input">
+                            <input type="hidden" name="general[banner_featured_types_set]" value="1">
+                            <?php
+                            $ft_allowed = self::banner_featured_types();
+                            foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $ft_pt ) {
+                                if ( 'attachment' === $ft_pt->name || ! post_type_supports( $ft_pt->name, 'thumbnail' ) ) { continue; }
+                                echo '<label style="display:inline-flex;align-items:center;gap:6px;margin:0 16px 6px 0;font-weight:400;">'
+                                    . '<input type="checkbox" name="general[banner_featured_types][]" value="' . esc_attr( $ft_pt->name ) . '" ' . checked( in_array( $ft_pt->name, $ft_allowed, true ), true, false ) . '>'
+                                    . esc_html( $ft_pt->labels->name )
+                                    . '</label>';
+                            }
+                            ?>
+                            <p class="ds-ts-help" style="margin:4px 0 0">Content types that may use their <strong>Featured Image</strong> as the banner photo on their single pages. Unchecked types always show the <strong>text-only banner</strong> over the background below &mdash; recommended off for <strong>Staff</strong>, whose portrait headshots crop badly in a wide banner.</p>
+                        </div></div>
+                        <?php
                         $this->color_field( 'Background Color', 'general[banner_nobg_color]', $mod( 'ds-banner-nobg-color', 'var(--fl-global-light-background)' ) );
                         ?>
                         <div class="ds-ts-field ds-ts-media"><label>Pattern / Image</label><div class="ds-ts-input">
@@ -1024,6 +1065,9 @@ JS;
             set_theme_mod( 'ds-banner-nobg-repeat', in_array( $g['banner_nobg_repeat'] ?? '', $repeat_ok, true ) ? $g['banner_nobg_repeat'] : 'repeat' );
             set_theme_mod( 'ds-banner-nobg-size', in_array( $g['banner_nobg_size'] ?? '', $size_ok, true ) ? $g['banner_nobg_size'] : 'auto' );
             set_theme_mod( 'ds-banner-nobg-blend', in_array( $g['banner_nobg_blend'] ?? '', $blend_ok, true ) ? $g['banner_nobg_blend'] : 'normal' );
+            if ( isset( $g['banner_featured_types_set'] ) ) {
+                set_theme_mod( 'ds-banner-featured-types', array_map( 'sanitize_key', (array) ( $g['banner_featured_types'] ?? array() ) ) );
+            }
             set_theme_mod( 'ds-corner-radius', isset( $g['corner_radius'] ) && '' !== $g['corner_radius'] ? max( 0, min( 60, (int) $g['corner_radius'] ) ) : 8 );
             // Custom code: LeagueApps-only surface; stored raw like the BB theme's Code section.
             set_theme_mod( 'fl-css-code', isset( $g['css_code'] ) ? trim( $g['css_code'] ) : '' );

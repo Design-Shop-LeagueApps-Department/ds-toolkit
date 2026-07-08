@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.14] - 2026-07-09
+### Added
+- **Theme Setting — Featured Image Banner control.** New checkbox list inside **General → Page Banner Background (No Image)**: which content types may use their **Featured Image** as the banner photo on their single pages. Unchecked types always show the **text-only banner** over the No-Image background (colour / pattern) configured right below it. **Staff is off by default** — portrait headshots crop badly in a wide banner, so staff singles now show a clean heading banner automatically (no setting change needed). Existing behaviour for pages, posts, teams, etc. is unchanged.
+
 ## [1.9.13] - 2026-07-09
 ### Changed
 - **Images/Videos Carousel — Auto Scroll is now a seamless infinite loop.** Instead of stepping card-by-card and visibly rewinding to the start, the Reels Strip now drifts continuously marquee-style: the card set is cloned and the scroll position wraps invisibly, so it loops forever in one direction. The interval setting is now **Speed** (seconds per card; lower = faster). Still pauses on hover / touch / focus and off-screen, arrows still work (drift pauses briefly after a manual step), and it stays off for reduced-motion visitors.
