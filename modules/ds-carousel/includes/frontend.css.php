@@ -17,7 +17,26 @@ list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
 $sbg = $col( $settings->section_bg ?? '' );
 if ( '' !== $sbg ) { echo "$node .ds-carousel { background: {$sbg}; }\n"; }
 
-if ( 'style2' === $style ) {
+if ( 'style3' === $style ) {
+	/* ============================ Style 3: reels strip ============================ */
+	$cols  = $u( $settings->reel_cols ?? '', 5 );
+	$colsM = $u( $settings->reel_cols_medium ?? '', min( $cols, 3 ) );
+	$colsR = $u( $settings->reel_cols_responsive ?? '', 2 );
+	$gap   = $u( $settings->reel_gap ?? '', 24 );
+	echo "$node .ds-reels-track { --ds-reel-cols: {$cols}; --ds-reel-gap: {$gap}px; }\n";
+	echo "@media (max-width:{$bpm}px){ $node .ds-reels-track { --ds-reel-cols: {$colsM}; } }\n";
+	echo "@media (max-width:{$bpr}px){ $node .ds-reels-track { --ds-reel-cols: {$colsR}; } }\n";
+
+	$ra = preg_replace( '/[^0-9 \/]/', '', (string) ( $settings->reel_aspect ?? '9 / 16' ) ) ?: '9 / 16';
+	$rr = ( isset( $settings->reel_radius ) && '' !== $settings->reel_radius ) ? ( (int) $settings->reel_radius ) . 'px' : 'var(--ds-radius)';
+	echo "$node .ds-reel-card { aspect-ratio: {$ra}; border-radius: {$rr}; }\n";
+
+	$pbg = $col( $settings->reel_play_bg ?? '' );
+	$pc  = $col( $settings->reel_play_color ?? '' );
+	if ( '' !== $pbg ) { echo "$node .ds-reel-play { background: {$pbg}; }\n"; }
+	if ( '' !== $pc )  { echo "$node .ds-reel-play { color: {$pc}; }\n"; }
+
+} elseif ( 'style2' === $style ) {
 	/* ============================ Style 2: Sponsors / logos ============================ */
 	$cols = $u( $settings->columns ?? '', 6 );
 	$gap  = $u( $settings->gap ?? '', 20 );

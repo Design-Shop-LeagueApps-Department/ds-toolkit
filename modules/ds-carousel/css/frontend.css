@@ -94,3 +94,21 @@
 .fl-builder-content .fl-module.height-medium .ds-carousel-framewrap { height: 420px; aspect-ratio: auto; }
 .fl-builder-content .height-tall   .ds-carousel-framewrap,
 .fl-builder-content .fl-module.height-tall   .ds-carousel-framewrap { height: 560px; aspect-ratio: auto; }
+
+/* ---- Style 3: reels strip (multi-column image/video cards) ---- */
+.ds-carousel--style3 .ds-reels-wrap{position:relative;}
+.ds-carousel--style3 .ds-reels-track{display:flex;gap:var(--ds-reel-gap,24px);overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:4px 2px;}
+.ds-carousel--style3 .ds-reels-track::-webkit-scrollbar{display:none;}
+.ds-carousel--style3 .ds-reel-card{position:relative;display:block;flex:0 0 calc((100% - (var(--ds-reel-cols,5) - 1) * var(--ds-reel-gap,24px)) / var(--ds-reel-cols,5));scroll-snap-align:start;aspect-ratio:9/16;overflow:hidden;border-radius:var(--ds-radius);background:var(--fl-global-dark-background) center/cover no-repeat;text-decoration:none;}
+.ds-carousel--style3 a.ds-reel-card{transition:transform .25s ease;}
+.ds-carousel--style3 a.ds-reel-card:hover{transform:translateY(-3px);}
+.ds-reel-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:54px;height:54px;padding:0;border:0;border-radius:50%;background:rgba(10,14,21,.62);color:var(--fl-global-white,#fff);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .2s ease,background .2s ease;}
+.ds-reel-card:hover .ds-reel-play{transform:translate(-50%,-50%) scale(1.1);background:rgba(10,14,21,.85);}
+.ds-reel-play svg{width:22px;height:22px;display:block;margin-left:2px;}
+.ds-reel-play:focus-visible{outline:2px solid var(--fl-global-accent,#0b57d0);outline-offset:2px;}
+.ds-reel-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;}
+.ds-reel-nav--prev{left:-6px;}
+.ds-reel-nav--next{right:-6px;}
+@media (prefers-reduced-motion:reduce){
+  .ds-carousel--style3 a.ds-reel-card,.ds-reel-play{transition:none;}
+}

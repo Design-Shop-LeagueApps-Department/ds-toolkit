@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.5] - 2026-07-05
+### Added
+- **Images/Videos Carousel — Style 3: Reels Strip.** A new multi-column style (modeled on an Instagram-reels strip): portrait cards side by side, each an **image or an MP4 video**. The slide form gains a **Video URL (MP4)** field — a video card shows a centred play button over its poster image and plays inline on click (playing one pauses the others); an image card stays a plain (optionally linked) card. Style → Reels Strip controls: responsive **Columns** (default 5 / 3 / 2) + **Gap**, **Card Aspect Ratio** (9:16 default, 3:4, 4:5, 1:1), **Corner Radius** (blank = Theme Setting radius), **Arrows** (steps one card; the strip always swipes/scrolls with snap), and **Play Button** background + icon colours. Honours `prefers-reduced-motion`; play button has a `:focus-visible` ring; JS is idempotent and re-inits on builder partial refresh; imageless slides fall back to the Social Card.
+
+### Changed
+- **Renamed "Image Carousel" → "Images/Videos Carousel"** (module name, description, and the Settings-page module list; the `ds-carousel` slug and existing instances are unchanged).
+
 ## [1.9.4] - 2026-07-05
 ### Added
 - **Inline HTML in module title fields.** Editor-authored title / eyebrow / label fields across the LeagueApps modules (Hero heading, Heading title + subheading, CTA heading + card/tile/bento titles and eyebrows, Team Detail section titles, Org Stats eyebrow + labels, Marquee items + label, Info List text) now accept safe inline HTML — `span` (class/style), `strong`, `em`, `b`, `i`, `u`, `small`, `mark`, `br`, `sup`, `sub` — via a shared `DS_Module_UI::inline()` kses whitelist, so e.g. `Lorem <span style="color:#069e33">Ipsum</span>` renders instead of printing literally. `style` attributes are sanitised by WP's safecss filter; everything else is still escaped. WP post titles remain fully escaped.
