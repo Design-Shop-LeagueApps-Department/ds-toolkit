@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.10] - 2026-07-09
+### Fixed
+- **Post Loop — Program card buttons now anchor to the card bottom.** With Same Height on, the Learn More / CTA button sat directly under the text, so buttons across a row didn't line up. The button now pins to the bottom of the card (`margin-top:auto` in the card's flex column), so all buttons align horizontally regardless of text length. No change for cards without Same Height.
+
 ## [1.9.9] - 2026-07-08
 ### Fixed
 - **"Match site Button" now truly matches — everywhere, including borders and shadow.** Root cause found on a live fleet test (risevolleyball): with Button Shape = **Default**, the Theme Setting emitted no shape CSS at all, so the blueprint's decorative clip-path baked into module buttons (e.g. the Post Loop "See all" parallelogram) was never cleared — the button ignored the theme radius no matter what the sync emitted. Default now emits an explicit clip-path **reset** across all button surfaces. On top of that, every module's global-button mode previously synced only background / text / hover / radius / typography; a new shared `DS_Module_UI::global_button_css()` also syncs the **full border (style / width / colour), border hover colour, and box-shadow** from Theme Setting → Elements → Button. Rewired: **Hero Banner** primary (ghost keeps radius + typography), **Menu CTA (Last Item)**, **Post Loop** "See all" + **Tournament** + **Program** (theme mode), **Page Cards** button, **CTA** bento + hero buttons.
