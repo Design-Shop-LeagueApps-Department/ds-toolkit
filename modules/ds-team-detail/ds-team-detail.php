@@ -116,7 +116,7 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 				. $link
 				. '<div class="ds-people-photo"' . $bg . '></div>'
 				. '<div class="ds-people-body">'
-				. ( '' !== $name ? '<h3 class="ds-people-name">' . esc_html( $name ) . '</h3>' : '' )
+				. ( '' !== $name ? '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>' : '' )
 				. ( '' !== $role ? '<span class="ds-people-role">' . esc_html( $role ) . '</span>' : '' )
 				. ( '' !== $icons ? '<div class="ds-people-contacts">' . $icons . '</div>' : '' )
 				. '</div></div>';
@@ -126,7 +126,7 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 		$title = (string) ( $s->coach_title ?? 'Coaches' );
 		$head  = '';
 		if ( '' !== trim( $title ) ) {
-			$head  = '<' . $tag . ' class="ds-teamdetail-title">' . esc_html( $title ) . '</' . $tag . '>';
+			$head  = '<' . $tag . ' class="ds-teamdetail-title">' . DS_Module_UI::inline( $title ) . '</' . $tag . '>';
 			if ( ( $s->divider_show ?? 'yes' ) === 'yes' ) { $head .= '<span class="ds-teamdetail-divider" aria-hidden="true"></span>'; }
 		}
 		return '<section class="ds-teamdetail-section ds-teamdetail-section--coaches">' . $head . '<div class="ds-people-grid ds-people-grid--coaches">' . $cards . '</div></section>';

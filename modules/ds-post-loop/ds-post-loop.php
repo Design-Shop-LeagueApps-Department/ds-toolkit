@@ -93,7 +93,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 	/** Heading markup: escape, {a}..{/a} -> accent span, newlines -> <br>. */
 	private function heading_html( $raw ) {
-		$h = esc_html( (string) $raw );
+		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
 		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-news-accent">', '</span>' ), $h );
 		return nl2br( $h );
 	}
@@ -300,8 +300,8 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '<div class="ds-people-card">'; echo $this->card_link( $id );
 			echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
 			echo '<div class="ds-people-body">';
-			if ( '' !== $name )  { echo '<h3 class="ds-people-name">' . esc_html( $name ) . '</h3>'; }
-			if ( '' !== $title ) { echo '<span class="ds-people-role">' . esc_html( $title ) . '</span>'; }
+			if ( '' !== $name )  { echo '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>'; }
+			if ( '' !== $title ) { echo '<span class="ds-people-role">' . DS_Module_UI::inline( $title ) . '</span>'; }
 			if ( '' !== $icons ) { echo '<div class="ds-people-contacts">' . $icons . '</div>'; }
 			echo '</div></div>';
 		}
@@ -326,7 +326,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '<div class="ds-commit-card">'; echo $this->card_link( $id );
 			echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
 			echo '<div class="ds-people-body">';
-			if ( '' !== $name )   { echo '<h3 class="ds-people-name">' . esc_html( $name ) . '</h3>'; }
+			if ( '' !== $name )   { echo '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>'; }
 			if ( '' !== $school ) { echo '<span class="ds-people-role">' . esc_html( $school ) . '</span>'; }
 			echo '</div></div>';
 		}
@@ -348,7 +348,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '<div class="ds-commit-row">'; echo $this->card_link( $id );
 			echo '<div class="ds-commit-row-logo">' . ( $logo ? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $school ) . '" loading="lazy" />' : '' ) . '</div>';
 			echo '<div class="ds-commit-row-body">';
-			if ( '' !== $name )   { echo '<h3 class="ds-people-name">' . esc_html( $name ) . '</h3>'; }
+			if ( '' !== $name )   { echo '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>'; }
 			if ( '' !== $school ) { echo '<span class="ds-people-role">' . esc_html( $school ) . '</span>'; }
 			echo '</div></div>';
 		}
@@ -376,7 +376,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '<div class="ds-commit-action-body">';
 			echo '<div class="ds-commit-action-logo">' . ( $logo ? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $school ) . '" loading="lazy" />' : '' ) . '</div>';
 			echo '<div class="ds-commit-action-text">';
-			if ( '' !== $name ) { echo '<h3 class="ds-people-name">' . esc_html( $name ) . '</h3>'; }
+			if ( '' !== $name ) { echo '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>'; }
 			if ( '' !== $meta ) { echo '<span class="ds-people-role">' . esc_html( $meta ) . '</span>'; }
 			echo '</div></div></div>';
 		}
@@ -402,7 +402,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			$url     = $is_ext ? $extlink : get_permalink( $id );
 			$tgt     = $is_ext ? ' target="_blank" rel="noopener noreferrer"' : '';
 			echo '<a class="ds-team-row" href="' . esc_url( $url ) . '"' . $tgt . '>';
-			echo '<span class="ds-team-name">' . esc_html( $name ) . '</span>';
+			echo '<span class="ds-team-name">' . DS_Module_UI::inline( $name ) . '</span>';
 			echo '<span class="ds-team-btn">' . ( $is_ext ? $ext : $arrow ) . '</span>';
 			echo '</a>';
 		}
@@ -486,7 +486,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		echo '<div class="ds-news-feature-overlay" aria-hidden="true"></div>';
 		echo '<div class="ds-news-feature-body">';
 		if ( '' !== $badge )              { echo '<span class="ds-news-badge">' . esc_html( $badge ) . '</span>'; }
-		if ( '' !== ( $f['title'] ?? '' ) )   { echo '<h3 class="ds-news-feature-title">' . esc_html( $f['title'] ) . '</h3>'; }
+		if ( '' !== ( $f['title'] ?? '' ) )   { echo '<h3 class="ds-news-feature-title">' . DS_Module_UI::inline( $f['title'] ) . '</h3>'; }
 		if ( '' !== ( $f['excerpt'] ?? '' ) ) { echo '<p class="ds-news-feature-excerpt">' . esc_html( $f['excerpt'] ) . '</p>'; }
 		if ( '' !== $readmore ) {
 			echo '<span class="ds-news-readmore">' . esc_html( $readmore ) . ' <span class="ds-news-readmore-arrow" aria-hidden="true">&rarr;</span></span>';
@@ -502,7 +502,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		echo '<a class="ds-news-card" href="' . esc_url( $url ) . '" target="' . esc_attr( $tar ) . '"' . $rel . '>';
 		echo '<div class="ds-news-card-top">';
 		if ( '' !== ( $c['eyebrow'] ?? '' ) ) { echo '<span class="ds-news-card-cat">' . esc_html( $c['eyebrow'] ) . '</span>'; }
-		if ( '' !== ( $c['title'] ?? '' ) )   { echo '<h3 class="ds-news-card-title">' . esc_html( $c['title'] ) . '</h3>'; }
+		if ( '' !== ( $c['title'] ?? '' ) )   { echo '<h3 class="ds-news-card-title">' . DS_Module_UI::inline( $c['title'] ) . '</h3>'; }
 		echo '</div>';
 		echo '<div class="ds-news-card-foot">';
 		echo '<span class="ds-news-card-date">' . esc_html( $c['date'] ?? '' ) . '</span>';
@@ -523,7 +523,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 		$map = array(
 			'{id}'         => (string) ( $c['id'] ?? '' ),
-			'{title}'      => esc_html( $c['title'] ?? '' ),
+			'{title}'      => DS_Module_UI::inline( $c['title'] ?? '' ),
 			'{permalink}'  => esc_url( $c['url'] ?? '#' ),
 			'{url}'        => esc_url( $c['url'] ?? '#' ),
 			'{date}'       => esc_html( $c['date'] ?? '' ),
@@ -596,7 +596,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		echo '</div>';
 		echo '<div class="ds-news-card2-body">';
 		if ( '' !== ( $c['date'] ?? '' ) )  { echo '<span class="ds-news-card2-date">' . esc_html( $c['date'] ) . '</span>'; }
-		if ( '' !== ( $c['title'] ?? '' ) ) { echo '<h3 class="ds-news-card2-title">' . esc_html( $c['title'] ) . '</h3>'; }
+		if ( '' !== ( $c['title'] ?? '' ) ) { echo '<h3 class="ds-news-card2-title">' . DS_Module_UI::inline( $c['title'] ) . '</h3>'; }
 		if ( '' !== $readmore ) {
 			echo '<span class="ds-news-card2-more">' . esc_html( $readmore ) . ' <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>';
 		}
@@ -713,7 +713,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			if ( '' !== $evt ) { echo '<span class="ds-tourn-logo"><img src="' . esc_url( $evt ) . '" alt="" loading="lazy" /></span>'; }
 			echo '</div>';
 			echo '<div class="ds-tourn-body">';
-			echo '<h3 class="ds-tourn-title">' . esc_html( $title ) . '</h3>';
+			echo '<h3 class="ds-tourn-title">' . DS_Module_UI::inline( $title ) . '</h3>';
 			echo '<div class="ds-tourn-meta">';
 			if ( '' !== $it['raw'] ) { echo '<span class="ds-tourn-date">' . $cal . '<span>' . esc_html( $it['raw'] ) . '</span></span>'; }
 			if ( '' !== $loc )       { echo '<span class="ds-tourn-loc">' . $pin . '<span>' . esc_html( $loc ) . '</span></span>'; }
@@ -757,7 +757,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '<div class="ds-program-body">';
 			if ( '' !== $date )  { echo '<span class="ds-program-date">' . esc_html( $date ) . '</span>'; }
 			if ( '' !== $sub )   { echo '<span class="ds-program-sub">' . esc_html( $sub ) . '</span>'; }
-			if ( '' !== $title ) { echo '<h3 class="ds-program-title">' . esc_html( $title ) . '</h3>'; }
+			if ( '' !== $title ) { echo '<h3 class="ds-program-title">' . DS_Module_UI::inline( $title ) . '</h3>'; }
 			if ( '' !== $desc )  { echo '<p class="ds-program-desc">' . esc_html( $desc ) . '</p>'; }
 			if ( '' !== $btn && $hasurl ) { echo '<a class="' . esc_attr( $btn_cls ) . '" href="' . esc_url( $url ) . '"' . $tgt . '>' . esc_html( $btn ) . '</a>'; }
 			echo '</div></div>';

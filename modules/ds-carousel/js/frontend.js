@@ -239,7 +239,7 @@
 	}
 })();
 
-/* ---- Style 3: reels strip (inline video + arrow scroll). Idempotent. ---- */
+/* ---- Style 3: reels strip (inline/auto video + arrow scroll). Idempotent. ---- */
 (function () {
 	function initReels(root) {
 		if (root.dsReelInit) return;
@@ -247,25 +247,64 @@
 		if (!track) { return; }
 		root.dsReelInit = true;
 		var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		var auto   = track.getAttribute('data-autoplay') === 'yes' && !reduce;
 
-		[].slice.call(root.querySelectorAll('.ds-reel-card.has-video')).forEach(function (card) {
-			var btn = card.querySelector('.ds-reel-play');
-			function play() {
-				if (card.dsPlaying) return;
-				card.dsPlaying = true;
-				// pause any other playing reel in this module
-				[].slice.call(root.querySelectorAll('video.ds-reel-video')).forEach(function (o) { o.pause(); });
-				var v = document.createElement('video');
-				v.className = 'ds-reel-video';
-				v.src = card.getAttribute('data-video') || '';
-				v.controls = true; v.autoplay = true; v.playsInline = true;
-				v.setAttribute('playsinline', '');
-				card.appendChild(v);
-				if (btn) btn.style.display = 'none';
-				v.addEventListener('ended', function () { v.remove(); if (btn) btn.style.display = ''; card.dsPlaying = false; });
+		function mount(card, opts) {
+			var v = document.createElement('video');
+			v.className = 'ds-reel-video';
+			v.src = card.getAttribute('data-video') || '';
+			v.playsInline = true; v.setAttribute('playsinline', '');
+			if (opts.auto) { v.muted = true; v.loop = true; v.autoplay = true; v.setAttribute('muted', ''); }
+			else { v.controls = true; v.autoplay = true; }
+			card.appendChild(v);
+			return v;
+		}
+
+		var cards = [].slice.call(root.querySelectorAll('.ds-reel-card.has-video'));
+
+		if (auto) {
+			// Instagram-style: muted looped videos that play while visible, pause off-screen.
+			cards.forEach(function (card) { card.dsVideo = mount(card, { auto: true }); });
+			if ('IntersectionObserver' in window) {
+				var io = new IntersectionObserver(function (entries) {
+					entries.forEach(function (en) {
+						var v = en.target.dsVideo;
+						if (!v) return;
+						if (en.isIntersecting && en.intersectionRatio >= 0.4) { if (!en.target.dsUserPaused) v.play().catch(function () {}); }
+						else { v.pause(); }
+					});
+				}, { threshold: [0, 0.4] });
+				cards.forEach(function (card) { io.observe(card); });
 			}
-			card.addEventListener('click', function (e) { e.preventDefault(); play(); });
-		});
+			cards.forEach(function (card) {
+				card.addEventListener('click', function (e) {
+					if (e.target && e.target.tagName === 'VIDEO' && !card.dsVideo) return;
+					e.preventDefault();
+					var v = card.dsVideo; if (!v) return;
+					if (v.paused) { card.dsUserPaused = false; v.play().catch(function () {}); }
+					else { card.dsUserPaused = true; v.pause(); }
+				});
+			});
+		} else {
+			// Click-to-play with native controls; playing one pauses the others.
+			cards.forEach(function (card) {
+				var btn = card.querySelector('.ds-reel-play');
+				function play() {
+					if (card.dsPlaying) return;
+					card.dsPlaying = true;
+					[].slice.call(root.querySelectorAll('video.ds-reel-video')).forEach(function (o) { o.pause(); });
+					var v = mount(card, { auto: false });
+					if (btn) btn.style.display = 'none';
+					v.addEventListener('ended', function () { v.remove(); if (btn) btn.style.display = ''; card.dsPlaying = false; });
+				}
+				card.addEventListener('click', function (e) {
+					// Let native <video> control clicks through once the video is mounted.
+					if (e.target && e.target.tagName === 'VIDEO') return;
+					e.preventDefault();
+					play();
+				});
+			});
+		}
 
 		function step(dir) {
 			var card = track.querySelector('.ds-reel-card');

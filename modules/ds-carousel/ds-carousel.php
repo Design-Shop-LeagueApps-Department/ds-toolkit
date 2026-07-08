@@ -164,7 +164,7 @@ class DS_Carousel_Module extends FLBuilderModule {
 				echo '<span class="ds-carousel-img" style="background-image:url(' . esc_url( $slide['image'] ) . ')"></span>';
 			}
 			if ( '' !== $slide['caption'] ) {
-				echo '<span class="ds-carousel-caption">' . esc_html( $slide['caption'] ) . '</span>';
+				echo '<span class="ds-carousel-caption">' . DS_Module_UI::inline( $slide['caption'] ) . '</span>';
 			}
 			echo '</' . $tag . '>';
 		}
@@ -306,17 +306,26 @@ class DS_Carousel_Module extends FLBuilderModule {
 		$play = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
 
 		echo '<div class="ds-reels-wrap">';
-		echo '<div class="ds-reels-track">';
+		echo '<div class="ds-reels-track" data-autoplay="' . esc_attr( ( $s->reel_autoplay ?? 'no' ) === 'yes' ? 'yes' : 'no' ) . '">';
 		foreach ( $slides as $slide ) {
 			$slide = (object) $slide;
 			$img   = ! empty( $slide->image ) ? $this->photo_url( $slide->image, 'large' ) : '';
 			if ( '' === $img && class_exists( 'DS_Card' ) ) { $img = (string) DS_Card::placeholder_image(); }
 			$bg    = $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '';
-			$video = trim( (string) ( $slide->video_url ?? '' ) );
+			// Media Library video (attachment id) wins; else a direct URL.
+			$video = '';
+			if ( ! empty( $slide->video_media ) ) {
+				$vm = is_object( $slide->video_media ) ? ( $slide->video_media->id ?? 0 ) : ( is_array( $slide->video_media ) ? ( $slide->video_media['id'] ?? 0 ) : $slide->video_media );
+				if ( is_numeric( $vm ) ) { $video = (string) wp_get_attachment_url( (int) $vm ); }
+			}
+			if ( '' === $video ) { $video = trim( (string) ( $slide->video_url ?? '' ) ); }
 
 			if ( '' !== $video ) {
 				echo '<div class="ds-reel-card has-video" data-video="' . esc_url( $video ) . '"' . $bg . '>';
-				echo '<button type="button" class="ds-reel-play" aria-label="' . esc_attr__( 'Play video', 'ds-toolkit' ) . '">' . $play . '</button>';
+				$pstyle = $s->reel_play_style ?? 'circle';
+				if ( 'none' !== $pstyle && ( $s->reel_autoplay ?? 'no' ) !== 'yes' ) {
+					echo '<button type="button" class="ds-reel-play' . ( 'plain' === $pstyle ? ' ds-reel-play--plain' : '' ) . '" aria-label="' . esc_attr__( 'Play video', 'ds-toolkit' ) . '">' . $play . '</button>';
+				}
 				echo '</div>';
 			} else {
 				list( $url, $target ) = $this->link_parts( $slide->link ?? '' );
@@ -356,11 +365,16 @@ FLBuilder::register_settings_form( 'ds_carousel_slide_form', array(
 							'connections' => array( 'photo' ),
 							'help'        => __( 'No image falls back to the Theme Setting Social Card.', 'ds-toolkit' ),
 						),
+						'video_media' => array(
+							'type'  => 'video',
+							'label' => __( 'Video (Media Library)', 'ds-toolkit' ),
+							'help'  => __( 'Optional — Reels Strip (Style 3) only. Upload / pick an MP4 from the Media Library. Takes priority over the Video URL below; the Image above is the poster.', 'ds-toolkit' ),
+						),
 						'video_url' => array(
 							'type'        => 'text',
 							'label'       => __( 'Video URL (MP4)', 'ds-toolkit' ),
 							'connections' => array( 'url' ),
-							'help'        => __( 'Optional — Reels Strip (Style 3) only. A direct .mp4 URL (Media Library or external). The card shows a play button and plays inline; the Image above is the poster.', 'ds-toolkit' ),
+							'help'        => __( 'Optional — Reels Strip (Style 3) only. A direct .mp4 URL if the video is hosted elsewhere.', 'ds-toolkit' ),
 						),
 						'caption' => array(
 							'type'        => 'text',
@@ -479,6 +493,27 @@ FLBuilder::register_module( 'DS_Carousel_Module', array(
 					),
 					'reel_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank = the Theme Setting corner radius.', 'ds-toolkit' ) ),
 					'reel_arrows' => array( 'type' => 'select', 'label' => __( 'Arrows', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No (swipe / scroll only)', 'ds-toolkit' ) ) ),
+			'reel_autoplay' => array(
+				'type'    => 'select',
+				'label'   => __( 'Autoplay Videos', 'ds-toolkit' ),
+				'default' => 'no',
+				'options' => array( 'no' => __( 'No (click to play)', 'ds-toolkit' ), 'yes' => __( 'Yes (muted loop when visible)', 'ds-toolkit' ) ),
+				'help'    => __( 'Videos autoplay muted and looped while on screen (like Instagram reels) and pause off-screen. Click pauses/resumes. Visitors with reduced-motion get click-to-play instead.', 'ds-toolkit' ),
+			),
+			'reel_play_style' => array(
+				'type'    => 'select',
+				'label'   => __( 'Play Button', 'ds-toolkit' ),
+				'default' => 'circle',
+				'options' => array(
+					'circle' => __( 'Circle (default)', 'ds-toolkit' ),
+					'plain'  => __( 'Icon only (no circle)', 'ds-toolkit' ),
+					'none'   => __( 'Hidden (whole card plays)', 'ds-toolkit' ),
+				),
+				'toggle'  => array(
+					'circle' => array( 'fields' => array( 'reel_play_bg', 'reel_play_color' ) ),
+					'plain'  => array( 'fields' => array( 'reel_play_color' ) ),
+				),
+			),
 					'reel_play_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Play Button Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = dark translucent.', 'ds-toolkit' ) ),
 					'reel_play_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Play Icon Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 				),

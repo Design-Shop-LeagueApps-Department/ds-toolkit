@@ -199,6 +199,30 @@ if ( 'yes' === $btn && $gs ) {
 	if ( $dtx ) { echo "$node .ds-news-seeall { color: {$dtx} !important; }\n"; }
 }
 
+// ---- Tournament card button: follow the Theme Setting global Button (bg, text, hover,
+//      radius, typography) — the static CSS only borrowed its colour before. ----
+if ( $gs && ( $settings->card_layout ?? '' ) === 'tournament' ) {
+	$tbg    = $col( $gs->button_background ?? '' );
+	$ttext  = $col( $gs->button_color ?? '' );
+	$tbgh   = $col( $gs->button_hover_background ?? '' ) ?: $tbg;
+	$ttexth = $col( $gs->button_hover_color ?? '' ) ?: $ttext;
+	$tradius = '';
+	$tbb = isset( $gs->button_border ) ? (array) $gs->button_border : array();
+	$trr = isset( $tbb['radius'] ) ? (array) $tbb['radius'] : array();
+	$ttl = $trr['top_left'] ?? ''; $ttr = $trr['top_right'] ?? ''; $tbl = $trr['bottom_left'] ?? ''; $tbr = $trr['bottom_right'] ?? '';
+	if ( '' !== ( $ttl . $ttr . $tbl . $tbr ) ) { $tru = function( $v ) { return ( '' === $v ? '0' : (int) $v ) . 'px'; }; $tradius = $tru( $ttl ) . ' ' . $tru( $ttr ) . ' ' . $tru( $tbr ) . ' ' . $tru( $tbl ); }
+	$tp = '';
+	if ( $tbg )   { $tp .= "background:{$tbg} !important;"; }
+	if ( $ttext ) { $tp .= "color:{$ttext} !important;"; }
+	if ( '' !== $tradius ) { $tp .= "border-radius:{$tradius};"; }
+	if ( '' !== $tp ) { echo "$node .ds-tourn-btn { {$tp} }\n"; }
+	if ( $tbgh || $ttexth ) { echo "$node .ds-tourn-card:hover .ds-tourn-btn { " . ( $tbgh ? "background:{$tbgh} !important;" : '' ) . ( $ttexth ? "color:{$ttexth} !important;" : '' ) . " }\n"; }
+	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
+		$tgt = (object) array( 'gbtypo' => $gs->button_typography, 'gbtypo_large' => $gs->button_typography_large ?? '', 'gbtypo_medium' => $gs->button_typography_medium ?? '', 'gbtypo_responsive' => $gs->button_typography_responsive ?? '' );
+		FLBuilderCSS::typography_field_rule( array( 'settings' => $tgt, 'setting_name' => 'gbtypo', 'selector' => "$node .ds-tourn-btn" ) );
+	}
+}
+
 // ---- Spacing: padding on the wrap, margin on the section (deferred) ----
 if ( class_exists( 'FLBuilderCSS' ) ) {
 	FLBuilderCSS::dimension_field_rule( array(
