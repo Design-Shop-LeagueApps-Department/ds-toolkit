@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.23] - 2026-07-10
+### Fixed
+- **CTA (Bento) button label no longer clipped.** In a fixed-height bento text cell (a flex column), flexbox was allowed to compress the button below its content height (measured live: a 26px box holding 44px of content); harmless before, but the Button Shape's `overflow:hidden` (required for the clip-path) then sliced the label. Buttons in flex-column cards now never shrink (`flex-shrink:0`) — applied to the Bento button and, preventively, the Program card button (same pattern).
+
 ## [1.9.22] - 2026-07-10
 ### Fixed
 - **Banner title on photo banners now obeys the Theme Setting.** Root cause of "Title on Photo Banners = Show" doing nothing on fleet sites: older blueprints baked the Hero module's per-instance "Hide (image only)" into the base template, and that value always beat the Theme Setting — the site-wide control could never win. Precedence flipped: **Theme Setting → Page Banner → Title on Photo Banners is the site-wide authority**; legacy baked module values follow it; only the module's new explicit per-instance choices ("Always show" / "Always hide — image only") override it. Verified against the live fleet test page markup.
