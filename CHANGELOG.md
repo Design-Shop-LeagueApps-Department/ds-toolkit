@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.24] - 2026-07-13
+### Fixed
+- **Menu: Hamburger "Icon / Label Color" now always wins (GH #35).** The option (Style → Hamburger Button → Icon / Label Color) colours the bars and the label, but it was emitted without `!important` while a theme's own `header button` colour rule could outrank it. It now ships with `!important` like the toggle's background/border already did, and the label/bars explicitly inherit it. The open-overlay X keeps following the Overlay text colour.
+- **Heading: Sub-heading now follows the Align buttons (GH #36).** The Align control in Style → Sub-heading → Font wrote `text-align`, which cannot move the shrink-wrapped eyebrow span. The chosen alignment is now also emitted as `align-self` on the sub-heading at every breakpoint (desktop / medium / small), so Left / Center / Right actually reposition it.
+- **Post Loop: Program card "Icon Size" now previews live in the builder (GH #37).** The published CSS was verified correct end-to-end (the per-node `font-size` reaches the page), but the slider had no live preview, so dragging it looked like it did nothing until the layout was saved. Icon Size, Image Height and Icon Colour now update the canvas instantly.
+
 ## [1.9.23] - 2026-07-10
 ### Fixed
 - **CTA (Bento) button label no longer clipped.** In a fixed-height bento text cell (a flex column), flexbox was allowed to compress the button below its content height (measured live: a 26px box holding 44px of content); harmless before, but the Button Shape's `overflow:hidden` (required for the clip-path) then sliced the label. Buttons in flex-column cards now never shrink (`flex-shrink:0`) — applied to the Bento button and, preventively, the Program card button (same pattern).
