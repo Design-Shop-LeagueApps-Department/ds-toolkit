@@ -333,7 +333,12 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	   rule, and bg/border/color are written with !important so theme button styling
 	   can't leak in (the bars + label pick the colour up via currentColor/inherit). */
 	<?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle { display: flex; margin-left: auto; <?php if ( $toggle_c ) { echo 'color:' . $toggle_c . ' !important;'; } ?> background: <?php echo $tbg; ?> !important; border: <?php echo $tbord; ?> !important; border-radius: <?php echo $trad; ?>px; box-shadow: none !important; padding: 6px 10px; }
-	<?php if ( $toggle_c ) { ?><?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle .ds-menu-toggle-label, <?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle .ds-bars span { color: inherit; }<?php } ?>
+	<?php /* !important + high specificity so the option also beats BB's global
+	   button-span colour rules AND any site-level workaround CSS left over from
+	   before this option worked (seen live: `.ds-bars span{color:black!important}`
+	   in a header Layout CSS). inherit tracks the toggle, so the open-overlay
+	   state keeps following the Overlay text colour too. */ ?>
+	<?php if ( $toggle_c ) { ?><?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle .ds-menu-toggle-label, <?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle .ds-bars span { color: inherit !important; }<?php } ?>
 	<?php echo $node; ?> .ds-bars { width: <?php echo $isz; ?>px; height: <?php echo $ih; ?>px; }
 	<?php echo $node; ?> .ds-bars span:nth-child(1) { top: 0; }
 	<?php echo $node; ?> .ds-bars span:nth-child(2) { top: <?php echo $mid; ?>px; }
