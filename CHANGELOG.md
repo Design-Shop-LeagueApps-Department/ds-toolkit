@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.25] - 2026-07-13
+### Fixed
+- **Menu: hamburger bars now follow "Icon / Label Color" even against workaround CSS (GH #35 follow-up).** Live testing showed the label adapting but not the bars: BB's global button styles colour spans inside buttons directly (killing inheritance), and the fleet test site carried leftover Layout-CSS workarounds (`.ds-bars span{color:black!important}`) from before the option worked. The label/bars now inherit the toggle colour with `!important` at module-node specificity, which outranks both.
+
 ## [1.9.24] - 2026-07-13
 ### Fixed
 - **Menu: Hamburger "Icon / Label Color" now always wins (GH #35).** The option (Style → Hamburger Button → Icon / Label Color) colours the bars and the label, but it was emitted without `!important` while a theme's own `header button` colour rule could outrank it. It now ships with `!important` like the toggle's background/border already did, and the label/bars explicitly inherit it. The open-overlay X keeps following the Overlay text colour.
