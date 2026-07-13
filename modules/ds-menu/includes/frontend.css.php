@@ -333,12 +333,14 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	   rule, and bg/border/color are written with !important so theme button styling
 	   can't leak in (the bars + label pick the colour up via currentColor/inherit). */
 	<?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle { display: flex; margin-left: auto; <?php if ( $toggle_c ) { echo 'color:' . $toggle_c . ' !important;'; } ?> background: <?php echo $tbg; ?> !important; border: <?php echo $tbord; ?> !important; border-radius: <?php echo $trad; ?>px; box-shadow: none !important; padding: 6px 10px; }
-	<?php /* !important + high specificity so the option also beats BB's global
-	   button-span colour rules AND any site-level workaround CSS left over from
-	   before this option worked (seen live: `.ds-bars span{color:black!important}`
-	   in a header Layout CSS). inherit tracks the toggle, so the open-overlay
-	   state keeps following the Overlay text colour too. */ ?>
-	<?php if ( $toggle_c ) { ?><?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle .ds-menu-toggle-label, <?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle .ds-bars span { color: inherit !important; }<?php } ?>
+	<?php /* EVERY descendant must inherit (not just label + bar spans): BB's global
+	   button styles paint `button *` — including the intermediate .ds-bars div —
+	   and `inherit` only reads the DIRECT parent, so skipping one element in the
+	   chain reintroduces the theme colour (measured live: spans went white via
+	   .ds-bars). !important also beats site-level workaround CSS left over from
+	   before this option worked (`.ds-bars span{color:black!important}`). inherit
+	   tracks the toggle, so the open-overlay X keeps following Overlay text. */ ?>
+	<?php if ( $toggle_c ) { ?><?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle * { color: inherit !important; }<?php } ?>
 	<?php echo $node; ?> .ds-bars { width: <?php echo $isz; ?>px; height: <?php echo $ih; ?>px; }
 	<?php echo $node; ?> .ds-bars span:nth-child(1) { top: 0; }
 	<?php echo $node; ?> .ds-bars span:nth-child(2) { top: <?php echo $mid; ?>px; }

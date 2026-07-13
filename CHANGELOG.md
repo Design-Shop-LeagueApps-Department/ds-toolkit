@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.26] - 2026-07-13
+### Fixed
+- **Menu: hamburger bars truly follow "Icon / Label Color" (GH #35, final).** v1.9.25 made the label and the bar *spans* inherit, but BB's global button styles paint **every** descendant of a button (`button *`) — including the intermediate `.ds-bars` wrapper — and CSS `inherit` only reads the direct parent, so the spans inherited white from the wrapper instead of the chosen colour from the toggle (measured live). All toggle descendants now inherit the toggle colour with `!important`, so the chain can't be broken.
+
 ## [1.9.25] - 2026-07-13
 ### Fixed
 - **Menu: hamburger bars now follow "Icon / Label Color" even against workaround CSS (GH #35 follow-up).** Live testing showed the label adapting but not the bars: BB's global button styles colour spans inside buttons directly (killing inheritance), and the fleet test site carried leftover Layout-CSS workarounds (`.ds-bars span{color:black!important}`) from before the option worked. The label/bars now inherit the toggle colour with `!important` at module-node specificity, which outranks both.
