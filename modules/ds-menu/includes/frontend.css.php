@@ -330,8 +330,10 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	<?php echo $node; ?> .ds-sub-ind { display: none; }
 
 	/* Hamburger button. The `.ds-menu-wrap` scope out-weighs a theme's `header button`
-	   rule, and bg/border are written explicitly so theme button styling can't leak in. */
-	<?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle { display: flex; margin-left: auto; <?php if ( $toggle_c ) { echo 'color:' . $toggle_c . ';'; } ?> background: <?php echo $tbg; ?> !important; border: <?php echo $tbord; ?> !important; border-radius: <?php echo $trad; ?>px; box-shadow: none !important; padding: 6px 10px; }
+	   rule, and bg/border/color are written with !important so theme button styling
+	   can't leak in (the bars + label pick the colour up via currentColor/inherit). */
+	<?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle { display: flex; margin-left: auto; <?php if ( $toggle_c ) { echo 'color:' . $toggle_c . ' !important;'; } ?> background: <?php echo $tbg; ?> !important; border: <?php echo $tbord; ?> !important; border-radius: <?php echo $trad; ?>px; box-shadow: none !important; padding: 6px 10px; }
+	<?php if ( $toggle_c ) { ?><?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle .ds-menu-toggle-label, <?php echo $node; ?> .ds-menu-wrap .ds-menu-toggle .ds-bars span { color: inherit; }<?php } ?>
 	<?php echo $node; ?> .ds-bars { width: <?php echo $isz; ?>px; height: <?php echo $ih; ?>px; }
 	<?php echo $node; ?> .ds-bars span:nth-child(1) { top: 0; }
 	<?php echo $node; ?> .ds-bars span:nth-child(2) { top: <?php echo $mid; ?>px; }
@@ -347,7 +349,7 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	}
 	/* Pin the open hamburger to the viewport corner so it can never overlap the items
 	   (it sits in the header flow otherwise, which is what caused the overlap). */
-	<?php echo $open; ?> .ds-menu-toggle { position: fixed; top: 16px; right: 18px; margin: 0; z-index: 100001; color: <?php echo $otext; ?>; background: transparent !important; border-color: <?php echo $otext; ?>; }
+	<?php echo $open; ?> .ds-menu-toggle { position: fixed; top: 16px; right: 18px; margin: 0; z-index: 100001; color: <?php echo $otext; ?> !important; background: transparent !important; border-color: <?php echo $otext; ?>; }
 
 	<?php
 	/* Overlay item divider. */

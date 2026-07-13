@@ -121,6 +121,24 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	}
 }
 
+/* ---- Sub-heading Align (GH #36) ----
+ * The sub-heading is a shrink-wrapped inline-flex span, so the text-align the
+ * typography Align buttons write cannot move it. Mirror the chosen value as
+ * align-self (the inner block is a flex column) at each breakpoint so the
+ * eyebrow actually follows the alignment. */
+$sub_align = static function ( $typo ) {
+	$t = json_decode( wp_json_encode( $typo ), true );
+	$a = is_array( $t ) && isset( $t['text_align'] ) ? $t['text_align'] : '';
+	$map = array( 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end' );
+	return isset( $map[ $a ] ) ? $map[ $a ] : '';
+};
+$sa = $sub_align( $settings->subheading_typography ?? null );
+if ( '' !== $sa ) { echo "$node .ds-heading-sub{align-self:{$sa};}\n"; }
+$sa = $sub_align( $settings->subheading_typography_medium ?? null );
+if ( '' !== $sa ) { echo "@media (max-width:{$bpm}px){ $node .ds-heading-sub{align-self:{$sa};} }\n"; }
+$sa = $sub_align( $settings->subheading_typography_responsive ?? null );
+if ( '' !== $sa ) { echo "@media (max-width:{$bpr}px){ $node .ds-heading-sub{align-self:{$sa};} }\n"; }
+
 /* ---- Outline text ({outline}...{/outline}) per-module override: blank = Theme Setting. ---- */
 $oc_ov = DS_Module_UI::color( $settings->outline_color ?? '' );
 if ( '' !== $oc_ov ) { echo "$node { --ds-outline-c: {$oc_ov}; }\n"; }
