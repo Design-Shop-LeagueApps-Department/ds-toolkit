@@ -177,10 +177,15 @@ class DS_Toolkit {
             'class'         => 'DS_Admin_Bar_Links',
             'min_blueprint' => 6,
         ),
+        // Fleet-wide (no blueprint gate): partner-safe access control and the
+        // Design Academy dashboard panel apply to every install, not just DSLP6.
         'user_roles_enabled' => array(
-            'file'          => 'features/class-ds-user-roles.php',
-            'class'         => 'DS_User_Roles',
-            'min_blueprint' => 6,
+            'file'  => 'features/class-ds-user-roles.php',
+            'class' => 'DS_User_Roles',
+        ),
+        'design_academy_enabled' => array(
+            'file'  => 'features/class-ds-design-academy.php',
+            'class' => 'DS_Design_Academy',
         ),
     );
 
@@ -285,6 +290,13 @@ class DS_Toolkit {
             // Compat patch — only does anything when UABB Advanced Posts fires its
             // hooks, so it's safe to default on. Sites without UABB are unaffected.
             'uabb_post_loop_fix_enabled'         => 1,
+            // Partner-safe access control + the Design Academy dashboard panel:
+            // on for the whole fleet regardless of blueprint generation.
+            'user_roles_enabled'                 => 1,
+            'partner_plugin_access'              => 0,
+            'design_academy_enabled'             => 1,
+            'academy_pinned_url'                 => 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/',
+            'academy_pinned_label'               => 'How to Edit Your Website: A Beginner\'s Guide to WordPress & Beaver Builder',
             // MCP tool group access controls — off by default
             'mcp_posts_pages_enabled'            => 0,
             'mcp_cpt_enabled'                    => 0,
@@ -329,8 +341,6 @@ class DS_Toolkit {
             $defaults['ds_team_detail_module_enabled'] = 1;
             $defaults['ds_builder_defaults_enabled']   = 1;
             $defaults['ds_admin_bar_links_enabled']    = 1;
-            $defaults['user_roles_enabled']            = 1;
-            $defaults['partner_plugin_access']         = 0;
         }
 
         return $defaults;

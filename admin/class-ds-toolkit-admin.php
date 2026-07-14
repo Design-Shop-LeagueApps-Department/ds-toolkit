@@ -228,6 +228,9 @@ class DS_Toolkit_Admin {
                 $admin_menu_tidy_enabled  = ! empty( $opts['admin_menu_tidy_enabled'] );
                 $user_roles_enabled       = ! empty( $opts['user_roles_enabled'] );
                 $partner_plugin_access    = ! empty( $opts['partner_plugin_access'] );
+                $design_academy_enabled   = ! empty( $opts['design_academy_enabled'] );
+                $academy_pinned_url       = ! empty( $opts['academy_pinned_url'] ) ? $opts['academy_pinned_url'] : 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/';
+                $academy_pinned_label     = ! empty( $opts['academy_pinned_label'] ) ? $opts['academy_pinned_label'] : "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder";
                 $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );
                 $image_optimization_enabled = ! empty( $opts['image_optimization_enabled'] );
                 // Per-module on/off states for the always-visible "LeagueApps Modules" section.

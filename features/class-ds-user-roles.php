@@ -2,7 +2,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
- * User Roles (blueprint generation 6+).
+ * User Roles (fleet-wide — every install, any blueprint generation).
  *
  * Partner-safe access control in two layers:
  *
