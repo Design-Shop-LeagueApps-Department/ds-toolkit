@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.28] - 2026-07-14
+### Added
+- **Design Academy dashboard panel (fleet-wide).** New feature (auto-enabled on every install): a **Design Academy** widget pinned to the top of the WordPress dashboard so partners see it the moment they log in — a "Start here" pinned course (defaults to the beginner's guide to WordPress & Beaver Builder; label/URL editable in DS Toolkit → Features) plus the five newest tutorials from designacademy.leagueapps.com (public REST feed, cached 6 hours, last-good fallback if the academy is unreachable).
+
+### Changed
+- **User Roles is now fleet-wide.** The Partner role + Plugins-menu hiding (v1.9.27, GH #42) no longer requires blueprint 6 — it defaults ON for every install, so the whole fleet gets the Partner role and the partner-safe Plugins hiding on this update. The "Allow plugin access" escape hatch is unchanged.
+
 ## [1.9.27] - 2026-07-14
 ### Added
 - **Marquee: item images (GH #41).** Every marquee item can now carry an optional image (Item → Image) — alone for a scrolling logo strip, or together with the text. New Style options: **Image Height** (responsive, live preview, default 24px) and **Grayscale Images** (uniform logo strip, colour restored on hover). Images render eagerly with `no-lazyload`/`skip-lazy` (a lazy-loaded image would measure 0 wide and scroll a blank gap), ship `width`/`height` from attachment metadata so the seamless-loop maths is correct before the file loads, and the loop re-measures whenever an image without known dimensions finishes loading.

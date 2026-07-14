@@ -70,6 +70,57 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
     </div>
 
+    <!-- User Roles (fleet-wide) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-groups"></span></div>
+            <div class="dst-card-info">
+                <strong>User Roles (Partner)</strong>
+                <span>Registers a <strong>Partner</strong> role — everything an Administrator has except plugin management and the in-admin file editors — so partner accounts get safe admin access with one pick on the Users screen. Also hides the Plugins menu from non-LeagueApps users (menu label only; capabilities untouched). Auto-enabled on every install.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[user_roles_enabled]" value="0">
+                <input type="checkbox" id="user_roles_enabled" name="ds_toolkit_settings[user_roles_enabled]" value="1" <?php checked( $user_roles_enabled ); ?>>
+                <label for="user_roles_enabled"></label>
+            </div>
+        </div>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info">
+                <label for="partner_plugin_access" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="hidden" name="ds_toolkit_settings[partner_plugin_access]" value="0">
+                    <input type="checkbox" id="partner_plugin_access" name="ds_toolkit_settings[partner_plugin_access]" value="1" <?php checked( $partner_plugin_access ); ?>>
+                    <span><strong>Allow plugin access</strong> — re-enables plugin management for the Partner role and stops hiding the Plugins menu from non-LeagueApps users. Use when a dev decides a partner should manage plugins on this site.</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Design Academy dashboard panel (fleet-wide) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-welcome-learn-more"></span></div>
+            <div class="dst-card-info">
+                <strong>Design Academy Dashboard</strong>
+                <span>Puts a <strong>Design Academy</strong> panel at the top of the WordPress dashboard: a pinned getting-started course plus the five newest tutorials from <a href="https://designacademy.leagueapps.com/" target="_blank" rel="noopener">designacademy.leagueapps.com</a> (cached 6 hours; falls back to the last good list if the academy is unreachable). Auto-enabled on every install.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[design_academy_enabled]" value="0">
+                <input type="checkbox" id="design_academy_enabled" name="ds_toolkit_settings[design_academy_enabled]" value="1" <?php checked( $design_academy_enabled ); ?>>
+                <label for="design_academy_enabled"></label>
+            </div>
+        </div>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info" style="width:100%;">
+                <strong>Pinned course</strong>
+                <span>The "Start here" item at the top of the panel.</span>
+                <input type="text" name="ds_toolkit_settings[academy_pinned_label]" value="<?php echo esc_attr( $academy_pinned_label ); ?>" placeholder="Pinned label" style="width:100%;margin-top:6px;">
+                <input type="url" name="ds_toolkit_settings[academy_pinned_url]" value="<?php echo esc_attr( $academy_pinned_url ); ?>" placeholder="https://designacademy.leagueapps.com/…" style="width:100%;margin-top:6px;">
+            </div>
+        </div>
+    </div>
+
     <!-- LeagueApps modules (Beaver Builder blocks) — opt-in on ANY blueprint, off by default below gen 6 -->
     <p class="dst-section-title">LeagueApps Modules (Beaver Builder blocks)</p>
     <div class="dst-card">
@@ -167,31 +218,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
     </div>
 
-    <!-- User Roles (blueprint generation 6+) -->
-    <div class="dst-card">
-        <div class="dst-card-row">
-            <div class="dst-card-icon"><span class="dashicons dashicons-groups"></span></div>
-            <div class="dst-card-info">
-                <strong>User Roles (Partner)</strong>
-                <span>Registers a <strong>Partner</strong> role — everything an Administrator has except plugin management and the in-admin file editors — so partner accounts get safe admin access with one pick on the Users screen. Also hides the Plugins menu from non-LeagueApps users (menu label only; capabilities untouched). Auto-enabled on DSLP6 builds.</span>
-            </div>
-            <div class="dst-toggle">
-                <input type="hidden" name="ds_toolkit_settings[user_roles_enabled]" value="0">
-                <input type="checkbox" id="user_roles_enabled" name="ds_toolkit_settings[user_roles_enabled]" value="1" <?php checked( $user_roles_enabled ); ?>>
-                <label for="user_roles_enabled"></label>
-            </div>
-        </div>
-        <div class="dst-card-row" style="padding-top:0;">
-            <div class="dst-card-icon" aria-hidden="true"></div>
-            <div class="dst-card-info">
-                <label for="partner_plugin_access" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                    <input type="hidden" name="ds_toolkit_settings[partner_plugin_access]" value="0">
-                    <input type="checkbox" id="partner_plugin_access" name="ds_toolkit_settings[partner_plugin_access]" value="1" <?php checked( $partner_plugin_access ); ?>>
-                    <span><strong>Allow plugin access</strong> — re-enables plugin management for the Partner role and stops hiding the Plugins menu from non-LeagueApps users. Use when a dev decides a partner should manage plugins on this site.</span>
-                </label>
-            </div>
-        </div>
-    </div>
 
     <!-- Image Optimization on Upload (blueprint generation 6+) -->
     <div class="dst-card">
