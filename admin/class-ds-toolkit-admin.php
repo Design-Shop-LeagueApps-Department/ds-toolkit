@@ -226,6 +226,8 @@ class DS_Toolkit_Admin {
                 $disable_comments_enabled = ! empty( $opts['disable_comments_enabled'] );
                 $theme_setting_enabled    = ! empty( $opts['theme_setting_enabled'] );
                 $admin_menu_tidy_enabled  = ! empty( $opts['admin_menu_tidy_enabled'] );
+                $user_roles_enabled       = ! empty( $opts['user_roles_enabled'] );
+                $partner_plugin_access    = ! empty( $opts['partner_plugin_access'] );
                 $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );
                 $image_optimization_enabled = ! empty( $opts['image_optimization_enabled'] );
                 // Per-module on/off states for the always-visible "LeagueApps Modules" section.

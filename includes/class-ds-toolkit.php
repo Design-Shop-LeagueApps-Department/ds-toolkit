@@ -177,6 +177,11 @@ class DS_Toolkit {
             'class'         => 'DS_Admin_Bar_Links',
             'min_blueprint' => 6,
         ),
+        'user_roles_enabled' => array(
+            'file'          => 'features/class-ds-user-roles.php',
+            'class'         => 'DS_User_Roles',
+            'min_blueprint' => 6,
+        ),
     );
 
     /**
@@ -324,6 +329,8 @@ class DS_Toolkit {
             $defaults['ds_team_detail_module_enabled'] = 1;
             $defaults['ds_builder_defaults_enabled']   = 1;
             $defaults['ds_admin_bar_links_enabled']    = 1;
+            $defaults['user_roles_enabled']            = 1;
+            $defaults['partner_plugin_access']         = 0;
         }
 
         return $defaults;
