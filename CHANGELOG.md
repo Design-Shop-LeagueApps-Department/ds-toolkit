@@ -4,6 +4,11 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.27] - 2026-07-14
+### Added
+- **Marquee: item images (GH #41).** Every marquee item can now carry an optional image (Item → Image) — alone for a scrolling logo strip, or together with the text. New Style options: **Image Height** (responsive, live preview, default 24px) and **Grayscale Images** (uniform logo strip, colour restored on hover). Images render eagerly with `no-lazyload`/`skip-lazy` (a lazy-loaded image would measure 0 wide and scroll a blank gap), ship `width`/`height` from attachment metadata so the seamless-loop maths is correct before the file loads, and the loop re-measures whenever an image without known dimensions finishes loading.
+- **User Roles: Partner role + plugin access control (GH #42).** New blueprint-6 feature (DS Toolkit → Features → User Roles, auto-enabled on DSLP6). Registers a **Partner** role: everything an Administrator has except plugin management (`activate/install/update/delete_plugins`) and the in-admin file editors — assign it from the standard Users screen. Independently hides the Plugins menu from non-LeagueApps users (label hide only, capabilities untouched), covering legacy full-admin partner accounts. An **Allow plugin access** switch in the card restores Partner plugin capabilities and stops the menu hiding when a dev decides a partner should manage plugins on that site.
+
 ## [1.9.26] - 2026-07-13
 ### Fixed
 - **Menu: hamburger bars truly follow "Icon / Label Color" (GH #35, final).** v1.9.25 made the label and the bar *spans* inherit, but BB's global button styles paint **every** descendant of a button (`button *`) — including the intermediate `.ds-bars` wrapper — and CSS `inherit` only reads the direct parent, so the spans inherited white from the wrapper instead of the chosen colour from the toggle (measured live). All toggle descendants now inherit the toggle colour with `!important`, so the chain can't be broken.

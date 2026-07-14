@@ -167,6 +167,32 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
     </div>
 
+    <!-- User Roles (blueprint generation 6+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-groups"></span></div>
+            <div class="dst-card-info">
+                <strong>User Roles (Partner)</strong>
+                <span>Registers a <strong>Partner</strong> role — everything an Administrator has except plugin management and the in-admin file editors — so partner accounts get safe admin access with one pick on the Users screen. Also hides the Plugins menu from non-LeagueApps users (menu label only; capabilities untouched). Auto-enabled on DSLP6 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[user_roles_enabled]" value="0">
+                <input type="checkbox" id="user_roles_enabled" name="ds_toolkit_settings[user_roles_enabled]" value="1" <?php checked( $user_roles_enabled ); ?>>
+                <label for="user_roles_enabled"></label>
+            </div>
+        </div>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info">
+                <label for="partner_plugin_access" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="hidden" name="ds_toolkit_settings[partner_plugin_access]" value="0">
+                    <input type="checkbox" id="partner_plugin_access" name="ds_toolkit_settings[partner_plugin_access]" value="1" <?php checked( $partner_plugin_access ); ?>>
+                    <span><strong>Allow plugin access</strong> — re-enables plugin management for the Partner role and stops hiding the Plugins menu from non-LeagueApps users. Use when a dev decides a partner should manage plugins on this site.</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
     <!-- Image Optimization on Upload (blueprint generation 6+) -->
     <div class="dst-card">
         <div class="dst-card-row">

@@ -54,23 +54,61 @@ class DS_Marquee_Module extends FLBuilderModule {
 		return array( $url, '_blank' === $target ? '_blank' : '_self' );
 	}
 
+	/**
+	 * Resolve an item photo (id | url | array | object) to array( url, w, h, alt ),
+	 * or null when it doesn't resolve. Width/height come from attachment metadata
+	 * so the browser knows the aspect ratio BEFORE the file loads — the seamless
+	 * loop measures group widths immediately, so pre-load layout must be final.
+	 */
+	private function image_bits( $val ) {
+		$id = 0;
+		if ( is_object( $val ) )     { $id = (int) ( $val->ID ?? ( $val->id ?? 0 ) ); }
+		elseif ( is_array( $val ) )  { $id = (int) ( $val['ID'] ?? ( $val['id'] ?? 0 ) ); }
+		elseif ( is_numeric( $val ) ) { $id = (int) $val; }
+		if ( $id ) {
+			$src = wp_get_attachment_image_src( $id, 'medium' );
+			if ( ! $src ) { return null; }
+			return array( $src[0], (int) $src[1], (int) $src[2], (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) );
+		}
+		$url = DS_Card::photo_url( $val, 'medium' );
+		return $url ? array( $url, 0, 0, '' ) : null;
+	}
+
 	/** Render one item (linked <a> when a URL is set, otherwise a <span>). */
 	private function item_html( $item ) {
 		$item = (object) $item;
 		$text = trim( (string) ( $item->text ?? '' ) );
-		if ( '' === $text ) { return ''; }
+		$img  = ! empty( $item->image ) ? $this->image_bits( $item->image ) : null;
+		if ( '' === $text && ! $img ) { return ''; }
+
+		$img_html = '';
+		if ( $img ) {
+			list( $iu, $iw, $ihh, $ialt ) = $img;
+			// Image-only items announce the attachment alt; with text alongside the
+			// text already carries the name, so the img stays decorative (alt="").
+			$alt  = ( '' === $text ) ? $ialt : '';
+			$dims = ( $iw && $ihh ) ? ' width="' . (int) $iw . '" height="' . (int) $ihh . '"' : '';
+			// eager + no-lazyload/skip-lazy: a lazy-loaded img in the loop would
+			// measure 0 wide and scroll through blank (Smush honours no-lazyload,
+			// core/others honour skip-lazy).
+			$img_html = '<img class="ds-marquee-img no-lazyload skip-lazy" src="' . esc_url( $iu ) . '" alt="' . esc_attr( $alt ) . '"' . $dims . ' loading="eager" decoding="async" />';
+		}
+		$cls = 'ds-marquee-item' . ( $img ? ' ds-marquee-item--img' : '' );
+
 		list( $url, $target ) = $this->link_parts( $item->link ?? '' );
 		if ( '' !== $url && '#' !== $url ) {
 			$rel = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 			return sprintf(
-				'<a class="ds-marquee-item ds-marquee-item--link" href="%s" target="%s"%s>%s</a>',
+				'<a class="%s ds-marquee-item--link" href="%s" target="%s"%s>%s%s</a>',
+				esc_attr( $cls ),
 				esc_url( $url ),
 				esc_attr( $target ),
 				$rel,
+				$img_html,
 				esc_html( $text )
 			);
 		}
-		return '<span class="ds-marquee-item">' . DS_Module_UI::inline( $text ) . '</span>';
+		return '<span class="' . esc_attr( $cls ) . '">' . $img_html . ( '' !== $text ? DS_Module_UI::inline( $text ) : '' ) . '</span>';
 	}
 
 	/** Build one full group: every item followed by a separator glyph. */
@@ -102,10 +140,11 @@ class DS_Marquee_Module extends FLBuilderModule {
 		$s = $this->settings;
 
 		$items = isset( $s->items ) && is_array( $s->items ) ? $s->items : array();
-		// Drop empty rows so the seamless loop maths stays clean.
+		// Drop empty rows so the seamless loop maths stays clean (an item counts
+		// if it has text OR an image — image-only logo items are valid).
 		$items = array_values( array_filter( $items, function( $i ) {
 			$i = (object) $i;
-			return '' !== trim( (string) ( $i->text ?? '' ) );
+			return '' !== trim( (string) ( $i->text ?? '' ) ) || ! empty( $i->image );
 		} ) );
 
 		$mods = 'ds-marquee ds-marquee--style1';
@@ -156,6 +195,13 @@ FLBuilder::register_settings_form( 'ds_marquee_item_form', array(
 				'general' => array(
 					'title'  => '',
 					'fields' => array(
+						'image' => array(
+							'type'        => 'photo',
+							'label'       => __( 'Image (optional)', 'ds-toolkit' ),
+							'show_remove' => true,
+							'connections' => array( 'photo' ),
+							'help'        => __( 'Optional logo/image for this item. Use alone for a logo strip, or together with the text. Size it via Style → Layout → Image Height.', 'ds-toolkit' ),
+						),
 						'text' => array(
 							'type'        => 'text',
 							'label'       => __( 'Text', 'ds-toolkit' ),
@@ -305,6 +351,16 @@ FLBuilder::register_module( 'DS_Marquee_Module', array(
 						'description' => 'px',
 						'slider'      => array( 'min' => 4, 'max' => 48, 'step' => 1 ),
 					),
+					'img_h'     => array(
+						'type'        => 'unit',
+						'label'       => __( 'Image Height', 'ds-toolkit' ),
+						'default'     => '24',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 12, 'max' => 60, 'step' => 1 ),
+						'help'        => __( 'Height of item images (width scales to keep proportions). Keep it a little under the Bar Height.', 'ds-toolkit' ),
+						'preview'     => array( 'type' => 'css', 'selector' => '.ds-marquee-img', 'property' => 'height', 'unit' => 'px' ),
+					),
 					'label_pad' => array(
 						'type'        => 'unit',
 						'label'       => __( 'Label Side Padding', 'ds-toolkit' ),
@@ -344,6 +400,13 @@ FLBuilder::register_module( 'DS_Marquee_Module', array(
 					'label_bg'         => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Label Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true, 'help' => __( 'Blank falls back to the global Accent colour.', 'ds-toolkit' ) ),
 					'label_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Label Text', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
 					'dot_color'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Status Dot', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
+					'img_grayscale'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Grayscale Images', 'ds-toolkit' ),
+						'default' => 'no',
+						'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes (colour on hover)', 'ds-toolkit' ) ),
+						'help'    => __( 'Renders item images in grayscale for a uniform logo strip; each logo returns to full colour on hover.', 'ds-toolkit' ),
+					),
 				),
 			),
 			'typography' => array(

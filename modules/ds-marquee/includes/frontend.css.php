@@ -57,6 +57,16 @@ if ( '' !== $ih ) { echo "$node a.ds-marquee-item--link:hover { color: {$ih}; }\
 $sep_size = $u( $settings->sep_size ?? '', 12 );
 echo "$node .ds-marquee-sep { color: " . $colf( $settings->sep_color ?? '', $acc ) . "; font-size: {$sep_size}px; line-height: 1; }\n";
 
+/* ---- Item images ---- */
+$imh = $u( $settings->img_h ?? '', 24 );
+echo "$node .ds-marquee-img { height: {$imh}px; }\n";
+if ( '' !== ( $settings->img_h_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-marquee-img { height: " . (int) $settings->img_h_medium . "px; } }\n"; }
+if ( '' !== ( $settings->img_h_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-marquee-img { height: " . (int) $settings->img_h_responsive . "px; } }\n"; }
+if ( ( $settings->img_grayscale ?? 'no' ) === 'yes' ) {
+	echo "$node .ds-marquee-img { filter: grayscale(1); opacity: .75; transition: filter .3s ease, opacity .3s ease; }\n";
+	echo "$node .ds-marquee-item:hover .ds-marquee-img { filter: none; opacity: 1; }\n";
+}
+
 /* ---- Item spacing ---- */
 $gap = $u( $settings->item_gap ?? '', 38 );
 echo "$node .ds-marquee-group { gap: {$gap}px; padding-left: {$gap}px; }\n";

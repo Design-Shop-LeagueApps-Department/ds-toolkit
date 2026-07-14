@@ -39,7 +39,23 @@
 	}
 
 	function boot(root) {
-		(root || document).querySelectorAll('.ds-marquee--style1').forEach(fill);
+		(root || document).querySelectorAll('.ds-marquee--style1').forEach(function (marquee) {
+			fill(marquee);
+			// Item images resolve their width pre-load only when the server knew
+			// their dimensions (width/height attributes). URL-only images don't,
+			// so re-measure when any inner image finishes loading. Delegated on
+			// the marquee root (capture — load doesn't bubble), so it survives
+			// the innerHTML cloning above. Added once per marquee.
+			if (!marquee.dsImgHook) {
+				marquee.dsImgHook = true;
+				var it;
+				marquee.addEventListener('load', function (e) {
+					if (!e.target || e.target.tagName !== 'IMG') return;
+					clearTimeout(it);
+					it = setTimeout(function () { fill(marquee); }, 120);
+				}, true);
+			}
+		});
 	}
 
 	function init() {

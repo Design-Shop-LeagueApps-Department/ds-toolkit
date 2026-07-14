@@ -68,12 +68,25 @@
 
 /* ---- Items + separators ---- */
 .ds-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: .5em;
   color: var(--fl-global-body);
   font-weight: 700;
   font-size: 12px;
   letter-spacing: .12em;
   text-transform: uppercase;
   text-decoration: none;
+}
+/* Item image (optional logo). Height is node-scoped from Image Height; width
+   follows the aspect ratio, which the width/height attributes make known
+   pre-load so the seamless-loop maths measures correctly immediately. */
+.ds-marquee-img {
+  display: block;
+  height: 24px;
+  width: auto;
+  max-width: none;
+  object-fit: contain;
 }
 a.ds-marquee-item--link { transition: color .15s ease; cursor: pointer; }
 a.ds-marquee-item--link:hover { color: var(--fl-global-white); }
