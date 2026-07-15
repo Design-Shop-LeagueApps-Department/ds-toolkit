@@ -88,6 +88,31 @@ if ( 'style3' === $style ) {
 	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $settings->sl_head_typography ) ) {
 		FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'sl_head_typography', 'selector' => "$node .ds-logos-head-label" ) );
 	}
+} elseif ( 'style4' === $style ) {
+	/* ============================ Style 4: overlapping images ============================ */
+	$ovr = $u( $settings->ov_radius ?? '', 8 );
+	echo "$node .ds-overlap-primary, $node .ds-overlap-secondary { border-radius: {$ovr}px; }\n";
+
+	$obw = $u( $settings->ov_border_width ?? '', 0 );
+	if ( $obw > 0 ) {
+		$obc = DS_Module_UI::colf( $settings->ov_border_color ?? '', 'var(--fl-global-white)' );
+		echo "$node .ds-overlap-secondary { border: {$obw}px solid {$obc}; }\n";
+	}
+
+	$shadows = array(
+		'soft'   => '0 6px 18px rgba(0,0,0,.14)',
+		'medium' => '0 10px 28px rgba(0,0,0,.22)',
+		'strong' => '0 16px 44px rgba(0,0,0,.32)',
+	);
+	$osh = (string) ( $settings->ov_shadow ?? 'soft' );
+	if ( isset( $shadows[ $osh ] ) ) {
+		echo "$node .ds-overlap-secondary { box-shadow: {$shadows[ $osh ]}; }\n";
+	}
+
+	$omw = $u( $settings->ov_max_width ?? '', 0 );
+	if ( $omw > 0 ) {
+		echo "$node .ds-overlap { max-width: {$omw}px; margin-left: auto; margin-right: auto; }\n";
+	}
 } else {
 
 /* ---- Card sizing + aspect + radius ---- */

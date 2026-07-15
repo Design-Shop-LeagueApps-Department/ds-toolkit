@@ -175,6 +175,28 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			}
 		}
 
+		// Date-range filter (GH #46). Bounds parse via strtotime, so absolute
+		// dates (2026-01-01) and relative windows (-30 days) both work; only
+		// the bounds that actually parse are applied.
+		$after  = trim( (string) ( $s->date_after ?? '' ) );
+		$before = trim( (string) ( $s->date_before ?? '' ) );
+		$dq     = array();
+		if ( '' !== $after && false !== ( $ts = strtotime( $after ) ) ) { $dq['after'] = gmdate( 'Y-m-d', $ts ); }
+		if ( '' !== $before && false !== ( $ts = strtotime( $before ) ) ) { $dq['before'] = gmdate( 'Y-m-d', $ts ); }
+		if ( ! empty( $dq ) ) {
+			$dq['inclusive']    = true;
+			$args['date_query'] = array( $dq );
+		}
+
+		// Keyword search (GH #46) — matches title/content like the site search.
+		$kw = trim( (string) ( $s->keyword ?? '' ) );
+		if ( '' !== $kw ) { $args['s'] = sanitize_text_field( $kw ); }
+
+		// The Post Types Order plugin rewrites every query's ORDER BY to
+		// menu_order unless the query opts out; honour the explicit sort chosen
+		// here (except when the user actually picked Menu Order).
+		if ( 'menu_order' !== $ob ) { $args['ignore_custom_sort'] = true; }
+
 		return new WP_Query( $args );
 	}
 
@@ -1002,7 +1024,7 @@ $ds_pl_form = array(
 			'query' => array(
 				'title'  => __( 'Posts', 'ds-toolkit' ),
 				'fields' => array(
-					'source'         => array( 'type' => 'select', 'label' => __( 'Source', 'ds-toolkit' ), 'default' => 'custom', 'options' => array( 'custom' => __( 'This query (below)', 'ds-toolkit' ), 'archive' => __( 'Current archive (main query)', 'ds-toolkit' ) ), 'help' => __( 'On an archive template choose “Current archive” to loop whatever the archive shows (team-category term, category, tag, CPT archive). Otherwise build a custom query below.', 'ds-toolkit' ), 'toggle' => array( 'custom' => array( 'fields' => array( 'post_type', 'posts_per_page', 'order_by', 'order', 'offset', 'exclude_current' ) ) ) ),
+					'source'         => array( 'type' => 'select', 'label' => __( 'Source', 'ds-toolkit' ), 'default' => 'custom', 'options' => array( 'custom' => __( 'This query (below)', 'ds-toolkit' ), 'archive' => __( 'Current archive (main query)', 'ds-toolkit' ) ), 'help' => __( 'On an archive template choose “Current archive” to loop whatever the archive shows (team-category term, category, tag, CPT archive). Otherwise build a custom query below.', 'ds-toolkit' ), 'toggle' => array( 'custom' => array( 'fields' => array( 'post_type', 'posts_per_page', 'order_by', 'order', 'offset', 'exclude_current', 'date_after', 'date_before', 'keyword' ) ) ) ),
 					'post_type'      => array( 'type' => 'select', 'label' => __( 'Post Type', 'ds-toolkit' ), 'default' => 'post', 'options' => DS_Post_Loop_Module::post_type_options() ),
 					'posts_per_page' => array( 'type' => 'unit', 'label' => __( 'Number of Posts', 'ds-toolkit' ), 'default' => '5', 'slider' => array( 'min' => 1, 'max' => 12, 'step' => 1 ), 'help' => __( 'Total posts pulled. The first one becomes the large featured card; the rest fill the loop.', 'ds-toolkit' ) ),
 					'order_by'       => array(
@@ -1032,6 +1054,9 @@ $ds_pl_form = array(
 						'options' => array( 'DESC' => __( 'Descending (newest first)', 'ds-toolkit' ), 'ASC' => __( 'Ascending (oldest first)', 'ds-toolkit' ) ),
 					),
 					'offset'         => array( 'type' => 'unit', 'label' => __( 'Offset', 'ds-toolkit' ), 'default' => '0', 'slider' => array( 'min' => 0, 'max' => 20, 'step' => 1 ), 'help' => __( 'Skip this many posts from the start of the result set.', 'ds-toolkit' ) ),
+					'date_after'     => array( 'type' => 'text', 'label' => __( 'From Date', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Only posts published on/after this date. YYYY-MM-DD, or a relative window like "-30 days". Blank = no lower bound.', 'ds-toolkit' ) ),
+					'date_before'    => array( 'type' => 'text', 'label' => __( 'To Date', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Only posts published on/before this date. Same formats as From Date. Blank = no upper bound.', 'ds-toolkit' ) ),
+					'keyword'        => array( 'type' => 'text', 'label' => __( 'Keyword Search', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Only posts matching this keyword (searches title and content).', 'ds-toolkit' ) ),
 					'exclude_current' => array( 'type' => 'select', 'label' => __( 'Exclude Current Post', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ), 'help' => __( 'On a single post / CPT view, leave out the post being viewed — ideal for a “More News / Related” strip.', 'ds-toolkit' ) ),
 					'date_format'    => array( 'type' => 'text', 'label' => __( 'Date Format', 'ds-toolkit' ), 'default' => 'M Y', 'help' => __( 'PHP date format for the card date (e.g. M Y → Jun 2026).', 'ds-toolkit' ) ),
 				),

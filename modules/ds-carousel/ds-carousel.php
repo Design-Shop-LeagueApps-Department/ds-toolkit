@@ -41,7 +41,40 @@ class DS_Carousel_Module extends FLBuilderModule {
 			'style1' => __( 'Style 1 — Stacked Deck', 'ds-toolkit' ),
 			'style2' => __( 'Style 2 — Sponsors / Logos', 'ds-toolkit' ),
 			'style3' => __( 'Style 3 — Reels Strip (images / videos)', 'ds-toolkit' ),
+			'style4' => __( 'Style 4 — Overlapping Images', 'ds-toolkit' ),
 		);
+	}
+
+	/** Resolve a BB photo value to its attachment alt text ('' when unknown). */
+	private function photo_alt( $val ) {
+		$id = 0;
+		if ( is_object( $val ) )      { $id = (int) ( $val->id ?? 0 ); }
+		elseif ( is_array( $val ) )   { $id = (int) ( $val['id'] ?? 0 ); }
+		elseif ( is_numeric( $val ) ) { $id = (int) $val; }
+		return $id ? (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) : '';
+	}
+
+	/** Style 4 — Overlapping Images: a static two-image editorial composition. */
+	public function render_style4() {
+		$s = $this->settings;
+
+		$primary   = ! empty( $s->ov_primary ) ? $this->photo_url( $s->ov_primary, 'large' ) : '';
+		$secondary = ! empty( $s->ov_secondary ) ? $this->photo_url( $s->ov_secondary, 'large' ) : '';
+
+		if ( '' === $primary || '' === $secondary ) {
+			if ( FLBuilderModel::is_builder_active() ) {
+				echo '<div class="ds-carousel ds-carousel--style4"><p style="padding:14px;opacity:.7">' . esc_html__( 'Pick a Primary and a Secondary image in the module settings.', 'ds-toolkit' ) . '</p></div>';
+			}
+			return;
+		}
+
+		$corner = in_array( $s->ov_corner ?? 'br', array( 'br', 'bl', 'tr', 'tl' ), true ) ? ( $s->ov_corner ?? 'br' ) : 'br';
+		$amount = in_array( $s->ov_amount ?? 'md', array( 'sm', 'md', 'lg' ), true ) ? ( $s->ov_amount ?? 'md' ) : 'md';
+
+		echo '<div class="ds-carousel ds-carousel--style4 ds-overlap ds-overlap--' . esc_attr( $corner ) . ' ds-overlap--' . esc_attr( $amount ) . '">';
+		echo '<img class="ds-overlap-primary" src="' . esc_url( $primary ) . '" alt="' . esc_attr( $this->photo_alt( $s->ov_primary ) ) . '" loading="lazy" />';
+		echo '<img class="ds-overlap-secondary" src="' . esc_url( $secondary ) . '" alt="' . esc_attr( $this->photo_alt( $s->ov_secondary ) ) . '" loading="lazy" />';
+		echo '</div>';
 	}
 
 	/** Resolve a BB photo value (id, url, or {id|url} array/object) -> URL string. */
@@ -387,8 +420,9 @@ FLBuilder::register_settings_form( 'ds_carousel_slide_form', array(
 						'link'    => array(
 							'type'        => 'link',
 							'label'       => __( 'Link', 'ds-toolkit' ),
+							'show_target' => true,
 							'connections' => array( 'url' ),
-							'help'        => __( 'Optional. The front slide becomes clickable; click a slide behind to bring it forward.', 'ds-toolkit' ),
+							'help'        => __( 'Optional. The front slide becomes clickable; click a slide behind to bring it forward. Tick "Open in new window" to launch it in a new tab.', 'ds-toolkit' ),
 						),
 					),
 				),
@@ -420,6 +454,9 @@ FLBuilder::register_module( 'DS_Carousel_Module', array(
 							'style3' => array(
 								'sections' => array( 'slides', 'reels', 'colors', 'spacing' ),
 							),
+							'style4' => array(
+								'sections' => array( 'overlap', 'overlap_style', 'spacing' ),
+							),
 						),
 					),
 				),
@@ -438,6 +475,48 @@ FLBuilder::register_module( 'DS_Carousel_Module', array(
 							array( 'caption' => 'Lorem Ipsum' ),
 							array( 'caption' => 'Dolor Sit Amet' ),
 							array( 'caption' => 'Consectetur' ),
+						),
+					),
+				),
+			),
+			// --- Style 4 only: overlapping images ---
+			'overlap' => array(
+				'title'       => __( 'Overlapping Images', 'ds-toolkit' ),
+				'description' => __( 'Two images in a layered editorial composition — the secondary image overlaps the primary at the chosen corner. Responsive by construction; no custom CSS needed.', 'ds-toolkit' ),
+				'fields'      => array(
+					'ov_primary'   => array(
+						'type'        => 'photo',
+						'label'       => __( 'Primary Image', 'ds-toolkit' ),
+						'show_remove' => true,
+						'connections' => array( 'photo' ),
+					),
+					'ov_secondary' => array(
+						'type'        => 'photo',
+						'label'       => __( 'Secondary Image', 'ds-toolkit' ),
+						'show_remove' => true,
+						'connections' => array( 'photo' ),
+						'help'        => __( 'Sits on top, partially overlapping the primary image.', 'ds-toolkit' ),
+					),
+					'ov_corner'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Overlap Position', 'ds-toolkit' ),
+						'default' => 'br',
+						'options' => array(
+							'br' => __( 'Bottom Right', 'ds-toolkit' ),
+							'bl' => __( 'Bottom Left', 'ds-toolkit' ),
+							'tr' => __( 'Top Right', 'ds-toolkit' ),
+							'tl' => __( 'Top Left', 'ds-toolkit' ),
+						),
+						'help'    => __( 'The corner of the composition where the secondary image sits.', 'ds-toolkit' ),
+					),
+					'ov_amount'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Overlap Amount', 'ds-toolkit' ),
+						'default' => 'md',
+						'options' => array(
+							'sm' => __( 'Small', 'ds-toolkit' ),
+							'md' => __( 'Medium', 'ds-toolkit' ),
+							'lg' => __( 'Large', 'ds-toolkit' ),
 						),
 					),
 				),
@@ -705,6 +784,28 @@ FLBuilder::register_module( 'DS_Carousel_Module', array(
 						'help'    => __( 'Grayscale gives a tidy, uniform sponsor wall that pops to colour on hover.', 'ds-toolkit' ),
 					),
 					'logo_max_height' => array( 'type' => 'unit', 'label' => __( 'Max Logo Height', 'ds-toolkit' ), 'default' => '64', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 24, 'max' => 160, 'step' => 2 ), 'help' => __( 'Caps how tall any single logo can get inside its tile, so a tall logo never dwarfs a wide one. Logos always keep their aspect ratio (never stretched).', 'ds-toolkit' ) ),
+				),
+			),
+			// --- Style 4 only: overlapping images ---
+			'overlap_style' => array(
+				'title'  => __( 'Overlapping Images', 'ds-toolkit' ),
+				'fields' => array(
+					'ov_max_width'    => array( 'type' => 'unit', 'label' => __( 'Max Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 240, 'max' => 1200, 'step' => 10 ), 'help' => __( 'Blank = fill the column. When set, the composition centres itself.', 'ds-toolkit' ) ),
+					'ov_radius'       => array( 'type' => 'unit', 'label' => __( 'Border Radius', 'ds-toolkit' ), 'default' => '8', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-overlap-primary, .ds-overlap-secondary', 'property' => 'border-radius', 'unit' => 'px' ) ),
+					'ov_border_width' => array( 'type' => 'unit', 'label' => __( 'Secondary Border', 'ds-toolkit' ), 'default' => '0', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 16, 'step' => 1 ), 'help' => __( 'A solid frame around the secondary image (the classic editorial white border). 0 = none.', 'ds-toolkit' ) ),
+					'ov_border_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
+					'ov_shadow'       => array(
+						'type'    => 'select',
+						'label'   => __( 'Shadow', 'ds-toolkit' ),
+						'default' => 'soft',
+						'options' => array(
+							'none'   => __( 'None', 'ds-toolkit' ),
+							'soft'   => __( 'Soft', 'ds-toolkit' ),
+							'medium' => __( 'Medium', 'ds-toolkit' ),
+							'strong' => __( 'Strong', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Depth under the secondary image so it reads as a layer.', 'ds-toolkit' ),
+					),
 				),
 			),
 			'spacing' => array(

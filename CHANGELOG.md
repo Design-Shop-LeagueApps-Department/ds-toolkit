@@ -4,6 +4,15 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.29] - 2026-07-15
+### Added
+- **Carousel: "Open in new window" for slide links (GH #45).** The slide Link field now shows Beaver Builder's native new-tab checkbox; the render already carried the target through (with `rel="noopener noreferrer"`), so ticking it just works in all styles.
+- **Post Loop: date-range filter + keyword search (GH #46).** New Query fields on every card layout (custom source): **From Date** / **To Date** (absolute `YYYY-MM-DD` or relative like `-30 days`, inclusive) and **Keyword Search** (title/content, like site search). Newest/oldest sorting already existed (Query → Order).
+- **Carousel: "Style 4 — Overlapping Images" (GH #47).** A two-image editorial composition: Primary + Secondary photos, the secondary overlapping at a chosen corner (bottom/top × left/right) with Small/Medium/Large overlap, plus border radius, an optional editorial frame border, shadow depth, and max width. Built on CSS grid with proportional widths — responsive by construction, no absolute positioning, no custom CSS needed.
+
+### Fixed
+- **Post Loop: date sorting can no longer be hijacked by the Post Types Order plugin.** Queries now pass `ignore_custom_sort` for every explicit sort except Menu Order, so "Newest first" stays newest-first even where that plugin's auto-sort is active.
+
 ## [1.9.28] - 2026-07-14
 ### Added
 - **Design Academy dashboard panel (fleet-wide).** New feature (auto-enabled on every install): a **Design Academy** widget pinned to the top of the WordPress dashboard so partners see it the moment they log in — a "Start here" pinned course (defaults to the beginner's guide to WordPress & Beaver Builder; label/URL editable in DS Toolkit → Features) plus the five newest tutorials from designacademy.leagueapps.com (public REST feed, cached 6 hours, last-good fallback if the academy is unreachable).
