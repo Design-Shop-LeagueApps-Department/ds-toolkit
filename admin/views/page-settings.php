@@ -76,7 +76,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <div class="dst-card-icon"><span class="dashicons dashicons-groups"></span></div>
             <div class="dst-card-info">
                 <strong>User Roles (Partner)</strong>
-                <span>Registers a <strong>Partner</strong> role — everything an Administrator has except plugin management and the in-admin file editors — so partner accounts get safe admin access with one pick on the Users screen. Also hides the Plugins menu from non-LeagueApps users (menu label only; capabilities untouched). Auto-enabled on every install.</span>
+                <span>Registers a <strong>Partner</strong> role — everything an Administrator has except plugin management and the in-admin file editors — so partner accounts get safe admin access with one pick on the Users screen. Also hides the <strong>Plugins</strong>, <strong>Tools</strong>, and <strong>Settings</strong> menus from non-LeagueApps users (menu labels only; capabilities untouched). Auto-enabled on every install.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[user_roles_enabled]" value="0">
