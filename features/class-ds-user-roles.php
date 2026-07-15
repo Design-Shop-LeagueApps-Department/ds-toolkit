@@ -11,15 +11,19 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *     Administrators because switching roles is friction; Partner makes the
  *     safe setup a one-click choice on the standard Users screen (that's also
  *     where admins "select the appropriate user role" — no custom UI needed).
- *  2. The Plugins menu is hidden from non-LeagueApps users. This is a label
- *     hide only — capabilities are untouched (same philosophy as Admin Menu
- *     Tidy) — so a legacy full-admin partner account stops browsing plugins
- *     without anything breaking.
+ *  2. The Plugins, Tools, and Settings menus are hidden from non-LeagueApps
+ *     users. This is a label hide only — capabilities are untouched (same
+ *     philosophy as Admin Menu Tidy) — so a legacy full-admin partner account
+ *     stops browsing those screens without anything breaking. Note that on
+ *     DSLP6 installs Admin Menu Tidy relocates Defender / Yoast / Media
+ *     Library Organizer under Tools, so those relocated entries disappear
+ *     for partners too.
  *
- * Both layers honour one escape hatch: DS Toolkit → Features → User Roles →
- * "Allow plugin access". When a LeagueApps dev switches it on, the Partner
- * role regains the plugin-management capabilities and the Plugins menu stops
- * being hidden. The DS Toolkit settings page itself is admin + LeagueApps
+ * The plugin layers honour one escape hatch: DS Toolkit → Features → User
+ * Roles → "Allow plugin access". When a LeagueApps dev switches it on, the
+ * Partner role regains the plugin-management capabilities and the Plugins
+ * menu stops being hidden (Tools/Settings stay hidden — they're not plugin
+ * management). The DS Toolkit settings page itself is admin + LeagueApps
  * gated, so partners can never flip the switch themselves.
  *
  * Disabling the feature stops the menu hiding and the role sync, but the
@@ -40,7 +44,7 @@ class DS_User_Roles {
 	public function init() {
 		add_action( 'init', array( $this, 'sync_role' ), 5 );
 		// Very late, after every plugin has registered its menus.
-		add_action( 'admin_menu', array( $this, 'hide_plugins_menu' ), 999999 );
+		add_action( 'admin_menu', array( $this, 'hide_admin_menus' ), 999999 );
 	}
 
 	private function plugin_access_allowed() {
@@ -85,15 +89,21 @@ class DS_User_Roles {
 	}
 
 	/**
-	 * Hide the Plugins menu from non-LeagueApps users (label hide; capabilities
-	 * untouched). Partner-role users already lack activate_plugins, so WordPress
-	 * hides the menu for them natively — this catches legacy full-admin partner
-	 * accounts.
+	 * Hide admin menus from non-LeagueApps users (label hide; capabilities
+	 * untouched). Plugins honours the "Allow plugin access" escape hatch;
+	 * Tools and Settings are always hidden for partners — those screens hold
+	 * host/SEO/security surfaces partners shouldn't wander into. Partner-role
+	 * users already lack activate_plugins, so WordPress hides Plugins for them
+	 * natively — the explicit remove catches legacy full-admin partner accounts.
 	 */
-	public function hide_plugins_menu() {
-		if ( $this->plugin_access_allowed() || DS_Toolkit::is_leagueapps_user() ) {
+	public function hide_admin_menus() {
+		if ( DS_Toolkit::is_leagueapps_user() ) {
 			return;
 		}
-		remove_menu_page( 'plugins.php' );
+		if ( ! $this->plugin_access_allowed() ) {
+			remove_menu_page( 'plugins.php' );
+		}
+		remove_menu_page( 'tools.php' );
+		remove_menu_page( 'options-general.php' );
 	}
 }

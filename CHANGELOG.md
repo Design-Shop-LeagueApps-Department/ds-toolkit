@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.30] - 2026-07-15
+### Changed
+- **User Roles: Tools and Settings menus now hidden from non-LeagueApps users.** Alongside the existing Plugins hide — menu labels only, capabilities untouched. The "Allow plugin access" switch still restores Plugins; Tools/Settings stay hidden for partners regardless (they hold host/SEO/security surfaces). Note: on DSLP6 installs Admin Menu Tidy relocates Defender / Yoast / Media Library Organizer under Tools, so those entries disappear for partners too.
+
 ## [1.9.29] - 2026-07-15
 ### Added
 - **Carousel: "Open in new window" for slide links (GH #45).** The slide Link field now shows Beaver Builder's native new-tab checkbox; the render already carried the target through (with `rel="noopener noreferrer"`), so ticking it just works in all styles.
