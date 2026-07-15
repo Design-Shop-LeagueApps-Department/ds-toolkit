@@ -116,3 +116,25 @@
 @media (prefers-reduced-motion:reduce){
   .ds-carousel--style3 a.ds-reel-card,.ds-reel-play{transition:none;}
 }
+
+/* ---- Style 4: Overlapping Images ----
+   Two images share one grid cell anchored at OPPOSITE corners; the overlap is
+   simply their widths summing past 100%. No absolute positioning, no media
+   queries — the composition is proportional, so it's responsive by construction. */
+.ds-overlap{display:grid;width:100%;}
+.ds-overlap .ds-overlap-primary,
+.ds-overlap .ds-overlap-secondary{grid-area:1/1;display:block;height:auto;max-width:100%;border-radius:8px;}
+.ds-overlap .ds-overlap-secondary{position:relative;z-index:1;}
+/* Overlap amount: primary + secondary width pairs (sum − 100% = overlap). */
+.ds-overlap--sm .ds-overlap-primary{width:90%;} .ds-overlap--sm .ds-overlap-secondary{width:42%;}
+.ds-overlap--md .ds-overlap-primary{width:86%;} .ds-overlap--md .ds-overlap-secondary{width:50%;}
+.ds-overlap--lg .ds-overlap-primary{width:80%;} .ds-overlap--lg .ds-overlap-secondary{width:60%;}
+/* Corner: the secondary sits at the chosen corner; the primary anchors opposite. */
+.ds-overlap--br .ds-overlap-primary{justify-self:start;align-self:start;}
+.ds-overlap--br .ds-overlap-secondary{justify-self:end;align-self:end;}
+.ds-overlap--bl .ds-overlap-primary{justify-self:end;align-self:start;}
+.ds-overlap--bl .ds-overlap-secondary{justify-self:start;align-self:end;}
+.ds-overlap--tr .ds-overlap-primary{justify-self:start;align-self:end;}
+.ds-overlap--tr .ds-overlap-secondary{justify-self:end;align-self:start;}
+.ds-overlap--tl .ds-overlap-primary{justify-self:end;align-self:end;}
+.ds-overlap--tl .ds-overlap-secondary{justify-self:start;align-self:start;}
