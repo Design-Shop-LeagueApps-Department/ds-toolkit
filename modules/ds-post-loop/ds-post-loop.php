@@ -690,7 +690,10 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	private function parse_event_date( $str ) {
 		$str = trim( (string) $str );
 		if ( '' === $str ) { return 0; }
-		$norm = preg_replace( '/(\d{1,2})\s*[\x{2013}\x{2014}-]\s*\d{1,2}/u', '$1', $str ); // "18-20" -> "18"
+		// "18-20" / "18th-20th" -> "18". Ordinal suffixes must be part of the match:
+		// strtotime mis-parses an unnormalised "March 20th-21st, 2027" into MARCH 2026,
+		// which silently dropped future events as "past" (seen on the fleet blueprint).
+		$norm = preg_replace( '/(\d{1,2})(?:st|nd|rd|th)?\s*[\x{2013}\x{2014}-]\s*\d{1,2}(?:st|nd|rd|th)?/iu', '$1', $str );
 		$ts = strtotime( $norm );
 		return $ts ? (int) $ts : 0;
 	}
