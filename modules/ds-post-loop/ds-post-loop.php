@@ -758,9 +758,10 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$items = array_slice( $items, 0, $limit );
 
 		$style     = ( ( $s->tn_style ?? 'overlap' ) === 'event' ) ? 'event' : 'overlap';
+		$list      = 'event' === $style && ( $s->tn_display ?? 'grid' ) === 'list';
 		$filter_on = 'event' === $style && ( $s->tn_filter ?? 'disable' ) === 'enable' && ! empty( $items );
 
-		$root = 'ds-news ds-tourn' . ( 'event' === $style ? ' ds-tourn--event' : '' ) . ( $filter_on ? ' ds-tourn--filter' : '' );
+		$root = 'ds-news ds-tourn' . ( 'event' === $style ? ' ds-tourn--event' : '' ) . ( $list ? ' ds-tourn--list' : '' ) . ( $filter_on ? ' ds-tourn--filter' : '' );
 		echo '<section class="' . esc_attr( $root ) . '"><div class="ds-news-wrap">';
 		$this->render_head();
 		if ( empty( $items ) ) {
@@ -780,6 +781,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 				'url'      => get_permalink( $pid ),
 				'title'    => get_the_title( $pid ),
 				'date'     => $it['raw'],
+				'ts'       => $it['ts'],
 				'feat'     => $feat,
 				'logo'     => $this->acf_image_url( ( function_exists( 'get_field' ) ? get_field( 'event_image', $pid ) : '' ) ?: '' ),
 				'loc'      => $loc,
@@ -795,8 +797,9 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$pin    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
 		$person = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>';
 		$tag    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.6 13.4 12 22l-8.6-8.6a2 2 0 0 1-.6-1.4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 1.4.6l8.4 8.4a2 2 0 0 1 0 2.8z" transform="scale(.9) translate(1 1)"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>';
+		$arrow  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 		$btn    = trim( (string) ( $s->tourn_btn ?? '' ) );
-		if ( '' === $btn ) { $btn = 'event' === $style ? __( 'View Event Details', 'ds-toolkit' ) : __( 'View More', 'ds-toolkit' ); }
+		if ( '' === $btn ) { $btn = $list ? __( 'Register', 'ds-toolkit' ) : ( 'event' === $style ? __( 'View Event Details', 'ds-toolkit' ) : __( 'View More', 'ds-toolkit' ) ); }
 		$badge  = 'event' === $style ? trim( (string) ( $s->tn_badge ?? __( 'Tournament', 'ds-toolkit' ) ) ) : '';
 
 		$this->loop_open( 'ds-tourn-grid' );
@@ -808,6 +811,33 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 				$data .= ' data-state="' . esc_attr( $r['state'] ) . '"';
 				$data .= ' data-q="' . esc_attr( $q ) . '"';
 			}
+
+			if ( $list ) {
+				// List row: date tile · logo thumb · gender eyebrow + title + meta · chips + button.
+				echo '<a class="ds-tourn-card ds-tourn-card--row" href="' . esc_url( $r['url'] ) . '"' . $data . '>';
+				if ( $r['ts'] && PHP_INT_MAX !== $r['ts'] ) {
+					echo '<span class="ds-tourn-when" aria-hidden="true"><span class="ds-tourn-when-m">' . esc_html( date_i18n( 'F', $r['ts'] ) ) . '</span><span class="ds-tourn-when-d">' . esc_html( date_i18n( 'd', $r['ts'] ) ) . '</span></span>';
+				}
+				$thumb = $r['logo'] ?: $r['feat'];
+				if ( '' !== $thumb ) { echo '<span class="ds-tourn-thumb"><img src="' . esc_url( $thumb ) . '" alt="" loading="lazy" /></span>'; }
+				echo '<span class="ds-tourn-rowmain">';
+				if ( ! empty( $r['gender'] ) ) { echo '<span class="ds-tourn-eyebrow">' . esc_html( implode( ' & ', $r['gender'] ) ) . '</span>'; }
+				echo '<h3 class="ds-tourn-title">' . DS_Module_UI::inline( $r['title'] ) . '</h3>';
+				echo '<span class="ds-tourn-rowmeta">';
+				if ( '' !== $r['loc'] )  { echo '<span class="ds-tourn-loc">' . $pin . '<span>' . esc_html( $r['loc'] ) . '</span></span>'; }
+				if ( '' !== $r['date'] ) { echo '<span class="ds-tourn-date">' . $cal . '<span>' . esc_html( $r['date'] ) . '</span></span>'; }
+				echo '</span></span>';
+				echo '<span class="ds-tourn-rowside">';
+				if ( ! empty( $r['division'] ) ) {
+					echo '<span class="ds-tourn-chips">';
+					foreach ( $r['division'] as $d ) { echo '<span class="ds-tourn-chip ds-tourn-chip--outline">' . esc_html( $d ) . '</span>'; }
+					echo '</span>';
+				}
+				echo '<span class="ds-tourn-btn ds-tourn-btn--row">' . esc_html( $btn ) . $arrow . '</span>';
+				echo '</span></a>';
+				continue;
+			}
+
 			echo '<a class="ds-tourn-card' . ( 'event' === $style ? ' ds-tourn-card--event' : '' ) . '" href="' . esc_url( $r['url'] ) . '"' . $data . '>';
 			echo '<div class="ds-tourn-img"' . ( $r['feat'] ? ' style="background-image:url(' . esc_url( $r['feat'] ) . ')"' : '' ) . '>';
 			if ( 'event' === $style && '' !== $badge ) { echo '<span class="ds-tourn-badge">' . esc_html( $badge ) . '</span>'; }
@@ -1354,9 +1384,17 @@ $ds_pl_form = array(
 						),
 						'toggle'  => array(
 							'overlap' => array( 'fields' => array( 'tn_overlap', 'tn_inset', 'tn_align', 'tn_logo_shape' ) ),
-							'event'   => array( 'fields' => array( 'tn_badge', 'tn_filter' ) ),
+							'event'   => array( 'fields' => array( 'tn_display', 'tn_badge', 'tn_filter' ) ),
 						),
 						'help'    => __( 'Event Card: flat card with a badge pill on the image, left-aligned date/location plus gender & division chips, and a full-width button. Supports the filter bar.', 'ds-toolkit' ),
+					),
+					'tn_display'     => array(
+						'type'    => 'select',
+						'label'   => __( 'Display', 'ds-toolkit' ),
+						'default' => 'grid',
+						'options' => array( 'grid' => __( 'Grid (cards)', 'ds-toolkit' ), 'list' => __( 'List (rows)', 'ds-toolkit' ) ),
+						'toggle'  => array( 'grid' => array( 'fields' => array( 'tn_badge', 'tn_cols', 'tn_img_ratio' ) ) ),
+						'help'    => __( 'List renders each event as a full-width row: date tile, logo, gender + title + location, division chips, and a Register button.', 'ds-toolkit' ),
 					),
 					'tn_badge'       => array( 'type' => 'text', 'label' => __( 'Badge Text', 'ds-toolkit' ), 'default' => 'Tournament', 'help' => __( 'The pill shown at the top of the image. Blank = no badge.', 'ds-toolkit' ) ),
 					'tn_filter'      => array(

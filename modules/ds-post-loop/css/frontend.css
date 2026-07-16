@@ -232,3 +232,24 @@
   .ds-tourn-search{margin-left:0;width:100%;}
   .ds-tourn-search input{flex:1 1 auto;}
 }
+
+/* ---- Tournament: Event Card LIST display (rows) ---- */
+.ds-tourn--list .ds-tourn-card--row{flex-direction:row;align-items:center;gap:18px;padding:16px 20px;}
+.ds-tourn-when{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:64px;height:64px;flex:0 0 auto;border-radius:12px;background:color-mix(in srgb, var(--fl-global-accent) 10%, transparent);}
+.ds-tourn-when-m{font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--fl-global-accent);line-height:1;}
+.ds-tourn-when-d{font-size:1.35rem;font-weight:800;color:var(--fl-global-headings);line-height:1;}
+.ds-tourn-thumb{width:64px;height:64px;flex:0 0 auto;border:1px solid rgba(0,0,0,.08);border-radius:12px;background:var(--fl-global-white);overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.ds-tourn-thumb img{width:100%;height:100%;object-fit:contain;padding:5px;box-sizing:border-box;display:block;}
+.ds-tourn-rowmain{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 auto;}
+.ds-tourn-eyebrow{color:var(--fl-global-accent);font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;line-height:1.2;}
+.ds-tourn--list .ds-tourn-title{font-size:1.25rem;text-transform:uppercase;line-height:1.15;}
+.ds-tourn-rowmeta{display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.ds-tourn-rowside{display:flex;align-items:center;gap:14px;flex:0 0 auto;margin-left:auto;}
+.ds-tourn-chip--outline{background:transparent;border:1px solid rgba(0,0,0,.18);text-transform:uppercase;letter-spacing:.04em;}
+.ds-tourn-btn--row{display:inline-flex;align-items:center;gap:8px;width:auto;white-space:nowrap;}
+.ds-tourn-btn--row svg{width:14px;height:14px;flex:0 0 auto;}
+@media(max-width:860px){
+  .ds-tourn--list .ds-tourn-card--row{flex-wrap:wrap;}
+  .ds-tourn-rowmain{flex-basis:calc(100% - 170px);}
+  .ds-tourn-rowside{margin-left:0;width:100%;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+}

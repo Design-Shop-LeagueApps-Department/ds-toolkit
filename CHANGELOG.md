@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.33] - 2026-07-17
+### Added
+- **Post Loop: Tournament Event Card "List" display.** New Display option (Grid / List) on the Event Card style. List renders each event as a full-width row -- accent date tile (month + day), logo thumbnail, gender eyebrow, uppercase title, location + date meta, outlined division chips, and a "Register ->" button (theme-synced). The filter bar (gender tabs, state dropdown, search, live count) works identically in both displays. Rows collapse gracefully on mobile.
+
 ## [1.9.32] - 2026-07-16
 ### Fixed
 - **Tournament cards: date ranges with ordinal suffixes no longer drop future events.** The range normaliser only matched bare digits before the dash, so `March 20th-21st, 2027` slipped through unnormalised and PHP's strtotime mis-parsed it into March 2026 -- a "past" date, silently hiding the event. Suffixed ranges (`18th-20th`) now normalise like bare ones (`18-20`), which also makes range sorting land on the actual start day.

@@ -206,11 +206,17 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 
 // ---- Tournament cards (events) ----
 if ( ( $settings->card_layout ?? '' ) === 'tournament' ) {
-	$tc = max( 1, (int) ( $settings->tn_cols ?? 3 ) );
 	$tg = $u( $settings->tn_gap ?? '', 28 );
-	echo "$node .ds-tourn-grid{grid-template-columns:repeat({$tc},1fr);gap:{$tg}px;}\n";
-	echo "@media(max-width:1024px){ $node .ds-tourn-grid{grid-template-columns:repeat(2,1fr);} }\n";
-	echo "@media(max-width:600px){ $node .ds-tourn-grid{grid-template-columns:1fr;} }\n";
+	$is_list = ( ( $settings->tn_style ?? 'overlap' ) === 'event' ) && ( ( $settings->tn_display ?? 'grid' ) === 'list' );
+	if ( $is_list ) {
+		// List display is always a single column of rows.
+		echo "$node .ds-tourn-grid{grid-template-columns:1fr;gap:" . min( $tg, 18 ) . "px;}\n";
+	} else {
+		$tc = max( 1, (int) ( $settings->tn_cols ?? 3 ) );
+		echo "$node .ds-tourn-grid{grid-template-columns:repeat({$tc},1fr);gap:{$tg}px;}\n";
+		echo "@media(max-width:1024px){ $node .ds-tourn-grid{grid-template-columns:repeat(2,1fr);} }\n";
+		echo "@media(max-width:600px){ $node .ds-tourn-grid{grid-template-columns:1fr;} }\n";
+	}
 	$ar = preg_replace( '#[^0-9/ ]#', '', (string) ( $settings->tn_img_ratio ?? '16 / 10' ) ); if ( '' === trim( $ar ) ) { $ar = '16 / 10'; }
 	echo "$node .ds-tourn-img{aspect-ratio:$ar;}\n";
 	$ls = $u( $settings->tn_logo_size ?? '', 96 );
