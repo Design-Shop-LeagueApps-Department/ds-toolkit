@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.32] - 2026-07-16
+### Fixed
+- **Tournament cards: date ranges with ordinal suffixes no longer drop future events.** The range normaliser only matched bare digits before the dash, so `March 20th-21st, 2027` slipped through unnormalised and PHP's strtotime mis-parsed it into March 2026 -- a "past" date, silently hiding the event. Suffixed ranges (`18th-20th`) now normalise like bare ones (`18-20`), which also makes range sorting land on the actual start day.
+
 ## [1.9.31] - 2026-07-16
 ### Added
 - **Post Loop: Tournament "Event Card" style + filter bar.** The Tournament layout gains a second Card Style (Tournament Cards -> Card Style): a flat event card with a badge pill on the image ("Tournament", editable), the event image centred plain over the featured photo, a left-aligned details list (date, location, gender chips, division chips), and a full-width theme-synced button ("View Event Details"). An optional **Filter Bar** (enable/disable) renders gender tabs (All + genders found), a state dropdown, a search box, and a live "N events" count -- all client-side, no reloads. Genders come from a new `event_gender` field; states from `event_state` or the ", XX" tail of the Location. Existing modules keep the Classic overlapping style untouched.
