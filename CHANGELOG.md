@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.34] - 2026-07-17
+### Changed
+- **Tournament filter bar is now fully developer-configurable (nothing hard-coded).** New "Filter Bar (Event Card)" section on the Query tab: **Tabs Source** picks what drives the tab pills -- any public taxonomy, the event_gender field, or none (the same values feed the row eyebrow and card chips); **State Dropdown** (from event_state / the ", XX" address tail) can be shown or hidden; **Search Box** and **Event Count** each get their own show/hide. Defaults keep the previous behaviour, so existing modules render unchanged.
+
 ## [1.9.33] - 2026-07-17
 ### Added
 - **Post Loop: Tournament Event Card "List" display.** New Display option (Grid / List) on the Event Card style. List renders each event as a full-width row -- accent date tile (month + day), logo thumbnail, gender eyebrow, uppercase title, location + date meta, outlined division chips, and a "Register ->" button (theme-synced). The filter bar (gender tabs, state dropdown, search, live count) works identically in both displays. Rows collapse gracefully on mobile.

@@ -157,13 +157,13 @@
 		var inp   = bar.querySelector('.ds-tourn-search input');
 		var count = bar.querySelector('.ds-tourn-count');
 		var none  = root.querySelector('.ds-tourn-none');
-		var gender = '', state = '', q = '';
+		var facet = '', state = '', q = '';
 
 		function apply() {
 			var shown = 0;
 			cards.forEach(function (c) {
 				var ok = true;
-				if (gender && (' ' + (c.dataset.gender || '') + ' ').indexOf(' ' + gender + ' ') === -1) ok = false;
+				if (facet && (' ' + (c.dataset.tabs || '') + ' ').indexOf(' ' + facet + ' ') === -1) ok = false;
 				if (ok && state && (c.dataset.state || '') !== state) ok = false;
 				if (ok && q && (c.dataset.q || '').indexOf(q) === -1) ok = false;
 				c.style.display = ok ? '' : 'none';
@@ -177,7 +177,7 @@
 			t.addEventListener('click', function () {
 				tabs.forEach(function (x) { x.classList.remove('is-active'); });
 				t.classList.add('is-active');
-				gender = t.dataset.gender || '';
+				facet = t.dataset.tab || '';
 				apply();
 			});
 		});
