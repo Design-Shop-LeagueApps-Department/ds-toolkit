@@ -143,9 +143,59 @@
 		}
 	}
 
+	/* ------------------------------------------------- Tournament filter bar */
+	function initTournFilter(root) {
+		if (root.dsTournInit) return;
+		var bar  = root.querySelector('.ds-tourn-filter');
+		var grid = root.querySelector('.ds-tourn-grid');
+		if (!bar || !grid) return;
+		root.dsTournInit = true;
+
+		var cards = [].slice.call(grid.querySelectorAll('.ds-tourn-card'));
+		var tabs  = [].slice.call(bar.querySelectorAll('.ds-tourn-tab'));
+		var sel   = bar.querySelector('.ds-tourn-state select');
+		var inp   = bar.querySelector('.ds-tourn-search input');
+		var count = bar.querySelector('.ds-tourn-count');
+		var none  = root.querySelector('.ds-tourn-none');
+		var gender = '', state = '', q = '';
+
+		function apply() {
+			var shown = 0;
+			cards.forEach(function (c) {
+				var ok = true;
+				if (gender && (' ' + (c.dataset.gender || '') + ' ').indexOf(' ' + gender + ' ') === -1) ok = false;
+				if (ok && state && (c.dataset.state || '') !== state) ok = false;
+				if (ok && q && (c.dataset.q || '').indexOf(q) === -1) ok = false;
+				c.style.display = ok ? '' : 'none';
+				if (ok) shown++;
+			});
+			if (count) count.textContent = shown + ' ' + (shown === 1 ? 'event' : 'events');
+			if (none) none.hidden = shown !== 0;
+		}
+
+		tabs.forEach(function (t) {
+			t.addEventListener('click', function () {
+				tabs.forEach(function (x) { x.classList.remove('is-active'); });
+				t.classList.add('is-active');
+				gender = t.dataset.gender || '';
+				apply();
+			});
+		});
+		if (sel) sel.addEventListener('change', function () { state = sel.value; apply(); });
+		if (inp) {
+			var deb;
+			inp.addEventListener('input', function () {
+				clearTimeout(deb);
+				deb = setTimeout(function () { q = inp.value.trim().toLowerCase(); apply(); }, 150);
+			});
+		}
+		apply();
+	}
+
 	function boot(rt) {
 		(rt || document).querySelectorAll('.ds-loopcar').forEach(initCarousel);
 		(rt || document).querySelectorAll('.ds-looppage').forEach(initPagination);
+		(rt || document).querySelectorAll('.ds-tourn--filter').forEach(initTournFilter);
 	}
 	if (document.readyState !== 'loading') boot();
 	else document.addEventListener('DOMContentLoaded', function () { boot(); });
