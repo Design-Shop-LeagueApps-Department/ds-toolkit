@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.31] - 2026-07-16
+### Added
+- **Post Loop: Tournament "Event Card" style + filter bar.** The Tournament layout gains a second Card Style (Tournament Cards -> Card Style): a flat event card with a badge pill on the image ("Tournament", editable), the event image centred plain over the featured photo, a left-aligned details list (date, location, gender chips, division chips), and a full-width theme-synced button ("View Event Details"). An optional **Filter Bar** (enable/disable) renders gender tabs (All + genders found), a state dropdown, a search box, and a live "N events" count -- all client-side, no reloads. Genders come from a new `event_gender` field; states from `event_state` or the ", XX" tail of the Location. Existing modules keep the Classic overlapping style untouched.
+
 ## [1.9.30] - 2026-07-15
 ### Changed
 - **User Roles: Tools and Settings menus now hidden from non-LeagueApps users.** Alongside the existing Plugins hide — menu labels only, capabilities untouched. The "Allow plugin access" switch still restores Plugins; Tools/Settings stay hidden for partners regardless (they hold host/SEO/security surfaces). Note: on DSLP6 installs Admin Menu Tidy relocates Defender / Yoast / Media Library Organizer under Tools, so those entries disappear for partners too.

@@ -696,6 +696,47 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	}
 
 	/** Tournament Cards — upcoming events (by the event_date ACF field), image with an overlapping details card. */
+	/** Read an event meta value as a trimmed list (ACF checkbox array or comma text). */
+	private function tourn_list( $pid, $key ) {
+		$v = function_exists( 'get_field' ) ? get_field( $key, $pid ) : get_post_meta( $pid, $key, true );
+		if ( is_array( $v ) ) { $v = implode( ',', $v ); }
+		return array_values( array_filter( array_map( 'trim', explode( ',', (string) $v ) ) ) );
+	}
+
+	/** Event state: explicit event_state field, else the ", XX" tail of the location. */
+	private function tourn_state( $pid, $loc ) {
+		$st = function_exists( 'get_field' ) ? trim( (string) get_field( 'event_state', $pid ) ) : trim( (string) get_post_meta( $pid, 'event_state', true ) );
+		if ( '' === $st && preg_match( '/,\s*([A-Za-z]{2})\.?\s*$/', $loc, $m ) ) { $st = $m[1]; }
+		return strtoupper( $st );
+	}
+
+	/** The Event Card filter bar: gender tabs + state dropdown + search + live count. */
+	private function tourn_filter_bar( $rows ) {
+		$genders = array(); $states = array();
+		foreach ( $rows as $r ) {
+			foreach ( $r['gender'] as $g ) { $genders[ strtolower( $g ) ] = $g; }
+			if ( '' !== $r['state'] ) { $states[ $r['state'] ] = $r['state'] ; }
+		}
+		ksort( $genders ); ksort( $states );
+		$pin  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+		$mag  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>';
+		echo '<div class="ds-tourn-filter">';
+		echo '<div class="ds-tourn-tabs" role="group" aria-label="' . esc_attr__( 'Filter by gender', 'ds-toolkit' ) . '">';
+		echo '<button type="button" class="ds-tourn-tab is-active" data-gender="">' . esc_html__( 'All', 'ds-toolkit' ) . '</button>';
+		foreach ( $genders as $key => $label ) {
+			echo '<button type="button" class="ds-tourn-tab" data-gender="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</button>';
+		}
+		echo '</div>';
+		if ( ! empty( $states ) ) {
+			echo '<label class="ds-tourn-state">' . $pin . '<select aria-label="' . esc_attr__( 'Filter by state', 'ds-toolkit' ) . '"><option value="">' . esc_html__( 'All states', 'ds-toolkit' ) . '</option>';
+			foreach ( $states as $st ) { echo '<option value="' . esc_attr( $st ) . '">' . esc_html( $st ) . '</option>'; }
+			echo '</select></label>';
+		}
+		echo '<div class="ds-tourn-search">' . $mag . '<input type="search" placeholder="' . esc_attr__( 'Search events…', 'ds-toolkit' ) . '" aria-label="' . esc_attr__( 'Search events', 'ds-toolkit' ) . '"></div>';
+		echo '<span class="ds-tourn-count">' . count( $rows ) . ' ' . esc_html( 1 === count( $rows ) ? __( 'event', 'ds-toolkit' ) : __( 'events', 'ds-toolkit' ) ) . '</span>';
+		echo '</div>';
+	}
+
 	public function render_tournament() {
 		$s     = $this->settings;
 		$ptype = preg_replace( '/[^a-z0-9_-]/', '', (string) ( $s->post_type ?? 'event' ) );
@@ -713,38 +754,81 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		usort( $items, function ( $a, $b ) { return $a['ts'] <=> $b['ts']; } ); // upcoming first (event_date ascending)
 		$items = array_slice( $items, 0, $limit );
 
-		echo '<section class="ds-news ds-tourn"><div class="ds-news-wrap">';
+		$style     = ( ( $s->tn_style ?? 'overlap' ) === 'event' ) ? 'event' : 'overlap';
+		$filter_on = 'event' === $style && ( $s->tn_filter ?? 'disable' ) === 'enable' && ! empty( $items );
+
+		$root = 'ds-news ds-tourn' . ( 'event' === $style ? ' ds-tourn--event' : '' ) . ( $filter_on ? ' ds-tourn--filter' : '' );
+		echo '<section class="' . esc_attr( $root ) . '"><div class="ds-news-wrap">';
 		$this->render_head();
 		if ( empty( $items ) ) {
 			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No upcoming events. Publish events with a future Event Date.', 'ds-toolkit' ) . '</p>'; }
 			echo '</div></section>'; return;
 		}
-		$cal = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
-		$pin = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
-		$btn = trim( (string) ( $s->tourn_btn ?? '' ) ); if ( '' === $btn ) { $btn = __( 'View More', 'ds-toolkit' ); }
-		$this->loop_open( 'ds-tourn-grid' );
+
+		// Enriched rows (the Event Card style + filter bar read gender/division/state).
+		$rows = array();
 		foreach ( $items as $it ) {
 			$p = $it['p']; $pid = $p->ID;
-			$url = get_permalink( $pid ); $title = get_the_title( $pid );
-			// Main (back) banner = the Featured image; the Event Image sits small & centered, overlapping it.
 			$feat = has_post_thumbnail( $pid ) ? (string) get_the_post_thumbnail_url( $pid, 'large' ) : '';
 			if ( '' === $feat ) { $feat = self::placeholder_image(); }
-			$evt  = $this->acf_image_url( ( function_exists( 'get_field' ) ? get_field( 'event_image', $pid ) : '' ) ?: '' );
-			$loc = function_exists( 'get_field' ) ? trim( (string) get_field( 'event_location', $pid ) ) : '';
-			echo '<a class="ds-tourn-card" href="' . esc_url( $url ) . '">';
-			echo '<div class="ds-tourn-img"' . ( $feat ? ' style="background-image:url(' . esc_url( $feat ) . ')"' : '' ) . '>';
-			if ( '' !== $evt ) { echo '<span class="ds-tourn-logo"><img src="' . esc_url( $evt ) . '" alt="" loading="lazy" /></span>'; }
+			$loc  = function_exists( 'get_field' ) ? trim( (string) get_field( 'event_location', $pid ) ) : '';
+			$rows[] = array(
+				'pid'      => $pid,
+				'url'      => get_permalink( $pid ),
+				'title'    => get_the_title( $pid ),
+				'date'     => $it['raw'],
+				'feat'     => $feat,
+				'logo'     => $this->acf_image_url( ( function_exists( 'get_field' ) ? get_field( 'event_image', $pid ) : '' ) ?: '' ),
+				'loc'      => $loc,
+				'gender'   => $this->tourn_list( $pid, 'event_gender' ),
+				'division' => $this->tourn_list( $pid, 'event_division' ),
+				'state'    => $this->tourn_state( $pid, $loc ),
+			);
+		}
+
+		if ( $filter_on ) { $this->tourn_filter_bar( $rows ); }
+
+		$cal    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
+		$pin    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+		$person = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>';
+		$tag    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.6 13.4 12 22l-8.6-8.6a2 2 0 0 1-.6-1.4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 1.4.6l8.4 8.4a2 2 0 0 1 0 2.8z" transform="scale(.9) translate(1 1)"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>';
+		$btn    = trim( (string) ( $s->tourn_btn ?? '' ) );
+		if ( '' === $btn ) { $btn = 'event' === $style ? __( 'View Event Details', 'ds-toolkit' ) : __( 'View More', 'ds-toolkit' ); }
+		$badge  = 'event' === $style ? trim( (string) ( $s->tn_badge ?? __( 'Tournament', 'ds-toolkit' ) ) ) : '';
+
+		$this->loop_open( 'ds-tourn-grid' );
+		foreach ( $rows as $r ) {
+			$data = '';
+			if ( $filter_on ) {
+				$q     = strtolower( $r['title'] . ' ' . $r['loc'] . ' ' . implode( ' ', $r['division'] ) . ' ' . implode( ' ', $r['gender'] ) );
+				$data  = ' data-gender="' . esc_attr( strtolower( implode( ' ', $r['gender'] ) ) ) . '"';
+				$data .= ' data-state="' . esc_attr( $r['state'] ) . '"';
+				$data .= ' data-q="' . esc_attr( $q ) . '"';
+			}
+			echo '<a class="ds-tourn-card' . ( 'event' === $style ? ' ds-tourn-card--event' : '' ) . '" href="' . esc_url( $r['url'] ) . '"' . $data . '>';
+			echo '<div class="ds-tourn-img"' . ( $r['feat'] ? ' style="background-image:url(' . esc_url( $r['feat'] ) . ')"' : '' ) . '>';
+			if ( 'event' === $style && '' !== $badge ) { echo '<span class="ds-tourn-badge">' . esc_html( $badge ) . '</span>'; }
+			if ( '' !== $r['logo'] ) { echo '<span class="ds-tourn-logo"><img src="' . esc_url( $r['logo'] ) . '" alt="" loading="lazy" /></span>'; }
 			echo '</div>';
 			echo '<div class="ds-tourn-body">';
-			echo '<h3 class="ds-tourn-title">' . DS_Module_UI::inline( $title ) . '</h3>';
+			echo '<h3 class="ds-tourn-title">' . DS_Module_UI::inline( $r['title'] ) . '</h3>';
 			echo '<div class="ds-tourn-meta">';
-			if ( '' !== $it['raw'] ) { echo '<span class="ds-tourn-date">' . $cal . '<span>' . esc_html( $it['raw'] ) . '</span></span>'; }
-			if ( '' !== $loc )       { echo '<span class="ds-tourn-loc">' . $pin . '<span>' . esc_html( $loc ) . '</span></span>'; }
+			if ( '' !== $r['date'] ) { echo '<span class="ds-tourn-date">' . $cal . '<span>' . esc_html( $r['date'] ) . '</span></span>'; }
+			if ( '' !== $r['loc'] )  { echo '<span class="ds-tourn-loc">' . $pin . '<span>' . esc_html( $r['loc'] ) . '</span></span>'; }
+			if ( 'event' === $style && ! empty( $r['gender'] ) ) {
+				echo '<span class="ds-tourn-row">' . $person . '<span class="ds-tourn-chips"><span class="ds-tourn-chip">' . esc_html( implode( ', ', $r['gender'] ) ) . '</span></span></span>';
+			}
+			if ( 'event' === $style && ! empty( $r['division'] ) ) {
+				echo '<span class="ds-tourn-row">' . $tag . '<span class="ds-tourn-chips">';
+				foreach ( $r['division'] as $d ) { echo '<span class="ds-tourn-chip">' . esc_html( $d ) . '</span>'; }
+				echo '</span></span>';
+			}
 			echo '</div>';
-			echo '<span class="ds-tourn-btn">' . esc_html( $btn ) . '</span>';
+			echo '<span class="ds-tourn-btn' . ( 'event' === $style ? ' ds-tourn-btn--full' : '' ) . '">' . esc_html( $btn ) . '</span>';
 			echo '</div></a>';
 		}
 		$this->loop_close();
+		if ( $filter_on ) { echo '<p class="ds-tourn-none" hidden>' . esc_html__( 'No events match your filters.', 'ds-toolkit' ) . '</p>'; }
 		echo '</div></section>';
 	}
 
@@ -1257,6 +1341,28 @@ $ds_pl_form = array(
 				'title'       => __( 'Tournament Cards', 'ds-toolkit' ),
 				'description' => __( 'Ordering is automatic: upcoming events first, sorted by the Event Date field, with past events hidden. (The Query tab\'s Order By / Order do not apply to this layout.)', 'ds-toolkit' ),
 				'fields' => array(
+					'tn_style'       => array(
+						'type'    => 'select',
+						'label'   => __( 'Card Style', 'ds-toolkit' ),
+						'default' => 'overlap',
+						'options' => array(
+							'overlap' => __( 'Classic — overlapping details card', 'ds-toolkit' ),
+							'event'   => __( 'Event Card — badge, details list, filter-ready', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'overlap' => array( 'fields' => array( 'tn_overlap', 'tn_inset', 'tn_align', 'tn_logo_shape' ) ),
+							'event'   => array( 'fields' => array( 'tn_badge', 'tn_filter' ) ),
+						),
+						'help'    => __( 'Event Card: flat card with a badge pill on the image, left-aligned date/location plus gender & division chips, and a full-width button. Supports the filter bar.', 'ds-toolkit' ),
+					),
+					'tn_badge'       => array( 'type' => 'text', 'label' => __( 'Badge Text', 'ds-toolkit' ), 'default' => 'Tournament', 'help' => __( 'The pill shown at the top of the image. Blank = no badge.', 'ds-toolkit' ) ),
+					'tn_filter'      => array(
+						'type'    => 'select',
+						'label'   => __( 'Filter Bar', 'ds-toolkit' ),
+						'default' => 'disable',
+						'options' => array( 'disable' => __( 'Disable', 'ds-toolkit' ), 'enable' => __( 'Enable', 'ds-toolkit' ) ),
+						'help'    => __( 'Adds gender tabs, a state dropdown, a search box, and a live event count above the grid. Genders come from the event_gender field; states from event_state or the ", XX" tail of the Location.', 'ds-toolkit' ),
+					),
 					'tn_cols'        => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'slider' => array( 'min' => 1, 'max' => 5, 'step' => 1 ) ),
 					'tn_gap'         => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '28', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 					'tn_img_ratio'   => array( 'type' => 'select', 'label' => __( 'Image Ratio', 'ds-toolkit' ), 'default' => '16 / 10', 'options' => array( '16 / 9' => '16:9', '16 / 10' => '16:10', '4 / 3' => '4:3', '3 / 2' => '3:2', '1 / 1' => '1:1' ) ),

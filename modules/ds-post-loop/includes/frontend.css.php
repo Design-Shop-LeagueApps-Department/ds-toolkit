@@ -214,13 +214,22 @@ if ( ( $settings->card_layout ?? '' ) === 'tournament' ) {
 	$ar = preg_replace( '#[^0-9/ ]#', '', (string) ( $settings->tn_img_ratio ?? '16 / 10' ) ); if ( '' === trim( $ar ) ) { $ar = '16 / 10'; }
 	echo "$node .ds-tourn-img{aspect-ratio:$ar;}\n";
 	$ls = $u( $settings->tn_logo_size ?? '', 96 );
-	$lsh = ( ( $settings->tn_logo_shape ?? 'circle' ) === 'square' ) ? '14px' : '50%';
-	echo "$node .ds-tourn-logo{width:{$ls}px;height:{$ls}px;border-radius:{$lsh};}\n";
 	$trad = ( isset( $settings->tn_radius ) && '' !== $settings->tn_radius ) ? ( (int) $settings->tn_radius ) . 'px' : 'var(--ds-radius)';
-	echo "$node .ds-tourn-img,$node .ds-tourn-body{border-radius:{$trad};}\n";
-	$ov = $u( $settings->tn_overlap ?? '', 48 ); $ins = $u( $settings->tn_inset ?? '', 18 ); $tpad = $u( $settings->tn_pad ?? '', 24 );
-	$tal = ( ( $settings->tn_align ?? 'center' ) === 'left' ) ? 'left' : 'center'; $tai = ( 'left' === $tal ) ? 'flex-start' : 'center';
-	echo "$node .ds-tourn-body{margin:-{$ov}px {$ins}px 0;padding:{$tpad}px;text-align:{$tal};align-items:{$tai};}\n";
+	$tpad = $u( $settings->tn_pad ?? '', 24 );
+	if ( ( $settings->tn_style ?? 'overlap' ) === 'event' ) {
+		// Event Card: flat white card (radius on the card, image square inside),
+		// left-aligned details, plain centred logo (no white circle chrome).
+		echo "$node .ds-tourn-card{border-radius:{$trad};}\n";
+		echo "$node .ds-tourn-logo{width:{$ls}px;height:{$ls}px;border-radius:0;}\n";
+		echo "$node .ds-tourn-body{margin:0;padding:{$tpad}px;text-align:left;align-items:stretch;}\n";
+	} else {
+		$lsh = ( ( $settings->tn_logo_shape ?? 'circle' ) === 'square' ) ? '14px' : '50%';
+		echo "$node .ds-tourn-logo{width:{$ls}px;height:{$ls}px;border-radius:{$lsh};}\n";
+		echo "$node .ds-tourn-img,$node .ds-tourn-body{border-radius:{$trad};}\n";
+		$ov = $u( $settings->tn_overlap ?? '', 48 ); $ins = $u( $settings->tn_inset ?? '', 18 );
+		$tal = ( ( $settings->tn_align ?? 'center' ) === 'left' ) ? 'left' : 'center'; $tai = ( 'left' === $tal ) ? 'flex-start' : 'center';
+		echo "$node .ds-tourn-body{margin:-{$ov}px {$ins}px 0;padding:{$tpad}px;text-align:{$tal};align-items:{$tai};}\n";
+	}
 	$c = $col( $settings->tn_card_bg ?? '' );    if ( $c ) { echo "$node .ds-tourn-body{background:{$c};}\n"; }
 	$c = $col( $settings->tn_title_color ?? '' ); if ( $c ) { echo "$node .ds-tourn-title{color:{$c};}\n"; }
 	$c = $col( $settings->tn_meta_color ?? '' );  if ( $c ) { echo "$node .ds-tourn-date,$node .ds-tourn-loc{color:{$c};}\n"; }
