@@ -699,6 +699,19 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	}
 
 	/** Tournament Cards — upcoming events (by the event_date ACF field), image with an overlapping details card. */
+	/** Options for the Event Card filter Tabs Source: none, the event_gender field, or any public taxonomy. */
+	public static function tourn_tab_options() {
+		$opts = array(
+			''                  => __( 'None (hide tabs)', 'ds-toolkit' ),
+			'meta:event_gender' => __( 'Gender field (event_gender)', 'ds-toolkit' ),
+		);
+		foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $tax ) {
+			if ( 'post_format' === $tax->name ) { continue; }
+			$opts[ 'tax:' . $tax->name ] = sprintf( __( 'Taxonomy: %s (%s)', 'ds-toolkit' ), $tax->label, $tax->name );
+		}
+		return $opts;
+	}
+
 	/** Read an event meta value as a trimmed list (ACF checkbox array or comma text). */
 	private function tourn_list( $pid, $key ) {
 		$v = function_exists( 'get_field' ) ? get_field( $key, $pid ) : get_post_meta( $pid, $key, true );
@@ -713,30 +726,58 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		return strtoupper( $st );
 	}
 
-	/** The Event Card filter bar: gender tabs + state dropdown + search + live count. */
+	/**
+	 * The values that drive the filter TABS (and the row eyebrow / grid chips)
+	 * for one event, per the developer-chosen source: a taxonomy ("tax:<slug>"),
+	 * a meta/ACF field ("meta:<key>", default event_gender), or none.
+	 */
+	private function tourn_tab_values( $pid, $src ) {
+		if ( '' === $src ) { return array(); }
+		if ( 0 === strpos( $src, 'tax:' ) ) {
+			$terms = get_the_terms( $pid, substr( $src, 4 ) );
+			return ( $terms && ! is_wp_error( $terms ) ) ? array_values( wp_list_pluck( $terms, 'name' ) ) : array();
+		}
+		if ( 0 === strpos( $src, 'meta:' ) ) {
+			return $this->tourn_list( $pid, substr( $src, 5 ) );
+		}
+		return array();
+	}
+
+	/** The Event Card filter bar. Every element is developer-configurable: tabs source, state dropdown, search, count. */
 	private function tourn_filter_bar( $rows ) {
-		$genders = array(); $states = array();
+		$s          = $this->settings;
+		$show_state  = ( $s->tn_filter_state ?? 'show' ) === 'show';
+		$show_search = ( $s->tn_filter_search ?? 'show' ) === 'show';
+		$show_count  = ( $s->tn_filter_count ?? 'show' ) === 'show';
+
+		$tabs = array(); $states = array();
 		foreach ( $rows as $r ) {
-			foreach ( $r['gender'] as $g ) { $genders[ strtolower( $g ) ] = $g; }
+			foreach ( $r['tabs'] as $t ) { $tabs[ strtolower( $t ) ] = $t; }
 			if ( '' !== $r['state'] ) { $states[ $r['state'] ] = $r['state'] ; }
 		}
-		ksort( $genders ); ksort( $states );
+		ksort( $tabs ); ksort( $states );
 		$pin  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
 		$mag  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>';
 		echo '<div class="ds-tourn-filter">';
-		echo '<div class="ds-tourn-tabs" role="group" aria-label="' . esc_attr__( 'Filter by gender', 'ds-toolkit' ) . '">';
-		echo '<button type="button" class="ds-tourn-tab is-active" data-gender="">' . esc_html__( 'All', 'ds-toolkit' ) . '</button>';
-		foreach ( $genders as $key => $label ) {
-			echo '<button type="button" class="ds-tourn-tab" data-gender="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</button>';
+		if ( ! empty( $tabs ) ) {
+			echo '<div class="ds-tourn-tabs" role="group" aria-label="' . esc_attr__( 'Filter events', 'ds-toolkit' ) . '">';
+			echo '<button type="button" class="ds-tourn-tab is-active" data-tab="">' . esc_html__( 'All', 'ds-toolkit' ) . '</button>';
+			foreach ( $tabs as $key => $label ) {
+				echo '<button type="button" class="ds-tourn-tab" data-tab="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</button>';
+			}
+			echo '</div>';
 		}
-		echo '</div>';
-		if ( ! empty( $states ) ) {
+		if ( $show_state && ! empty( $states ) ) {
 			echo '<label class="ds-tourn-state">' . $pin . '<select aria-label="' . esc_attr__( 'Filter by state', 'ds-toolkit' ) . '"><option value="">' . esc_html__( 'All states', 'ds-toolkit' ) . '</option>';
 			foreach ( $states as $st ) { echo '<option value="' . esc_attr( $st ) . '">' . esc_html( $st ) . '</option>'; }
 			echo '</select></label>';
 		}
-		echo '<div class="ds-tourn-search">' . $mag . '<input type="search" placeholder="' . esc_attr__( 'Search events…', 'ds-toolkit' ) . '" aria-label="' . esc_attr__( 'Search events', 'ds-toolkit' ) . '"></div>';
-		echo '<span class="ds-tourn-count">' . count( $rows ) . ' ' . esc_html( 1 === count( $rows ) ? __( 'event', 'ds-toolkit' ) : __( 'events', 'ds-toolkit' ) ) . '</span>';
+		if ( $show_search ) {
+			echo '<div class="ds-tourn-search">' . $mag . '<input type="search" placeholder="' . esc_attr__( 'Search events…', 'ds-toolkit' ) . '" aria-label="' . esc_attr__( 'Search events', 'ds-toolkit' ) . '"></div>';
+		}
+		if ( $show_count ) {
+			echo '<span class="ds-tourn-count">' . count( $rows ) . ' ' . esc_html( 1 === count( $rows ) ? __( 'event', 'ds-toolkit' ) : __( 'events', 'ds-toolkit' ) ) . '</span>';
+		}
 		echo '</div>';
 	}
 
@@ -769,7 +810,9 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '</div></section>'; return;
 		}
 
-		// Enriched rows (the Event Card style + filter bar read gender/division/state).
+		// Enriched rows (the Event Card style + filter bar read tabs/division/state).
+		// The tab facet is developer-chosen: a taxonomy, a meta field, or none.
+		$tabsrc = (string) ( $s->tn_filter_tabs ?? 'meta:event_gender' );
 		$rows = array();
 		foreach ( $items as $it ) {
 			$p = $it['p']; $pid = $p->ID;
@@ -785,7 +828,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 				'feat'     => $feat,
 				'logo'     => $this->acf_image_url( ( function_exists( 'get_field' ) ? get_field( 'event_image', $pid ) : '' ) ?: '' ),
 				'loc'      => $loc,
-				'gender'   => $this->tourn_list( $pid, 'event_gender' ),
+				'tabs'     => $this->tourn_tab_values( $pid, $tabsrc ),
 				'division' => $this->tourn_list( $pid, 'event_division' ),
 				'state'    => $this->tourn_state( $pid, $loc ),
 			);
@@ -806,8 +849,8 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		foreach ( $rows as $r ) {
 			$data = '';
 			if ( $filter_on ) {
-				$q     = strtolower( $r['title'] . ' ' . $r['loc'] . ' ' . implode( ' ', $r['division'] ) . ' ' . implode( ' ', $r['gender'] ) );
-				$data  = ' data-gender="' . esc_attr( strtolower( implode( ' ', $r['gender'] ) ) ) . '"';
+				$q     = strtolower( $r['title'] . ' ' . $r['loc'] . ' ' . implode( ' ', $r['division'] ) . ' ' . implode( ' ', $r['tabs'] ) );
+				$data  = ' data-tabs="' . esc_attr( strtolower( implode( ' ', $r['tabs'] ) ) ) . '"';
 				$data .= ' data-state="' . esc_attr( $r['state'] ) . '"';
 				$data .= ' data-q="' . esc_attr( $q ) . '"';
 			}
@@ -821,7 +864,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 				$thumb = $r['logo'] ?: $r['feat'];
 				if ( '' !== $thumb ) { echo '<span class="ds-tourn-thumb"><img src="' . esc_url( $thumb ) . '" alt="" loading="lazy" /></span>'; }
 				echo '<span class="ds-tourn-rowmain">';
-				if ( ! empty( $r['gender'] ) ) { echo '<span class="ds-tourn-eyebrow">' . esc_html( implode( ' & ', $r['gender'] ) ) . '</span>'; }
+				if ( ! empty( $r['tabs'] ) ) { echo '<span class="ds-tourn-eyebrow">' . esc_html( implode( ' & ', $r['tabs'] ) ) . '</span>'; }
 				echo '<h3 class="ds-tourn-title">' . DS_Module_UI::inline( $r['title'] ) . '</h3>';
 				echo '<span class="ds-tourn-rowmeta">';
 				if ( '' !== $r['loc'] )  { echo '<span class="ds-tourn-loc">' . $pin . '<span>' . esc_html( $r['loc'] ) . '</span></span>'; }
@@ -848,8 +891,8 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '<div class="ds-tourn-meta">';
 			if ( '' !== $r['date'] ) { echo '<span class="ds-tourn-date">' . $cal . '<span>' . esc_html( $r['date'] ) . '</span></span>'; }
 			if ( '' !== $r['loc'] )  { echo '<span class="ds-tourn-loc">' . $pin . '<span>' . esc_html( $r['loc'] ) . '</span></span>'; }
-			if ( 'event' === $style && ! empty( $r['gender'] ) ) {
-				echo '<span class="ds-tourn-row">' . $person . '<span class="ds-tourn-chips"><span class="ds-tourn-chip">' . esc_html( implode( ', ', $r['gender'] ) ) . '</span></span></span>';
+			if ( 'event' === $style && ! empty( $r['tabs'] ) ) {
+				echo '<span class="ds-tourn-row">' . $person . '<span class="ds-tourn-chips"><span class="ds-tourn-chip">' . esc_html( implode( ', ', $r['tabs'] ) ) . '</span></span></span>';
 			}
 			if ( 'event' === $style && ! empty( $r['division'] ) ) {
 				echo '<span class="ds-tourn-row">' . $tag . '<span class="ds-tourn-chips">';
@@ -1006,7 +1049,7 @@ $ds_pl_form = array(
 							'custom'         => array( 'sections' => array( 'header', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'sponsor'        => array( 'sections' => array( 'header', 'sponsors_sec', 'sponsor_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
 							'program'        => array( 'sections' => array( 'header', 'programs_sec', 'program_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
-							'tournament'     => array( 'sections' => array( 'header', 'query', 'query_filter', 'tournament_opts', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'tournament'     => array( 'sections' => array( 'header', 'query', 'query_filter', 'tn_filter_opts', 'tournament_opts', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 						),
 					),
 				),
@@ -1183,6 +1226,45 @@ $ds_pl_form = array(
 				// Fields injected after the form is defined (one term-suggest field per
 				// public taxonomy, revealed by the Taxonomy selector's toggle).
 				'fields' => array(),
+			),
+			'tn_filter_opts' => array(
+				'title'       => __( 'Filter Bar (Event Card)', 'ds-toolkit' ),
+				'description' => __( 'The front-end filter bar above the Tournament "Event Card" grid/list. Every element is optional and developer-configured here — nothing is hard-coded.', 'ds-toolkit' ),
+				'fields'      => array(
+					'tn_filter'        => array(
+						'type'    => 'select',
+						'label'   => __( 'Filter Bar', 'ds-toolkit' ),
+						'default' => 'disable',
+						'options' => array( 'disable' => __( 'Disable', 'ds-toolkit' ), 'enable' => __( 'Enable', 'ds-toolkit' ) ),
+						'toggle'  => array( 'enable' => array( 'fields' => array( 'tn_filter_tabs', 'tn_filter_state', 'tn_filter_search', 'tn_filter_count' ) ) ),
+					),
+					'tn_filter_tabs'   => array(
+						'type'    => 'select',
+						'label'   => __( 'Tabs Source', 'ds-toolkit' ),
+						'default' => 'meta:event_gender',
+						'options' => DS_Post_Loop_Module::tourn_tab_options(),
+						'help'    => __( 'What drives the tab pills (All / …): any public taxonomy of the queried post type, the event_gender field, or none. The same values feed the row eyebrow and the card chips.', 'ds-toolkit' ),
+					),
+					'tn_filter_state'  => array(
+						'type'    => 'select',
+						'label'   => __( 'State Dropdown', 'ds-toolkit' ),
+						'default' => 'show',
+						'options' => array( 'show' => __( 'Show', 'ds-toolkit' ), 'hide' => __( 'Hide', 'ds-toolkit' ) ),
+						'help'    => __( 'Built from each event\'s State field (event_state), falling back to the ", XX" tail of the Location address. Hidden automatically when no event has a state.', 'ds-toolkit' ),
+					),
+					'tn_filter_search' => array(
+						'type'    => 'select',
+						'label'   => __( 'Search Box', 'ds-toolkit' ),
+						'default' => 'show',
+						'options' => array( 'show' => __( 'Show', 'ds-toolkit' ), 'hide' => __( 'Hide', 'ds-toolkit' ) ),
+					),
+					'tn_filter_count'  => array(
+						'type'    => 'select',
+						'label'   => __( 'Event Count', 'ds-toolkit' ),
+						'default' => 'show',
+						'options' => array( 'show' => __( 'Show', 'ds-toolkit' ), 'hide' => __( 'Hide', 'ds-toolkit' ) ),
+					),
+				),
 			),
 		),
 	),
@@ -1397,13 +1479,6 @@ $ds_pl_form = array(
 						'help'    => __( 'List renders each event as a full-width row: date tile, logo, gender + title + location, division chips, and a Register button.', 'ds-toolkit' ),
 					),
 					'tn_badge'       => array( 'type' => 'text', 'label' => __( 'Badge Text', 'ds-toolkit' ), 'default' => 'Tournament', 'help' => __( 'The pill shown at the top of the image. Blank = no badge.', 'ds-toolkit' ) ),
-					'tn_filter'      => array(
-						'type'    => 'select',
-						'label'   => __( 'Filter Bar', 'ds-toolkit' ),
-						'default' => 'disable',
-						'options' => array( 'disable' => __( 'Disable', 'ds-toolkit' ), 'enable' => __( 'Enable', 'ds-toolkit' ) ),
-						'help'    => __( 'Adds gender tabs, a state dropdown, a search box, and a live event count above the grid. Genders come from the event_gender field; states from event_state or the ", XX" tail of the Location.', 'ds-toolkit' ),
-					),
 					'tn_cols'        => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'slider' => array( 'min' => 1, 'max' => 5, 'step' => 1 ) ),
 					'tn_gap'         => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '28', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 					'tn_img_ratio'   => array( 'type' => 'select', 'label' => __( 'Image Ratio', 'ds-toolkit' ), 'default' => '16 / 10', 'options' => array( '16 / 9' => '16:9', '16 / 10' => '16:10', '4 / 3' => '4:3', '3 / 2' => '3:2', '1 / 1' => '1:1' ) ),
