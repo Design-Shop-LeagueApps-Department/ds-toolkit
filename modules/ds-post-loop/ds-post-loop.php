@@ -699,15 +699,30 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	}
 
 	/** Tournament Cards — upcoming events (by the event_date ACF field), image with an overlapping details card. */
-	/** Options for the Event Card filter Tabs Source: none, the event_gender field, or any public taxonomy. */
+	/**
+	 * Options for the Event Card filter Tabs Source. Nothing is invented here:
+	 * the list is discovered live from (a) every taxonomy with an admin UI —
+	 * whose TERMS partners edit in the normal WP screens — and (b) every ACF
+	 * choice field (select / checkbox / radio / button group) registered on the
+	 * site. Labelled with the post types they belong to so devs pick the right
+	 * facet for the queried post type.
+	 */
 	public static function tourn_tab_options() {
-		$opts = array(
-			''                  => __( 'None (hide tabs)', 'ds-toolkit' ),
-			'meta:event_gender' => __( 'Gender field (event_gender)', 'ds-toolkit' ),
-		);
-		foreach ( get_taxonomies( array( 'public' => true ), 'objects' ) as $tax ) {
-			if ( 'post_format' === $tax->name ) { continue; }
-			$opts[ 'tax:' . $tax->name ] = sprintf( __( 'Taxonomy: %s (%s)', 'ds-toolkit' ), $tax->label, $tax->name );
+		$opts = array( '' => __( 'None (hide tabs)', 'ds-toolkit' ) );
+		$skip = array( 'post_format', 'nav_menu', 'link_category', 'wp_theme', 'wp_template_part_area', 'fl-builder-template-category', 'fl-builder-template-type' );
+		foreach ( get_taxonomies( array( 'show_ui' => true ), 'objects' ) as $tax ) {
+			if ( in_array( $tax->name, $skip, true ) ) { continue; }
+			$types = implode( ', ', (array) $tax->object_type );
+			$opts[ 'tax:' . $tax->name ] = sprintf( __( 'Taxonomy: %1$s — on: %2$s', 'ds-toolkit' ), $tax->label, $types );
+		}
+		if ( function_exists( 'acf_get_field_groups' ) && function_exists( 'acf_get_fields' ) ) {
+			foreach ( acf_get_field_groups() as $group ) {
+				foreach ( (array) acf_get_fields( $group ) as $field ) {
+					if ( in_array( $field['type'], array( 'select', 'checkbox', 'radio', 'button_group' ), true ) ) {
+						$opts[ 'meta:' . $field['name'] ] = sprintf( __( 'ACF field: %1$s (%2$s)', 'ds-toolkit' ), $field['label'], $group['title'] );
+					}
+				}
+			}
 		}
 		return $opts;
 	}
@@ -812,7 +827,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 		// Enriched rows (the Event Card style + filter bar read tabs/division/state).
 		// The tab facet is developer-chosen: a taxonomy, a meta field, or none.
-		$tabsrc = (string) ( $s->tn_filter_tabs ?? 'meta:event_gender' );
+		$tabsrc = (string) ( $s->tn_filter_tabs ?? 'tax:event_gender' );
 		$rows = array();
 		foreach ( $items as $it ) {
 			$p = $it['p']; $pid = $p->ID;
@@ -1241,9 +1256,9 @@ $ds_pl_form = array(
 					'tn_filter_tabs'   => array(
 						'type'    => 'select',
 						'label'   => __( 'Tabs Source', 'ds-toolkit' ),
-						'default' => 'meta:event_gender',
+						'default' => 'tax:event_gender',
 						'options' => DS_Post_Loop_Module::tourn_tab_options(),
-						'help'    => __( 'What drives the tab pills (All / …): any public taxonomy of the queried post type, the event_gender field, or none. The same values feed the row eyebrow and the card chips.', 'ds-toolkit' ),
+						'help'    => __( 'What drives the tab pills (All / …): pick a taxonomy or an ACF choice field of the queried post type. Taxonomy terms are partner-editable in the normal WP admin (e.g. Events → Gender); the same values feed the row eyebrow and the card chips.', 'ds-toolkit' ),
 					),
 					'tn_filter_state'  => array(
 						'type'    => 'select',

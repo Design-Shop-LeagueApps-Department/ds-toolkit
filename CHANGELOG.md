@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.35] - 2026-07-17
+### Changed
+- **Tournament filter tabs now come from real, partner-editable structures -- nothing invented.** A proper **Gender taxonomy** (`event_gender`) registers on the events CPT wherever it exists: partners add/rename genders under **Events -> Gender** and tick them on each event's edit screen -- no PHP, no field-group editing. The Tabs Source picker is now discovered live: every taxonomy with an admin UI (labelled with its post types) plus every ACF choice field (select/checkbox/radio/button group) on the site. Default tab source is the Gender taxonomy.
+
 ## [1.9.34] - 2026-07-17
 ### Changed
 - **Tournament filter bar is now fully developer-configurable (nothing hard-coded).** New "Filter Bar (Event Card)" section on the Query tab: **Tabs Source** picks what drives the tab pills -- any public taxonomy, the event_gender field, or none (the same values feed the row eyebrow and card chips); **State Dropdown** (from event_state / the ", XX" address tail) can be shown or hidden; **Search Box** and **Event Count** each get their own show/hide. Defaults keep the previous behaviour, so existing modules render unchanged.
