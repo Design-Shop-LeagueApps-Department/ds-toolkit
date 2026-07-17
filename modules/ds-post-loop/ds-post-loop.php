@@ -827,7 +827,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 		// Enriched rows (the Event Card style + filter bar read tabs/division/state).
 		// The tab facet is developer-chosen: a taxonomy, a meta field, or none.
-		$tabsrc = (string) ( $s->tn_filter_tabs ?? 'tax:event_gender' );
+		$tabsrc = (string) ( $s->tn_filter_tabs ?? '' );
 		$rows = array();
 		foreach ( $items as $it ) {
 			$p = $it['p']; $pid = $p->ID;
@@ -1256,9 +1256,9 @@ $ds_pl_form = array(
 					'tn_filter_tabs'   => array(
 						'type'    => 'select',
 						'label'   => __( 'Tabs Source', 'ds-toolkit' ),
-						'default' => 'tax:event_gender',
+						'default' => '',
 						'options' => DS_Post_Loop_Module::tourn_tab_options(),
-						'help'    => __( 'What drives the tab pills (All / …): pick a taxonomy or an ACF choice field of the queried post type. Taxonomy terms are partner-editable in the normal WP admin (e.g. Events → Gender); the same values feed the row eyebrow and the card chips.', 'ds-toolkit' ),
+						'help'    => __( 'What drives the tab pills (All / …): pick any taxonomy or ACF choice field that exists on THIS site for the queried post type. The plugin registers nothing itself — if the site has no suitable taxonomy, create one (e.g. via ACF → Taxonomies) or leave tabs off. The chosen values also feed the row eyebrow and the card chips.', 'ds-toolkit' ),
 					),
 					'tn_filter_state'  => array(
 						'type'    => 'select',
