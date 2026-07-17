@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.36] - 2026-07-17
+### Changed
+- **The plugin registers NO taxonomy for the tournament filter.** v1.9.35's code-registered `event_gender` taxonomy is removed: a code-registered taxonomy is invisible in the site's taxonomy tooling and unmanageable by devs. The filter's Tabs Source is purely a select of what already exists on the site (taxonomies with an admin UI + ACF choice fields), defaulting to **None**. Sites that want a Gender facet create the taxonomy with their own tooling (e.g. ACF -> Taxonomies) -- the DSLP6 blueprint now ships one exactly that way.
+
 ## [1.9.35] - 2026-07-17
 ### Changed
 - **Tournament filter tabs now come from real, partner-editable structures -- nothing invented.** A proper **Gender taxonomy** (`event_gender`) registers on the events CPT wherever it exists: partners add/rename genders under **Events -> Gender** and tick them on each event's edit screen -- no PHP, no field-group editing. The Tabs Source picker is now discovered live: every taxonomy with an admin UI (labelled with its post types) plus every ACF choice field (select/checkbox/radio/button group) on the site. Default tab source is the Gender taxonomy.
