@@ -108,7 +108,8 @@ class DS_Menu_Module extends FLBuilderModule {
 		}
 		$this->mega_use_picker = ! empty( $this->mega_map );
 
-		echo '<nav class="ds-menu-wrap" aria-label="' . esc_attr__( 'Primary', 'ds-toolkit' ) . '">';
+		$mstyle = ( ( $s->mobile_menu_style ?? 'drill' ) === 'overlay' ) ? 'overlay' : 'drill';
+		echo '<nav class="ds-menu-wrap' . ( 'drill' === $mstyle ? ' ds-menu-wrap--drill' : '' ) . '" aria-label="' . esc_attr__( 'Primary', 'ds-toolkit' ) . '">';
 
 		// Hamburger toggle (animates into an X via CSS when the overlay opens).
 		echo '<button type="button" class="ds-menu-toggle" aria-expanded="false" aria-label="' . esc_attr__( 'Toggle menu', 'ds-toolkit' ) . '">';
@@ -363,12 +364,22 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 			'resp'   => array(
 				'title'  => __( 'Responsive', 'ds-toolkit' ),
 				'fields' => array(
+					'mobile_menu_style' => array(
+						'type'    => 'select',
+						'label'   => __( 'Mobile Menu Style', 'ds-toolkit' ),
+						'default' => 'drill',
+						'options' => array(
+							'drill'   => __( 'Drill-down drawer (one level per panel)', 'ds-toolkit' ),
+							'overlay' => __( 'Overlay with accordions (legacy)', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Drill-down: submenus slide in one level at a time with a back control (Stripe-style); parents with their own URL get an "Overview" row. Desktop is unaffected. Menu content stays editable in Appearance → Menus.', 'ds-toolkit' ),
+					),
 					'breakpoint'   => array(
 						'type'        => 'unit',
 						'label'       => __( 'Mobile Breakpoint', 'ds-toolkit' ),
 						'default'     => '1000',
 						'description' => 'px',
-						'help'        => __( 'At or below this width the menu collapses to a full-screen hamburger overlay.', 'ds-toolkit' ),
+						'help'        => __( 'At or below this width the menu collapses to the hamburger menu.', 'ds-toolkit' ),
 					),
 					'toggle_label' => array(
 						'type'    => 'text',

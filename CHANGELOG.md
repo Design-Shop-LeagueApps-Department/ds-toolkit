@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.37] - 2026-07-17
+### Added
+- **Menu: drill-down mobile drawer -- the new default mobile style.** New Style -> Responsive -> **Mobile Menu Style**: "Drill-down drawer" (default) renders the mobile menu Stripe-style -- one level per sliding panel, a back row showing the parent's label, and an "Overview" link row for parents with their own URL. Panels are built live from the rendered WP menu, so content stays fully editable in Appearance -> Menus (any depth; mega panels flatten into drill levels; the CTA item keeps its button styling). All existing Mobile Overlay settings drive the drawer (background, text, hover/accent, dividers, typography, CTA colours). Desktop menus are unchanged; "Overlay with accordions (legacy)" remains selectable per module. NOTE: this default deliberately applies fleet-wide -- existing mobile menus switch to drill-down on update; pick Overlay on any module that should keep the old behaviour.
+
 ## [1.9.36] - 2026-07-17
 ### Changed
 - **The plugin registers NO taxonomy for the tournament filter.** v1.9.35's code-registered `event_gender` taxonomy is removed: a code-registered taxonomy is invisible in the site's taxonomy tooling and unmanageable by devs. The filter's Tabs Source is purely a select of what already exists on the site (taxonomies with an admin UI + ACF choice fields), defaulting to **None**. Sites that want a Gender facet create the taxonomy with their own tooling (e.g. ACF -> Taxonomies) -- the DSLP6 blueprint now ships one exactly that way.

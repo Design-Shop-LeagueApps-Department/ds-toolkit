@@ -369,6 +369,30 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		$md_border = '0';
 	}
 	?>
+	<?php if ( ( $settings->mobile_menu_style ?? 'drill' ) !== 'overlay' ) : ?>
+	<?php
+	/* Drill-down drawer (default mobile style). The legacy overlay panel is hidden;
+	   the drawer inherits ALL the module's Mobile Overlay settings as custom props,
+	   so nothing is hard-coded — colours, dividers, and the CTA follow the fields. */
+	$dr_mbg    = $col( $settings->button_mobile_bg ?? '' ) ?: $otext;
+	$dr_mtext  = $col( $settings->button_mobile_text ?? '' ) ?: ( $obg ?: 'var(--fl-global-dark-background)' );
+	$dr_mbgh   = $col( $settings->button_mobile_bg_hover ?? '' ) ?: $dr_mbg;
+	$dr_mtexth = $col( $settings->button_mobile_text_hover ?? '' ) ?: $dr_mtext;
+	?>
+	<?php echo $open; ?> .ds-menu { display: none !important; }
+	<?php echo $node; ?> .ds-drill {
+		--ds-drill-bg: <?php echo $obg ?: 'var(--fl-global-dark-background)'; ?>;
+		--ds-drill-text: <?php echo $otext; ?>;
+		--ds-drill-sub: <?php echo $osub; ?>;
+		--ds-drill-accent: <?php echo $otexthov ?: 'var(--fl-global-accent)'; ?>;
+		--ds-drill-cta-bg: <?php echo $dr_mbg; ?>;
+		--ds-drill-cta-text: <?php echo $dr_mtext; ?>;
+		--ds-drill-cta-bg-hover: <?php echo $dr_mbgh; ?>;
+		<?php if ( $oitembg ) : ?>--ds-drill-row-bg: <?php echo $oitembg; ?>;<?php endif; ?>
+	}
+	<?php echo $node; ?> .ds-drill-cta:hover { color: <?php echo $dr_mtexth; ?>; }
+	<?php echo $node; ?> .ds-drill-row, <?php echo $node; ?> .ds-drill-back, <?php echo $node; ?> .ds-drill-overview { border-bottom: <?php echo $md_border; ?>; }
+	<?php endif; ?>
 	/* Overlay items: stacked, large, full width */
 	<?php echo $open; ?> .ds-menu-item { position: static; width: 100%; border-bottom: <?php echo $md_border; ?>; }
 	<?php echo $open; ?> .ds-menu-item > a { padding: 14px 4px; color: <?php echo $otext; ?>; flex: 1; }
@@ -436,18 +460,20 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
  * so it overrides the 20px default set above.
  */
 if ( class_exists( 'FLBuilderCSS' ) ) {
+	// Top-level labels: overlay rows AND the drill drawer's root-panel rows.
 	FLBuilderCSS::typography_field_rule( array(
 		'settings'     => $settings,
 		'setting_name' => 'mobile_typography',
-		'selector'     => "$open .ds-menu > .ds-menu-item > a",
+		'selector'     => "$open .ds-menu > .ds-menu-item > a, $node .ds-drill-panel.is-root .ds-drill-row .ds-drill-label",
 	) );
 	// Mobile submenu / mega labels. Overlay-scoped selector (specificity beats the
 	// desktop dropdown_typography), so it wins inside the overlay; if left empty the
-	// desktop "Submenu Label Typography" carries through as the fallback.
+	// desktop "Submenu Label Typography" carries through as the fallback. Also
+	// covers the drill drawer's deeper-panel rows.
 	FLBuilderCSS::typography_field_rule( array(
 		'settings'     => $settings,
 		'setting_name' => 'mobile_subtypography',
-		'selector'     => "$open .ds-submenu a, $open .ds-mega a",
+		'selector'     => "$open .ds-submenu a, $open .ds-mega a, $node .ds-drill-panel:not(.is-root) .ds-drill-row .ds-drill-label",
 	) );
 }
 ?>
