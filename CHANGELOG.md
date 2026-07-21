@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.45] - 2026-07-22
+### Fixed
+- **Drill drawer fully respects the Mobile Overlay typography fields.** v1.9.43 hardened only font family/size, so BB's global button typography still painted weight/case/letter-spacing onto parent (<button>) rows, and the Style tab's Menu/Submenu typography (e.g. uppercase submenu labels on Manakoa) didn't reach the rows. Every typography property on rows, labels, and Overview now hard-inherits from the panel, and the panels carry the module's Menu Label / Submenu typography settings -- so the Style tab wins everywhere and button rows can never diverge from link rows. The back row keeps its compact style explicitly.
+
 ## [1.9.44] - 2026-07-22
 ### Fixed
 - **Updater can no longer destroy the plugin during the release window.** Right after a release is published there is a window where the tag exists but the built ds-toolkit.zip asset isn't attached yet; the updater fell back to GitHub's raw zipball, whose owner-repo-hash folder name breaks the plugin path -- and a failed unpack after the upgrader deletes the old folder left the plugin GONE from a live site (manakoavbc, restored). The updater now offers an update ONLY when the real asset exists; otherwise it waits for the next check.
