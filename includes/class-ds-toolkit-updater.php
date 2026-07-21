@@ -75,13 +75,22 @@ class DS_Toolkit_Updater {
         $current_version = DS_TOOLKIT_VERSION;
         $plugin_file     = $this->plugin_file();
 
-        if ( $this->is_newer_version( $latest_version, $current_version ) ) {
+        // Only offer the update once the built ds-toolkit.zip asset is attached.
+        // Right after a release is published there is a window where the tag
+        // exists but the Action hasn't uploaded the asset yet; offering the raw
+        // zipball in that window mangles the folder name and has DELETED the
+        // plugin from live sites (upgrader removes the old folder first — seen
+        // on manakoavbc 2026-07-22). No asset = pretend there's no update; the
+        // next check picks it up once the asset exists.
+        $package = $this->get_download_url( $release );
+
+        if ( '' !== $package && $this->is_newer_version( $latest_version, $current_version ) ) {
             $transient->response[ $plugin_file ] = (object) array(
                 'slug'        => $this->slug,
                 'plugin'      => $plugin_file,
                 'new_version' => $latest_version,
                 'url'         => 'https://github.com/' . $this->repo,
-                'package'     => $this->get_download_url( $release ),
+                'package'     => $package,
             );
         } else {
             // Plugin is up to date — clear any stale response entry and mark as checked.
@@ -228,8 +237,11 @@ class DS_Toolkit_Updater {
     }
 
     /**
-     * Prefer the attached release asset zip (correct folder name inside)
-     * over GitHub's raw zipball (which uses owner-repo-hash as folder name).
+     * The attached release asset zip ONLY (correct folder name inside).
+     * Never the raw zipball: its owner-repo-hash folder name breaks the
+     * active_plugins path, and a failed unpack after the upgrader deletes
+     * the old folder leaves the plugin GONE from the live site. When the
+     * asset isn't attached (yet), return '' and the caller skips the update.
      */
     private function get_download_url( $release ) {
         if ( ! empty( $release['assets'] ) ) {
@@ -239,7 +251,7 @@ class DS_Toolkit_Updater {
                 }
             }
         }
-        return $release['zipball_url'];
+        return '';
     }
 
     /**

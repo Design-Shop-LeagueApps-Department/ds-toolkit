@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.44] - 2026-07-22
+### Fixed
+- **Updater can no longer destroy the plugin during the release window.** Right after a release is published there is a window where the tag exists but the built ds-toolkit.zip asset isn't attached yet; the updater fell back to GitHub's raw zipball, whose owner-repo-hash folder name breaks the plugin path -- and a failed unpack after the upgrader deletes the old folder left the plugin GONE from a live site (manakoavbc, restored). The updater now offers an update ONLY when the real asset exists; otherwise it waits for the next check.
+
 ## [1.9.43] - 2026-07-22
 ### Fixed
 - **Drill drawer: parent and leaf rows now share the same font.** Parent rows are <button>s, so BB's global button typography (a display font on some sites, e.g. Manakoa) painted them differently from the anchor leaf rows. Rows and labels now hard-inherit font family/size, with the base size on the panel; the module's Mobile Overlay typography fields hook the panel, so they still restyle the whole drawer.
