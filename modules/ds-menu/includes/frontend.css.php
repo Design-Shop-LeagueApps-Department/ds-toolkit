@@ -391,6 +391,8 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		<?php if ( $oitembg ) : ?>--ds-drill-row-bg: <?php echo $oitembg; ?>;<?php endif; ?>
 	}
 	<?php echo $node; ?> .ds-drill-cta:hover { color: <?php echo $dr_mtexth; ?> !important; }
+	<?php $dlh = ( isset( $settings->drill_logo_height ) && '' !== $settings->drill_logo_height ) ? (int) $settings->drill_logo_height : 30; ?>
+	<?php echo $node; ?> .ds-drill-brand img { height: <?php echo $dlh; ?>px; }
 	<?php echo $node; ?> .ds-drill .ds-drill-row, <?php echo $node; ?> .ds-drill .ds-drill-back, <?php echo $node; ?> .ds-drill .ds-drill-overview { border-bottom: <?php echo $md_border; ?> !important; }
 	<?php if ( $oitembg ) : ?>
 	<?php /* Mirror the overlay's persistent top-level item background. */ ?>

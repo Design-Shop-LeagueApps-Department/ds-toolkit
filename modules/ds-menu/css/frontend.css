@@ -106,3 +106,10 @@ body.ds-menu-locked { overflow: hidden; }
 @media (prefers-reduced-motion:reduce){
   .ds-drill,.ds-drill-panel{transition:none;}
 }
+
+/* Drill drawer brand bar: persistent above the sliding panels. Right-aligned
+   variant pads past the pinned close X so they sit side by side. */
+.ds-drill-brand{position:absolute;top:0;left:0;right:0;height:64px;display:flex;align-items:center;z-index:3;padding:0 22px;pointer-events:none;}
+.ds-drill-brand--right{justify-content:flex-end;padding-right:76px;}
+.ds-drill-brand--left{justify-content:flex-start;}
+.ds-drill-brand img{height:30px;width:auto;max-width:200px;object-fit:contain;display:block;}

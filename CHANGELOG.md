@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.39] - 2026-07-22
+### Added
+- **Menu: drawer logo (drill style).** The drill-down drawer now shows the site logo in a persistent brand bar -- top right beside the close X by default, top left selectable. Settings under Style -> Mobile Overlay: show/hide, image override (blank = the Partner Logo from Partner Setting, then the site logo), position, and height (live preview).
+
 ## [1.9.38] - 2026-07-17
 ### Fixed
 - **Drill drawer colours are now deterministic.** Parent rows are <button>s and leaf rows are <a>s, so BB's global button styles and theme link colours could repaint them per site (verified live). All drawer colours/backgrounds now carry !important at .fl-builder-content scope -- the same hardening as the hamburger toggle -- and the overlay's persistent top-level item background (overlay_item_bg) is mirrored onto root drill rows.
