@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.46] - 2026-07-22
+### Fixed
+- **Drill drawer: full Style-tab parity audit.** Five Mobile Overlay settings the drawer previously ignored now apply with the same semantics as the legacy overlay: **Submenu Colour** (overlay_subtext) colours deeper-panel rows, **Submenu Hover** and **Submenu Background** apply per row, **Menu Item Hover/Active Colour** applies to root rows on hover (it already drove the accent chevrons/back), and the CTA honours **Full Width in Mobile Overlay = No** (compact pill instead of full-width). Already honored and re-verified: overlay background, item colour, item background, dividers, Menu/Submenu typography, CTA colours, drawer logo.
+
 ## [1.9.45] - 2026-07-22
 ### Fixed
 - **Drill drawer fully respects the Mobile Overlay typography fields.** v1.9.43 hardened only font family/size, so BB's global button typography still painted weight/case/letter-spacing onto parent (<button>) rows, and the Style tab's Menu/Submenu typography (e.g. uppercase submenu labels on Manakoa) didn't reach the rows. Every typography property on rows, labels, and Overview now hard-inherits from the panel, and the panels carry the module's Menu Label / Submenu typography settings -- so the Style tab wins everywhere and button rows can never diverge from link rows. The back row keeps its compact style explicitly.
