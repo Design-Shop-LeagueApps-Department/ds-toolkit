@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.43] - 2026-07-22
+### Fixed
+- **Drill drawer: parent and leaf rows now share the same font.** Parent rows are <button>s, so BB's global button typography (a display font on some sites, e.g. Manakoa) painted them differently from the anchor leaf rows. Rows and labels now hard-inherit font family/size, with the base size on the panel; the module's Mobile Overlay typography fields hook the panel, so they still restyle the whole drawer.
+
 ## [1.9.42] - 2026-07-22
 ### Added
 - **Divider: heading + logo caps (section-header treatment).** The horizontal divider gains an optional "Heading & Logo" section: a heading on the left ({a} accent and {outline} tokens supported, tag/colour/typography controls) and/or a logo on the right (blank image = Partner Logo -> site logo), with the line flex-filling between them and a configurable gap. Both default off, so every existing divider renders unchanged.
