@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.41] - 2026-07-22
+### Fixed
+- **Drawer logo no longer overlaps the close control.** The right-aligned brand bar now measures the pinned X + Hamburger Label at open time and pads past it (the label makes the toggle width variable, so a fixed inset could collide).
+
 ## [1.9.40] - 2026-07-22
 ### Fixed
 - **Drawer logo actually renders.** The v1.9.39 brand bar was wiped by the drawer reset on open (openRoot cleared the whole drawer). Panels now live in their own container, so the brand bar persists across opens and drills.
