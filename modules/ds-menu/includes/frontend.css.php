@@ -390,8 +390,12 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		--ds-drill-cta-bg-hover: <?php echo $dr_mbgh; ?>;
 		<?php if ( $oitembg ) : ?>--ds-drill-row-bg: <?php echo $oitembg; ?>;<?php endif; ?>
 	}
-	<?php echo $node; ?> .ds-drill-cta:hover { color: <?php echo $dr_mtexth; ?>; }
-	<?php echo $node; ?> .ds-drill-row, <?php echo $node; ?> .ds-drill-back, <?php echo $node; ?> .ds-drill-overview { border-bottom: <?php echo $md_border; ?>; }
+	<?php echo $node; ?> .ds-drill-cta:hover { color: <?php echo $dr_mtexth; ?> !important; }
+	<?php echo $node; ?> .ds-drill .ds-drill-row, <?php echo $node; ?> .ds-drill .ds-drill-back, <?php echo $node; ?> .ds-drill .ds-drill-overview { border-bottom: <?php echo $md_border; ?> !important; }
+	<?php if ( $oitembg ) : ?>
+	<?php /* Mirror the overlay's persistent top-level item background. */ ?>
+	<?php echo $node; ?> .ds-drill .ds-drill-panel.is-root .ds-drill-row:not(.ds-drill-cta) { background: <?php echo $oitembg; ?> !important; }
+	<?php endif; ?>
 	<?php endif; ?>
 	/* Overlay items: stacked, large, full width */
 	<?php echo $open; ?> .ds-menu-item { position: static; width: 100%; border-bottom: <?php echo $md_border; ?>; }
