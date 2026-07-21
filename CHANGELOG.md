@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.38] - 2026-07-17
+### Fixed
+- **Drill drawer colours are now deterministic.** Parent rows are <button>s and leaf rows are <a>s, so BB's global button styles and theme link colours could repaint them per site (verified live). All drawer colours/backgrounds now carry !important at .fl-builder-content scope -- the same hardening as the hamburger toggle -- and the overlay's persistent top-level item background (overlay_item_bg) is mirrored onto root drill rows.
+
 ## [1.9.37] - 2026-07-17
 ### Added
 - **Menu: drill-down mobile drawer -- the new default mobile style.** New Style -> Responsive -> **Mobile Menu Style**: "Drill-down drawer" (default) renders the mobile menu Stripe-style -- one level per sliding panel, a back row showing the parent's label, and an "Overview" link row for parents with their own URL. Panels are built live from the rendered WP menu, so content stays fully editable in Appearance -> Menus (any depth; mega panels flatten into drill levels; the CTA item keeps its button styling). All existing Mobile Overlay settings drive the drawer (background, text, hover/accent, dividers, typography, CTA colours). Desktop menus are unchanged; "Overlay with accordions (legacy)" remains selectable per module. NOTE: this default deliberately applies fleet-wide -- existing mobile menus switch to drill-down on update; pick Overlay on any module that should keep the old behaviour.
