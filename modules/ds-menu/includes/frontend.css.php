@@ -398,6 +398,24 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	<?php /* Mirror the overlay's persistent top-level item background. */ ?>
 	<?php echo $node; ?> .ds-drill .ds-drill-panel.is-root .ds-drill-row:not(.ds-drill-cta) { background: <?php echo $oitembg; ?> !important; }
 	<?php endif; ?>
+	<?php /* Full parity with the overlay's Style-tab semantics:
+	   subtext colours the deeper (submenu-equivalent) panels, the hover colours
+	   apply per level, and the CTA honours Full Width in Mobile Overlay. */ ?>
+	<?php if ( $osub && $osub !== $otext ) : ?>
+	<?php echo $node; ?> .ds-drill .ds-drill-panel:not(.is-root) .ds-drill-row:not(.ds-drill-cta) { color: <?php echo $osub; ?> !important; }
+	<?php endif; ?>
+	<?php if ( $osubbg ) : ?>
+	<?php echo $node; ?> .ds-drill .ds-drill-panel:not(.is-root) .ds-drill-row:not(.ds-drill-cta) { background: <?php echo $osubbg; ?> !important; }
+	<?php endif; ?>
+	<?php if ( $osubhov ) : ?>
+	<?php echo $node; ?> .ds-drill .ds-drill-panel:not(.is-root) .ds-drill-row:not(.ds-drill-cta):hover { color: <?php echo $osubhov; ?> !important; }
+	<?php endif; ?>
+	<?php if ( $otexthov ) : ?>
+	<?php echo $node; ?> .ds-drill .ds-drill-panel.is-root .ds-drill-row:not(.ds-drill-cta):hover { color: <?php echo $otexthov; ?> !important; }
+	<?php endif; ?>
+	<?php if ( ( $settings->button_full_mobile ?? 'yes' ) !== 'yes' ) : ?>
+	<?php echo $node; ?> .ds-drill .ds-drill-cta { display: inline-flex; width: auto; align-self: flex-start; }
+	<?php endif; ?>
 	<?php endif; ?>
 	/* Overlay items: stacked, large, full width */
 	<?php echo $open; ?> .ds-menu-item { position: static; width: 100%; border-bottom: <?php echo $md_border; ?>; }
