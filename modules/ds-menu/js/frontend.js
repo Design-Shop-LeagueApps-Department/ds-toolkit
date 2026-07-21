@@ -101,8 +101,9 @@
 		var stack = [];
 
 		// Persistent brand bar above the panels (site/partner logo from data attrs).
+		var brand = null;
 		if ( wrap.dataset.drillLogo ) {
-			var brand = document.createElement( 'div' );
+			brand = document.createElement( 'div' );
 			brand.className = 'ds-drill-brand ds-drill-brand--' + ( 'left' === wrap.dataset.drillLogoAlign ? 'left' : 'right' );
 			var bimg = document.createElement( 'img' );
 			bimg.src = wrap.dataset.drillLogo;
@@ -187,7 +188,8 @@
 				stack = [];
 				push( { root: true, label: '', url: '', isButton: false, children: drillTree( wrap ) } );
 			},
-			clear: function () { panelsEl.innerHTML = ''; stack = []; }
+			clear: function () { panelsEl.innerHTML = ''; stack = []; },
+			brand: brand
 		};
 	}
 
@@ -208,6 +210,14 @@
 				if ( state ) {
 					if ( ! drill ) { drill = makeDrill( wrap ); }
 					drill.openRoot();
+					// Right-aligned brand clears the pinned X + label, whose width
+					// varies with the Hamburger Label — measure, don't guess.
+					if ( drill.brand && toggle && -1 !== drill.brand.className.indexOf( 'ds-drill-brand--right' ) ) {
+						requestAnimationFrame( function () {
+							var t = toggle.getBoundingClientRect();
+							drill.brand.style.paddingRight = Math.max( 76, Math.round( window.innerWidth - t.left + 14 ) ) + 'px';
+						} );
+					}
 				} else if ( drill ) {
 					setTimeout( drill.clear, 280 ); // after the fade-out
 				}
