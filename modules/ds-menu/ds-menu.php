@@ -109,7 +109,27 @@ class DS_Menu_Module extends FLBuilderModule {
 		$this->mega_use_picker = ! empty( $this->mega_map );
 
 		$mstyle = ( ( $s->mobile_menu_style ?? 'drill' ) === 'overlay' ) ? 'overlay' : 'drill';
-		echo '<nav class="ds-menu-wrap' . ( 'drill' === $mstyle ? ' ds-menu-wrap--drill' : '' ) . '" aria-label="' . esc_attr__( 'Primary', 'ds-toolkit' ) . '">';
+
+		// Drawer logo (drill style): module image → Partner Logo option → site logo.
+		$drill_logo = '';
+		if ( 'drill' === $mstyle && ( $s->drill_logo_show ?? 'show' ) === 'show' ) {
+			$drill_logo = ! empty( $s->drill_logo ) ? DS_Card::photo_url( $s->drill_logo, 'medium' ) : '';
+			if ( '' === $drill_logo && function_exists( 'get_field' ) ) {
+				$pl = get_field( 'partner_logo', 'option' );
+				if ( $pl ) { $drill_logo = DS_Card::photo_url( $pl, 'medium' ); }
+			}
+			if ( '' === $drill_logo ) {
+				$cl = (int) get_theme_mod( 'custom_logo' );
+				if ( $cl ) { $drill_logo = (string) wp_get_attachment_image_url( $cl, 'medium' ); }
+			}
+		}
+		$drill_attrs = '';
+		if ( '' !== $drill_logo ) {
+			$drill_attrs  = ' data-drill-logo="' . esc_url( $drill_logo ) . '"';
+			$drill_attrs .= ' data-drill-logo-align="' . ( ( $s->drill_logo_align ?? 'right' ) === 'left' ? 'left' : 'right' ) . '"';
+		}
+
+		echo '<nav class="ds-menu-wrap' . ( 'drill' === $mstyle ? ' ds-menu-wrap--drill' : '' ) . '"' . $drill_attrs . ' aria-label="' . esc_attr__( 'Primary', 'ds-toolkit' ) . '">';
 
 		// Hamburger toggle (animates into an X via CSS when the overlay opens).
 		echo '<button type="button" class="ds-menu-toggle" aria-expanded="false" aria-label="' . esc_attr__( 'Toggle menu', 'ds-toolkit' ) . '">';
@@ -588,6 +608,17 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 			'mob'  => array(
 				'title'  => __( 'Mobile Overlay', 'ds-toolkit' ),
 				'fields' => array(
+					'drill_logo_show'   => array(
+						'type'    => 'select',
+						'label'   => __( 'Drawer Logo', 'ds-toolkit' ),
+						'default' => 'show',
+						'options' => array( 'show' => __( 'Show', 'ds-toolkit' ), 'hide' => __( 'Hide', 'ds-toolkit' ) ),
+						'toggle'  => array( 'show' => array( 'fields' => array( 'drill_logo', 'drill_logo_align', 'drill_logo_height' ) ) ),
+						'help'    => __( 'Shows the site logo at the top of the drill-down drawer (drill style only). Blank image = the Partner Logo from Partner Setting, then the site logo.', 'ds-toolkit' ),
+					),
+					'drill_logo'        => array( 'type' => 'photo', 'label' => __( 'Drawer Logo Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Override image. Blank = Partner Logo → site logo.', 'ds-toolkit' ) ),
+					'drill_logo_align'  => array( 'type' => 'select', 'label' => __( 'Drawer Logo Position', 'ds-toolkit' ), 'default' => 'right', 'options' => array( 'right' => __( 'Top Right (beside the close X)', 'ds-toolkit' ), 'left' => __( 'Top Left', 'ds-toolkit' ) ) ),
+					'drill_logo_height' => array( 'type' => 'unit', 'label' => __( 'Drawer Logo Height', 'ds-toolkit' ), 'default' => '30', 'description' => 'px', 'slider' => array( 'min' => 16, 'max' => 64, 'step' => 1 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-drill-brand img', 'property' => 'height', 'unit' => 'px' ) ),
 					'overlay_bg'           => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Overlay Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true, 'show_alpha' => true ),
 					// --- Menu items (top level) in the overlay ---
 					'overlay_text'          => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Menu Item Color', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true, 'show_alpha' => true ),

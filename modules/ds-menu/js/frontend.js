@@ -97,6 +97,17 @@
 		wrap.appendChild( drawer );
 		var stack = [];
 
+		// Persistent brand bar above the panels (site/partner logo from data attrs).
+		if ( wrap.dataset.drillLogo ) {
+			var brand = document.createElement( 'div' );
+			brand.className = 'ds-drill-brand ds-drill-brand--' + ( 'left' === wrap.dataset.drillLogoAlign ? 'left' : 'right' );
+			var bimg = document.createElement( 'img' );
+			bimg.src = wrap.dataset.drillLogo;
+			bimg.alt = '';
+			brand.appendChild( bimg );
+			drawer.appendChild( brand );
+		}
+
 		function row( node, isRoot ) {
 			var hasKids = node.children.length > 0;
 			var el = document.createElement( hasKids ? 'button' : 'a' );
