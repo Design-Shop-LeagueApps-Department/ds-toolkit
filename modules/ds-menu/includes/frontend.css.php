@@ -470,7 +470,7 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	FLBuilderCSS::typography_field_rule( array(
 		'settings'     => $settings,
 		'setting_name' => 'mobile_typography',
-		'selector'     => "$open .ds-menu > .ds-menu-item > a, $node .ds-drill-panel.is-root .ds-drill-row .ds-drill-label",
+		'selector'     => "$open .ds-menu > .ds-menu-item > a, $node .ds-drill-panel.is-root",
 	) );
 	// Mobile submenu / mega labels. Overlay-scoped selector (specificity beats the
 	// desktop dropdown_typography), so it wins inside the overlay; if left empty the
@@ -479,7 +479,7 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	FLBuilderCSS::typography_field_rule( array(
 		'settings'     => $settings,
 		'setting_name' => 'mobile_subtypography',
-		'selector'     => "$open .ds-submenu a, $open .ds-mega a, $node .ds-drill-panel:not(.is-root) .ds-drill-row .ds-drill-label",
+		'selector'     => "$open .ds-submenu a, $open .ds-mega a, $node .ds-drill-panel:not(.is-root)",
 	) );
 }
 ?>
