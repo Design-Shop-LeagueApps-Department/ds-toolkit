@@ -31,6 +31,29 @@ class DS_Divider_Module extends FLBuilderModule {
 		) );
 	}
 
+	/** Heading markup: safe inline HTML, {a}..{/a} -> accent, {outline} -> outline span. */
+	private function heading_html( $raw ) {
+		$h = DS_Module_UI::inline( (string) $raw );
+		$h = str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-divider-accent">', '</span>' ), $h );
+		$h = str_replace( array( '{outline}', '{/outline}' ), array( '<span class="ds-outline-text">', '</span>' ), $h );
+		return $h;
+	}
+
+	/** Logo URL: module image -> Partner Logo option -> site custom logo. Blank when none. */
+	private function logo_url() {
+		$s   = $this->settings;
+		$url = ! empty( $s->logo ) ? DS_Card::photo_url( $s->logo, 'medium' ) : '';
+		if ( '' === $url && function_exists( 'get_field' ) ) {
+			$pl = get_field( 'partner_logo', 'option' );
+			if ( $pl ) { $url = DS_Card::photo_url( $pl, 'medium' ); }
+		}
+		if ( '' === $url ) {
+			$cl = (int) get_theme_mod( 'custom_logo' );
+			if ( $cl ) { $url = (string) wp_get_attachment_image_url( $cl, 'medium' ); }
+		}
+		return $url;
+	}
+
 	/** Entry point called by includes/frontend.php. */
 	public function render_divider() {
 		$s = $this->settings;
@@ -41,12 +64,35 @@ class DS_Divider_Module extends FLBuilderModule {
 		if ( 'horizontal' === $o && isset( $s->h_align ) && in_array( $s->h_align, array( 'left', 'center', 'right' ), true ) ) {
 			$align = $s->h_align;
 		}
-		$cls = 'ds-divider ds-divider--' . ( 'vertical' === $o ? 'v' : 'h' ) . ' is-' . $e . ' align-' . $align;
-		printf(
-			'<div class="%s" role="separator" aria-orientation="%s"><span class="ds-divider-line" aria-hidden="true"></span></div>',
-			esc_attr( $cls ),
-			esc_attr( 'vertical' === $o ? 'vertical' : 'horizontal' )
-		);
+
+		// Optional caps (horizontal only): heading on the left, logo on the right,
+		// the line flex-filling between them. Both default off, so existing
+		// dividers render exactly as before.
+		$heading = 'horizontal' === $o ? trim( (string) ( $s->heading ?? '' ) ) : '';
+		$logo    = ( 'horizontal' === $o && ( $s->logo_show ?? 'hide' ) === 'show' ) ? $this->logo_url() : '';
+		$caps    = ( '' !== $heading || '' !== $logo );
+
+		$cls = 'ds-divider ds-divider--' . ( 'vertical' === $o ? 'v' : 'h' ) . ' is-' . $e . ' align-' . $align . ( $caps ? ' has-caps' : '' );
+
+		if ( ! $caps ) {
+			printf(
+				'<div class="%s" role="separator" aria-orientation="%s"><span class="ds-divider-line" aria-hidden="true"></span></div>',
+				esc_attr( $cls ),
+				esc_attr( 'vertical' === $o ? 'vertical' : 'horizontal' )
+			);
+			return;
+		}
+
+		$tag = in_array( $s->heading_tag ?? 'h2', array( 'h2', 'h3', 'h4', 'div' ), true ) ? ( $s->heading_tag ?? 'h2' ) : 'h2';
+		echo '<div class="' . esc_attr( $cls ) . '">';
+		if ( '' !== $heading ) {
+			echo '<' . $tag . ' class="ds-divider-heading">' . $this->heading_html( $heading ) . '</' . $tag . '>';
+		}
+		echo '<span class="ds-divider-line" aria-hidden="true"></span>';
+		if ( '' !== $logo ) {
+			echo '<span class="ds-divider-logo"><img src="' . esc_url( $logo ) . '" alt="" loading="lazy" /></span>';
+		}
+		echo '</div>';
 	}
 }
 
@@ -66,7 +112,7 @@ FLBuilder::register_module( 'DS_Divider_Module', array(
 							'vertical'   => __( 'Vertical', 'ds-toolkit' ),
 						),
 						'toggle'  => array(
-							'horizontal' => array( 'fields' => array( 'h_width', 'h_width_unit', 'h_align' ) ),
+							'horizontal' => array( 'fields' => array( 'h_width', 'h_width_unit', 'h_align' ), 'sections' => array( 'caps' ) ),
 							'vertical'   => array( 'fields' => array( 'v_height' ) ),
 						),
 					),
@@ -89,6 +135,34 @@ FLBuilder::register_module( 'DS_Divider_Module', array(
 							'dashed'   => array( 'fields' => array( 'speed', 'reverse', 'dash_len', 'dash_gap' ) ),
 						),
 					),
+				),
+			),
+			'caps' => array(
+				'title'       => __( 'Heading & Logo', 'ds-toolkit' ),
+				'description' => __( 'Optional section-header treatment (horizontal only): a heading on the left and/or a logo on the right, with the line filling the space between. Leave both off for a plain divider.', 'ds-toolkit' ),
+				'fields'      => array(
+					'heading'        => array(
+						'type'        => 'text',
+						'label'       => __( 'Heading', 'ds-toolkit' ),
+						'default'     => '',
+						'connections' => array( 'string' ),
+						'help'        => __( 'Blank = no heading. Wrap words in {a}…{/a} for the accent colour or {outline}…{/outline} for outline text.', 'ds-toolkit' ),
+					),
+					'heading_tag'    => array( 'type' => 'select', 'label' => __( 'Heading Tag', 'ds-toolkit' ), 'default' => 'h2', 'options' => array( 'h2' => 'H2', 'h3' => 'H3', 'h4' => 'H4', 'div' => __( 'Plain (div)', 'ds-toolkit' ) ) ),
+					'heading_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the global Headings colour.', 'ds-toolkit' ) ),
+					'heading_accent' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Accent Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Colour of {a}…{/a} text. Blank = the global Accent colour.', 'ds-toolkit' ) ),
+					'heading_typography' => array( 'type' => 'typography', 'label' => __( 'Heading Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-divider-heading' ) ),
+					'logo_show'      => array(
+						'type'    => 'select',
+						'label'   => __( 'Logo (right)', 'ds-toolkit' ),
+						'default' => 'hide',
+						'options' => array( 'hide' => __( 'Hide', 'ds-toolkit' ), 'show' => __( 'Show', 'ds-toolkit' ) ),
+						'toggle'  => array( 'show' => array( 'fields' => array( 'logo', 'logo_height' ) ) ),
+						'help'    => __( 'Blank image = the Partner Logo from Partner Setting, then the site logo.', 'ds-toolkit' ),
+					),
+					'logo'           => array( 'type' => 'photo', 'label' => __( 'Logo Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ) ),
+					'logo_height'    => array( 'type' => 'unit', 'label' => __( 'Logo Height', 'ds-toolkit' ), 'default' => '48', 'description' => 'px', 'slider' => array( 'min' => 20, 'max' => 120, 'step' => 1 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-divider-logo img', 'property' => 'height', 'unit' => 'px' ) ),
+					'cap_gap'        => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '18', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ), 'help' => __( 'Space between the heading, the line, and the logo.', 'ds-toolkit' ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-divider.has-caps', 'property' => 'gap', 'unit' => 'px' ) ),
 				),
 			),
 			'colors'  => array(
