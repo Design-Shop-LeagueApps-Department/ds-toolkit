@@ -77,3 +77,21 @@ if ( 'solid' === $e ) {
 		echo "$line { --ds-dash: {$cell}px; background: repeating-linear-gradient(180deg, {$c1} 0 {$dl}px, transparent {$dl}px {$cell}px); background-size: 100% {$cell}px; animation: dsDivDashV {$sp}s linear infinite;{$revcss} }\n";
 	}
 }
+
+/* ---- Caps: heading + logo (horizontal only) ---- */
+$has_caps = ( 'h' === $o ) && ( '' !== trim( (string) ( $settings->heading ?? '' ) ) || ( $settings->logo_show ?? 'hide' ) === 'show' );
+if ( $has_caps ) {
+	$gap = $u( $settings->cap_gap ?? '', 18 );
+	echo "$node .ds-divider.has-caps { gap: {$gap}px; }\n";
+	// The line flex-fills between the caps; the Length setting doesn't apply here.
+	echo "$node .ds-divider.has-caps .ds-divider-line { width: auto; }\n";
+	$hc = $col( $settings->heading_color ?? '' );
+	if ( '' !== $hc ) { echo "$node .ds-divider-heading { color: {$hc}; }\n"; }
+	$ha = $col( $settings->heading_accent ?? '' );
+	if ( '' !== $ha ) { echo "$node .ds-divider-accent { color: {$ha}; }\n"; }
+	$lh = $u( $settings->logo_height ?? '', 48 );
+	echo "$node .ds-divider-logo img { height: {$lh}px; }\n";
+	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $settings->heading_typography ) ) {
+		FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'heading_typography', 'selector' => "$node .ds-divider-heading" ) );
+	}
+}

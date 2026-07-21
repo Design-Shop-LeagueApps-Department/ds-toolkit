@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.42] - 2026-07-22
+### Added
+- **Divider: heading + logo caps (section-header treatment).** The horizontal divider gains an optional "Heading & Logo" section: a heading on the left ({a} accent and {outline} tokens supported, tag/colour/typography controls) and/or a logo on the right (blank image = Partner Logo -> site logo), with the line flex-filling between them and a configurable gap. Both default off, so every existing divider renders unchanged.
+
 ## [1.9.41] - 2026-07-22
 ### Fixed
 - **Drawer logo no longer overlaps the close control.** The right-aligned brand bar now measures the pinned X + Hamburger Label at open time and pads past it (the label makes the toggle width variable, so a fixed inset could collide).

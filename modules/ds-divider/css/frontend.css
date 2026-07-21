@@ -26,3 +26,11 @@
 	.ds-divider .ds-divider-line,
 	.ds-divider .ds-divider-line::after { animation: none !important; }
 }
+
+/* ---- Caps: heading left, line filling, logo right (horizontal only) ---- */
+.ds-divider.has-caps { align-items: center; gap: 18px; line-height: 1.15; }
+.ds-divider.has-caps .ds-divider-line { flex: 1 1 auto; }
+.ds-divider-heading { margin: 0; flex: 0 1 auto; color: var(--fl-global-headings); font-size: 1.6rem; line-height: 1.1; text-transform: uppercase; letter-spacing: .01em; }
+.ds-divider-accent { color: var(--fl-global-accent); }
+.ds-divider-logo { flex: 0 0 auto; line-height: 0; }
+.ds-divider-logo img { height: 48px; width: auto; max-width: 180px; object-fit: contain; display: block; }
