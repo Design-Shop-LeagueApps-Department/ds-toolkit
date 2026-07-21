@@ -113,3 +113,4 @@ body.ds-menu-locked { overflow: hidden; }
 .ds-drill-brand--right{justify-content:flex-end;padding-right:76px;}
 .ds-drill-brand--left{justify-content:flex-start;}
 .ds-drill-brand img{height:30px;width:auto;max-width:200px;object-fit:contain;display:block;}
+.ds-drill-panels{position:absolute;inset:0;}

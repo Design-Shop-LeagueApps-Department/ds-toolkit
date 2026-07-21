@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.40] - 2026-07-22
+### Fixed
+- **Drawer logo actually renders.** The v1.9.39 brand bar was wiped by the drawer reset on open (openRoot cleared the whole drawer). Panels now live in their own container, so the brand bar persists across opens and drills.
+
 ## [1.9.39] - 2026-07-22
 ### Added
 - **Menu: drawer logo (drill style).** The drill-down drawer now shows the site logo in a persistent brand bar -- top right beside the close X by default, top left selectable. Settings under Style -> Mobile Overlay: show/hide, image override (blank = the Partner Logo from Partner Setting, then the site logo), position, and height (live preview).

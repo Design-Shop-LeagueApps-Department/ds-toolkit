@@ -95,6 +95,9 @@
 		var drawer = document.createElement( 'div' );
 		drawer.className = 'ds-drill';
 		wrap.appendChild( drawer );
+		var panelsEl = document.createElement( 'div' );
+		panelsEl.className = 'ds-drill-panels';
+		drawer.appendChild( panelsEl );
 		var stack = [];
 
 		// Persistent brand bar above the panels (site/partner logo from data attrs).
@@ -165,7 +168,7 @@
 			var prev = stack[ stack.length - 1 ];
 			if ( prev ) { prev.style.transform = 'translateX(-100%)'; }
 			var p = buildPanel( node );
-			drawer.appendChild( p );
+			panelsEl.appendChild( p );
 			stack.push( p );
 			requestAnimationFrame( function () { p.style.transform = 'translateX(0)'; } );
 		}
@@ -180,11 +183,11 @@
 
 		return {
 			openRoot: function () {
-				drawer.innerHTML = '';
+				panelsEl.innerHTML = '';
 				stack = [];
 				push( { root: true, label: '', url: '', isButton: false, children: drillTree( wrap ) } );
 			},
-			clear: function () { drawer.innerHTML = ''; stack = []; }
+			clear: function () { panelsEl.innerHTML = ''; stack = []; }
 		};
 	}
 
