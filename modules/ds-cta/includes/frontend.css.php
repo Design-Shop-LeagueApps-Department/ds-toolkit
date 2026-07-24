@@ -280,6 +280,53 @@ if ( 'style3' === $style ) {
 	}
 
 	$typo = array( 'hero_eyebrow_typography' => '.ds-cta-hero-eyebrow', 'hero_heading_typography' => '.ds-cta-hero-heading', 'hero_contact_typography' => '.ds-cta-hero-citem', 'hero_btn_typography' => '.ds-cta-hero-btn' );
+} elseif ( 'style5' === $style ) {
+	// ---- Style 5: Motion Cards (GH #56) — everything flows through custom props
+	//      on the grid so the static classes stay generic. ----
+	$cols = max( 1, (int) ( $settings->mc_cols ?? 3 ) );
+	$gap  = $u( $settings->mc_gap ?? '', 24 );
+	echo "$node .ds-mcard-grid{grid-template-columns:repeat({$cols},1fr);gap:{$gap}px;}\n";
+	echo "@media(max-width:1024px){ $node .ds-mcard-grid{grid-template-columns:repeat(" . min( $cols, 2 ) . ",1fr);} }\n";
+	echo "@media(max-width:600px){ $node .ds-mcard-grid{grid-template-columns:1fr;} }\n";
+
+	$ratio = preg_replace( '#[^0-9/ ]#', '', (string) ( $settings->mc_ratio ?? '4 / 5' ) ); if ( '' === trim( $ratio ) ) { $ratio = '4 / 5'; }
+	$rad   = $u( $settings->mc_radius ?? '', 14 );
+	$lift  = $u( $settings->mc_lift ?? '', 6 );
+	$spd   = max( 50, $u( $settings->mc_speed ?? '', 250 ) );
+
+	$sh_map = array( 'none' => 'none', 'soft' => '0 10px 26px -16px rgba(10,30,60,.35)', 'medium' => '0 16px 34px -18px rgba(10,30,60,.45)', 'strong' => '0 22px 44px -18px rgba(10,30,60,.55)' );
+	$shh_map = array( 'none' => '0 14px 30px -18px rgba(10,30,60,.35)', 'soft' => '0 24px 48px -20px rgba(10,30,60,.5)', 'medium' => '0 30px 56px -20px rgba(10,30,60,.55)', 'strong' => '0 36px 64px -20px rgba(10,30,60,.62)' );
+	$sh = $settings->mc_shadow ?? 'soft'; if ( ! isset( $sh_map[ $sh ] ) ) { $sh = 'soft'; }
+
+	// Default background effect.
+	$amt = max( 0, min( 100, $u( $settings->mcfx_amount ?? '', 60 ) ) );
+	$fx  = 'none'; $tint = 'transparent'; $blend = 'normal';
+	switch ( $settings->mcfx_base ?? 'none' ) {
+		case 'blur':       $fx = 'blur(' . min( 40, max( 1, $amt ) ) . 'px)'; break;
+		case 'brightness': $fx = 'brightness(' . $amt . '%)'; break;
+		case 'grayscale':  $fx = 'grayscale(1)'; break;
+		case 'opacity':    $fx = 'opacity(' . $amt . '%)'; break;
+		case 'overlay':
+			$tint  = $col( $settings->mcfx_overlay ?? '' ) ?: 'var(--fl-global-primary)';
+			$blend = in_array( $settings->mcfx_blend ?? 'multiply', array( 'normal', 'multiply', 'screen', 'overlay', 'soft-light', 'hard-light', 'darken', 'lighten' ), true ) ? ( $settings->mcfx_blend ?? 'multiply' ) : 'multiply';
+			break;
+	}
+	$zoom = 1 + max( 1, min( 25, (int) ( $settings->mcfx_zoom ?? 6 ) ) ) / 100;
+
+	// Logo overlay.
+	$lsz  = $u( $settings->mcl_size ?? '', 84 );
+	$lpad = $u( $settings->mcl_pad ?? '', 10 );
+	$lrad = $u( $settings->mcl_radius ?? '', 999 );
+	$lbg  = $col( $settings->mcl_bg ?? '' ) ?: 'transparent';
+	$lsh  = $settings->mcl_shadow ?? 'soft'; if ( ! isset( $sh_map[ $lsh ] ) ) { $lsh = 'soft'; }
+	$ldur = max( 50, $u( $settings->mcl_dur ?? '', 600 ) );
+	$ldel = max( 0, $u( $settings->mcl_delay ?? '', 150 ) );
+	$ease_allow = array( 'ease', 'ease-out', 'ease-in-out', 'cubic-bezier(.34,1.56,.64,1)' );
+	$lease = in_array( $settings->mcl_ease ?? 'ease-out', $ease_allow, true ) ? ( $settings->mcl_ease ?? 'ease-out' ) : 'ease-out';
+
+	echo "$node .ds-mcard-grid{--mc-ratio:{$ratio};--mc-radius:{$rad}px;--mc-lift:{$lift}px;--mc-speed:{$spd}ms;--mc-shadow:{$sh_map[$sh]};--mc-shadow-hover:{$shh_map[$sh]};--mc-fx:{$fx};--mc-tint:{$tint};--mc-blend:{$blend};--mc-zoom:{$zoom};--mcl-size:{$lsz}px;--mcl-pad:{$lpad}px;--mcl-radius:{$lrad}px;--mcl-bg:{$lbg};--mcl-shadow:{$sh_map[$lsh]};--mcl-dur:{$ldur}ms;--mcl-delay:{$ldel}ms;--mcl-ease:{$lease};}\n";
+
+	$typo = array( 'heading_typography' => '.ds-cta-heading', 'title_typography' => '.ds-mcard-title', 'eyebrow_typography' => '.ds-mcard-eyebrow' );
 } else {
 	// ---- Style 1: clip cards ----
 	$ratio = trim( (string) ( $settings->ratio ?? '3/4' ) );
