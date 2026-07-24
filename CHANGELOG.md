@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.47] - 2026-07-22
+### Added
+- **Post Loop: "Teams: Cards" layout.** A photo grid of teams: featured image (ratio option), team name, and an arrow -- external icon when the card links to the team's External Link (new tab), arrow when it links to the team page. Options: columns, gap, photo ratio, card/name/icon colours, name typography (live preview).
+
+### Changed
+- **Blueprint-aware fallback image for entries without a featured photo** (used by Teams/Staff/Sponsor/Tournament layouts): Launchpad 6 uses the Theme Setting Social Card; Launchpad 5 (or any site without the Theme Setting card) uses the stock LA social card shipped in the DSLP5 media library (/wp-content/uploads/2024/11/lasocialcard1.png).
+
 ## [1.9.46] - 2026-07-22
 ### Fixed
 - **Drill drawer: full Style-tab parity audit.** Five Mobile Overlay settings the drawer previously ignored now apply with the same semantics as the legacy overlay: **Submenu Colour** (overlay_subtext) colours deeper-panel rows, **Submenu Hover** and **Submenu Background** apply per row, **Menu Item Hover/Active Colour** applies to root rows on hover (it already drove the accent chevrons/back), and the CTA honours **Full Width in Mobile Overlay = No** (compact pill instead of full-width). Already honored and re-verified: overlay background, item colour, item background, dividers, Menu/Submenu typography, CTA colours, drawer logo.
