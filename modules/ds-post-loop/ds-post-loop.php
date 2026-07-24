@@ -66,6 +66,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			'athlete_logo'   => __( 'Athletes: Logo Row (dark)', 'ds-toolkit' ),
 			'athlete_action' => __( 'Athletes: Action Cards', 'ds-toolkit' ),
 			'team_list'      => __( 'Teams: List', 'ds-toolkit' ),
+			'team_card'      => __( 'Teams: Cards (photo grid)', 'ds-toolkit' ),
 			'sponsor'        => __( 'Sponsors: Grid (manual list)', 'ds-toolkit' ),
 			'program'        => __( 'Custom Program Card (manual list)', 'ds-toolkit' ),
 			'tournament'     => __( 'Tournament Cards (events, upcoming)', 'ds-toolkit' ),
@@ -87,8 +88,18 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	 * Fallback image for a post with no featured image: the Theme Setting
 	 * Social Card (so empty cards still show a branded image, not a blank box).
 	 */
+	/**
+	 * Fallback image for entries without a featured image.
+	 * Launchpad 6: the Theme Setting Social Card. Launchpad 5 (or any site
+	 * without the Theme Setting card): the stock social card that every DSLP5
+	 * build ships in its media library.
+	 */
 	private static function placeholder_image() {
-		return DS_Card::placeholder_image();
+		if ( class_exists( 'DS_Toolkit' ) && DS_Toolkit::blueprint_version() >= 6 ) {
+			$url = DS_Card::placeholder_image(); // Theme Setting → Social Card
+			if ( '' !== $url ) { return $url; }
+		}
+		return home_url( '/wp-content/uploads/2024/11/lasocialcard1.png' );
 	}
 
 	/** Heading markup: escape, {a}..{/a} -> accent span, newlines -> <br>. */
@@ -253,6 +264,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			'athlete_logo'   => 'render_athlete_logo',
 			'athlete_action' => 'render_athlete_action',
 			'team_list'      => 'render_team_list',
+			'team_card'      => 'render_team_card',
 			'sponsor'        => 'render_sponsor',
 			'program'        => 'render_program',
 			'tournament'     => 'render_tournament',
@@ -430,6 +442,45 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '</a>';
 		}
 		$this->loop_close(); echo '</div></section>';
+		wp_reset_postdata();
+	}
+
+	/** Teams: Cards — photo grid; external LeagueApps link preferred, permalink fallback. */
+	public function render_team_card() {
+		$s  = $this->settings;
+		$ph = self::placeholder_image();
+		$q  = $this->run_query();
+
+		echo '<section class="ds-news ds-teamcards"><div class="ds-news-wrap">';
+		$this->render_head();
+		if ( ! $q->have_posts() ) {
+			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Teams published yet.', 'ds-toolkit' ) . '</p>'; }
+			echo '</div></section>';
+			return;
+		}
+
+		$arrow = DS_Card::icon( 'arrow' );
+		$ext   = DS_Card::icon( 'external' );
+		$this->loop_open( 'ds-teamcard-grid' );
+		while ( $q->have_posts() ) {
+			$q->the_post();
+			$id      = get_the_ID();
+			$name    = get_the_title( $id );
+			$img     = get_the_post_thumbnail_url( $id, 'large' ) ?: $ph;
+			$extlink = trim( (string) $this->acf( 'team_external_link', $id ) );
+			$is_ext  = '' !== $extlink;
+			$url     = $is_ext ? $extlink : get_permalink( $id );
+			$tgt     = $is_ext ? ' target="_blank" rel="noopener noreferrer"' : '';
+
+			echo '<a class="ds-teamcard" href="' . esc_url( $url ) . '"' . $tgt . '>';
+			echo '<span class="ds-teamcard-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></span>';
+			echo '<span class="ds-teamcard-body">';
+			echo '<span class="ds-teamcard-name">' . DS_Module_UI::inline( $name ) . '</span>';
+			echo '<span class="ds-teamcard-ico" aria-hidden="true">' . ( $is_ext ? $ext : $arrow ) . '</span>';
+			echo '</span></a>';
+		}
+		$this->loop_close();
+		echo '</div></section>';
 		wp_reset_postdata();
 	}
 
@@ -1061,6 +1112,7 @@ $ds_pl_form = array(
 							'athlete_logo'   => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'athlete_action' => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'team_list'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'team_list_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
+							'team_card'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'team_card_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'custom'         => array( 'sections' => array( 'header', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'sponsor'        => array( 'sections' => array( 'header', 'sponsors_sec', 'sponsor_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
 							'program'        => array( 'sections' => array( 'header', 'programs_sec', 'program_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
@@ -1392,6 +1444,19 @@ $ds_pl_form = array(
 				),
 			),
 			// --- Team list options ---
+			'team_card_opts' => array(
+				'title'       => __( 'Team Cards', 'ds-toolkit' ),
+				'description' => __( 'Photo grid of teams. Cards link to the team\'s External Link (new tab) when set, else the team page. Teams without a featured image use the Social Card (Theme Setting on Launchpad 6; the stock LA social card on Launchpad 5).', 'ds-toolkit' ),
+				'fields'      => array(
+					'tc_cols'       => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'slider' => array( 'min' => 1, 'max' => 5, 'step' => 1 ) ),
+					'tc_gap'        => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'tc_ratio'      => array( 'type' => 'select', 'label' => __( 'Photo Ratio', 'ds-toolkit' ), 'default' => '16 / 10', 'options' => array( '16 / 9' => '16:9', '16 / 10' => '16:10', '4 / 3' => '4:3', '3 / 2' => '3:2', '1 / 1' => '1:1' ) ),
+					'tc_card_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'tc_name_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Team Name Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'tc_ico_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Arrow Icon Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the global Accent colour.', 'ds-toolkit' ) ),
+					'tc_name_typo'  => array( 'type' => 'typography', 'label' => __( 'Team Name Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-teamcard-name' ) ),
+				),
+			),
 			'team_list_opts' => array(
 				'title'  => __( 'Team List', 'ds-toolkit' ),
 				'fields' => array(

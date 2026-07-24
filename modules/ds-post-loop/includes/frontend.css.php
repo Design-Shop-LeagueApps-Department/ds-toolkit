@@ -204,6 +204,23 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	) );
 }
 
+// ---- Teams: Cards (photo grid) ----
+if ( ( $settings->card_layout ?? '' ) === 'team_card' ) {
+	$tcc = max( 1, (int) ( $settings->tc_cols ?? 3 ) );
+	$tcg = $u( $settings->tc_gap ?? '', 24 );
+	echo "$node .ds-teamcard-grid{grid-template-columns:repeat({$tcc},1fr);gap:{$tcg}px;}\n";
+	echo "@media(max-width:1024px){ $node .ds-teamcard-grid{grid-template-columns:repeat(" . min( $tcc, 2 ) . ",1fr);} }\n";
+	echo "@media(max-width:600px){ $node .ds-teamcard-grid{grid-template-columns:1fr;} }\n";
+	$tcr = preg_replace( '#[^0-9/ ]#', '', (string) ( $settings->tc_ratio ?? '16 / 10' ) ); if ( '' === trim( $tcr ) ) { $tcr = '16 / 10'; }
+	echo "$node .ds-teamcard-photo{aspect-ratio:{$tcr};}\n";
+	$c = $col( $settings->tc_card_bg ?? '' );    if ( $c ) { echo "$node .ds-teamcard{background:{$c};}\n"; }
+	$c = $col( $settings->tc_name_color ?? '' ); if ( $c ) { echo "$node .ds-teamcard-name{color:{$c};}\n"; }
+	$c = $col( $settings->tc_ico_color ?? '' );  if ( $c ) { echo "$node .ds-teamcard-ico{color:{$c};}\n"; }
+	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $settings->tc_name_typo ) ) {
+		FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'tc_name_typo', 'selector' => "$node .ds-teamcard-name" ) );
+	}
+}
+
 // ---- Tournament cards (events) ----
 if ( ( $settings->card_layout ?? '' ) === 'tournament' ) {
 	$tg = $u( $settings->tn_gap ?? '', 28 );

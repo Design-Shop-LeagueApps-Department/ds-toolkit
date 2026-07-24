@@ -253,3 +253,16 @@
   .ds-tourn-rowmain{flex-basis:calc(100% - 170px);}
   .ds-tourn-rowside{margin-left:0;width:100%;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 }
+
+/* ---- Teams: Cards (photo grid) ---- */
+.ds-teamcard-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+.ds-teamcard{display:flex;flex-direction:column;text-decoration:none;color:inherit;background:var(--fl-global-white);border-radius:var(--ds-radius);overflow:hidden;box-shadow:0 12px 30px -20px rgba(10,30,60,.3);transition:transform .2s ease,box-shadow .2s ease;}
+.ds-teamcard:hover{transform:translateY(-3px);box-shadow:0 18px 40px -20px rgba(10,30,60,.4);}
+.ds-teamcard-photo{display:block;width:100%;aspect-ratio:16 / 10;background:#ececec center center/cover no-repeat;}
+.ds-teamcard-body{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;}
+.ds-teamcard-name{color:var(--fl-global-headings);font-weight:700;font-size:1.05rem;line-height:1.2;}
+.ds-teamcard-ico{flex:0 0 auto;line-height:0;color:var(--fl-global-accent);transition:transform .2s ease;}
+.ds-teamcard-ico svg{width:18px;height:18px;display:block;}
+.ds-teamcard:hover .ds-teamcard-ico{transform:translateX(3px);}
+@media(max-width:1024px){.ds-teamcard-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.ds-teamcard-grid{grid-template-columns:1fr;}}
