@@ -126,3 +126,73 @@
 /* WYSIWYG descriptions render <p>s inside the desc containers. */
 .ds-cta--style3 .ds-cta-bento-desc p{margin:0 0 .6em;}
 .ds-cta--style3 .ds-cta-bento-desc p:last-child{margin-bottom:0;}
+
+/* ---- Style 5: Motion Cards ---- */
+.ds-mcard-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+.ds-mcard{position:relative;display:block;overflow:hidden;border-radius:var(--mc-radius,14px);aspect-ratio:var(--mc-ratio,4 / 5);box-shadow:var(--mc-shadow,0 10px 26px -16px rgba(10,30,60,.35));text-decoration:none;color:inherit;transition:transform var(--mc-speed,.25s) ease,box-shadow var(--mc-speed,.25s) ease;transform:translateY(0);}
+.ds-mcard:hover{transform:translateY(calc(-1 * var(--mc-lift,6px)));box-shadow:var(--mc-shadow-hover,0 24px 48px -20px rgba(10,30,60,.5));}
+.ds-mcard-bg{position:absolute;inset:0;background:#20242a center center/cover no-repeat;filter:var(--mc-fx,none);transform:scale(var(--mc-bg-scale,1));transition:filter var(--mc-speed,.25s) ease,transform calc(var(--mc-speed,.25s) * 2) ease;}
+.ds-mcard-tint{position:absolute;inset:0;background:var(--mc-tint,transparent);mix-blend-mode:var(--mc-blend,normal);pointer-events:none;transition:opacity var(--mc-speed,.25s) ease;}
+/* hover behaviours (module class picks one) */
+.ds-mcards--hov-clear .ds-mcard:hover .ds-mcard-bg{filter:none;}
+.ds-mcards--hov-clear .ds-mcard:hover .ds-mcard-tint{opacity:0;}
+.ds-mcards--hov-brighten .ds-mcard:hover .ds-mcard-bg{filter:brightness(1.12);}
+.ds-mcards--hov-zoom-in .ds-mcard:hover .ds-mcard-bg{transform:scale(var(--mc-zoom,1.06));}
+.ds-mcards--hov-zoom-out .ds-mcard-bg{transform:scale(var(--mc-zoom,1.06));}
+.ds-mcards--hov-zoom-out .ds-mcard:hover .ds-mcard-bg{transform:scale(1);}
+/* body */
+.ds-mcard-body{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;flex-direction:column;gap:4px;padding:18px 20px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55));}
+.ds-mcard-eyebrow{color:rgba(255,255,255,.85);font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
+.ds-mcard-title{color:var(--fl-global-white);font-weight:800;font-size:1.15rem;line-height:1.15;text-transform:uppercase;}
+/* logo overlay */
+.ds-mcard-logo{position:absolute;z-index:3;display:flex;align-items:center;justify-content:center;background:var(--mcl-bg,transparent);padding:var(--mcl-pad,10px);border-radius:var(--mcl-radius,999px);box-shadow:var(--mcl-shadow,none);opacity:0;}
+.ds-mcard-logo img{width:var(--mcl-size,84px);height:auto;display:block;object-fit:contain;}
+.ds-mcard-logo--center{top:50%;left:50%;transform:translate(-50%,-50%);}
+.ds-mcard-logo--top-left{top:16px;left:16px;}
+.ds-mcard-logo--top-right{top:16px;right:16px;}
+.ds-mcard-logo--bottom-left{bottom:72px;left:16px;}
+.ds-mcard-logo--bottom-right{bottom:72px;right:16px;}
+/* entrance: hidden until .is-in (IntersectionObserver), then the keyframe plays */
+.ds-mcard-logo.is-in,.ds-mcin--none{opacity:1;}
+.ds-mcard-logo.is-in{animation-duration:var(--mcl-dur,.6s);animation-delay:var(--mcl-delay,.15s);animation-timing-function:var(--mcl-ease,ease-out);animation-fill-mode:both;}
+.ds-mcin--fade.is-in{animation-name:dsMcFade;}
+.ds-mcin--fade-up.is-in{animation-name:dsMcFadeUp;}
+.ds-mcin--fade-down.is-in{animation-name:dsMcFadeDown;}
+.ds-mcin--fade-left.is-in{animation-name:dsMcFadeLeft;}
+.ds-mcin--fade-right.is-in{animation-name:dsMcFadeRight;}
+.ds-mcin--slide-up.is-in{animation-name:dsMcSlideUp;}
+.ds-mcin--slide-down.is-in{animation-name:dsMcSlideDown;}
+.ds-mcin--slide-left.is-in{animation-name:dsMcSlideLeft;}
+.ds-mcin--slide-right.is-in{animation-name:dsMcSlideRight;}
+.ds-mcin--zoom-in.is-in{animation-name:dsMcZoomIn;}
+.ds-mcin--zoom-out.is-in{animation-name:dsMcZoomOut;}
+@keyframes dsMcFade{from{opacity:0}to{opacity:1}}
+@keyframes dsMcFadeUp{from{opacity:0;translate:0 18px}to{opacity:1;translate:0 0}}
+@keyframes dsMcFadeDown{from{opacity:0;translate:0 -18px}to{opacity:1;translate:0 0}}
+@keyframes dsMcFadeLeft{from{opacity:0;translate:18px 0}to{opacity:1;translate:0 0}}
+@keyframes dsMcFadeRight{from{opacity:0;translate:-18px 0}to{opacity:1;translate:0 0}}
+@keyframes dsMcSlideUp{from{translate:0 40px;opacity:1}to{translate:0 0}}
+@keyframes dsMcSlideDown{from{translate:0 -40px;opacity:1}to{translate:0 0}}
+@keyframes dsMcSlideLeft{from{translate:40px 0;opacity:1}to{translate:0 0}}
+@keyframes dsMcSlideRight{from{translate:-40px 0;opacity:1}to{translate:0 0}}
+@keyframes dsMcZoomIn{from{opacity:0;scale:.6}to{opacity:1;scale:1}}
+@keyframes dsMcZoomOut{from{opacity:0;scale:1.35}to{opacity:1;scale:1}}
+/* logo hover animations (composited on the inner img so entrance transforms on the wrapper survive) */
+.ds-mchov--scale-up:hover img{transform:scale(1.12);}
+.ds-mchov--scale-down:hover img{transform:scale(.9);}
+.ds-mcard:hover .ds-mchov--float img{animation:dsMcFloat 1.6s ease-in-out infinite;}
+.ds-mcard:hover .ds-mchov--bounce img{animation:dsMcBounce .7s cubic-bezier(.28,.84,.42,1) infinite;}
+.ds-mcard:hover .ds-mchov--rotate img{transform:rotate(8deg);}
+.ds-mcard:hover .ds-mchov--pulse img{animation:dsMcPulse 1.2s ease-in-out infinite;}
+.ds-mcard:hover .ds-mchov--fade img{opacity:.55;}
+.ds-mcard:hover .ds-mchov--glow{box-shadow:0 0 24px 4px rgba(255,255,255,.55);}
+.ds-mcard-logo img{transition:transform var(--mc-speed,.25s) ease,opacity var(--mc-speed,.25s) ease;}
+@keyframes dsMcFloat{0%,100%{translate:0 0}50%{translate:0 -8px}}
+@keyframes dsMcBounce{0%,100%{translate:0 0}40%{translate:0 -12px}60%{translate:0 -6px}}
+@keyframes dsMcPulse{0%,100%{scale:1}50%{scale:1.08}}
+@media(max-width:1024px){.ds-mcard-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.ds-mcard-grid{grid-template-columns:1fr;}}
+@media(prefers-reduced-motion:reduce){
+  .ds-mcard,.ds-mcard-bg,.ds-mcard-logo,.ds-mcard-logo img{transition:none !important;animation:none !important;}
+  .ds-mcard-logo{opacity:1 !important;}
+}

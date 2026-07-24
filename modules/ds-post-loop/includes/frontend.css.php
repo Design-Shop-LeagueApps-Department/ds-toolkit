@@ -403,6 +403,16 @@ if ( in_array( $settings->card_layout ?? '', array( 'athlete_photo', 'athlete_lo
 	if ( '' !== $cnc ) { echo "$node .ds-commit--photo .ds-people-name, $node .ds-commit--action .ds-people-name { color: {$cnc}; }\n"; }
 	$csc = $col( $settings->commit_school_color ?? '' );
 	if ( '' !== $csc ) { echo "$node .ds-commit--photo .ds-people-role, $node .ds-commit--action .ds-people-role { color: {$csc}; }\n"; }
+
+	// Photo fit + focus (GH #67): Fill crops to the ratio with a controllable
+	// focal edge; Fit shows the whole photo letterboxed on the backdrop colour.
+	$cfit = ( ( $settings->commit_photo_fit ?? 'cover' ) === 'contain' ) ? 'contain' : 'cover';
+	$fmap = array( 'center' => 'center center', 'top' => 'center top', 'bottom' => 'center bottom', 'left' => 'left center', 'right' => 'right center' );
+	$cfoc = $settings->commit_photo_focus ?? 'center';
+	$cpos = $fmap[ isset( $fmap[ $cfoc ] ) ? $cfoc : 'center' ];
+	echo "$node .ds-commit--photo .ds-people-photo, $node .ds-commit--action .ds-people-photo { background-size: {$cfit}; background-position: {$cpos}; }\n";
+	$cpb = $col( $settings->commit_photo_bg ?? '' );
+	if ( '' !== $cpb ) { echo "$node .ds-commit--photo .ds-people-photo, $node .ds-commit--action .ds-people-photo { background-color: {$cpb}; }\n"; }
 }
 
 // ---- Team list (content_type = team) ----

@@ -43,7 +43,57 @@ class DS_CTA_Module extends FLBuilderModule {
 			'style2' => __( 'Style 2 — Bordered Tiles', 'ds-toolkit' ),
 			'style3' => __( 'Style 3 — Bento Grid', 'ds-toolkit' ),
 			'style4' => __( 'Style 4 — Big Hero (Contact)', 'ds-toolkit' ),
+			'style5' => __( 'Style 5 — Motion Cards (image + logo overlay)', 'ds-toolkit' ),
 		);
+	}
+
+	/** Style 5 — Motion Cards: elevated image cards with bg effects + animated logo overlay. */
+	public function render_style5() {
+		$s = $this->settings;
+
+		$fx_base  = in_array( $s->mcfx_base ?? 'none', array( 'none', 'blur', 'brightness', 'grayscale', 'opacity', 'overlay' ), true ) ? ( $s->mcfx_base ?? 'none' ) : 'none';
+		$fx_hover = in_array( $s->mcfx_hover ?? 'zoom-in', array( 'none', 'clear', 'brighten', 'zoom-in', 'zoom-out' ), true ) ? ( $s->mcfx_hover ?? 'zoom-in' ) : 'zoom-in';
+		$logo_in  = preg_replace( '/[^a-z-]/', '', (string) ( $s->mcl_in ?? 'fade-up' ) );
+		$logo_hov = preg_replace( '/[^a-z-]/', '', (string) ( $s->mcl_hover ?? 'float' ) );
+		$logo_pos = in_array( $s->mcl_pos ?? 'center', array( 'center', 'top-left', 'top-right', 'bottom-left', 'bottom-right' ), true ) ? ( $s->mcl_pos ?? 'center' ) : 'center';
+
+		$mods = 'ds-cta ds-cta--style5 ds-mcards ds-mcards--fx-' . $fx_base . ' ds-mcards--hov-' . $fx_hover;
+		echo '<section class="' . esc_attr( $mods ) . '"><div class="ds-cta-wrap">';
+
+		if ( ( $s->show_header ?? 'yes' ) === 'yes' && ( ! empty( $s->heading ) || ! empty( $s->header_label ) ) ) {
+			echo '<div class="ds-cta-head">';
+			if ( ! empty( $s->heading ) ) { echo '<h2 class="ds-cta-heading">' . $this->heading_html( $s->heading ) . '</h2>'; }
+			if ( ! empty( $s->header_label ) ) { echo '<span class="ds-cta-head-label">' . esc_html( $s->header_label ) . '</span>'; }
+			echo '</div>';
+		}
+
+		$cards = isset( $s->cards ) && is_array( $s->cards ) ? $s->cards : array();
+		if ( empty( $cards ) ) {
+			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'Add cards in the module settings.', 'ds-toolkit' ) . '</p>'; }
+			echo '</div></section>';
+			return;
+		}
+
+		echo '<div class="ds-mcard-grid">';
+		foreach ( $cards as $card ) {
+			$card = (object) $card;
+			$img  = ! empty( $card->image ) ? $this->photo_url( $card->image ) : '';
+			$logo = ! empty( $card->logo ) ? $this->photo_url( $card->logo, 'medium' ) : '';
+			list( $url, $target ) = $this->link_parts( $card->link ?? '' );
+			$rel  = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
+
+			echo '<a class="ds-mcard" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>';
+			echo '<span class="ds-mcard-bg"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . ' aria-hidden="true"></span>';
+			echo '<span class="ds-mcard-tint" aria-hidden="true"></span>';
+			if ( '' !== $logo ) {
+				echo '<span class="ds-mcard-logo ds-mcard-logo--' . esc_attr( $logo_pos ) . ' ds-mcin--' . esc_attr( $logo_in ) . ' ds-mchov--' . esc_attr( $logo_hov ) . '"><img src="' . esc_url( $logo ) . '" alt="" loading="lazy" /></span>';
+			}
+			echo '<span class="ds-mcard-body">';
+			if ( ! empty( $card->eyebrow ) ) { echo '<span class="ds-mcard-eyebrow">' . DS_Module_UI::inline( $card->eyebrow ) . '</span>'; }
+			if ( ! empty( $card->title ) ) { echo '<span class="ds-mcard-title">' . DS_Module_UI::inline( $card->title ) . '</span>'; }
+			echo '</span></a>';
+		}
+		echo '</div></div></section>';
 	}
 
 	/** Heading markup: escape, {a}..{/a} -> accent span, newlines -> <br>. */
@@ -387,6 +437,7 @@ FLBuilder::register_settings_form( 'ds_cta_card_form', array(
 					'title'  => '',
 					'fields' => array(
 						'image'   => array( 'type' => 'photo', 'label' => __( 'Background Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ) ),
+						'logo'    => array( 'type' => 'photo', 'label' => __( 'Logo / Badge (Style 5)', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Optional secondary image overlaid on the card — a club logo, badge, or graphic. Position and animation are set in the module\'s Logo Overlay section.', 'ds-toolkit' ) ),
 						'eyebrow' => array( 'type' => 'text', 'label' => __( 'Eyebrow', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
 						'title'     => array( 'type' => 'text', 'label' => __( 'Title', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
 						'link'      => array( 'type' => 'link', 'label' => __( 'Link', 'ds-toolkit' ), 'show_target' => true, 'connections' => array( 'url' ) ),
@@ -439,6 +490,9 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 							),
 							'style4' => array(
 								'sections' => array( 'hero', 'hero_contact', 'hero_button', 'hero_social', 'hero_bg', 'hero_box', 'hero_colors', 'hero_social_style', 'hero_typography', 'spacing' ),
+							),
+							'style5' => array(
+								'sections' => array( 'header', 'cards', 'mcard', 'mcard_fx', 'mcard_logo', 'typography', 'spacing' ),
 							),
 						),
 					),
@@ -895,6 +949,63 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					'hero_heading_typography' => array( 'type' => 'typography', 'label' => __( 'Heading', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-hero-heading' ) ),
 					'hero_contact_typography' => array( 'type' => 'typography', 'label' => __( 'Contact Details', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-hero-citem' ) ),
 					'hero_btn_typography'     => array( 'type' => 'typography', 'label' => __( 'Button (Custom/Accent only)', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-hero-btn' ) ),
+				),
+			),
+			'mcard' => array(
+				'title'  => __( 'Motion Card', 'ds-toolkit' ),
+				'fields' => array(
+					'mc_cols'   => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'slider' => array( 'min' => 1, 'max' => 5, 'step' => 1 ) ),
+					'mc_gap'    => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'mc_ratio'  => array( 'type' => 'select', 'label' => __( 'Card Ratio', 'ds-toolkit' ), 'default' => '4 / 5', 'options' => array( '4 / 5' => '4:5', '3 / 4' => '3:4', '1 / 1' => '1:1', '4 / 3' => '4:3', '16 / 10' => '16:10' ) ),
+					'mc_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '14', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-mcard', 'property' => 'border-radius', 'unit' => 'px' ) ),
+					'mc_shadow' => array( 'type' => 'select', 'label' => __( 'Shadow', 'ds-toolkit' ), 'default' => 'soft', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'soft' => __( 'Soft', 'ds-toolkit' ), 'medium' => __( 'Medium', 'ds-toolkit' ), 'strong' => __( 'Strong', 'ds-toolkit' ) ) ),
+					'mc_lift'   => array( 'type' => 'unit', 'label' => __( 'Hover Lift', 'ds-toolkit' ), 'default' => '6', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 20, 'step' => 1 ), 'help' => __( 'How far the card rises on hover; the shadow deepens with it.', 'ds-toolkit' ) ),
+					'mc_speed'  => array( 'type' => 'unit', 'label' => __( 'Hover Transition Speed', 'ds-toolkit' ), 'default' => '250', 'description' => 'ms', 'slider' => array( 'min' => 100, 'max' => 800, 'step' => 10 ) ),
+				),
+			),
+			'mcard_fx' => array(
+				'title'  => __( 'Background Effects', 'ds-toolkit' ),
+				'fields' => array(
+					'mcfx_base'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Default Effect', 'ds-toolkit' ),
+						'default' => 'none',
+						'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'blur' => __( 'Blur', 'ds-toolkit' ), 'brightness' => __( 'Darken (brightness)', 'ds-toolkit' ), 'grayscale' => __( 'Grayscale', 'ds-toolkit' ), 'opacity' => __( 'Opacity', 'ds-toolkit' ), 'overlay' => __( 'Colour Overlay', 'ds-toolkit' ) ),
+						'toggle'  => array(
+							'blur'       => array( 'fields' => array( 'mcfx_amount' ) ),
+							'brightness' => array( 'fields' => array( 'mcfx_amount' ) ),
+							'opacity'    => array( 'fields' => array( 'mcfx_amount' ) ),
+							'overlay'    => array( 'fields' => array( 'mcfx_overlay', 'mcfx_blend' ) ),
+						),
+					),
+					'mcfx_amount'  => array( 'type' => 'unit', 'label' => __( 'Effect Amount', 'ds-toolkit' ), 'default' => '60', 'description' => '% (px for blur)', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+					'mcfx_overlay' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Overlay Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-primary)', 'show_reset' => true, 'show_alpha' => true ),
+					'mcfx_blend'   => array( 'type' => 'select', 'label' => __( 'Blend Mode', 'ds-toolkit' ), 'default' => 'multiply', 'options' => array( 'normal' => 'Normal', 'multiply' => 'Multiply', 'screen' => 'Screen', 'overlay' => 'Overlay', 'soft-light' => 'Soft Light', 'hard-light' => 'Hard Light', 'darken' => 'Darken', 'lighten' => 'Lighten' ) ),
+					'mcfx_hover'   => array(
+						'type'    => 'select',
+						'label'   => __( 'Hover Effect', 'ds-toolkit' ),
+						'default' => 'zoom-in',
+						'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'clear' => __( 'Remove Effect', 'ds-toolkit' ), 'brighten' => __( 'Brighten', 'ds-toolkit' ), 'zoom-in' => __( 'Zoom In', 'ds-toolkit' ), 'zoom-out' => __( 'Zoom Out', 'ds-toolkit' ) ),
+						'toggle'  => array( 'zoom-in' => array( 'fields' => array( 'mcfx_zoom' ) ), 'zoom-out' => array( 'fields' => array( 'mcfx_zoom' ) ) ),
+					),
+					'mcfx_zoom'    => array( 'type' => 'unit', 'label' => __( 'Zoom Amount', 'ds-toolkit' ), 'default' => '6', 'description' => '%', 'slider' => array( 'min' => 1, 'max' => 25, 'step' => 1 ) ),
+				),
+			),
+			'mcard_logo' => array(
+				'title'       => __( 'Logo Overlay', 'ds-toolkit' ),
+				'description' => __( 'Styling + animation for each card\'s Logo / Badge image (set per card).', 'ds-toolkit' ),
+				'fields'      => array(
+					'mcl_pos'    => array( 'type' => 'select', 'label' => __( 'Position', 'ds-toolkit' ), 'default' => 'center', 'options' => array( 'center' => __( 'Center', 'ds-toolkit' ), 'top-left' => __( 'Top Left', 'ds-toolkit' ), 'top-right' => __( 'Top Right', 'ds-toolkit' ), 'bottom-left' => __( 'Bottom Left', 'ds-toolkit' ), 'bottom-right' => __( 'Bottom Right', 'ds-toolkit' ) ) ),
+					'mcl_size'   => array( 'type' => 'unit', 'label' => __( 'Size', 'ds-toolkit' ), 'default' => '84', 'description' => 'px', 'slider' => array( 'min' => 32, 'max' => 200, 'step' => 2 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-mcard-logo img', 'property' => 'width', 'unit' => 'px' ) ),
+					'mcl_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Backing Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Optional plate behind the logo. Blank = none.', 'ds-toolkit' ) ),
+					'mcl_pad'    => array( 'type' => 'unit', 'label' => __( 'Padding', 'ds-toolkit' ), 'default' => '10', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+					'mcl_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '999', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 999, 'step' => 1 ) ),
+					'mcl_shadow' => array( 'type' => 'select', 'label' => __( 'Shadow', 'ds-toolkit' ), 'default' => 'soft', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'soft' => __( 'Soft', 'ds-toolkit' ), 'medium' => __( 'Medium', 'ds-toolkit' ), 'strong' => __( 'Strong', 'ds-toolkit' ) ) ),
+					'mcl_in'     => array( 'type' => 'select', 'label' => __( 'Entrance Animation', 'ds-toolkit' ), 'default' => 'fade-up', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'fade' => __( 'Fade In', 'ds-toolkit' ), 'fade-up' => __( 'Fade Up', 'ds-toolkit' ), 'fade-down' => __( 'Fade Down', 'ds-toolkit' ), 'fade-left' => __( 'Fade Left', 'ds-toolkit' ), 'fade-right' => __( 'Fade Right', 'ds-toolkit' ), 'slide-up' => __( 'Slide Up', 'ds-toolkit' ), 'slide-down' => __( 'Slide Down', 'ds-toolkit' ), 'slide-left' => __( 'Slide Left', 'ds-toolkit' ), 'slide-right' => __( 'Slide Right', 'ds-toolkit' ), 'zoom-in' => __( 'Zoom In', 'ds-toolkit' ), 'zoom-out' => __( 'Zoom Out', 'ds-toolkit' ) ), 'help' => __( 'Plays when the card scrolls into view. Skipped for reduced-motion visitors.', 'ds-toolkit' ) ),
+					'mcl_dur'    => array( 'type' => 'unit', 'label' => __( 'Animation Duration', 'ds-toolkit' ), 'default' => '600', 'description' => 'ms', 'slider' => array( 'min' => 100, 'max' => 2000, 'step' => 50 ) ),
+					'mcl_delay'  => array( 'type' => 'unit', 'label' => __( 'Animation Delay', 'ds-toolkit' ), 'default' => '150', 'description' => 'ms', 'slider' => array( 'min' => 0, 'max' => 2000, 'step' => 50 ) ),
+					'mcl_ease'   => array( 'type' => 'select', 'label' => __( 'Animation Easing', 'ds-toolkit' ), 'default' => 'ease-out', 'options' => array( 'ease' => 'Ease', 'ease-out' => 'Ease Out', 'ease-in-out' => 'Ease In-Out', 'cubic-bezier(.34,1.56,.64,1)' => __( 'Spring (overshoot)', 'ds-toolkit' ) ) ),
+					'mcl_hover'  => array( 'type' => 'select', 'label' => __( 'Hover Animation', 'ds-toolkit' ), 'default' => 'float', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'scale-up' => __( 'Scale Up', 'ds-toolkit' ), 'scale-down' => __( 'Scale Down', 'ds-toolkit' ), 'float' => __( 'Float', 'ds-toolkit' ), 'bounce' => __( 'Bounce', 'ds-toolkit' ), 'rotate' => __( 'Rotate', 'ds-toolkit' ), 'pulse' => __( 'Pulse', 'ds-toolkit' ), 'fade' => __( 'Fade', 'ds-toolkit' ), 'glow' => __( 'Glow', 'ds-toolkit' ) ) ),
 				),
 			),
 			'spacing' => array(

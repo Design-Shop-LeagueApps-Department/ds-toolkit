@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.48] - 2026-07-25
+### Added
+- **CTA: "Style 5 -- Motion Cards" (GH #56).** Elevated image cards with a per-card Logo/Badge overlay. Card: ratio, radius, shadow depth, hover lift, transition speed. Background: default effect (blur / darken / grayscale / opacity / colour overlay with 8 blend modes) + hover behaviour (remove effect, brighten, zoom in/out). Logo overlay: position (5 spots), size/backing/padding/radius/shadow, entrance animation (12 variants, plays on scroll into view) with duration/delay/easing, and hover animation (scale, float, bounce, rotate, pulse, fade, glow). All CSS-driven, honours prefers-reduced-motion.
+
+### Fixed
+- **Post Loop: Athletes Photo/Action image framing (GH #67).** New **Photo Fit** (Fill with crop / Fit whole photo letterboxed), **Photo Focus** (center / top / bottom / left / right -- Top keeps heads in frame), and **Photo Backdrop** colour controls, so subjects stay visible and cards look uniform regardless of source image dimensions.
+
 ## [1.9.47] - 2026-07-22
 ### Added
 - **Post Loop: "Teams: Cards" layout.** A photo grid of teams: featured image (ratio option), team name, and an arrow -- external icon when the card links to the team's External Link (new tab), arrow when it links to the team page. Options: columns, gap, photo ratio, card/name/icon colours, name typography (live preview).
