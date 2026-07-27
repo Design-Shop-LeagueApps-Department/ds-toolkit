@@ -1,22 +1,29 @@
-/* LeagueApps CTA — Motion Cards (Style 5) logo entrance trigger. Vanilla, idempotent. */
+/* LeagueApps CTA: Motion Cards card-wide logo trigger. Vanilla, idempotent. */
 (function () {
 	function boot(root) {
 		(root || document).querySelectorAll('.ds-mcards').forEach(function (sec) {
 			if (sec.dsMcInit) { return; }
 			sec.dsMcInit = true;
-			var logos = [].slice.call(sec.querySelectorAll('.ds-mcard-logo'));
-			if (!logos.length) { return; }
-			var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-			if (reduce || !('IntersectionObserver' in window)) {
-				logos.forEach(function (l) { l.classList.add('is-in'); });
-				return;
-			}
-			var io = new IntersectionObserver(function (entries) {
-				entries.forEach(function (e) {
-					if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
-				});
-			}, { threshold: 0.25 });
-			logos.forEach(function (l) { io.observe(l); });
+			sec.querySelectorAll('.ds-mcard').forEach(function (card) {
+				if (!card.querySelector('.ds-mcard-logo')) { return; }
+				var enterEvent = ('onpointerenter' in window) ? 'pointerenter' : 'mouseenter';
+				var leaveEvent = ('onpointerleave' in window) ? 'pointerleave' : 'mouseleave';
+
+				function activate() {
+					card.classList.remove('is-logo-active');
+					void card.offsetWidth;
+					card.classList.add('is-logo-active');
+				}
+
+				function deactivate() {
+					card.classList.remove('is-logo-active');
+				}
+
+				card.addEventListener(enterEvent, activate);
+				card.addEventListener(leaveEvent, deactivate);
+				card.addEventListener('focus', activate);
+				card.addEventListener('blur', deactivate);
+			});
 		});
 	}
 	if ('loading' !== document.readyState) { boot(); } else { document.addEventListener('DOMContentLoaded', function () { boot(); }); }

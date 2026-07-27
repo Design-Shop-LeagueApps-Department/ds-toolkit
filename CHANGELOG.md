@@ -4,6 +4,14 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.52] - 2026-07-28
+### Added
+- **CTA Motion Cards: configurable default gradient overlay (GH #70).** Style 5 now includes an independent readability gradient with enable, colour, opacity, direction, and coverage controls. It is enabled by default, stays visible before interaction, and remains separate from image filters and hover effects.
+- **CTA Motion Cards: Logo Display modes (GH #70).** Editors can keep logos always visible or reveal them only when the card is hovered or keyboard-focused.
+
+### Changed
+- **The whole Motion Card now triggers logo motion (GH #70).** Entrance and hover animations start together with the card and background effects, replay after leaving and returning, work from keyboard focus, and respect reduced-motion preferences. Scale Up and Scale Down no longer require hovering directly over the logo.
+
 ## [1.9.51] - 2026-07-28
 ### Changed
 - **Menu: more usable and accessible mobile drill drawer.** The open control now says Close, drilled panels show a clear Back cue and current section title, and focus moves with navigation, stays inside the drawer, returns to the parent row on Back, and returns to the menu control on Escape. The drawer now exposes dialog and panel semantics, honors device safe areas and reduced motion, wraps long labels, retains 44px or larger touch targets, and compacts short landscape screens so the CTA remains visible. Rapid close and reopen actions no longer clear the fresh panel.
