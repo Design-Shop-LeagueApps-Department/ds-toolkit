@@ -123,9 +123,10 @@ class DS_Menu_Module extends FLBuilderModule {
 				if ( $cl ) { $drill_logo = (string) wp_get_attachment_image_url( $cl, 'medium' ); }
 			}
 		}
-		$drill_attrs = '';
+		$drill_overview = ( $s->drill_overview ?? 'show' ) === 'hide' ? 'hide' : 'show';
+		$drill_attrs    = ' data-drill-overview="' . esc_attr( $drill_overview ) . '"';
 		if ( '' !== $drill_logo ) {
-			$drill_attrs  = ' data-drill-logo="' . esc_url( $drill_logo ) . '"';
+			$drill_attrs .= ' data-drill-logo="' . esc_url( $drill_logo ) . '"';
 			$drill_attrs .= ' data-drill-logo-align="' . ( ( $s->drill_logo_align ?? 'right' ) === 'left' ? 'left' : 'right' ) . '"';
 		}
 
@@ -393,6 +394,17 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 							'overlay' => __( 'Overlay with accordions (legacy)', 'ds-toolkit' ),
 						),
 						'help'    => __( 'Drill-down: submenus slide in one level at a time with a back control (Stripe-style); parents with their own URL get an "Overview" row. Desktop is unaffected. Menu content stays editable in Appearance → Menus.', 'ds-toolkit' ),
+						'toggle'  => array( 'drill' => array( 'fields' => array( 'drill_overview' ) ) ),
+					),
+					'drill_overview' => array(
+						'type'    => 'select',
+						'label'   => __( 'Parent Overview Row', 'ds-toolkit' ),
+						'default' => 'show',
+						'options' => array(
+							'show' => __( 'Show', 'ds-toolkit' ),
+							'hide' => __( 'Hide', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Show a link to the parent item above its child links in drilled panels. Hide to list child links only. Desktop is unaffected.', 'ds-toolkit' ),
 					),
 					'breakpoint'   => array(
 						'type'        => 'unit',

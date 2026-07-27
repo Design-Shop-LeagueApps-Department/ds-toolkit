@@ -39,7 +39,7 @@
 	   Panels are built at open time from the RENDERED WP-menu markup, so the drawer
 	   always mirrors Appearance → Menus (nothing duplicated server-side). One level
 	   per panel; drilling slides the next level in from the right; back walks out;
-	   parents with a real URL get an "Overview" link row (Stripe-style). */
+	   parents with a real URL can get an optional "Overview" link row. */
 	var CHEV_R = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>';
 	var CHEV_L = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18"/></svg>';
 
@@ -148,7 +148,7 @@
 				back.appendChild( bl );
 				back.addEventListener( 'click', pop );
 				p.appendChild( back );
-				if ( node.url && '#' !== node.url ) {
+				if ( 'hide' !== wrap.dataset.drillOverview && node.url && '#' !== node.url ) {
 					var ov = document.createElement( 'a' );
 					ov.className = 'ds-drill-overview';
 					ov.href = node.url;

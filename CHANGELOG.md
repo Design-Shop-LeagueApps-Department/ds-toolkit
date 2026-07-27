@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.49] - 2026-07-28
+### Added
+- **Menu: optional parent Overview row in the mobile drill drawer.** A new Responsive setting controls whether drilled panels show the parent link as an "Overview" row before their child links. It defaults to Show so existing menus remain unchanged. Hide lists only the linked child pages, and desktop navigation is unaffected.
+
 ## [1.9.48] - 2026-07-25
 ### Added
 - **CTA: "Style 5 -- Motion Cards" (GH #56).** Elevated image cards with a per-card Logo/Badge overlay. Card: ratio, radius, shadow depth, hover lift, transition speed. Background: default effect (blur / darken / grayscale / opacity / colour overlay with 8 blend modes) + hover behaviour (remove effect, brighten, zoom in/out). Logo overlay: position (5 spots), size/backing/padding/radius/shadow, entrance animation (12 variants, plays on scroll into view) with duration/delay/easing, and hover animation (scale, float, bounce, rotate, pulse, fade, glow). All CSS-driven, honours prefers-reduced-motion.
