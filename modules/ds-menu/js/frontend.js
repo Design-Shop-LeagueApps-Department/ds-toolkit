@@ -100,6 +100,22 @@
 		drawer.appendChild( panelsEl );
 		var stack = [];
 
+		function normalizedUrl( value ) {
+			if ( ! value || '#' === value ) { return ''; }
+			try {
+				var parsed = new URL( value, window.location.href );
+				return parsed.origin + parsed.pathname.replace( /\/+$/, '' );
+			} catch ( error ) {
+				return value;
+			}
+		}
+
+		function isDuplicateOverview( child, parent ) {
+			return 'hide' === wrap.dataset.drillOverview
+				&& 'overview' === child.label.trim().toLowerCase()
+				&& normalizedUrl( child.url ) === normalizedUrl( parent.url );
+		}
+
 		// Persistent brand bar above the panels (site/partner logo from data attrs).
 		var brand = null;
 		if ( wrap.dataset.drillLogo ) {
@@ -161,7 +177,11 @@
 					p.appendChild( ov );
 				}
 			}
-			node.children.forEach( function ( c ) { p.appendChild( row( c, !! node.root ) ); } );
+			node.children.forEach( function ( c ) {
+				if ( ! isDuplicateOverview( c, node ) ) {
+					p.appendChild( row( c, !! node.root ) );
+				}
+			} );
 			return p;
 		}
 

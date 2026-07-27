@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.50] - 2026-07-28
+### Fixed
+- **Menu: Hide Parent Overview Row also removes duplicate menu items.** Some menus contain an explicit child named "Overview" that points to the same URL as its parent. Hide now omits that duplicate from the mobile drill panel while leaving the real WordPress menu item and desktop navigation unchanged. Overview items that point elsewhere remain visible.
+
 ## [1.9.49] - 2026-07-28
 ### Added
 - **Menu: optional parent Overview row in the mobile drill drawer.** A new Responsive setting controls whether drilled panels show the parent link as an "Overview" row before their child links. It defaults to Show so existing menus remain unchanged. Hide lists only the linked child pages, and desktop navigation is unaffected.
