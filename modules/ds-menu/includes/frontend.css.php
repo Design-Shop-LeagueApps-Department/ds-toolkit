@@ -356,7 +356,7 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	}
 	/* Pin the open hamburger to the viewport corner so it can never overlap the items
 	   (it sits in the header flow otherwise, which is what caused the overlap). */
-	<?php echo $open; ?> .ds-menu-toggle { position: fixed; top: 16px; right: 18px; margin: 0; z-index: 100001; color: <?php echo $otext; ?> !important; background: transparent !important; border-color: <?php echo $otext; ?>; }
+	<?php echo $open; ?> .ds-menu-toggle { position: fixed; top: 16px; top: max(16px, env(safe-area-inset-top)); right: 18px; right: max(18px, env(safe-area-inset-right)); margin: 0; z-index: 100001; color: <?php echo $otext; ?> !important; background: transparent !important; border-color: <?php echo $otext; ?>; }
 
 	<?php
 	/* Overlay item divider. */
