@@ -56,8 +56,10 @@ class DS_CTA_Module extends FLBuilderModule {
 		$logo_in  = preg_replace( '/[^a-z-]/', '', (string) ( $s->mcl_in ?? 'fade-up' ) );
 		$logo_hov = preg_replace( '/[^a-z-]/', '', (string) ( $s->mcl_hover ?? 'float' ) );
 		$logo_pos = in_array( $s->mcl_pos ?? 'center', array( 'center', 'top-left', 'top-right', 'bottom-left', 'bottom-right' ), true ) ? ( $s->mcl_pos ?? 'center' ) : 'center';
+		$logo_display = in_array( $s->mcl_display ?? 'always', array( 'always', 'hover' ), true ) ? ( $s->mcl_display ?? 'always' ) : 'always';
+		$gradient = ( $s->mcgrad_enable ?? 'yes' ) === 'yes';
 
-		$mods = 'ds-cta ds-cta--style5 ds-mcards ds-mcards--fx-' . $fx_base . ' ds-mcards--hov-' . $fx_hover;
+		$mods = 'ds-cta ds-cta--style5 ds-mcards ds-mcards--fx-' . $fx_base . ' ds-mcards--hov-' . $fx_hover . ' ds-mcards--logo-' . $logo_display;
 		echo '<section class="' . esc_attr( $mods ) . '"><div class="ds-cta-wrap">';
 
 		if ( ( $s->show_header ?? 'yes' ) === 'yes' && ( ! empty( $s->heading ) || ! empty( $s->header_label ) ) ) {
@@ -85,6 +87,9 @@ class DS_CTA_Module extends FLBuilderModule {
 			echo '<a class="ds-mcard" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>';
 			echo '<span class="ds-mcard-bg"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . ' aria-hidden="true"></span>';
 			echo '<span class="ds-mcard-tint" aria-hidden="true"></span>';
+			if ( $gradient ) {
+				echo '<span class="ds-mcard-gradient" aria-hidden="true"></span>';
+			}
 			if ( '' !== $logo ) {
 				echo '<span class="ds-mcard-logo ds-mcard-logo--' . esc_attr( $logo_pos ) . ' ds-mcin--' . esc_attr( $logo_in ) . ' ds-mchov--' . esc_attr( $logo_hov ) . '"><img src="' . esc_url( $logo ) . '" alt="" loading="lazy" /></span>';
 			}
@@ -966,6 +971,29 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 			'mcard_fx' => array(
 				'title'  => __( 'Background Effects', 'ds-toolkit' ),
 				'fields' => array(
+					'mcgrad_enable' => array(
+						'type'    => 'select',
+						'label'   => __( 'Default Gradient', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Enabled', 'ds-toolkit' ), 'no' => __( 'Disabled', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'mcgrad_color', 'mcgrad_opacity', 'mcgrad_direction', 'mcgrad_coverage' ) ) ),
+						'help'    => __( 'Adds a persistent gradient above the image for consistent text readability. It works independently from the default and hover effects below.', 'ds-toolkit' ),
+					),
+					'mcgrad_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
+					'mcgrad_opacity' => array( 'type' => 'unit', 'label' => __( 'Gradient Opacity', 'ds-toolkit' ), 'default' => '60', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+					'mcgrad_direction' => array(
+						'type'    => 'select',
+						'label'   => __( 'Gradient Direction', 'ds-toolkit' ),
+						'default' => 'bottom-top',
+						'options' => array(
+							'top-bottom' => __( 'Top to Bottom', 'ds-toolkit' ),
+							'bottom-top' => __( 'Bottom to Top', 'ds-toolkit' ),
+							'left-right' => __( 'Left to Right', 'ds-toolkit' ),
+							'right-left' => __( 'Right to Left', 'ds-toolkit' ),
+							'radial'     => __( 'Radial', 'ds-toolkit' ),
+						),
+					),
+					'mcgrad_coverage' => array( 'type' => 'unit', 'label' => __( 'Gradient Coverage', 'ds-toolkit' ), 'default' => '75', 'description' => '%', 'slider' => array( 'min' => 10, 'max' => 100, 'step' => 1 ), 'help' => __( 'Controls how far the gradient extends from its solid edge. Radial mode uses it as the width of the dark outer fade.', 'ds-toolkit' ) ),
 					'mcfx_base'    => array(
 						'type'    => 'select',
 						'label'   => __( 'Default Effect', 'ds-toolkit' ),
@@ -995,15 +1023,25 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 				'title'       => __( 'Logo Overlay', 'ds-toolkit' ),
 				'description' => __( 'Styling + animation for each card\'s Logo / Badge image (set per card).', 'ds-toolkit' ),
 				'fields'      => array(
+					'mcl_display' => array(
+						'type'    => 'select',
+						'label'   => __( 'Logo Display', 'ds-toolkit' ),
+						'default' => 'always',
+						'options' => array(
+							'always' => __( 'Always Visible', 'ds-toolkit' ),
+							'hover'  => __( 'Show On Card Hover', 'ds-toolkit' ),
+						),
+						'help'    => __( 'The whole card triggers the logo animation. Hover mode hides the logo until the card is hovered or keyboard-focused.', 'ds-toolkit' ),
+					),
 					'mcl_pos'    => array( 'type' => 'select', 'label' => __( 'Position', 'ds-toolkit' ), 'default' => 'center', 'options' => array( 'center' => __( 'Center', 'ds-toolkit' ), 'top-left' => __( 'Top Left', 'ds-toolkit' ), 'top-right' => __( 'Top Right', 'ds-toolkit' ), 'bottom-left' => __( 'Bottom Left', 'ds-toolkit' ), 'bottom-right' => __( 'Bottom Right', 'ds-toolkit' ) ) ),
 					'mcl_size'   => array( 'type' => 'unit', 'label' => __( 'Size', 'ds-toolkit' ), 'default' => '84', 'description' => 'px', 'slider' => array( 'min' => 32, 'max' => 200, 'step' => 2 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-mcard-logo img', 'property' => 'width', 'unit' => 'px' ) ),
 					'mcl_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Backing Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Optional plate behind the logo. Blank = none.', 'ds-toolkit' ) ),
 					'mcl_pad'    => array( 'type' => 'unit', 'label' => __( 'Padding', 'ds-toolkit' ), 'default' => '10', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
 					'mcl_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '999', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 999, 'step' => 1 ) ),
 					'mcl_shadow' => array( 'type' => 'select', 'label' => __( 'Shadow', 'ds-toolkit' ), 'default' => 'soft', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'soft' => __( 'Soft', 'ds-toolkit' ), 'medium' => __( 'Medium', 'ds-toolkit' ), 'strong' => __( 'Strong', 'ds-toolkit' ) ) ),
-					'mcl_in'     => array( 'type' => 'select', 'label' => __( 'Entrance Animation', 'ds-toolkit' ), 'default' => 'fade-up', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'fade' => __( 'Fade In', 'ds-toolkit' ), 'fade-up' => __( 'Fade Up', 'ds-toolkit' ), 'fade-down' => __( 'Fade Down', 'ds-toolkit' ), 'fade-left' => __( 'Fade Left', 'ds-toolkit' ), 'fade-right' => __( 'Fade Right', 'ds-toolkit' ), 'slide-up' => __( 'Slide Up', 'ds-toolkit' ), 'slide-down' => __( 'Slide Down', 'ds-toolkit' ), 'slide-left' => __( 'Slide Left', 'ds-toolkit' ), 'slide-right' => __( 'Slide Right', 'ds-toolkit' ), 'zoom-in' => __( 'Zoom In', 'ds-toolkit' ), 'zoom-out' => __( 'Zoom Out', 'ds-toolkit' ) ), 'help' => __( 'Plays when the card scrolls into view. Skipped for reduced-motion visitors.', 'ds-toolkit' ) ),
+					'mcl_in'     => array( 'type' => 'select', 'label' => __( 'Card Hover Entrance', 'ds-toolkit' ), 'default' => 'fade-up', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'fade' => __( 'Fade In', 'ds-toolkit' ), 'fade-up' => __( 'Fade Up', 'ds-toolkit' ), 'fade-down' => __( 'Fade Down', 'ds-toolkit' ), 'fade-left' => __( 'Fade Left', 'ds-toolkit' ), 'fade-right' => __( 'Fade Right', 'ds-toolkit' ), 'slide-up' => __( 'Slide Up', 'ds-toolkit' ), 'slide-down' => __( 'Slide Down', 'ds-toolkit' ), 'slide-left' => __( 'Slide Left', 'ds-toolkit' ), 'slide-right' => __( 'Slide Right', 'ds-toolkit' ), 'zoom-in' => __( 'Zoom In', 'ds-toolkit' ), 'zoom-out' => __( 'Zoom Out', 'ds-toolkit' ) ), 'help' => __( 'Plays whenever the whole card is hovered or keyboard-focused. It can replay after the pointer leaves and returns. Skipped for reduced-motion visitors.', 'ds-toolkit' ) ),
 					'mcl_dur'    => array( 'type' => 'unit', 'label' => __( 'Animation Duration', 'ds-toolkit' ), 'default' => '600', 'description' => 'ms', 'slider' => array( 'min' => 100, 'max' => 2000, 'step' => 50 ) ),
-					'mcl_delay'  => array( 'type' => 'unit', 'label' => __( 'Animation Delay', 'ds-toolkit' ), 'default' => '150', 'description' => 'ms', 'slider' => array( 'min' => 0, 'max' => 2000, 'step' => 50 ) ),
+					'mcl_delay'  => array( 'type' => 'unit', 'label' => __( 'Animation Delay', 'ds-toolkit' ), 'default' => '0', 'description' => 'ms', 'slider' => array( 'min' => 0, 'max' => 2000, 'step' => 50 ) ),
 					'mcl_ease'   => array( 'type' => 'select', 'label' => __( 'Animation Easing', 'ds-toolkit' ), 'default' => 'ease-out', 'options' => array( 'ease' => 'Ease', 'ease-out' => 'Ease Out', 'ease-in-out' => 'Ease In-Out', 'cubic-bezier(.34,1.56,.64,1)' => __( 'Spring (overshoot)', 'ds-toolkit' ) ) ),
 					'mcl_hover'  => array( 'type' => 'select', 'label' => __( 'Hover Animation', 'ds-toolkit' ), 'default' => 'float', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'scale-up' => __( 'Scale Up', 'ds-toolkit' ), 'scale-down' => __( 'Scale Down', 'ds-toolkit' ), 'float' => __( 'Float', 'ds-toolkit' ), 'bounce' => __( 'Bounce', 'ds-toolkit' ), 'rotate' => __( 'Rotate', 'ds-toolkit' ), 'pulse' => __( 'Pulse', 'ds-toolkit' ), 'fade' => __( 'Fade', 'ds-toolkit' ), 'glow' => __( 'Glow', 'ds-toolkit' ) ) ),
 				),

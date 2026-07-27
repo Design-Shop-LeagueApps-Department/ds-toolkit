@@ -313,6 +313,20 @@ if ( 'style3' === $style ) {
 	}
 	$zoom = 1 + max( 1, min( 25, (int) ( $settings->mcfx_zoom ?? 6 ) ) ) / 100;
 
+	// Persistent readability gradient, independent from image effects.
+	$grad_color = $mix( $settings->mcgrad_color ?? 'var(--fl-global-dark-background)', $settings->mcgrad_opacity ?? 60 );
+	if ( '' === $grad_color ) { $grad_color = 'color-mix(in srgb, #000 60%, transparent)'; }
+	$grad_coverage = max( 10, min( 100, (int) ( $settings->mcgrad_coverage ?? 75 ) ) );
+	$grad_direction = in_array( $settings->mcgrad_direction ?? 'bottom-top', array( 'top-bottom', 'bottom-top', 'left-right', 'right-left', 'radial' ), true ) ? ( $settings->mcgrad_direction ?? 'bottom-top' ) : 'bottom-top';
+	$gradients = array(
+		'top-bottom' => "linear-gradient(to bottom, {$grad_color} 0%, transparent {$grad_coverage}%)",
+		'bottom-top' => "linear-gradient(to top, {$grad_color} 0%, transparent {$grad_coverage}%)",
+		'left-right' => "linear-gradient(to right, {$grad_color} 0%, transparent {$grad_coverage}%)",
+		'right-left' => "linear-gradient(to left, {$grad_color} 0%, transparent {$grad_coverage}%)",
+		'radial'     => 'radial-gradient(ellipse at center, transparent 0%, transparent ' . max( 0, 100 - $grad_coverage ) . "%, {$grad_color} 100%)",
+	);
+	$gradient = $gradients[ $grad_direction ];
+
 	// Logo overlay.
 	$lsz  = $u( $settings->mcl_size ?? '', 84 );
 	$lpad = $u( $settings->mcl_pad ?? '', 10 );
@@ -320,11 +334,11 @@ if ( 'style3' === $style ) {
 	$lbg  = $col( $settings->mcl_bg ?? '' ) ?: 'transparent';
 	$lsh  = $settings->mcl_shadow ?? 'soft'; if ( ! isset( $sh_map[ $lsh ] ) ) { $lsh = 'soft'; }
 	$ldur = max( 50, $u( $settings->mcl_dur ?? '', 600 ) );
-	$ldel = max( 0, $u( $settings->mcl_delay ?? '', 150 ) );
+	$ldel = max( 0, $u( $settings->mcl_delay ?? '', 0 ) );
 	$ease_allow = array( 'ease', 'ease-out', 'ease-in-out', 'cubic-bezier(.34,1.56,.64,1)' );
 	$lease = in_array( $settings->mcl_ease ?? 'ease-out', $ease_allow, true ) ? ( $settings->mcl_ease ?? 'ease-out' ) : 'ease-out';
 
-	echo "$node .ds-mcard-grid{--mc-ratio:{$ratio};--mc-radius:{$rad}px;--mc-lift:{$lift}px;--mc-speed:{$spd}ms;--mc-shadow:{$sh_map[$sh]};--mc-shadow-hover:{$shh_map[$sh]};--mc-fx:{$fx};--mc-tint:{$tint};--mc-blend:{$blend};--mc-zoom:{$zoom};--mcl-size:{$lsz}px;--mcl-pad:{$lpad}px;--mcl-radius:{$lrad}px;--mcl-bg:{$lbg};--mcl-shadow:{$sh_map[$lsh]};--mcl-dur:{$ldur}ms;--mcl-delay:{$ldel}ms;--mcl-ease:{$lease};}\n";
+	echo "$node .ds-mcard-grid{--mc-ratio:{$ratio};--mc-radius:{$rad}px;--mc-lift:{$lift}px;--mc-speed:{$spd}ms;--mc-shadow:{$sh_map[$sh]};--mc-shadow-hover:{$shh_map[$sh]};--mc-fx:{$fx};--mc-tint:{$tint};--mc-blend:{$blend};--mc-zoom:{$zoom};--mc-gradient:{$gradient};--mcl-size:{$lsz}px;--mcl-pad:{$lpad}px;--mcl-radius:{$lrad}px;--mcl-bg:{$lbg};--mcl-shadow:{$sh_map[$lsh]};--mcl-dur:{$ldur}ms;--mcl-delay:{$ldel}ms;--mcl-ease:{$lease};}\n";
 
 	$typo = array( 'heading_typography' => '.ds-cta-heading', 'title_typography' => '.ds-mcard-title', 'eyebrow_typography' => '.ds-mcard-eyebrow' );
 } else {
