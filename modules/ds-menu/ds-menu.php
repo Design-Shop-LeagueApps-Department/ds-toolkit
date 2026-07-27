@@ -404,7 +404,7 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 							'show' => __( 'Show', 'ds-toolkit' ),
 							'hide' => __( 'Hide', 'ds-toolkit' ),
 						),
-						'help'    => __( 'Show a link to the parent item above its child links in drilled panels. Hide to list child links only. Desktop is unaffected.', 'ds-toolkit' ),
+						'help'    => __( 'Show a link to the parent item above its child links in drilled panels. Hide lists child links only and also omits a duplicate Overview menu item that points back to the parent. Desktop is unaffected.', 'ds-toolkit' ),
 					),
 					'breakpoint'   => array(
 						'type'        => 'unit',
