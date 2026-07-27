@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.51] - 2026-07-28
+### Changed
+- **Menu: more usable and accessible mobile drill drawer.** The open control now says Close, drilled panels show a clear Back cue and current section title, and focus moves with navigation, stays inside the drawer, returns to the parent row on Back, and returns to the menu control on Escape. The drawer now exposes dialog and panel semantics, honors device safe areas and reduced motion, wraps long labels, retains 44px or larger touch targets, and compacts short landscape screens so the CTA remains visible. Rapid close and reopen actions no longer clear the fresh panel.
+
 ## [1.9.50] - 2026-07-28
 ### Fixed
 - **Menu: Hide Parent Overview Row also removes duplicate menu items.** Some menus contain an explicit child named "Overview" that points to the same URL as its parent. Hide now omits that duplicate from the mobile drill panel while leaving the real WordPress menu item and desktop navigation unchanged. Overview items that point elsewhere remain visible.

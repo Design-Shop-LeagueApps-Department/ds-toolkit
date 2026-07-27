@@ -42,6 +42,7 @@
 	   parents with a real URL can get an optional "Overview" link row. */
 	var CHEV_R = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>';
 	var CHEV_L = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18"/></svg>';
+	var drillCount = 0;
 
 	// Data tree from the rendered menu. Mega panels flatten into drill levels:
 	// each mega column heading becomes a drillable row over its column links.
@@ -94,11 +95,19 @@
 	function makeDrill( wrap ) {
 		var drawer = document.createElement( 'div' );
 		drawer.className = 'ds-drill';
+		drawer.id = 'ds-drill-' + ( ++drillCount );
+		drawer.setAttribute( 'aria-hidden', 'true' );
+		drawer.setAttribute( 'inert', '' );
 		wrap.appendChild( drawer );
 		var panelsEl = document.createElement( 'div' );
 		panelsEl.className = 'ds-drill-panels';
 		drawer.appendChild( panelsEl );
 		var stack = [];
+		var panelCount = 0;
+		var toggle = wrap.querySelector( '.ds-menu-toggle' );
+		if ( toggle ) {
+			toggle.setAttribute( 'aria-controls', drawer.id );
+		}
 
 		function normalizedUrl( value ) {
 			if ( ! value || '#' === value ) { return ''; }
@@ -141,12 +150,13 @@
 			label.textContent = node.label;
 			el.appendChild( label );
 			if ( hasKids ) {
+				el.setAttribute( 'aria-haspopup', 'true' );
 				var chev = document.createElement( 'span' );
 				chev.className = 'ds-drill-chev';
 				chev.setAttribute( 'aria-hidden', 'true' );
 				chev.innerHTML = CHEV_R;
 				el.appendChild( chev );
-				el.addEventListener( 'click', function () { push( node ); } );
+				el.addEventListener( 'click', function () { push( node, el, true ); } );
 			}
 			return el;
 		}
@@ -154,16 +164,35 @@
 		function buildPanel( node ) {
 			var p = document.createElement( 'div' );
 			p.className = 'ds-drill-panel' + ( node.root ? ' is-root' : '' );
+			p.tabIndex = -1;
+			p.setAttribute( 'role', 'group' );
+			p.setAttribute( 'aria-hidden', 'false' );
+			p.dataset.panelLabel = node.root ? 'Main menu' : node.label;
+			if ( node.root ) {
+				p.setAttribute( 'aria-label', 'Main menu' );
+			}
 			if ( ! node.root ) {
 				var back = document.createElement( 'button' );
 				back.type = 'button';
 				back.className = 'ds-drill-back';
 				back.innerHTML = CHEV_L;
-				var bl = document.createElement( 'span' );
-				bl.textContent = node.label;
-				back.appendChild( bl );
+				var destination = stack.length ? stack[ stack.length - 1 ].dataset.panelLabel : 'Main menu';
+				back.setAttribute( 'aria-label', 'Back to ' + destination );
+				var copy = document.createElement( 'span' );
+				copy.className = 'ds-drill-back-copy';
+				var cue = document.createElement( 'span' );
+				cue.className = 'ds-drill-back-cue';
+				cue.textContent = 'Back';
+				var title = document.createElement( 'span' );
+				title.className = 'ds-drill-title';
+				title.id = drawer.id + '-title-' + ( ++panelCount );
+				title.textContent = node.label;
+				copy.appendChild( cue );
+				copy.appendChild( title );
+				back.appendChild( copy );
 				back.addEventListener( 'click', pop );
 				p.appendChild( back );
+				p.setAttribute( 'aria-labelledby', title.id );
 				if ( 'hide' !== wrap.dataset.drillOverview && node.url && '#' !== node.url ) {
 					var ov = document.createElement( 'a' );
 					ov.className = 'ds-drill-overview';
@@ -185,30 +214,55 @@
 			return p;
 		}
 
-		function push( node ) {
+		function push( node, trigger, moveFocus ) {
 			var prev = stack[ stack.length - 1 ];
-			if ( prev ) { prev.style.transform = 'translateX(-100%)'; }
+			if ( prev ) {
+				prev.style.transform = 'translateX(-100%)';
+				prev.setAttribute( 'aria-hidden', 'true' );
+				prev.setAttribute( 'inert', '' );
+			}
 			var p = buildPanel( node );
+			p.dsTrigger = trigger || null;
 			panelsEl.appendChild( p );
 			stack.push( p );
-			requestAnimationFrame( function () { p.style.transform = 'translateX(0)'; } );
+			requestAnimationFrame( function () {
+				p.style.transform = 'translateX(0)';
+				if ( moveFocus ) {
+					var focusTarget = p.querySelector( '.ds-drill-back' ) || p;
+					focusTarget.focus( { preventScroll: true } );
+				}
+			} );
 		}
 
 		function pop() {
 			if ( stack.length < 2 ) { return; }
 			var top = stack.pop();
+			var trigger = top.dsTrigger;
 			top.style.transform = 'translateX(100%)';
+			top.setAttribute( 'aria-hidden', 'true' );
+			top.setAttribute( 'inert', '' );
 			setTimeout( function () { top.remove(); }, 320 );
-			stack[ stack.length - 1 ].style.transform = 'translateX(0)';
+			var current = stack[ stack.length - 1 ];
+			current.removeAttribute( 'inert' );
+			current.setAttribute( 'aria-hidden', 'false' );
+			current.style.transform = 'translateX(0)';
+			if ( trigger ) {
+				requestAnimationFrame( function () { trigger.focus( { preventScroll: true } ); } );
+			}
 		}
 
 		return {
 			openRoot: function () {
 				panelsEl.innerHTML = '';
 				stack = [];
-				push( { root: true, label: '', url: '', isButton: false, children: drillTree( wrap ) } );
+				push( { root: true, label: '', url: '', isButton: false, children: drillTree( wrap ) }, toggle, false );
 			},
 			clear: function () { panelsEl.innerHTML = ''; stack = []; },
+			setOpen: function ( state ) {
+				drawer.setAttribute( 'aria-hidden', state ? 'false' : 'true' );
+				if ( state ) { drawer.removeAttribute( 'inert' ); } else { drawer.setAttribute( 'inert', '' ); }
+			},
+			activePanel: function () { return stack[ stack.length - 1 ] || null; },
 			brand: brand
 		};
 	}
@@ -221,14 +275,38 @@
 		var close   = wrap.querySelector( '.ds-menu-close' );
 		var isDrill = wrap.classList.contains( 'ds-menu-wrap--drill' );
 		var drill   = null;
+		var drillClearTimer = null;
+		var originalRole = wrap.getAttribute( 'role' );
+		var originalAriaModal = wrap.getAttribute( 'aria-modal' );
+		var originalAriaLabel = wrap.getAttribute( 'aria-label' );
+		var toggleLabel = toggle ? toggle.querySelector( '.ds-menu-toggle-label' ) : null;
+		var toggleLabelText = toggleLabel ? toggleLabel.textContent : '';
+		var toggleAriaLabel = toggle ? toggle.getAttribute( 'aria-label' ) : null;
+
+		function restoreAttribute( name, value ) {
+			if ( null === value ) { wrap.removeAttribute( name ); } else { wrap.setAttribute( name, value ); }
+		}
 
 		function open( state ) {
+			var wasOpen = wrap.classList.contains( 'ds-menu-open' );
 			wrap.classList.toggle( 'ds-menu-open', state );
-			if ( toggle ) { toggle.setAttribute( 'aria-expanded', state ? 'true' : 'false' ); }
+			if ( toggle ) {
+				toggle.setAttribute( 'aria-expanded', state ? 'true' : 'false' );
+				toggle.setAttribute( 'aria-label', state ? 'Close menu' : ( toggleAriaLabel || 'Toggle menu' ) );
+			}
+			if ( toggleLabel ) { toggleLabel.textContent = state ? 'Close' : toggleLabelText; }
 			document.body.classList.toggle( 'ds-menu-locked', state );
 			if ( isDrill ) {
 				if ( state ) {
+					if ( drillClearTimer ) {
+						clearTimeout( drillClearTimer );
+						drillClearTimer = null;
+					}
 					if ( ! drill ) { drill = makeDrill( wrap ); }
+					drill.setOpen( true );
+					wrap.setAttribute( 'role', 'dialog' );
+					wrap.setAttribute( 'aria-modal', 'true' );
+					wrap.setAttribute( 'aria-label', 'Site menu' );
 					drill.openRoot();
 					// Right-aligned brand clears the pinned X + label, whose width
 					// varies with the Hamburger Label — measure, don't guess.
@@ -239,7 +317,19 @@
 						} );
 					}
 				} else if ( drill ) {
-					setTimeout( drill.clear, 280 ); // after the fade-out
+					drill.setOpen( false );
+					drillClearTimer = setTimeout( function () {
+						drill.clear();
+						drillClearTimer = null;
+					}, 280 ); // after the fade-out
+				}
+				if ( ! state ) {
+					restoreAttribute( 'role', originalRole );
+					restoreAttribute( 'aria-modal', originalAriaModal );
+					restoreAttribute( 'aria-label', originalAriaLabel );
+					if ( wasOpen && toggle ) {
+						requestAnimationFrame( function () { toggle.focus( { preventScroll: true } ); } );
+					}
 				}
 				return;
 			}
@@ -282,7 +372,29 @@
 		}
 
 		document.addEventListener( 'keydown', function ( e ) {
-			if ( 'Escape' === e.key && wrap.classList.contains( 'ds-menu-open' ) ) { open( false ); }
+			if ( ! wrap.classList.contains( 'ds-menu-open' ) ) { return; }
+			if ( 'Escape' === e.key ) {
+				e.preventDefault();
+				open( false );
+				return;
+			}
+			if ( 'Tab' === e.key && isDrill && drill ) {
+				var panel = drill.activePanel();
+				if ( ! panel ) { return; }
+				var panelFocus = Array.prototype.slice.call( panel.querySelectorAll( 'a[href], button:not([disabled])' ) );
+				var focusable = ( toggle ? [ toggle ] : [] ).concat( panelFocus );
+				if ( ! focusable.length ) { return; }
+				var first = focusable[0];
+				var last = focusable[ focusable.length - 1 ];
+				var active = document.activeElement;
+				if ( e.shiftKey && ( active === first || active === panel || focusable.indexOf( active ) === -1 ) ) {
+					e.preventDefault();
+					last.focus();
+				} else if ( ! e.shiftKey && active === last ) {
+					e.preventDefault();
+					first.focus();
+				}
+			}
 		} );
 	}
 
