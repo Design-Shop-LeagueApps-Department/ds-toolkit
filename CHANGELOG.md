@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.53] - 2026-07-28
+### Fixed
+- **Menu: mega panel Max Width now works with Auto sizing (GH #75).** The panel's 460px min-width silently beat any smaller cap (min-width wins over max-width in CSS); with a Max Width set, min-width now yields and column content wraps inside the cap.
+
+### Added
+- **Menu: mega panel Horizontal Offset (responsive) + Keep Panel On Screen (GH #75).** Nudge the auto-width panel left/right per breakpoint (composes with alignment), and an on-by-default smart clamp shifts the panel back into view whenever it would overflow past the browser edge -- measured fresh on every hover, applied on top of the editor's offset.
+
 ## [1.9.52] - 2026-07-28
 ### Added
 - **CTA Motion Cards: configurable default gradient overlay (GH #70).** Style 5 now includes an independent readability gradient with enable, colour, opacity, direction, and coverage controls. It is enabled by default, stays visible before interaction, and remains separate from image filters and hover effects.

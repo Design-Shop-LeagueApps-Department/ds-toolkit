@@ -185,9 +185,43 @@ if ( 'bar' === $mw ) {
 	} elseif ( 'right' === $mal ) {
 		echo "\t$mPan { left: auto; right: 0; }\n";
 	}
-	if ( $mmax ) { echo "\t$mPan { max-width: {$mmax}px; }\n"; }
+	// Max Width (GH #75): min-width must yield or it silently beats any cap below
+	// the 460px base (min-width wins over max-width in CSS) — the "Max Width has
+	// no effect" report. Columns are minmax(0,1fr), so content wraps inside.
+	if ( $mmax ) { echo "\t$mPan { max-width: {$mmax}px; min-width: 0; }\n"; }
+	// Horizontal Offset (GH #75) + the smart viewport shift written by JS,
+	// composed so the clamp stacks on top of the editor's offset.
+	$mox = ( isset( $settings->mega_offset_x ) && '' !== $settings->mega_offset_x ) ? (int) $settings->mega_offset_x : 0;
+	if ( 'right' === $mal ) {
+		echo "\t$mPan { margin-right: calc(" . ( -1 * $mox ) . "px - var(--ds-mega-shift, 0px)); }\n";
+	} else {
+		echo "\t$mPan { margin-left: calc({$mox}px + var(--ds-mega-shift, 0px)); }\n";
+	}
 }
 echo "}\n";
+
+/* Responsive Horizontal Offset overrides (GH #75). The mega only exists as a
+   dropdown ABOVE the menu breakpoint, so each override window is intersected
+   with it; breakpoint values below the menu breakpoint simply never apply. */
+if ( 'auto' === $mw ) {
+	$gs_bp   = FLBuilderModel::get_global_settings();
+	$bp_lg   = (int) ( $gs_bp->large_breakpoint ?? 1200 );
+	list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+	$windows = array(
+		'mega_offset_x_large'      => $bp_lg,
+		'mega_offset_x_medium'     => $bpm,
+		'mega_offset_x_responsive' => $bpr,
+	);
+	foreach ( $windows as $key => $upper ) {
+		if ( isset( $settings->$key ) && '' !== $settings->$key && $upper > $bp ) {
+			$v = (int) $settings->$key;
+			$rule = ( 'right' === $mal )
+				? 'margin-right: calc(' . ( -1 * $v ) . 'px - var(--ds-mega-shift, 0px));'
+				: "margin-left: calc({$v}px + var(--ds-mega-shift, 0px));";
+			echo "@media (min-width:" . ( $bp + 1 ) . "px) and (max-width:{$upper}px){ $mPan { {$rule} } }\n";
+		}
+	}
+}
 
 /* ---- Mega column heading style (the bold link atop each mega column) ----
    Selector includes .ds-mega-col so these out-rank the generic ".ds-mega a"
