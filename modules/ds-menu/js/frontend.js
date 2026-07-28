@@ -409,6 +409,28 @@
 			if ( wrap.classList.contains( 'ds-menu-open' ) ) { return; } // mobile overlay
 			var li = e.target && e.target.closest ? e.target.closest( '.ds-menu-item.has-children' ) : null;
 			if ( ! li || ! wrap.contains( li ) ) { return; }
+
+			// Mega smart viewport clamp (Keep Panel On Screen): if the panel would
+			// overflow past either browser edge, shift it back in via a CSS var the
+			// alignment/offset rules compose with. Measured fresh on every hover.
+			if ( li.classList.contains( 'is-mega' ) && wrap.classList.contains( 'ds-menu-wrap--megasmart' ) ) {
+				var pan = null;
+				for ( var m = 0; m < li.children.length; m++ ) {
+					if ( li.children[ m ].classList && li.children[ m ].classList.contains( 'ds-mega' ) ) { pan = li.children[ m ]; break; }
+				}
+				if ( pan ) {
+					pan.style.setProperty( '--ds-mega-shift', '0px' );
+					var pr = pan.getBoundingClientRect();
+					if ( pr.width > 0 ) {
+						var shift = 0;
+						if ( pr.right > window.innerWidth - 8 ) { shift = ( window.innerWidth - 8 ) - pr.right; }
+						else if ( pr.left < 8 ) { shift = 8 - pr.left; }
+						if ( shift ) { pan.style.setProperty( '--ds-mega-shift', Math.round( shift ) + 'px' ); }
+					}
+				}
+				return; // mega items never use the flyout flip below
+			}
+
 			var sub = null;
 			for ( var i = 0; i < li.children.length; i++ ) {
 				if ( li.children[ i ].classList && li.children[ i ].classList.contains( 'ds-submenu' ) ) { sub = li.children[ i ]; break; }

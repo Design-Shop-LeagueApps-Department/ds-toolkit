@@ -130,7 +130,8 @@ class DS_Menu_Module extends FLBuilderModule {
 			$drill_attrs .= ' data-drill-logo-align="' . ( ( $s->drill_logo_align ?? 'right' ) === 'left' ? 'left' : 'right' ) . '"';
 		}
 
-		echo '<nav class="ds-menu-wrap' . ( 'drill' === $mstyle ? ' ds-menu-wrap--drill' : '' ) . '"' . $drill_attrs . ' aria-label="' . esc_attr__( 'Primary', 'ds-toolkit' ) . '">';
+		$megasmart = ( ( $s->mega_enabled ?? 'no' ) === 'yes' && ( $s->mega_smart ?? 'yes' ) === 'yes' );
+		echo '<nav class="ds-menu-wrap' . ( 'drill' === $mstyle ? ' ds-menu-wrap--drill' : '' ) . ( $megasmart ? ' ds-menu-wrap--megasmart' : '' ) . '"' . $drill_attrs . ' aria-label="' . esc_attr__( 'Primary', 'ds-toolkit' ) . '">';
 
 		// Hamburger toggle (animates into an X via CSS when the overlay opens).
 		echo '<button type="button" class="ds-menu-toggle" aria-expanded="false" aria-label="' . esc_attr__( 'Toggle menu', 'ds-toolkit' ) . '">';
@@ -307,7 +308,7 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 						'default' => 'no',
 						'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ),
 						'help'    => __( 'Lets top-level items open as a wide multi-column panel. Pick which items below; leave the picker empty to make every item that has sub-items a mega panel.', 'ds-toolkit' ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'mega_picker', 'mega_items', 'mega_columns', 'mega_width', 'mega_align', 'mega_max_width' ) ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'mega_picker', 'mega_items', 'mega_columns', 'mega_width', 'mega_align', 'mega_max_width', 'mega_offset_x', 'mega_smart' ) ) ),
 					),
 					// In-builder picker: lists this menu's top-level items as clickable pills.
 					// The pill UI is drawn by js/admin.js, which writes the chosen items
@@ -359,7 +360,7 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 							'viewport' => __( 'Full screen width', 'ds-toolkit' ),
 						),
 						'help'    => __( 'Auto sizes the panel under its item. Full menu width spans the menu bar. Full screen width goes edge to edge.', 'ds-toolkit' ),
-						'toggle'  => array( 'auto' => array( 'fields' => array( 'mega_align', 'mega_max_width' ) ) ),
+						'toggle'  => array( 'auto' => array( 'fields' => array( 'mega_align', 'mega_max_width', 'mega_offset_x', 'mega_smart' ) ) ),
 					),
 					'mega_align'     => array(
 						'type'    => 'select',
@@ -377,8 +378,24 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 						'label'       => __( 'Max Width', 'ds-toolkit' ),
 						'default'     => '',
 						'description' => 'px',
-						'help'        => __( 'Optional cap on the auto-width panel. Blank keeps the default.', 'ds-toolkit' ),
-						'slider'      => array( 'min' => 300, 'max' => 1200, 'step' => 10 ),
+						'help'        => __( 'Cap on the auto-width panel: it sizes to its columns up to this width, then stops (content wraps inside). Blank keeps the default.', 'ds-toolkit' ),
+						'slider'      => array( 'min' => 200, 'max' => 1200, 'step' => 10 ),
+					),
+					'mega_offset_x'  => array(
+						'type'        => 'unit',
+						'label'       => __( 'Horizontal Offset', 'ds-toolkit' ),
+						'default'     => '',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => -300, 'max' => 300, 'step' => 2 ),
+						'help'        => __( 'Nudge the panel left (negative) or right (positive), per breakpoint. Desktop menu only — below the Mobile Breakpoint the mega stacks inside the mobile menu, so smaller-breakpoint values matter only when your Mobile Breakpoint is set low.', 'ds-toolkit' ),
+					),
+					'mega_smart'     => array(
+						'type'    => 'select',
+						'label'   => __( 'Keep Panel On Screen', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes (auto-shift into view)', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
+						'help'    => __( 'If the panel would overflow past the browser edge, it automatically shifts back into view — applied on top of your Horizontal Offset.', 'ds-toolkit' ),
 					),
 				),
 			),
