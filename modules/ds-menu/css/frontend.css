@@ -36,8 +36,12 @@
 /* Mega panel */
 .ds-mega {
 	position: absolute; top: 100%; left: 0; z-index: 999;
-	display: grid; grid-template-columns: repeat(var(--ds-cols, 3), minmax(0, 1fr));
-	gap: 8px 28px; padding: 22px 26px; min-width: 460px; max-width: 90vw;
+	display: grid; grid-template-columns: repeat(var(--ds-cols, 3), minmax(min-content, 1fr));
+	width: max-content; /* true "sized to columns": explicit intrinsic width so the
+	   absolutely-positioned panel never collapses (fr tracks contribute ~0 to the
+	   shrink-to-fit width, which letter-wrapped headings when a cap removed the
+	   min-width floor). min-content column floors keep text wrapping at words. */
+	gap: 8px 28px; padding: 22px 26px; min-width: 460px; max-width: 90vw; overflow-x: auto;
 	opacity: 0; visibility: hidden; transform: translateY(6px);
 	transition: opacity .15s ease, transform .15s ease, visibility .15s;
 	box-shadow: 0 12px 32px rgba(0,0,0,.14); border-radius: var(--ds-radius);

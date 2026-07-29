@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.54] - 2026-07-28
+### Fixed
+- **Mega panel (Auto) no longer collapses into letter-wrapped columns.** v1.9.53's Max-Width fix removed the panel's min-width floor when a cap was set, exposing an intrinsic-width collapse of the absolutely-positioned grid (fr tracks contribute ~0 to shrink-to-fit width) -- panels squeezed to a few pixels per column, wrapping headings one letter per line (seen on pennathleticsc). The panel now declares width: max-content (truly "sized to columns"), columns floor at min-content so text wraps at words never letters, and an overflow guard keeps extreme caps readable.
+
 ## [1.9.53] - 2026-07-28
 ### Fixed
 - **Menu: mega panel Max Width now works with Auto sizing (GH #75).** The panel's 460px min-width silently beat any smaller cap (min-width wins over max-width in CSS); with a Max Width set, min-width now yields and column content wraps inside the cap.
