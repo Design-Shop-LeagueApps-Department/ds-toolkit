@@ -10,11 +10,18 @@
 .ds-hero-slide.is-active{opacity:1;}
 .ds-hero-overlay{position:absolute;inset:0;z-index:1;pointer-events:none;}
 
+/* Mixed Media: a video slide fills like an image slide; its poster (the slide's
+   background-image) paints behind the video while it loads. */
+.ds-hero-slide--video{background-position:center;background-size:cover;}
+.ds-hero-slide--video .ds-hero-video{z-index:0;}
+
 /* Ken Burns (slow zoom). Duration for slides comes from --ds-hero-kb (the slide interval). */
 @keyframes dsHeroKB{from{transform:scale(1);}to{transform:scale(1.14);}}
 .ds-hero--kenburns .ds-hero-slide{transform:scale(1);will-change:transform;}
 .ds-hero--kenburns .ds-hero-slide.is-active{animation:dsHeroKB var(--ds-hero-kb,8s) ease-out forwards;}
 .ds-hero--kenburns .ds-hero-img{animation:dsHeroKB 18s ease-in-out infinite alternate;transform-origin:center;will-change:transform;}
+/* Ken Burns is a photo treatment — a scaling video reads as broken playback. */
+.ds-hero--kenburns .ds-hero-slide--video.is-active{animation:none;transform:none;}
 
 /* Content */
 .ds-hero-wrap{position:relative;z-index:2;width:100%;max-width:1280px;margin:0 auto;padding:0;}
