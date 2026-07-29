@@ -6,7 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *
  * A full-bleed hero (eyebrow, big headline with an accent word, subtext, two
  * CTA buttons, and a stats/proof row) over a configurable background:
- *   - a single image, an image SLIDESHOW (cross-fade), or a looping VIDEO,
+ *   - a single image, an image SLIDESHOW (cross-fade), a looping VIDEO, or a
+ *     MIXED MEDIA slideshow (any mix of image and video slides — GH #78),
  * with a configurable colour OVERLAY (solid or gradient) on top.
  *
  * Modeled on the Style 1 hero in the DS blueprint (nhbfutbolclub design).
@@ -20,7 +21,7 @@ class DS_Hero_Module extends FLBuilderModule {
 	public function __construct() {
 		parent::__construct( array(
 			'name'            => __( 'Hero Banner', 'ds-toolkit' ),
-			'description'     => __( 'Full-bleed hero with image/slideshow/video background and overlay.', 'ds-toolkit' ),
+			'description'     => __( 'Full-bleed hero with image/slideshow/video/mixed-media background and overlay.', 'ds-toolkit' ),
 			'category'        => __( 'LeagueApps', 'ds-toolkit' ),
 			'dir'             => DS_TOOLKIT_PATH . 'modules/ds-hero/',
 			'url'             => DS_TOOLKIT_URL . 'modules/ds-hero/',
@@ -51,20 +52,88 @@ class DS_Hero_Module extends FLBuilderModule {
 		return $val ? esc_url( (string) $val ) : '';
 	}
 
-	/** Background markup (image / slideshow / video). */
+	/** Resolve a Media Library video (attachment id / {id} array|object) with a URL fallback. */
+	private function video_src( $media, $url ) {
+		if ( ! empty( $media ) ) {
+			$id = is_object( $media ) ? ( $media->id ?? 0 ) : ( is_array( $media ) ? ( $media['id'] ?? 0 ) : $media );
+			if ( is_numeric( $id ) ) {
+				$u = (string) wp_get_attachment_url( (int) $id );
+				if ( '' !== $u ) { return $u; }
+			}
+		}
+		return trim( (string) $url );
+	}
+
+	/**
+	 * Normalized Mixed Media slides: [{type, url, poster, advance}].
+	 * Slides without usable media are skipped, so render and nav always agree.
+	 */
+	private function mixed_slides() {
+		$out = array();
+		$raw = $this->settings->mixed_slides ?? array();
+		if ( ! is_array( $raw ) ) { return $out; }
+		foreach ( $raw as $slide ) {
+			$slide = (object) $slide;
+			if ( ( $slide->slide_type ?? 'image' ) === 'video' ) {
+				$url = $this->video_src( $slide->video_media ?? '', $slide->video_url ?? '' );
+				if ( '' === $url ) { continue; }
+				$out[] = array(
+					'type'    => 'video',
+					'url'     => $url,
+					'poster'  => ! empty( $slide->video_poster ) ? $this->photo_url( $slide->video_poster ) : '',
+					'advance' => ( $slide->video_advance ?? 'end' ) === 'interval' ? 'interval' : 'end',
+				);
+			} else {
+				$url = ! empty( $slide->photo ) ? $this->photo_url( $slide->photo, 'full' ) : '';
+				if ( '' === $url ) { continue; }
+				$out[] = array( 'type' => 'image', 'url' => $url, 'poster' => '', 'advance' => 'interval' );
+			}
+		}
+		return $out;
+	}
+
+	/** Background markup (image / slideshow / video / mixed media). */
 	private function render_bg() {
 		$s    = $this->settings;
 		$type = $s->bg_type ?? 'image';
+		$vurl = 'video' === $type ? $this->video_src( $s->video_media ?? '', $s->video_url ?? '' ) : '';
 
 		echo '<div class="ds-hero-bg">';
 
-		if ( 'video' === $type && ! empty( $s->video_url ) ) {
+		if ( 'video' === $type && '' !== $vurl ) {
 			$poster = ! empty( $s->video_poster ) ? $this->photo_url( $s->video_poster ) : '';
 			printf(
 				'<video class="ds-hero-video" autoplay muted loop playsinline%s><source src="%s" type="video/mp4"></video>',
 				$poster ? ' poster="' . esc_url( $poster ) . '"' : '',
-				esc_url( $s->video_url )
+				esc_url( $vurl )
 			);
+		} elseif ( 'mixed' === $type ) {
+			$i = 0;
+			foreach ( $this->mixed_slides() as $slide ) {
+				if ( 'video' === $slide['type'] ) {
+					// Poster paints the slide div behind the video while it loads.
+					// Only the first slide autoplays / preloads fully; later videos
+					// load metadata and are played by JS when their slide activates.
+					printf(
+						'<div class="ds-hero-slide ds-hero-slide--video%s" data-advance="%s"%s><video class="ds-hero-video" muted playsinline preload="%s"%s%s%s><source src="%s" type="video/mp4"></video></div>',
+						0 === $i ? ' is-active' : '',
+						esc_attr( $slide['advance'] ),
+						$slide['poster'] ? ' style="background-image:url(' . esc_url( $slide['poster'] ) . ')"' : '',
+						0 === $i ? 'auto' : 'metadata',
+						'interval' === $slide['advance'] ? ' loop' : '',
+						0 === $i ? ' autoplay' : '',
+						$slide['poster'] ? ' poster="' . esc_url( $slide['poster'] ) . '"' : '',
+						esc_url( $slide['url'] )
+					);
+				} else {
+					printf(
+						'<div class="ds-hero-slide%s" style="background-image:url(%s)"></div>',
+						0 === $i ? ' is-active' : '',
+						esc_url( $slide['url'] )
+					);
+				}
+				$i++;
+			}
 		} elseif ( 'slideshow' === $type && ! empty( $s->bg_photos ) ) {
 			$raw = $s->bg_photos;
 			$ids = is_array( $raw ) ? $raw : array_filter( array_map( 'trim', explode( ',', (string) $raw ) ) );
@@ -89,16 +158,21 @@ class DS_Hero_Module extends FLBuilderModule {
 		echo '</div><div class="ds-hero-overlay" aria-hidden="true"></div>';
 	}
 
-	/** Slideshow navigation (arrows / dots). Renders only for a 2+ image slideshow. */
+	/** Slideshow navigation (arrows / dots). Renders only for a 2+ slide slideshow (image or mixed). */
 	private function render_slide_nav() {
-		$s = $this->settings;
-		if ( ( $s->bg_type ?? 'image' ) !== 'slideshow' ) { return; }
+		$s    = $this->settings;
+		$type = $s->bg_type ?? 'image';
+		if ( ! in_array( $type, array( 'slideshow', 'mixed' ), true ) ) { return; }
 		$nav = $s->slide_nav ?? 'lines';
 		if ( 'none' === $nav ) { return; }
-		$raw = $s->bg_photos ?? '';
-		$ids = is_array( $raw ) ? $raw : array_filter( array_map( 'trim', explode( ',', (string) $raw ) ) );
-		$count = 0;
-		foreach ( $ids as $id ) { if ( $this->photo_url( $id, 'full' ) ) { $count++; } }
+		if ( 'mixed' === $type ) {
+			$count = count( $this->mixed_slides() );
+		} else {
+			$raw = $s->bg_photos ?? '';
+			$ids = is_array( $raw ) ? $raw : array_filter( array_map( 'trim', explode( ',', (string) $raw ) ) );
+			$count = 0;
+			foreach ( $ids as $id ) { if ( $this->photo_url( $id, 'full' ) ) { $count++; } }
+		}
 		if ( $count < 2 ) { return; }
 
 		$arrows = in_array( $nav, array( 'arrows', 'both', 'lines_arrows' ), true );
@@ -328,6 +402,71 @@ class DS_Hero_Module extends FLBuilderModule {
 	}
 }
 
+/* ---------------------------------------------------- Mixed Media slide sub-form */
+
+FLBuilder::register_settings_form( 'ds_hero_slide_form', array(
+	'title' => __( 'Slide', 'ds-toolkit' ),
+	'tabs'  => array(
+		'general' => array(
+			'title'    => __( 'Slide', 'ds-toolkit' ),
+			'sections' => array(
+				'general' => array(
+					'title'  => '',
+					'fields' => array(
+						'slide_type' => array(
+							'type'    => 'select',
+							'label'   => __( 'Slide Type', 'ds-toolkit' ),
+							'default' => 'image',
+							'options' => array(
+								'image' => __( 'Image', 'ds-toolkit' ),
+								'video' => __( 'Video', 'ds-toolkit' ),
+							),
+							'toggle'  => array(
+								'image' => array( 'fields' => array( 'photo' ) ),
+								'video' => array( 'fields' => array( 'video_media', 'video_url', 'video_poster', 'video_advance' ) ),
+							),
+						),
+						'photo' => array(
+							'type'        => 'photo',
+							'label'       => __( 'Image', 'ds-toolkit' ),
+							'show_remove' => true,
+							'connections' => array( 'photo' ),
+						),
+						'video_media' => array(
+							'type'  => 'video',
+							'label' => __( 'Video (Media Library)', 'ds-toolkit' ),
+							'help'  => __( 'Upload / pick an MP4 from the Media Library. Takes priority over the Video URL below.', 'ds-toolkit' ),
+						),
+						'video_url' => array(
+							'type'        => 'text',
+							'label'       => __( 'Video URL (MP4)', 'ds-toolkit' ),
+							'connections' => array( 'url' ),
+							'help'        => __( 'A direct .mp4 URL if the video is hosted elsewhere.', 'ds-toolkit' ),
+						),
+						'video_poster' => array(
+							'type'        => 'photo',
+							'label'       => __( 'Poster Image', 'ds-toolkit' ),
+							'show_remove' => true,
+							'connections' => array( 'photo' ),
+							'help'        => __( 'Optional. Shown while the video loads.', 'ds-toolkit' ),
+						),
+						'video_advance' => array(
+							'type'    => 'select',
+							'label'   => __( 'Next Slide', 'ds-toolkit' ),
+							'default' => 'end',
+							'options' => array(
+								'end'      => __( 'When the video ends', 'ds-toolkit' ),
+								'interval' => __( 'After the Slide Interval (video loops)', 'ds-toolkit' ),
+							),
+							'help'    => __( 'Videos autoplay muted while their slide is showing (browsers require muted autoplay). Choose when the slideshow moves on.', 'ds-toolkit' ),
+						),
+					),
+				),
+			),
+		),
+	),
+) );
+
 FLBuilder::register_module( 'DS_Hero_Module', array(
 	'content' => array(
 		'title'    => __( 'Content', 'ds-toolkit' ),
@@ -452,19 +591,30 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 							'image'     => __( 'Single Image', 'ds-toolkit' ),
 							'slideshow' => __( 'Image Slideshow', 'ds-toolkit' ),
 							'video'     => __( 'Video', 'ds-toolkit' ),
+							'mixed'     => __( 'Mixed Media (Images + Videos)', 'ds-toolkit' ),
 						),
 						'toggle'  => array(
 							'image'     => array( 'fields' => array( 'bg_photo', 'kenburns' ) ),
 							'slideshow' => array( 'fields' => array( 'bg_photos', 'slide_interval', 'kenburns', 'slide_nav' ) ),
-							'video'     => array( 'fields' => array( 'video_url', 'video_poster' ) ),
+							'video'     => array( 'fields' => array( 'video_media', 'video_url', 'video_poster' ) ),
+							'mixed'     => array( 'fields' => array( 'mixed_slides', 'slide_interval', 'kenburns', 'slide_nav' ) ),
 						),
 					),
 					'bg_photo'       => array( 'type' => 'photo', 'label' => __( 'Image', 'ds-toolkit' ), 'show_remove' => true ),
 					'bg_photos'      => array( 'type' => 'multiple-photos', 'label' => __( 'Slideshow Images', 'ds-toolkit' ) ),
+					'mixed_slides'   => array(
+						'type'         => 'form',
+						'label'        => __( 'Slide', 'ds-toolkit' ),
+						'form'         => 'ds_hero_slide_form',
+						'preview_text' => 'slide_type',
+						'multiple'     => true,
+						'help'         => __( 'Build the slideshow from any mix of image and video slides. Drag to reorder.', 'ds-toolkit' ),
+					),
 					'slide_interval' => array( 'type' => 'unit', 'label' => __( 'Slide Interval', 'ds-toolkit' ), 'default' => '6', 'description' => 's', 'slider' => array( 'min' => 2, 'max' => 15, 'step' => 1 ) ),
 					'kenburns'       => array( 'type' => 'select', 'label' => __( 'Ken Burns Effect', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes (slow zoom)', 'ds-toolkit' ) ), 'help' => __( 'Slowly zooms the background image(s). Disabled for reduced-motion visitors.', 'ds-toolkit' ) ),
-					'slide_nav'      => array( 'type' => 'select', 'label' => __( 'Slide Navigation', 'ds-toolkit' ), 'default' => 'lines', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'lines' => __( 'Progress Lines (cooldown)', 'ds-toolkit' ), 'dots' => __( 'Dots', 'ds-toolkit' ), 'arrows' => __( 'Arrows', 'ds-toolkit' ), 'lines_arrows' => __( 'Lines + Arrows', 'ds-toolkit' ), 'both' => __( 'Dots + Arrows', 'ds-toolkit' ) ), 'help' => __( 'Navigation for the slideshow (2+ images). Progress Lines are thin bars that fill over the slide interval (a cooldown to the next slide). The active indicator and arrow hover use the accent colour.', 'ds-toolkit' ) ),
-					'video_url'      => array( 'type' => 'text', 'label' => __( 'Video URL (MP4)', 'ds-toolkit' ), 'help' => __( 'Direct .mp4 URL. Autoplays muted and loops.', 'ds-toolkit' ) ),
+					'slide_nav'      => array( 'type' => 'select', 'label' => __( 'Slide Navigation', 'ds-toolkit' ), 'default' => 'lines', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'lines' => __( 'Progress Lines (cooldown)', 'ds-toolkit' ), 'dots' => __( 'Dots', 'ds-toolkit' ), 'arrows' => __( 'Arrows', 'ds-toolkit' ), 'lines_arrows' => __( 'Lines + Arrows', 'ds-toolkit' ), 'both' => __( 'Dots + Arrows', 'ds-toolkit' ) ), 'help' => __( 'Navigation for the slideshow (2+ slides). Progress Lines are thin bars that fill over the slide interval (a cooldown to the next slide; on a play-until-end video slide they fill over the video). The active indicator and arrow hover use the accent colour.', 'ds-toolkit' ) ),
+					'video_media'    => array( 'type' => 'video', 'label' => __( 'Video (Media Library)', 'ds-toolkit' ), 'help' => __( 'Upload / pick an MP4 from the Media Library. Takes priority over the Video URL below. Autoplays muted and loops.', 'ds-toolkit' ) ),
+					'video_url'      => array( 'type' => 'text', 'label' => __( 'Video URL (MP4)', 'ds-toolkit' ), 'connections' => array( 'url' ), 'help' => __( 'Direct .mp4 URL if the video is hosted elsewhere. Autoplays muted and loops.', 'ds-toolkit' ) ),
 					'video_poster'   => array( 'type' => 'photo', 'label' => __( 'Video Poster', 'ds-toolkit' ), 'show_remove' => true ),
 				),
 			),

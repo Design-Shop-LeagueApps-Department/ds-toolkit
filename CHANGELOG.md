@@ -4,6 +4,11 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.55] - 2026-07-29
+### Added
+- **Hero Banner: "Mixed Media (Images + Videos)" background type (GH #78).** Build the hero slideshow from any mix of image and video slides. Each video slide can come from the WordPress Media Library or a direct MP4 URL, with an optional poster image (shown while the video loads) and a per-slide choice of when the slideshow advances: when the video ends (the progress line fills over the video's length) or after the Slide Interval (the video loops). Videos autoplay muted while their slide is showing, pause when it isn't, and restart from the beginning on return; slideshow navigation (arrows / dots / progress lines), cross-fade, and the overlay all work unchanged. Ken Burns applies to image slides only, and reduced-motion visitors get looping videos with no auto-advance.
+- **Hero Banner: the Video background type can use the Media Library (GH #78).** A "Video (Media Library)" picker joins the existing MP4 URL field on the plain Video background (the library pick wins when both are set), so editors no longer need externally hosted links.
+
 ## [1.9.54] - 2026-07-28
 ### Fixed
 - **Mega panel (Auto) no longer collapses into letter-wrapped columns.** v1.9.53's Max-Width fix removed the panel's min-width floor when a cap was set, exposing an intrinsic-width collapse of the absolutely-positioned grid (fr tracks contribute ~0 to shrink-to-fit width) -- panels squeezed to a few pixels per column, wrapping headings one letter per line (seen on pennathleticsc). The panel now declares width: max-content (truly "sized to columns"), columns floor at min-content so text wraps at words never letters, and an overflow guard keeps extreme caps readable.
