@@ -1218,7 +1218,9 @@ JS;
         $value = trim( (string) $value );
         if ( '' === $value ) { return ''; }
         // BB's picker stores hex WITHOUT a leading '#'; normalize to #hex.
-        if ( preg_match( '/^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/', $value, $m ) ) { return '#' . strtolower( $m[1] ); }
+        // 4- and 8-digit hex carry the Pickr alpha channel (#rgba / #rrggbbaa) —
+        // rejecting them wiped any colour saved with opacity below 100% (GH #80).
+        if ( preg_match( '/^#?([A-Fa-f0-9]{3,4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/', $value, $m ) ) { return '#' . strtolower( $m[1] ); }
         if ( preg_match( '/^rgba?\(\s*[\d.,\s%]+\)$/', $value ) ) { return $value; }
         // Synced global-color reference, e.g. var(--fl-global-primary).
         if ( preg_match( '/^var\(\s*--[A-Za-z0-9_-]+\s*\)$/', $value ) ) { return $value; }

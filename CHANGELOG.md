@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.56] - 2026-07-29
+### Fixed
+- **Theme Setting: colours with opacity below 100% no longer vanish on save (GH #80).** The colour picker stores a semi-transparent pick as 8-digit hex (`#rrggbbaa`), but the save sanitizer only accepted 3/6-digit hex, `rgb()/rgba()`, or a global-colour `var()` reference, so any alpha-adjusted colour (e.g. the Page Banner Background Color) was wiped to empty and the banner fell back to the default background. 4- and 8-digit alpha hex now survives every Theme Setting colour field; display, swatches, and the front-end CSS already handled it.
+
 ## [1.9.55] - 2026-07-29
 ### Added
 - **Hero Banner: "Mixed Media (Images + Videos)" background type (GH #78).** Build the hero slideshow from any mix of image and video slides. Each video slide can come from the WordPress Media Library or a direct MP4 URL, with an optional poster image (shown while the video loads) and a per-slide choice of when the slideshow advances: when the video ends (the progress line fills over the video's length) or after the Slide Interval (the video loops). Videos autoplay muted while their slide is showing, pause when it isn't, and restart from the beginning on return; slideshow navigation (arrows / dots / progress lines), cross-fade, and the overlay all work unchanged. Ken Burns applies to image slides only, and reduced-motion visitors get looping videos with no auto-advance.
