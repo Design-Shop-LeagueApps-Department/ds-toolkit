@@ -57,8 +57,38 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	 * the universal "Loop Card" — always offered for every content type (it loops any
 	 * post type into a grid of built-in or custom cards). Layout keys kept for data compat.
 	 */
-	public static function card_layouts() {
+	/**
+	 * Manual-list layouts that no longer belong in this module.
+	 *
+	 * Neither queries a post type, so they contradict this module's contract
+	 * ("loop over posts of type X"). They now live in the CTA module. They are
+	 * still RENDERED here forever — legacy instances, revision restores and
+	 * un-migrated sites all resolve to them — but they are hidden from the Card
+	 * Layout picker so no NEW instance can be built on them.
+	 *
+	 * @see DS_Program_Cards
+	 */
+	public static function retired_layouts() {
 		return array(
+			'program' => __( 'Custom Program Card (manual list) — moved to CTA', 'ds-toolkit' ),
+			// NOTE: `sponsor` has the same defect (manual list, no query) and belongs
+			// in CTA too, but it has no CTA style yet. Do NOT retire it here until
+			// one exists — hiding it from the picker with nowhere to build it would
+			// leave editors unable to create a sponsor grid at all.
+		);
+	}
+
+	/**
+	 * Card Layout options.
+	 *
+	 * Retired manual-list layouts are omitted, EXCEPT when the module instance
+	 * being edited already uses one. Without that exception the select would have
+	 * no matching option and Beaver Builder would silently fall back to the first
+	 * one, silently converting a partner's program list into a news grid the
+	 * moment they opened the panel.
+	 */
+	public static function card_layouts() {
+		$layouts = array(
 			'news_featured'  => __( 'News: Featured + Grid', 'ds-toolkit' ),
 			'news_grid'      => __( 'News: Card Grid', 'ds-toolkit' ),
 			'staff_card'     => __( 'Staff: Cards', 'ds-toolkit' ),
@@ -67,11 +97,46 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			'athlete_action' => __( 'Athletes: Action Cards', 'ds-toolkit' ),
 			'team_list'      => __( 'Teams: List', 'ds-toolkit' ),
 			'team_card'      => __( 'Teams: Cards (photo grid)', 'ds-toolkit' ),
+			// Still selectable: it has the same manual-list defect as `program` but no
+			// CTA style to move to yet. See retired_layouts().
 			'sponsor'        => __( 'Sponsors: Grid (manual list)', 'ds-toolkit' ),
-			'program'        => __( 'Custom Program Card (manual list)', 'ds-toolkit' ),
 			'tournament'     => __( 'Tournament Cards (events, upcoming)', 'ds-toolkit' ),
 			'custom'         => __( 'Custom Loop Layout', 'ds-toolkit' ),
 		);
+
+		$current = self::editing_card_layout();
+		$retired = self::retired_layouts();
+		if ( '' !== $current && isset( $retired[ $current ] ) ) {
+			$layouts[ $current ] = $retired[ $current ];
+		}
+
+		return $layouts;
+	}
+
+	/**
+	 * The card_layout of the module instance currently open in the builder.
+	 *
+	 * Returns '' when a new module is being inserted (no node id yet), which is
+	 * exactly when the retired layouts must stay hidden.
+	 *
+	 * @return string
+	 */
+	private static function editing_card_layout() {
+		if ( ! class_exists( 'FLBuilderModel' ) ) {
+			return '';
+		}
+		$node_id = isset( $_GET['node'] ) ? sanitize_text_field( wp_unslash( $_GET['node'] ) ) : '';
+		if ( '' === $node_id && isset( $_POST['node_id'] ) ) {
+			$node_id = sanitize_text_field( wp_unslash( $_POST['node_id'] ) );
+		}
+		if ( '' === $node_id ) {
+			return '';
+		}
+		$node = FLBuilderModel::get_node( $node_id );
+		if ( ! is_object( $node ) || ! isset( $node->settings->card_layout ) ) {
+			return '';
+		}
+		return (string) $node->settings->card_layout;
 	}
 	/** Public post types for the Query tab's Post Type select. */
 	public static function post_type_options() {
@@ -974,45 +1039,18 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		echo '</div></section>';
 	}
 
+	/**
+	 * Legacy manual program-card list. The card itself now lives in the CTA
+	 * module (Style 6) because it is a hand-built list, not a post loop. This
+	 * delegates to the shared renderer so legacy instances and migrated ones are
+	 * byte-identical. Kept indefinitely: revision restores and un-migrated sites
+	 * still resolve to this layout.
+	 */
 	public function render_program() {
-		$s     = $this->settings;
-		$items = ( isset( $s->programs ) && is_array( $s->programs ) ) ? $s->programs : array();
-		// A custom Button Radius opts out of the theme Button Shape (clip-path) so the
-		// radius shows; blank keeps the theme shape (button follows the theme by default).
-		$btn_cls = 'ds-program-btn' . ( ( $s->pg_btn_style ?? 'theme' ) === 'custom' ? ' ds-no-clip' : '' );
-		echo '<section class="ds-news ds-programs"><div class="ds-news-wrap">';
-		$this->render_head();
-		if ( empty( $items ) ) {
-			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No program cards yet. Add them in the Query tab (Program Cards list).', 'ds-toolkit' ) . '</p>'; }
-			echo '</div></section>'; return;
-		}
-		$this->loop_open( 'ds-program-grid' );
-		foreach ( $items as $it ) {
-			$it    = (object) $it;
-			$icon  = trim( (string) ( $it->prog_icon ?? '' ) );
-			$img   = $this->acf_image_url( $it->prog_image ?? '' );
-			$date  = trim( (string) ( $it->prog_date ?? '' ) );
-			$sub   = trim( (string) ( $it->prog_subheading ?? '' ) );
-			$title = trim( (string) ( $it->prog_title ?? '' ) );
-			$desc  = trim( (string) ( $it->prog_desc ?? '' ) );
-			list( $url, $target ) = $this->link_parts( $it->prog_url ?? '' );
-			$hasurl = ( '' !== $url && '#' !== $url );
-			$tgt    = ( '_blank' === $target ) ? ' target="_blank" rel="noopener"' : '';
-			$btn    = trim( (string) ( $it->prog_btn ?? '' ) );
-			echo '<div class="ds-program-card">';
-			if ( $hasurl && '' === $btn ) { echo '<a class="ds-card-link" href="' . esc_url( $url ) . '"' . $tgt . ' aria-label="' . esc_attr( $title ) . '"></a>'; }
-			if ( '' !== $icon )    { echo '<span class="ds-program-ico"><i class="' . esc_attr( $icon ) . '" aria-hidden="true"></i></span>'; }
-			elseif ( '' !== $img ) { echo '<div class="ds-program-media"><img src="' . esc_url( $img ) . '" alt="' . esc_attr( $title ) . '" loading="lazy" /></div>'; }
-			echo '<div class="ds-program-body">';
-			if ( '' !== $date )  { echo '<span class="ds-program-date">' . esc_html( $date ) . '</span>'; }
-			if ( '' !== $sub )   { echo '<span class="ds-program-sub">' . esc_html( $sub ) . '</span>'; }
-			if ( '' !== $title ) { echo '<h3 class="ds-program-title">' . DS_Module_UI::inline( $title ) . '</h3>'; }
-			if ( '' !== $desc )  { echo '<div class="ds-program-desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>'; }
-			if ( '' !== $btn && $hasurl ) { echo '<a class="' . esc_attr( $btn_cls ) . '" href="' . esc_url( $url ) . '"' . $tgt . '>' . esc_html( $btn ) . '</a>'; }
-			echo '</div></div>';
-		}
-		$this->loop_close();
-		echo '</div></section>';
+		DS_Program_Cards::render(
+			$this->settings,
+			__( 'No program cards yet. Add them in the Query tab (Program Cards list).', 'ds-toolkit' )
+		);
 	}
 
 	public function render_cardloop() {
