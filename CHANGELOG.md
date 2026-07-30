@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.57] - 2026-07-30
+### Fixed
+- **Menu: crossing a neighbouring trigger no longer swaps mega panels (GH #82).** Mega panels are far wider than their nav item, so a cursor travelling from a trigger into a far column of its open panel could clip the next top-level item on the way, and pure CSS `:hover` swapped panels instantly (e.g. Soccer opening while browsing the Flag Football panel). Desktop top-level open state is now JS-managed with hover intent: with nothing open, hover still opens instantly; with a panel open, switching to a sibling (or closing over a childless item) requires the pointer to dwell ~120ms on it, and a brief pass-through is ignored. Leaving the whole menu closes after a short grace instead of slamming shut. Keyboard (`:focus-within`), nested flyouts, the mobile overlay/drill drawer, and the no-JS fallback (pure `:hover`) are unchanged.
+
 ## [1.9.56] - 2026-07-29
 ### Fixed
 - **Theme Setting: colours with opacity below 100% no longer vanish on save (GH #80).** The colour picker stores a semi-transparent pick as 8-digit hex (`#rrggbbaa`), but the save sanitizer only accepted 3/6-digit hex, `rgb()/rgba()`, or a global-colour `var()` reference, so any alpha-adjusted colour (e.g. the Page Banner Background Color) was wiped to empty and the banner fell back to the default background. 4- and 8-digit alpha hex now survives every Theme Setting colour field; display, swatches, and the front-end CSS already handled it.
