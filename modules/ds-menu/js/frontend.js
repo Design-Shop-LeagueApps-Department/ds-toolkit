@@ -452,6 +452,78 @@
 		} );
 	}
 
+	/* Mega smart viewport clamp (Keep Panel On Screen): if the panel would
+	   overflow past either browser edge, shift it back in. The shift is applied
+	   as an inline margin with !important — site CSS resetting nav margins with
+	   !important beat both the css-var rule AND plain inline styles (seen on
+	   pennathleticsclub, GH #82) — and verified empirically: if margin-left
+	   didn't actually move the panel (right-anchored alignment), margin-right
+	   is used instead. The --ds-mega-shift var is still set for the stylesheet
+	   rules that compose it. Panels have layout while hidden, so this works at
+	   rest too — clampAllMegas() runs at boot and on resize so hidden panels
+	   never widen the page (the at-rest horizontal scrollbar report). */
+	function clampMega( pan ) {
+		pan.style.removeProperty( 'margin-left' );
+		pan.style.removeProperty( 'margin-right' );
+		pan.style.setProperty( '--ds-mega-shift', '0px' );
+		var pr = pan.getBoundingClientRect();
+		if ( ! pr.width ) { return; }
+		var shift = 0;
+		if ( pr.right > window.innerWidth - 8 ) { shift = ( window.innerWidth - 8 ) - pr.right; }
+		else if ( pr.left < 8 ) { shift = 8 - pr.left; }
+		if ( ! shift ) { return; }
+		shift = Math.round( shift );
+		pan.style.setProperty( '--ds-mega-shift', shift + 'px' );
+		var cs   = window.getComputedStyle( pan );
+		var base = parseFloat( cs.marginLeft ) || 0;
+		pan.style.setProperty( 'margin-left', Math.round( base + shift ) + 'px', 'important' );
+		var after = pan.getBoundingClientRect();
+		if ( Math.abs( after.left - ( pr.left + shift ) ) > 1.5 ) {
+			pan.style.removeProperty( 'margin-left' );
+			var baseR = parseFloat( window.getComputedStyle( pan ).marginRight ) || 0;
+			pan.style.setProperty( 'margin-right', Math.round( baseR - shift ) + 'px', 'important' );
+		}
+	}
+
+	function megaPanels( wrap ) {
+		var out = [];
+		wrap.querySelectorAll( '.ds-menu > .ds-menu-item.is-mega' ).forEach( function ( li ) {
+			for ( var m = 0; m < li.children.length; m++ ) {
+				if ( li.children[ m ].classList && li.children[ m ].classList.contains( 'ds-mega' ) ) { out.push( li.children[ m ] ); break; }
+			}
+		} );
+		return out;
+	}
+
+	// Clamp every mega panel; in mobile-overlay mode (hamburger visible) clear
+	// the inline margins instead so they can never distort the stacked overlay.
+	function clampAllMegas( wrap ) {
+		if ( ! wrap.classList.contains( 'ds-menu-wrap--megasmart' ) ) { return; }
+		var toggle = wrap.querySelector( '.ds-menu-toggle' );
+		var mobile = wrap.classList.contains( 'ds-menu-open' ) || ( toggle && 'none' !== window.getComputedStyle( toggle ).display );
+		megaPanels( wrap ).forEach( function ( pan ) {
+			if ( mobile ) {
+				pan.style.removeProperty( 'margin-left' );
+				pan.style.removeProperty( 'margin-right' );
+				pan.style.removeProperty( '--ds-mega-shift' );
+			} else {
+				clampMega( pan );
+			}
+		} );
+	}
+
+	function initMegaClamp( wrap ) {
+		if ( wrap.dsClampInit ) { return; }
+		wrap.dsClampInit = true;
+		if ( ! wrap.classList.contains( 'ds-menu-wrap--megasmart' ) ) { return; }
+		clampAllMegas( wrap );
+		var t = null;
+		window.addEventListener( 'resize', function () {
+			if ( t ) { clearTimeout( t ); }
+			t = setTimeout( function () { t = null; clampAllMegas( wrap ); }, 150 );
+		} );
+	}
+
 	/* Edge flip: when a dropdown / nested flyout would overflow the viewport's
 	   right edge (e.g. the last "More" item), flip it to open leftward instead
 	   of overlapping or clipping. Desktop only — the overlay renders submenus
@@ -464,24 +536,13 @@
 			var li = e.target && e.target.closest ? e.target.closest( '.ds-menu-item.has-children' ) : null;
 			if ( ! li || ! wrap.contains( li ) ) { return; }
 
-			// Mega smart viewport clamp (Keep Panel On Screen): if the panel would
-			// overflow past either browser edge, shift it back in via a CSS var the
-			// alignment/offset rules compose with. Measured fresh on every hover.
+			// Re-clamp the hovered mega fresh (viewport may have changed).
 			if ( li.classList.contains( 'is-mega' ) && wrap.classList.contains( 'ds-menu-wrap--megasmart' ) ) {
 				var pan = null;
 				for ( var m = 0; m < li.children.length; m++ ) {
 					if ( li.children[ m ].classList && li.children[ m ].classList.contains( 'ds-mega' ) ) { pan = li.children[ m ]; break; }
 				}
-				if ( pan ) {
-					pan.style.setProperty( '--ds-mega-shift', '0px' );
-					var pr = pan.getBoundingClientRect();
-					if ( pr.width > 0 ) {
-						var shift = 0;
-						if ( pr.right > window.innerWidth - 8 ) { shift = ( window.innerWidth - 8 ) - pr.right; }
-						else if ( pr.left < 8 ) { shift = 8 - pr.left; }
-						if ( shift ) { pan.style.setProperty( '--ds-mega-shift', Math.round( shift ) + 'px' ); }
-					}
-				}
+				if ( pan ) { clampMega( pan ); }
 				return; // mega items never use the flyout flip below
 			}
 
@@ -496,7 +557,7 @@
 		} );
 	}
 
-	function boot() { document.querySelectorAll( '.ds-menu-wrap' ).forEach( function ( w ) { init( w ); initHoverIntent( w ); initFlip( w ); } ); }
+	function boot() { document.querySelectorAll( '.ds-menu-wrap' ).forEach( function ( w ) { init( w ); initHoverIntent( w ); initFlip( w ); initMegaClamp( w ); } ); }
 
 	if ( 'loading' !== document.readyState ) { boot(); } else { document.addEventListener( 'DOMContentLoaded', boot ); }
 	// Re-init after a Beaver Builder partial refresh while editing.

@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.60] - 2026-07-31
+### Fixed
+- **Menu: mega panels can no longer widen the page (horizontal scrollbar) and the Keep Panel On Screen clamp now survives hostile site CSS (GH #82 follow-up).** Two related problems from pennathleticsclub.org: hidden mega panels have layout, so a wide panel anchored near the right edge stretched the page sideways before anyone hovered; and site CSS resetting nav margins with `!important` silently defeated the clamp's `--ds-mega-shift` margin rule, so the open panel overflowed the browser edge. The clamp now runs for every mega panel at load and on resize (not just on hover), applies the shift as an inline margin with `!important` (verified empirically, falling back to the opposite margin for right-aligned panels), and clears its inline margins in mobile-overlay mode so the stacked overlay is never distorted.
+
 ## [1.9.59] - 2026-07-31
 ### Fixed
 - **Menu: hovering inside an open mega panel can no longer trigger a neighbouring menu (GH #82 follow-up).** On sites with a tall header row the top-level hit boxes extend well below the visible labels, so the invisible strip between the labels and the panel reads as panel whitespace — and dwelling there (e.g. moving across the top of the open Flag Football panel under the Soccer label on pennathleticsclub.org) still swapped panels after v1.9.57's pass-through guard. While a panel is open, only the visible label of another item can now switch away; the enlarged hit boxes still work for opening when nothing is open, and label hover, keyboard, nested flyouts, and the mobile drawer are unchanged.
