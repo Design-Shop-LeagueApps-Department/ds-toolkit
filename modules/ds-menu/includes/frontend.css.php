@@ -181,7 +181,7 @@ if ( 'bar' === $mw ) {
 	if ( 'center' === $mal ) {
 		// Override both rest + open transforms so the translateY reveal is preserved.
 		echo "\t$mPan { left: 50%; right: auto; transform: translate(-50%, 6px); }\n";
-		echo "\t$mItem:hover > .ds-mega, $mItem:focus-within > .ds-mega { transform: translate(-50%, 0); }\n";
+		echo "\t$mItem:hover > .ds-mega, $mItem.ds-hover-open > .ds-mega, $mItem:focus-within > .ds-mega { transform: translate(-50%, 0); }\n";
 	} elseif ( 'right' === $mal ) {
 		echo "\t$mPan { left: auto; right: 0; }\n";
 	}

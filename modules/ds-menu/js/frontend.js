@@ -398,6 +398,53 @@
 		} );
 	}
 
+	/* Hover intent (GH #82): the top-level open state is JS-managed on desktop so
+	   a cursor merely CROSSING a neighbouring trigger on its way into a wide open
+	   mega panel doesn't swap panels. With nothing open, hover opens instantly;
+	   with a panel open, switching (or closing over a childless item) requires
+	   the pointer to DWELL on the new item; leaving the whole menu closes after
+	   a short grace. CSS :hover stays as the no-JS fallback (the wrap only gets
+	   .ds-js-hover once this boots) and :focus-within keeps keyboard support. */
+	function initHoverIntent( wrap ) {
+		if ( wrap.dsHoverInit ) { return; }
+		wrap.dsHoverInit = true;
+		var menu = wrap.querySelector( '.ds-menu' );
+		if ( ! menu ) { return; }
+		wrap.classList.add( 'ds-js-hover' );
+		var SWITCH_MS = 120, CLOSE_MS = 220;
+		var openLi = null, timer = null;
+
+		function clearTimer() { if ( timer ) { clearTimeout( timer ); timer = null; } }
+		function setOpen( li ) {
+			if ( openLi === li ) { return; }
+			if ( openLi ) { openLi.classList.remove( 'ds-hover-open' ); }
+			openLi = li;
+			if ( openLi ) { openLi.classList.add( 'ds-hover-open' ); }
+		}
+		wrap.addEventListener( 'mouseover', function ( e ) {
+			if ( wrap.classList.contains( 'ds-menu-open' ) ) { return; } // mobile overlay: taps drive it
+			var li = e.target && e.target.closest ? e.target.closest( '.ds-menu > .ds-menu-item' ) : null;
+			if ( ! li || ! menu.contains( li ) ) { return; }
+			if ( li === openLi ) { clearTimer(); return; } // back on the open item / inside its panel
+			var next = li.classList.contains( 'has-children' ) ? li : null;
+			clearTimer();
+			if ( ! openLi ) { setOpen( next ); return; } // nothing open: open instantly
+			timer = setTimeout( function () {
+				timer = null;
+				if ( li.matches( ':hover' ) ) { setOpen( next ); } // still there → intentional
+			}, SWITCH_MS );
+		} );
+		menu.addEventListener( 'mouseenter', function () { clearTimer(); } );
+		menu.addEventListener( 'mouseleave', function () {
+			clearTimer();
+			timer = setTimeout( function () { timer = null; setOpen( null ); }, CLOSE_MS );
+		} );
+		// Opening the mobile overlay must never leave a desktop panel stuck open.
+		wrap.addEventListener( 'click', function () {
+			if ( wrap.classList.contains( 'ds-menu-open' ) ) { clearTimer(); setOpen( null ); }
+		} );
+	}
+
 	/* Edge flip: when a dropdown / nested flyout would overflow the viewport's
 	   right edge (e.g. the last "More" item), flip it to open leftward instead
 	   of overlapping or clipping. Desktop only — the overlay renders submenus
@@ -442,7 +489,7 @@
 		} );
 	}
 
-	function boot() { document.querySelectorAll( '.ds-menu-wrap' ).forEach( function ( w ) { init( w ); initFlip( w ); } ); }
+	function boot() { document.querySelectorAll( '.ds-menu-wrap' ).forEach( function ( w ) { init( w ); initHoverIntent( w ); initFlip( w ); } ); }
 
 	if ( 'loading' !== document.readyState ) { boot(); } else { document.addEventListener( 'DOMContentLoaded', boot ); }
 	// Re-init after a Beaver Builder partial refresh while editing.

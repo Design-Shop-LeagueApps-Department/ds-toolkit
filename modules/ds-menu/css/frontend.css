@@ -13,6 +13,7 @@
 .ds-sub-ind { display: inline-flex; align-items: center; margin-left: 6px; line-height: 1; }
 .ds-sub-ind-icon svg { display: block; transition: transform .2s ease; }
 .ds-menu > .ds-menu-item.has-children:hover > a .ds-sub-ind-icon svg,
+.ds-menu > .ds-menu-item.has-children.ds-hover-open > a .ds-sub-ind-icon svg,
 .ds-menu > .ds-menu-item.has-children:focus-within > a .ds-sub-ind-icon svg { transform: rotate(180deg); }
 
 /* Dropdowns (regular submenus) */
@@ -27,7 +28,15 @@
 /* Edge flip (class set by js when a panel would overflow the viewport's right edge). */
 .ds-menu .ds-submenu .ds-menu-item.ds-flip > .ds-submenu { left: auto; right: 100%; }
 .ds-menu > .ds-menu-item.ds-flip > .ds-submenu { left: auto; right: 0; }
-.ds-menu-item:hover > .ds-submenu,
+/* Open states. TOP-LEVEL items are JS-managed with hover intent (GH #82): the
+   wrap gets .ds-js-hover when the script boots and .ds-hover-open marks the open
+   item, so a cursor merely PASSING a neighbouring trigger on its way into a wide
+   open mega panel no longer swaps panels. Pure :hover stays as the no-JS
+   fallback and for nested flyouts (narrow — no overlap problem); :focus-within
+   keeps keyboard support CSS-driven. (.ds-open is the mobile overlay's class.) */
+.ds-menu-wrap:not(.ds-js-hover) .ds-menu > .ds-menu-item:hover > .ds-submenu,
+.ds-menu > .ds-menu-item.ds-hover-open > .ds-submenu,
+.ds-menu .ds-submenu .ds-menu-item:hover > .ds-submenu,
 .ds-menu-item:focus-within > .ds-submenu {
 	opacity: 1; visibility: visible; transform: translateY(0);
 }
@@ -46,7 +55,8 @@
 	transition: opacity .15s ease, transform .15s ease, visibility .15s;
 	box-shadow: 0 12px 32px rgba(0,0,0,.14); border-radius: var(--ds-radius);
 }
-.ds-menu-item.is-mega:hover > .ds-mega,
+.ds-menu-wrap:not(.ds-js-hover) .ds-menu-item.is-mega:hover > .ds-mega,
+.ds-menu-item.is-mega.ds-hover-open > .ds-mega,
 .ds-menu-item.is-mega:focus-within > .ds-mega { opacity: 1; visibility: visible; transform: translateY(0); }
 .ds-mega-col .ds-mega-head { display: block; font-weight: 700; text-decoration: none; padding: 4px 0 6px; }
 .ds-mega-col .ds-submenu { position: static; opacity: 1; visibility: visible; transform: none; box-shadow: none; padding: 0; min-width: 0; }
