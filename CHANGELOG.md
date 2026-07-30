@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.59] - 2026-07-31
+### Fixed
+- **Menu: hovering inside an open mega panel can no longer trigger a neighbouring menu (GH #82 follow-up).** On sites with a tall header row the top-level hit boxes extend well below the visible labels, so the invisible strip between the labels and the panel reads as panel whitespace — and dwelling there (e.g. moving across the top of the open Flag Football panel under the Soccer label on pennathleticsclub.org) still swapped panels after v1.9.57's pass-through guard. While a panel is open, only the visible label of another item can now switch away; the enlarged hit boxes still work for opening when nothing is open, and label hover, keyboard, nested flyouts, and the mobile drawer are unchanged.
+
 ## [1.9.58] - 2026-07-30
 ### Changed
 - **Program Cards moved from Post Loop to CTA (Style 6).** The `Custom Program Card (manual list)` layout never queried a post type, so it did not belong in a module whose contract is "loop over posts of type X". It is now **CTA -> Style 6 - Program Cards (manual list)**, with the same fields, the same `programs` repeater and the same `pg_*` styling keys. Both modules render through one shared `DS_Program_Cards` class, so legacy Post Loop instances and the new CTA style produce byte-identical markup by construction.

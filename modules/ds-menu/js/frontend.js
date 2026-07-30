@@ -427,11 +427,18 @@
 			if ( ! li || ! menu.contains( li ) ) { return; }
 			if ( li === openLi ) { clearTimer(); return; } // back on the open item / inside its panel
 			var next = li.classList.contains( 'has-children' ) ? li : null;
+			if ( ! openLi ) { clearTimer(); setOpen( next ); return; } // nothing open: open instantly
+			// A panel is open: only the VISIBLE label (the <a>) of another item may
+			// switch away. The li hit-box is often far taller than the label (a
+			// stretched header row), so its invisible strip overlaps what reads as
+			// panel whitespace — dwelling there must not swap panels (GH #82,
+			// pennathleticsclub). The open panel keeps priority everywhere else.
+			var link = e.target.closest( '.ds-menu > .ds-menu-item > a' );
+			if ( ! link || link.parentNode !== li ) { return; }
 			clearTimer();
-			if ( ! openLi ) { setOpen( next ); return; } // nothing open: open instantly
 			timer = setTimeout( function () {
 				timer = null;
-				if ( li.matches( ':hover' ) ) { setOpen( next ); } // still there → intentional
+				if ( link.matches( ':hover' ) ) { setOpen( next ); } // still on the label → intentional
 			}, SWITCH_MS );
 		} );
 		menu.addEventListener( 'mouseenter', function () { clearTimer(); } );
