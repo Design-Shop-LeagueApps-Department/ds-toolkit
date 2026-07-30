@@ -4,6 +4,20 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.58] - 2026-07-30
+### Changed
+- **Program Cards moved from Post Loop to CTA (Style 6).** The `Custom Program Card (manual list)` layout never queried a post type, so it did not belong in a module whose contract is "loop over posts of type X". It is now **CTA -> Style 6 - Program Cards (manual list)**, with the same fields, the same `programs` repeater and the same `pg_*` styling keys. Both modules render through one shared `DS_Program_Cards` class, so legacy Post Loop instances and the new CTA style produce byte-identical markup by construction.
+- **`program` is hidden from the Post Loop Card Layout picker for NEW modules only.** A module that already uses it still shows the option, because removing it outright would leave the select with no matching value and Beaver Builder would silently fall back to the first layout — converting a partner's program list into a news grid the moment they opened the panel. The layout still renders forever, so un-migrated sites and revision restores are unaffected.
+- `Sponsors: Grid (manual list)` has the same defect but is deliberately left in place until it has a CTA style of its own; retiring it with nowhere to rebuild would block editors from creating sponsor grids.
+
+### Added
+- **`wp ds migrate-program-cards`** — moves existing nodes from `ds-post-loop card_layout=program` to `ds-cta cta_style=style6`. **Dry run by default**; `--execute` writes. Refuses posts that have only `_fl_builder_data` or only `_fl_builder_draft` (a half-migrated post reverts the next time an editor opens it) unless `--allow-unpaired` is passed. Clears the Beaver Builder asset cache per post.
+- **`wp ds rollback-program-cards`** — undoes the above from a `_ds_premigration` stash kept on each node, so rollback needs no external state.
+
+### Notes
+- The migration is a verbatim settings carry: Beaver Builder merges stored settings over module defaults and preserves unknown keys, so no field map is required. Only three keys need handling — `cta_style` (set to style6), `cards` (emptied so the styles 1-5 repeater stays inert) and `header_label` (blanked so CTA's default "Lorem ipsum" label cannot appear).
+- Verified on the DS Launchpad 6 blueprint and on a production install (huskyvbc, 10 posts / 20 nodes): rendered HTML byte-identical before and after, and every generated CSS rule targeting a rendered element identical on both paths (212 rules, 0 added, 0 removed).
+
 ## [1.9.57] - 2026-07-30
 ### Fixed
 - **Menu: crossing a neighbouring trigger no longer swaps mega panels (GH #82).** Mega panels are far wider than their nav item, so a cursor travelling from a trigger into a far column of its open panel could clip the next top-level item on the way, and pure CSS `:hover` swapped panels instantly (e.g. Soccer opening while browsing the Flag Football panel). Desktop top-level open state is now JS-managed with hover intent: with nothing open, hover still opens instantly; with a panel open, switching to a sibling (or closing over a childless item) requires the pointer to dwell ~120ms on it, and a brief pass-through is ignored. Leaving the whole menu closes after a short grace instead of slamming shut. Keyboard (`:focus-within`), nested flyouts, the mobile overlay/drill drawer, and the no-JS fallback (pure `:hover`) are unchanged.

@@ -44,6 +44,22 @@ class DS_CTA_Module extends FLBuilderModule {
 			'style3' => __( 'Style 3 — Bento Grid', 'ds-toolkit' ),
 			'style4' => __( 'Style 4 — Big Hero (Contact)', 'ds-toolkit' ),
 			'style5' => __( 'Style 5 — Motion Cards (image + logo overlay)', 'ds-toolkit' ),
+			'style6' => __( 'Style 6 — Program Cards (manual list)', 'ds-toolkit' ),
+		);
+	}
+
+	/**
+	 * Style 6 — Program Cards: a hand-built list of cards (date, sub-heading,
+	 * title, description, link/button, icon or image).
+	 *
+	 * This card used to live in the Post Loop module as `card_layout = program`,
+	 * which was wrong: it never queries a post type. It renders through the shared
+	 * DS_Program_Cards so legacy Post Loop instances and this style are identical.
+	 */
+	public function render_style6() {
+		DS_Program_Cards::render(
+			$this->settings,
+			__( 'No program cards yet. Add them in the Program Cards list.', 'ds-toolkit' )
 		);
 	}
 
@@ -431,6 +447,10 @@ class DS_CTA_Module extends FLBuilderModule {
 	}
 }
 
+/* Style 6 per-card sub-form. Owned by the shared class so this module never
+   depends on the Post Loop module being enabled. */
+DS_Program_Cards::register_form();
+
 /* ----------------------------------------------------------- Card sub-form */
 FLBuilder::register_settings_form( 'ds_cta_card_form', array(
 	'title' => __( 'Card', 'ds-toolkit' ),
@@ -498,6 +518,9 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 							),
 							'style5' => array(
 								'sections' => array( 'header', 'cards', 'mcard', 'mcard_fx', 'mcard_logo', 'typography', 'spacing' ),
+							),
+							'style6' => array(
+								'sections' => array( 'header', 'programs_sec', 'program_opts', 'program_chrome', 'spacing' ),
 							),
 						),
 					),
@@ -635,6 +658,23 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 						'help'    => __( 'Pulled from Partner Settings (Facebook, Instagram, X, YouTube, LinkedIn, TikTok). Networks with no URL are skipped.', 'ds-toolkit' ),
 					),
 					'hero_social_target' => array( 'type' => 'select', 'label' => __( 'Open Links In', 'ds-toolkit' ), 'default' => '_blank', 'options' => array( '_blank' => __( 'New Tab', 'ds-toolkit' ), '_self' => __( 'Same Tab', 'ds-toolkit' ) ) ),
+				),
+			),
+			// ---- Style 6 only: manual Program Cards list ----
+			// Key stays `programs` (NOT `cards`) so a node migrated from the Post
+			// Loop module carries its list verbatim and never collides with the
+			// styles 1-5 `cards` repeater.
+			'programs_sec' => array(
+				'title'       => __( 'Program Cards (manual list)', 'ds-toolkit' ),
+				'description' => __( 'Build each card by hand: date, sub-heading, title, description, a link/button, and an icon or image.', 'ds-toolkit' ),
+				'fields'      => array(
+					'programs' => array(
+						'type'         => 'form',
+						'label'        => __( 'Program', 'ds-toolkit' ),
+						'form'         => 'ds_program_form',
+						'preview_text' => 'prog_title',
+						'multiple'     => true,
+					),
 				),
 			),
 		),
@@ -1044,6 +1084,55 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					'mcl_delay'  => array( 'type' => 'unit', 'label' => __( 'Animation Delay', 'ds-toolkit' ), 'default' => '0', 'description' => 'ms', 'slider' => array( 'min' => 0, 'max' => 2000, 'step' => 50 ) ),
 					'mcl_ease'   => array( 'type' => 'select', 'label' => __( 'Animation Easing', 'ds-toolkit' ), 'default' => 'ease-out', 'options' => array( 'ease' => 'Ease', 'ease-out' => 'Ease Out', 'ease-in-out' => 'Ease In-Out', 'cubic-bezier(.34,1.56,.64,1)' => __( 'Spring (overshoot)', 'ds-toolkit' ) ) ),
 					'mcl_hover'  => array( 'type' => 'select', 'label' => __( 'Hover Animation', 'ds-toolkit' ), 'default' => 'float', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'scale-up' => __( 'Scale Up', 'ds-toolkit' ), 'scale-down' => __( 'Scale Down', 'ds-toolkit' ), 'float' => __( 'Float', 'ds-toolkit' ), 'bounce' => __( 'Bounce', 'ds-toolkit' ), 'rotate' => __( 'Rotate', 'ds-toolkit' ), 'pulse' => __( 'Pulse', 'ds-toolkit' ), 'fade' => __( 'Fade', 'ds-toolkit' ), 'glow' => __( 'Glow', 'ds-toolkit' ) ) ),
+				),
+			),
+			// ---- Style 6 only: Program Card options. Keys mirror the Post Loop
+			// module's `program_opts` exactly so migration is a verbatim carry. ----
+			'program_opts' => array(
+				'title'  => __( 'Program Cards', 'ds-toolkit' ),
+				'fields' => array(
+					'pg_cols'        => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
+					'pg_gap'         => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'pg_align'       => array( 'type' => 'select', 'label' => __( 'Alignment', 'ds-toolkit' ), 'default' => 'left', 'options' => array( 'left' => __( 'Left', 'ds-toolkit' ), 'center' => __( 'Center', 'ds-toolkit' ) ) ),
+					'pg_same_height' => array( 'type' => 'select', 'label' => __( 'Card Height', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Equal (match tallest in row)', 'ds-toolkit' ), 'no' => __( 'Natural (fit content)', 'ds-toolkit' ) ), 'help' => __( 'Equal makes every card in a row the same height (buttons line up at the bottom).', 'ds-toolkit' ) ),
+					'pg_card_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_pad'         => array( 'type' => 'unit', 'label' => __( 'Card Padding', 'ds-toolkit' ), 'default' => '28', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
+					'pg_img_h'       => array( 'type' => 'unit', 'label' => __( 'Image Height', 'ds-toolkit' ), 'default' => '180', 'description' => 'px', 'slider' => array( 'min' => 80, 'max' => 360, 'step' => 1 ), 'help' => __( 'Image height for items that use an image (not an icon).', 'ds-toolkit' ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-media', 'property' => 'height', 'unit' => 'px' ) ),
+					'pg_icon_size'   => array( 'type' => 'unit', 'label' => __( 'Icon Size', 'ds-toolkit' ), 'default' => '40', 'description' => 'px', 'slider' => array( 'min' => 16, 'max' => 96, 'step' => 1 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-ico', 'property' => 'font-size', 'unit' => 'px' ) ),
+					'pg_icon_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Icon Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-ico', 'property' => 'color' ) ),
+					'pg_date_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Date Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
+					'pg_sub_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Sub-heading Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_desc_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Description Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_btn_style'      => array( 'type' => 'select', 'label' => __( 'Button Style', 'ds-toolkit' ), 'default' => 'theme', 'options' => array( 'theme' => __( 'Theme button (default)', 'ds-toolkit' ), 'custom' => __( 'Custom', 'ds-toolkit' ) ), 'toggle' => array( 'custom' => array( 'fields' => array( 'pg_btn_bg', 'pg_btn_color', 'pg_btn_hover_bg', 'pg_btn_hover_color', 'pg_btn_radius' ) ) ), 'help' => __( 'Theme button follows Theme Setting (colour + shape). Choose Custom to style this card\'s button below.', 'ds-toolkit' ) ),
+					'pg_btn_bg'         => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the global Button colour.', 'ds-toolkit' ) ),
+					'pg_btn_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_btn_hover_bg'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Hover Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_btn_hover_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Hover Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'pg_btn_radius'     => array( 'type' => 'unit', 'label' => __( 'Button Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank = follow the theme Button Shape. Set a value for a custom rounded button (overrides the theme shape for this card).', 'ds-toolkit' ) ),
+					'pg_date_typo'      => array( 'type' => 'typography', 'label' => __( 'Date Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-date' ) ),
+					'pg_sub_typo'       => array( 'type' => 'typography', 'label' => __( 'Sub-heading Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-sub' ) ),
+					'pg_title_typo'     => array( 'type' => 'typography', 'label' => __( 'Title Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-title' ) ),
+					'pg_desc_typo'      => array( 'type' => 'typography', 'label' => __( 'Description Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-desc' ) ),
+					'pg_btn_typo'       => array( 'type' => 'typography', 'label' => __( 'Button Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-btn' ) ),
+				),
+			),
+			// Card border + hover. Same keys as the Post Loop module's shared
+			// `card_border` / `hover` sections so migrated values keep applying.
+			'program_chrome' => array(
+				'title'  => __( 'Card Border & Hover', 'ds-toolkit' ),
+				'fields' => array(
+					'card_bd_style'  => array( 'type' => 'select', 'label' => __( 'Border Style', 'ds-toolkit' ), 'default' => 'default', 'options' => array( 'default' => __( 'Default (layout look)', 'ds-toolkit' ), 'none' => __( 'None', 'ds-toolkit' ), 'solid' => __( 'Solid', 'ds-toolkit' ), 'dashed' => __( 'Dashed', 'ds-toolkit' ), 'dotted' => __( 'Dotted', 'ds-toolkit' ) ), 'toggle' => array( 'solid' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ), 'dashed' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ), 'dotted' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ) ) ),
+					'card_bd_width'  => array( 'type' => 'unit', 'label' => __( 'Border Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 12, 'step' => 1 ) ),
+					'card_bd_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the global Line Color.', 'ds-toolkit' ) ),
+					'card_bd_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank = the theme corner radius.', 'ds-toolkit' ) ),
+					'hover_effect'   => array( 'type' => 'select', 'label' => __( 'Hover Effect', 'ds-toolkit' ), 'default' => 'lift', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'lift' => __( 'Lift', 'ds-toolkit' ), 'grow' => __( 'Grow', 'ds-toolkit' ), 'shadow' => __( 'Shadow', 'ds-toolkit' ), 'border' => __( 'Border', 'ds-toolkit' ), 'zoom' => __( 'Zoom Image', 'ds-toolkit' ) ) ),
+					'hover_speed'    => array( 'type' => 'unit', 'label' => __( 'Hover Speed', 'ds-toolkit' ), 'default' => '300', 'description' => 'ms', 'slider' => array( 'min' => 0, 'max' => 900, 'step' => 10 ) ),
+					'hover_bg'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Hover Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					// NOTE: `section_bg` is deliberately NOT redefined here — the module
+					// already declares it (Colors section). A second definition of the
+					// same key would render the control twice and fight over the default.
+					// A migrated node's stored value still applies via chrome_css().
 				),
 			),
 			'spacing' => array(

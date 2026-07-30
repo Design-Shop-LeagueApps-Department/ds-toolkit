@@ -3,7 +3,7 @@
  * Plugin Name:       DS Toolkit
  * Plugin URI:        https://github.com/agabriel1590/ds-toolkit
  * Description:       Design Shop custom features and build toolkit.
- * Version:           1.9.57
+ * Version:           1.9.58
  * Author:            Alipio Gabriel
  * Author URI:        https://github.com/agabriel1590
  * Text Domain:       ds-toolkit
@@ -17,7 +17,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'DS_TOOLKIT_VERSION', '1.9.57' );
+define( 'DS_TOOLKIT_VERSION', '1.9.58' );
 define( 'DS_TOOLKIT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DS_TOOLKIT_URL', plugin_dir_url( __FILE__ ) );
 
@@ -34,6 +34,10 @@ if ( ! defined( 'DS_TOOLKIT_ADMIN_DOMAIN' ) ) {
 // + SVG icon registry), loaded once so every in-house module can reuse them.
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-module-ui.php';
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-card.php';
+require_once DS_TOOLKIT_PATH . 'includes/class-ds-program-cards.php';
+if ( ( defined( 'WP_CLI' ) && WP_CLI ) || is_admin() ) {
+	require_once DS_TOOLKIT_PATH . 'includes/class-ds-program-cards-migrator.php';
+}
 
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-toolkit.php';
 

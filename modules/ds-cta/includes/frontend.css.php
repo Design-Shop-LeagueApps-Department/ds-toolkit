@@ -368,19 +368,53 @@ if ( 'style3' === $style ) {
 	$typo = array( 'heading_typography' => '.ds-cta-heading', 'title_typography' => '.ds-cta-card-title', 'eyebrow_typography' => '.ds-cta-card-eyebrow' );
 }
 
+// ---- Style 6: Program Cards (manual list) ----
+// Markup comes from the shared DS_Program_Cards renderer, so the wrappers are
+// .ds-news / .ds-news-wrap (not .ds-cta*) and the CSS has to match the Post Loop
+// module's output exactly or a migrated node changes appearance.
+$is_program = ( 'style6' === $style );
+if ( $is_program ) {
+	DS_Program_Cards::header_css( $node, $settings );
+	DS_Program_Cards::chrome_css( $node, $settings );
+	DS_Program_Cards::css( $node, $settings );
+
+	// Content width, mirroring the Post Loop module.
+	$cw = $settings->content_width ?? 'boxed';
+	if ( 'full' === $cw ) {
+		echo "$node .ds-news-wrap { max-width: none; margin: 0; }\n";
+	} elseif ( 'custom' === $cw ) {
+		$cmw = ( isset( $settings->content_max_width ) && '' !== $settings->content_max_width ) ? (int) $settings->content_max_width : 1280;
+		echo "$node .ds-news-wrap { max-width: {$cmw}px; margin: 0 auto; }\n";
+	}
+
+	// The heading element here is .ds-news-heading (shared renderer), NOT
+	// .ds-cta-heading, so the shared `heading_typography` key must be remapped or a
+	// migrated node loses its heading size and the page reflows.
+	$typo = array(
+		'heading_typography' => '.ds-news-heading',
+		'pg_date_typo'       => '.ds-program-date',
+		'pg_sub_typo'        => '.ds-program-sub',
+		'pg_title_typo'      => '.ds-program-title',
+		'pg_desc_typo'       => '.ds-program-desc',
+		'pg_btn_typo'        => '.ds-program-btn',
+	);
+}
+
 // ---- Spacing: padding on the wrap, margin on the section (deferred) ----
+$wrap_sel = $is_program ? '.ds-news-wrap' : '.ds-cta-wrap';
+$sect_sel = $is_program ? '.ds-news' : '.ds-cta';
 if ( class_exists( 'FLBuilderCSS' ) ) {
 	FLBuilderCSS::dimension_field_rule( array(
 		'settings'     => $settings,
 		'setting_name' => 'padding',
-		'selector'     => "$node .ds-cta-wrap",
+		'selector'     => "$node $wrap_sel",
 		'unit'         => 'px',
 		'props'        => array( 'padding-top' => 'padding_top', 'padding-right' => 'padding_right', 'padding-bottom' => 'padding_bottom', 'padding-left' => 'padding_left' ),
 	) );
 	FLBuilderCSS::dimension_field_rule( array(
 		'settings'     => $settings,
 		'setting_name' => 'margin',
-		'selector'     => "$node .ds-cta",
+		'selector'     => "$node $sect_sel",
 		'unit'         => 'px',
 		'props'        => array( 'margin-top' => 'margin_top', 'margin-right' => 'margin_right', 'margin-bottom' => 'margin_bottom', 'margin-left' => 'margin_left' ),
 	) );
