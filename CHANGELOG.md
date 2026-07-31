@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.61] - 2026-07-31
+### Fixed
+- **Post Loop: Tournament Cards typography settings now reach the front end.** The Tournament Cards section's Title and Date/Location typography fields previewed live in the builder but never emitted CSS on save — they were missing from the module's typography emission map (reported on sportsatthebeach.com; affects every LaunchPad version). Both now emit per-module rules covering the card-grid and list-row variants, and the news-oriented Typography section (whose fields target classes that don't exist in tournament markup) no longer shows on the tournament layout's Style tab.
+
 ## [1.9.60] - 2026-07-31
 ### Fixed
 - **Menu: mega panels can no longer widen the page (horizontal scrollbar) and the Keep Panel On Screen clamp now survives hostile site CSS (GH #82 follow-up).** Two related problems from pennathleticsclub.org: hidden mega panels have layout, so a wide panel anchored near the right edge stretched the page sideways before anyone hovered; and site CSS resetting nav margins with `!important` silently defeated the clamp's `--ds-mega-shift` margin rule, so the open panel overflowed the browser edge. The clamp now runs for every mega panel at load and on resize (not just on hover), applies the shift as an inline margin with `!important` (verified empirically, falling back to the opposite margin for right-aligned panels), and clears its inline margins in mobile-overlay mode so the stacked overlay is never distorted.
