@@ -281,10 +281,15 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		'pg_title_typo'            => '.ds-program-title',
 		'pg_desc_typo'             => '.ds-program-desc',
 		'pg_btn_typo'              => '.ds-program-btn',
+		// Tournament Cards (grid card + list row variants — meta wrapper differs)
+		'tn_title_typo'            => '.ds-tourn-title',
+		'tn_meta_typo'             => '.ds-tourn-meta, .ds-tourn-rowmeta',
 	);
 	foreach ( $typo as $key => $sel ) {
 		if ( ! empty( $settings->{$key} ) ) {
-			FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => $key, 'selector' => "$node $sel" ) );
+			// Scope every comma-separated part to the node, or the extra parts leak site-wide.
+			$scoped = implode( ', ', array_map( function ( $one ) use ( $node ) { return "$node " . trim( $one ); }, explode( ',', $sel ) ) );
+			FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => $key, 'selector' => $scoped ) );
 		}
 	}
 }
