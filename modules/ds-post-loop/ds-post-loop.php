@@ -1154,7 +1154,10 @@ $ds_pl_form = array(
 							'custom'         => array( 'sections' => array( 'header', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'sponsor'        => array( 'sections' => array( 'header', 'sponsors_sec', 'sponsor_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
 							'program'        => array( 'sections' => array( 'header', 'programs_sec', 'program_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
-							'tournament'     => array( 'sections' => array( 'header', 'query', 'query_filter', 'tn_filter_opts', 'tournament_opts', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							// No news 'typography' section here: its fields target .ds-news-card-* classes
+							// that never render in tournament markup (GH: title/meta typography live in
+							// the Tournament Cards section as tn_title_typo / tn_meta_typo).
+							'tournament'     => array( 'sections' => array( 'header', 'query', 'query_filter', 'tn_filter_opts', 'tournament_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 						),
 					),
 				),
