@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.63] - 2026-08-03
+### Fixed
+- **Plugin header version sync.** The 1.9.61 and 1.9.62 zips shipped with the plugin-header `Version:` still reading 1.9.60 (only the `DS_TOOLKIT_VERSION` define was bumped), so updated sites kept reporting 1.9.60 and re-offering the update every check. Both version lines are back in lockstep from this release; sites on the mismatched builds converge here and the loop ends. No code changes beyond the version lines.
+
 ## [1.9.62] - 2026-08-03
 ### Added
 - **CTA Motion Cards: responsive Columns (GH #88).** The Columns setting now takes independent per-device values (base / Large / Medium / Small) via the standard responsive control, applied at the site's builder breakpoints. Blank smaller sizes keep the previous automatic behaviour (max 2 columns on tablet, 1 on phone), so existing modules render unchanged until an editor sets an override.
