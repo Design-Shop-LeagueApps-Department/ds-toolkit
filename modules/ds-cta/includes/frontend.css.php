@@ -286,8 +286,25 @@ if ( 'style3' === $style ) {
 	$cols = max( 1, (int) ( $settings->mc_cols ?? 3 ) );
 	$gap  = $u( $settings->mc_gap ?? '', 24 );
 	echo "$node .ds-mcard-grid{grid-template-columns:repeat({$cols},1fr);gap:{$gap}px;}\n";
-	echo "@media(max-width:1024px){ $node .ds-mcard-grid{grid-template-columns:repeat(" . min( $cols, 2 ) . ",1fr);} }\n";
-	echo "@media(max-width:600px){ $node .ds-mcard-grid{grid-template-columns:1fr;} }\n";
+	$cl = $settings->mc_cols_large ?? '';
+	$cm = $settings->mc_cols_medium ?? '';
+	$cr = $settings->mc_cols_responsive ?? '';
+	if ( '' === "{$cl}{$cm}{$cr}" ) {
+		// Legacy fixed breakpoints (pre-GH #88): unchanged rendering when no overrides set.
+		echo "@media(max-width:1024px){ $node .ds-mcard-grid{grid-template-columns:repeat(" . min( $cols, 2 ) . ",1fr);} }\n";
+		echo "@media(max-width:600px){ $node .ds-mcard-grid{grid-template-columns:1fr;} }\n";
+	} else {
+		// Responsive Columns (GH #88) at the site's builder breakpoints; unset
+		// tiers keep the legacy defaults (2 on medium, 1 on small).
+		if ( '' !== $cl ) {
+			$bp_lg = (int) ( FLBuilderModel::get_global_settings()->large_breakpoint ?? 1200 );
+			echo "@media(max-width:{$bp_lg}px){ $node .ds-mcard-grid{grid-template-columns:repeat(" . max( 1, (int) $cl ) . ",1fr);} }\n";
+		}
+		$cmv = '' !== $cm ? max( 1, (int) $cm ) : min( $cols, 2 );
+		echo "@media(max-width:{$bpm}px){ $node .ds-mcard-grid{grid-template-columns:repeat({$cmv},1fr);} }\n";
+		$crv = '' !== $cr ? max( 1, (int) $cr ) : 1;
+		echo "@media(max-width:{$bpr}px){ $node .ds-mcard-grid{grid-template-columns:repeat({$crv},1fr);} }\n";
+	}
 
 	$ratio = preg_replace( '#[^0-9/ ]#', '', (string) ( $settings->mc_ratio ?? '4 / 5' ) ); if ( '' === trim( $ratio ) ) { $ratio = '4 / 5'; }
 	$rad   = $u( $settings->mc_radius ?? '', 14 );

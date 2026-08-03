@@ -100,6 +100,13 @@ class DS_CTA_Module extends FLBuilderModule {
 			list( $url, $target ) = $this->link_parts( $card->link ?? '' );
 			$rel  = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 
+			// Skip stray blank repeater rows: they rendered as full-size empty cards,
+			// pushing phantom rows / empty space below the real grid (GH #89).
+			// link_parts() maps an empty link to '#', so '#' counts as no-link here.
+			if ( '' === $img && '' === $logo && '' === trim( (string) ( $card->title ?? '' ) ) && '' === trim( (string) ( $card->eyebrow ?? '' ) ) && ( '' === $url || '#' === $url ) ) {
+				continue;
+			}
+
 			echo '<a class="ds-mcard" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>';
 			echo '<span class="ds-mcard-bg"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . ' aria-hidden="true"></span>';
 			echo '<span class="ds-mcard-tint" aria-hidden="true"></span>';
@@ -999,7 +1006,7 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 			'mcard' => array(
 				'title'  => __( 'Motion Card', 'ds-toolkit' ),
 				'fields' => array(
-					'mc_cols'   => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'slider' => array( 'min' => 1, 'max' => 5, 'step' => 1 ) ),
+					'mc_cols'   => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 5, 'step' => 1 ), 'help' => __( 'Responsive: set per-device values with the device icon. Blank smaller sizes keep the automatic fallback (max 2 columns on tablet, 1 on phone).', 'ds-toolkit' ) ),
 					'mc_gap'    => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 					'mc_ratio'  => array( 'type' => 'select', 'label' => __( 'Card Ratio', 'ds-toolkit' ), 'default' => '4 / 5', 'options' => array( '4 / 5' => '4:5', '3 / 4' => '3:4', '1 / 1' => '1:1', '4 / 3' => '4:3', '16 / 10' => '16:10' ) ),
 					'mc_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '14', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-mcard', 'property' => 'border-radius', 'unit' => 'px' ) ),
