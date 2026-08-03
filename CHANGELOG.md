@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.62] - 2026-08-03
+### Added
+- **CTA Motion Cards: responsive Columns (GH #88).** The Columns setting now takes independent per-device values (base / Large / Medium / Small) via the standard responsive control, applied at the site's builder breakpoints. Blank smaller sizes keep the previous automatic behaviour (max 2 columns on tablet, 1 on phone), so existing modules render unchanged until an editor sets an override.
+
+### Fixed
+- **CTA Motion Cards: blank card rows no longer render as empty space (GH #89).** A stray empty row in the Cards repeater rendered as a full-size invisible card, minting whole phantom grid rows below the real cards (a large blank band under the layout). Entries with no image, logo, title, eyebrow, and link are now skipped.
+
 ## [1.9.61] - 2026-07-31
 ### Fixed
 - **Post Loop: Tournament Cards typography settings now reach the front end.** The Tournament Cards section's Title and Date/Location typography fields previewed live in the builder but never emitted CSS on save — they were missing from the module's typography emission map (reported on sportsatthebeach.com; affects every LaunchPad version). Both now emit per-module rules covering the card-grid and list-row variants, and the news-oriented Typography section (whose fields target classes that don't exist in tournament markup) no longer shows on the tournament layout's Style tab.
