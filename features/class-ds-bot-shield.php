@@ -216,7 +216,7 @@ class DS_Bot_Shield {
             if ( $this->ua_matches( $ua, explode( ',', self::GOOD_BOTS ) ) ) {
                 return 'pass';
             }
-            if ( $this->cookie_valid( $cookies, $ip ) ) {
+            if ( $this->cookie_valid( $cookies ) ) {
                 return 'pass';
             }
             return 'challenge';
@@ -245,7 +245,7 @@ class DS_Bot_Shield {
      * and reloads. Costs ~1ms to serve vs ~1s for a full page render.
      */
     private function send_challenge() {
-        $token = $this->cookie_token( $this->client_ip() );
+        $token = $this->cookie_token();
         if ( ! headers_sent() ) {
             status_header( 503 );
             nocache_headers();
@@ -253,13 +253,24 @@ class DS_Bot_Shield {
             header( 'X-DS-Bot-Shield: challenge' );
             header( 'Retry-After: 5' );
         }
+        // The token never appears whole in the markup: JS reverses one half
+        // and concatenates at runtime, so a scraper that regexes the page
+        // source (without executing JS) cannot mint the cookie. The reload
+        // only fires once the cookie verifiably stuck, so cookie-blocked
+        // browsers see a message instead of looping.
+        $a      = substr( $token, 0, 10 );
+        $b      = strrev( substr( $token, 10 ) );
         $secure = is_ssl() ? ';secure' : '';
         echo '<!doctype html><html><head><meta charset="utf-8"><title>One moment&hellip;</title>'
             . '<meta name="robots" content="noindex">'
             . '<style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#333}div{text-align:center}</style>'
             . '</head><body><div><p>Checking your browser&hellip;</p>'
-            . '<noscript><p>JavaScript is required. Please enable it and <a href="">reload</a>.</p></noscript></div>'
-            . '<script>document.cookie="' . self::COOKIE . '=' . esc_js( $token ) . ';path=/;max-age=86400;samesite=Lax' . $secure . '";location.reload();</script>'
+            . '<p id="ds-bs-msg" style="display:none">Cookies are required to view this site. Please enable them and reload.</p>'
+            . '<noscript><p>JavaScript is required. Please enable it and reload.</p></noscript></div>'
+            . '<script>(function(){var t="' . esc_js( $a ) . '"+"' . esc_js( $b ) . '".split("").reverse().join("");'
+            . 'document.cookie="' . self::COOKIE . '="+t+";path=/;max-age=86400;samesite=Lax' . $secure . '";'
+            . 'if(document.cookie.indexOf("' . self::COOKIE . '=")!==-1){location.reload();}'
+            . 'else{document.getElementById("ds-bs-msg").style.display="block";}})();</script>'
             . '</body></html>';
         exit;
     }
@@ -328,20 +339,26 @@ class DS_Bot_Shield {
         return false;
     }
 
-    private function cookie_token( $ip ) {
-        return substr( hash_hmac( 'sha256', $ip . '|' . gmdate( 'Ymd' ), wp_salt( 'auth' ) ), 0, 20 );
+    /**
+     * Deliberately NOT bound to the client IP: dual-stack visitors (IPv4 +
+     * IPv6 happy eyeballs), mobile networks, and CGNAT rotate the source IP
+     * between requests, and an IP-bound cookie then fails validation and
+     * loops the challenge (observed live on dslaunchpad5, 2026-08-04). Bound
+     * to the site salt and the day instead; the challenge's job is filtering
+     * clients that never execute JS, not authenticating an address.
+     */
+    private function cookie_token( $day_offset = 0 ) {
+        return substr( hash_hmac( 'sha256', 'ds-bs|' . gmdate( 'Ymd', time() - $day_offset * DAY_IN_SECONDS ), wp_salt( 'auth' ) ), 0, 20 );
     }
 
-    private function cookie_valid( $cookies, $ip ) {
+    private function cookie_valid( $cookies ) {
         if ( empty( $cookies[ self::COOKIE ] ) ) {
             return false;
         }
         $sent = (string) $cookies[ self::COOKIE ];
         // Accept today's and yesterday's token so midnight rollover never
         // challenges an active visitor mid-session.
-        $today     = $this->cookie_token( $ip );
-        $yesterday = substr( hash_hmac( 'sha256', $ip . '|' . gmdate( 'Ymd', time() - DAY_IN_SECONDS ), wp_salt( 'auth' ) ), 0, 20 );
-        return hash_equals( $today, $sent ) || hash_equals( $yesterday, $sent );
+        return hash_equals( $this->cookie_token(), $sent ) || hash_equals( $this->cookie_token( 1 ), $sent );
     }
 
     // ------------------------------------------------------------------- ua
