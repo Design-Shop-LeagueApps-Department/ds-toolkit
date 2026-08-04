@@ -8,8 +8,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *
  *  - Moved under Tools (everyone who can already see them): Defender Pro,
  *    Yoast SEO, Media Library Organizer.
- *  - Left in place but hidden from non-LeagueApps users: ACF, Beaver Builder,
- *    Appearance.
+ *  - Left in place but hidden from non-LeagueApps users: ACF, Beaver Builder.
+ *  - Appearance stays visible to every user whose role allows it (partners
+ *    manage menus/customizer themselves; the risky surfaces stay off because
+ *    the Partner role never gets the file-editor capabilities).
  *  - Left untouched (relocating is not clean): Site Kit (custom menu/screen
  *    system makes a moved entry vanish) and WPMU DEV (whitelabel removes its
  *    top-level menu and its page hook isn't access-registered, so a link errors).
@@ -45,10 +47,12 @@ class DS_Admin_Menu {
         $move = array( 'wp-defender', 'wpseo_dashboard', 'media-library-organizer' );
 
         // Left in their original spot, but visible to LeagueApps users only.
+        // Appearance (themes.php) is deliberately NOT in this list: partner /
+        // non-LeagueApps users need it in the dashboard menu (Menus, Customize,
+        // Widgets). Their role's capabilities still decide what loads there.
         $la_only = array(
             'edit.php?post_type=acf-field-group',     // ACF
             'edit.php?post_type=fl-builder-template', // Beaver Builder (top-level menu slug)
-            'themes.php',                              // Appearance
         );
         if ( ! $is_la ) {
             foreach ( $la_only as $slug ) {
