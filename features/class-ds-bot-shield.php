@@ -41,6 +41,7 @@ class DS_Bot_Shield {
     const COOKIE       = 'ds_bs_ok';
     const CACHE_GROUP  = 'ds_bot_shield';
     const EVENTS_OPT   = 'ds_bot_shield_events';
+    const IPLOG_OPT    = 'ds_bot_shield_iplog';
 
     /** UA substrings that always pass the challenge (still rate-limited per IP). */
     const GOOD_BOTS = 'googlebot,bingbot,slurp,duckduckbot,applebot,yandexbot,facebookexternalhit,twitterbot,linkedinbot,pinterest,slackbot,whatsapp,uptimerobot,statuscake,pingdom';
@@ -84,13 +85,21 @@ class DS_Bot_Shield {
      * Runs at plugins_loaded on every frontend request.
      */
     private function intercept() {
+        $uri = isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '/';
+        $ua  = isset( $_SERVER['HTTP_USER_AGENT'] ) ? $_SERVER['HTTP_USER_AGENT'] : '';
+        $ip  = $this->client_ip();
+
         $verdict = $this->evaluate(
             isset( $_SERVER['REQUEST_METHOD'] ) ? $_SERVER['REQUEST_METHOD'] : 'GET',
-            isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '/',
-            isset( $_SERVER['HTTP_USER_AGENT'] ) ? $_SERVER['HTTP_USER_AGENT'] : '',
-            $this->client_ip(),
+            $uri,
+            $ua,
+            $ip,
             $_COOKIE
         );
+
+        if ( 'pass' !== $verdict ) {
+            $this->log_ip( $verdict, $ip, $ua, $uri );
+        }
 
         if ( 'pass' !== $verdict && $this->is_monitor_mode() ) {
             // Count it, let it through. Counters and penalty/attack state
@@ -456,6 +465,89 @@ class DS_Bot_Shield {
         }
     }
 
+    // ----------------------------------------------------------- ip logging
+
+    /**
+     * Per-IP offender log, flood-safe by construction: hit counts and one
+     * sample (UA + path + verdict) per IP live in the object cache; an
+     * aggregated top-200 table is persisted to the DB at most once every
+     * 2 minutes and kept for today + yesterday. Memcached cannot enumerate
+     * keys, so a capped per-day index array makes the entries findable.
+     */
+    private function log_ip( $verdict, $ip, $ua, $path ) {
+        if ( '' === $ip || null === $this->resolve_backend() ) {
+            return;
+        }
+        $day = gmdate( 'Ymd' );
+        $k   = substr( md5( $ip ), 0, 12 );
+
+        $this->cache_incr( 'ipn_' . $k . '_' . $day, 2 * DAY_IN_SECONDS );
+
+        if ( false === $this->cache_get( 'ipi_' . $k . '_' . $day ) ) {
+            $this->cache_set( 'ipi_' . $k . '_' . $day, array(
+                'ip'      => $ip,
+                'verdict' => $verdict,
+                'ua'      => substr( (string) $ua, 0, 120 ),
+                'path'    => substr( (string) $path, 0, 120 ),
+            ), 2 * DAY_IN_SECONDS );
+
+            $idx = $this->cache_get( 'ipidx_' . $day );
+            $idx = is_array( $idx ) ? $idx : array();
+            if ( count( $idx ) < 500 && ! in_array( $k, $idx, true ) ) {
+                $idx[] = $k;
+                $this->cache_set( 'ipidx_' . $day, $idx, 2 * DAY_IN_SECONDS );
+            }
+        }
+
+        if ( ! $this->cache_get( 'ipflush' ) ) {
+            $this->cache_set( 'ipflush', 1, 120 );
+            $this->flush_ip_log( $day );
+        }
+    }
+
+    /** Merge the cache aggregate into the persisted option. */
+    public function flush_ip_log( $day = null ) {
+        $day = $day ?: gmdate( 'Ymd' );
+        $idx = $this->cache_get( 'ipidx_' . $day );
+        if ( ! is_array( $idx ) || ! $idx ) {
+            return;
+        }
+        $rows = array();
+        foreach ( $idx as $k ) {
+            $info = $this->cache_get( 'ipi_' . $k . '_' . $day );
+            $n    = (int) $this->cache_get( 'ipn_' . $k . '_' . $day );
+            if ( is_array( $info ) && $n > 0 ) {
+                $rows[ $info['ip'] ] = array_merge( $info, array( 'n' => $n ) );
+            }
+        }
+        if ( ! $rows ) {
+            return;
+        }
+        uasort( $rows, function ( $a, $b ) { return $b['n'] - $a['n']; } );
+        $rows = array_slice( $rows, 0, 200, true );
+
+        $log         = get_option( self::IPLOG_OPT, array() );
+        $log         = is_array( $log ) ? $log : array();
+        $log[ $day ] = $rows;
+        // NOTE: PHP casts numeric-string array keys to int, so array_keys()
+        // returns ints here while $keep holds strings — compare as strings or
+        // the strict check drops every day and wipes the log on each flush.
+        $keep = array( (string) $day, gmdate( 'Ymd', time() - DAY_IN_SECONDS ) );
+        foreach ( array_keys( $log ) as $d ) {
+            if ( ! in_array( (string) $d, $keep, true ) ) {
+                unset( $log[ $d ] );
+            }
+        }
+        update_option( self::IPLOG_OPT, $log, false );
+    }
+
+    /** Persisted offender rows for a day, sorted by hit count. */
+    public function ip_log( $day = null ) {
+        $day = $day ?: gmdate( 'Ymd' );
+        $log = get_option( self::IPLOG_OPT, array() );
+        return ( is_array( $log ) && isset( $log[ $day ] ) ) ? $log[ $day ] : array();
+    }
+
     // ------------------------------------------------------- stats & logging
 
     /** Daily counters surfaced on the settings page. Cache-only, cheap. */
@@ -518,6 +610,18 @@ class DS_Bot_Shield {
             echo '<p style="margin-top:8px;"><strong>Recent events</strong></p><ul style="margin-left:1em;list-style:disc;">';
             foreach ( array_slice( array_reverse( $events ), 0, 5 ) as $e ) {
                 echo '<li>' . esc_html( gmdate( 'M j H:i', (int) $e['t'] ) . ' UTC — ' . $e['kind'] . ' (' . $e['detail'] . ')' ) . '</li>';
+            }
+            echo '</ul>';
+        }
+        $this->flush_ip_log();
+        $offenders = $this->ip_log();
+        if ( $offenders ) {
+            echo '<p style="margin-top:8px;"><strong>Top offending IPs today</strong></p><ul style="margin-left:1em;list-style:disc;">';
+            foreach ( array_slice( $offenders, 0, 10, true ) as $row ) {
+                echo '<li><code>' . esc_html( $row['ip'] ) . '</code> — ' . (int) $row['n'] . '× '
+                    . esc_html( $row['verdict'] ) . ', <span title="' . esc_attr( $row['ua'] ) . '">'
+                    . esc_html( substr( $row['ua'], 0, 40 ) ) . '…</span> on <code>'
+                    . esc_html( substr( $row['path'], 0, 40 ) ) . '</code></li>';
             }
             echo '</ul>';
         }
