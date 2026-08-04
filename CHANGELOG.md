@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.64] - 2026-08-04
+### Changed
+- **Admin Menu Tidy: Appearance is visible to partner / non-LeagueApps users again.** The menu tidy hid the whole Appearance menu from any user without a LeagueApps email, locking partners out of Menus, Customize, and Widgets. Appearance now stays in the dashboard menu for every user whose role allows it; ACF and Beaver Builder remain LeagueApps-only, and the Partner role still never gets the in-admin file editors.
+
 ## [1.9.63] - 2026-08-03
 ### Fixed
 - **Plugin header version sync.** The 1.9.61 and 1.9.62 zips shipped with the plugin-header `Version:` still reading 1.9.60 (only the `DS_TOOLKIT_VERSION` define was bumped), so updated sites kept reporting 1.9.60 and re-offering the update every check. Both version lines are back in lockstep from this release; sites on the mismatched builds converge here and the loop ends. No code changes beyond the version lines.
