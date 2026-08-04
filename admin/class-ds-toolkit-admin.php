@@ -233,6 +233,31 @@ class DS_Toolkit_Admin {
                 $academy_pinned_label     = ! empty( $opts['academy_pinned_label'] ) ? $opts['academy_pinned_label'] : "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder";
                 $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );
                 $image_optimization_enabled = ! empty( $opts['image_optimization_enabled'] );
+                $bot_shield_enabled           = ! empty( $opts['bot_shield_enabled'] );
+                $bot_shield_ip_limit          = ! empty( $opts['bot_shield_ip_limit'] ) ? (int) $opts['bot_shield_ip_limit'] : 180;
+                $bot_shield_penalty_mins      = ! empty( $opts['bot_shield_penalty_mins'] ) ? (int) $opts['bot_shield_penalty_mins'] : 10;
+                $bot_shield_global_limit      = ! empty( $opts['bot_shield_global_limit'] ) ? (int) $opts['bot_shield_global_limit'] : 150;
+                $bot_shield_attack_mins       = ! empty( $opts['bot_shield_attack_mins'] ) ? (int) $opts['bot_shield_attack_mins'] : 10;
+                $bot_shield_challenge_enabled = ! empty( $opts['bot_shield_challenge_enabled'] );
+                $bot_shield_ua_blocklist      = isset( $opts['bot_shield_ua_blocklist'] ) ? $opts['bot_shield_ua_blocklist'] : '';
+                $bot_shield_ip_allowlist      = isset( $opts['bot_shield_ip_allowlist'] ) ? $opts['bot_shield_ip_allowlist'] : '';
+                // Today's block counters (cache reads only; empty string hides the line).
+                $bot_shield_stats = '';
+                if ( $bot_shield_enabled ) {
+                    require_once DS_TOOLKIT_PATH . 'features/class-ds-bot-shield.php';
+                    $shield = new DS_Bot_Shield( $opts );
+                    $parts  = array();
+                    if ( $shield->stat( '429' ) ) {
+                        $parts[] = $shield->stat( '429' ) . ' rate-limited';
+                    }
+                    if ( $shield->stat( '403' ) ) {
+                        $parts[] = $shield->stat( '403' ) . ' crawlers blocked';
+                    }
+                    if ( $shield->stat( 'challenge' ) ) {
+                        $parts[] = $shield->stat( 'challenge' ) . ' browser checks';
+                    }
+                    $bot_shield_stats = implode( ', ', $parts );
+                }
                 // Per-module on/off states for the always-visible "LeagueApps Modules" section.
                 $ds_module_states = array();
                 foreach ( DS_Toolkit::module_features() as $mod_key => $mod_meta ) {

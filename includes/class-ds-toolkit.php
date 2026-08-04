@@ -183,6 +183,12 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-user-roles.php',
             'class' => 'DS_User_Roles',
         ),
+        // Fleet-wide origin protection against bot floods (see the class
+        // docblock for the sportsatthebeach incident that motivated it).
+        'bot_shield_enabled' => array(
+            'file'  => 'features/class-ds-bot-shield.php',
+            'class' => 'DS_Bot_Shield',
+        ),
         'design_academy_enabled' => array(
             'file'  => 'features/class-ds-design-academy.php',
             'class' => 'DS_Design_Academy',
@@ -293,6 +299,17 @@ class DS_Toolkit {
             // Partner-safe access control + the Design Academy dashboard panel:
             // on for the whole fleet regardless of blueprint generation.
             'user_roles_enabled'                 => 1,
+            // Bot Shield: on fleet-wide with conservative thresholds. A legit
+            // human browsing a cached site rarely produces more than ~20 PHP
+            // hits/min; 180/min per IP only catches scrapers and floods.
+            'bot_shield_enabled'                 => 1,
+            'bot_shield_ip_limit'                => 180,
+            'bot_shield_penalty_mins'            => 10,
+            'bot_shield_global_limit'            => 150,
+            'bot_shield_attack_mins'             => 10,
+            'bot_shield_challenge_enabled'       => 1,
+            'bot_shield_ua_blocklist'            => "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot",
+            'bot_shield_ip_allowlist'            => '',
             'partner_plugin_access'              => 0,
             'design_academy_enabled'             => 1,
             'academy_pinned_url'                 => 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/',

@@ -121,6 +121,53 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
     </div>
 
+    <!-- Bot Shield (fleet-wide) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-shield"></span></div>
+            <div class="dst-card-info">
+                <strong>Bot Shield</strong>
+                <span>Origin protection against bot floods that page caching and Defender miss (valid-URL request storms that exhaust PHP workers and cause 502s). Rejects abusive traffic in ~1ms before the page render: per-IP rate limit with a penalty box, an automatic "under attack" browser check when the whole site is being flooded, and a crawler blocklist. Logged-in users, WP Engine internals, and known search engines are never touched. Auto-enabled on every install.
+                <?php if ( $bot_shield_stats ) : ?><br><strong>Today:</strong> <?php echo esc_html( $bot_shield_stats ); ?><?php endif; ?></span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[bot_shield_enabled]" value="0">
+                <input type="checkbox" id="bot_shield_enabled" name="ds_toolkit_settings[bot_shield_enabled]" value="1" <?php checked( $bot_shield_enabled ); ?>>
+                <label for="bot_shield_enabled"></label>
+            </div>
+        </div>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info" style="width:100%;">
+                <span style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+                    <label>Per-IP limit/min
+                        <input type="number" min="30" name="ds_toolkit_settings[bot_shield_ip_limit]" value="<?php echo esc_attr( $bot_shield_ip_limit ); ?>" style="width:80px;">
+                    </label>
+                    <label>Penalty (min)
+                        <input type="number" min="1" name="ds_toolkit_settings[bot_shield_penalty_mins]" value="<?php echo esc_attr( $bot_shield_penalty_mins ); ?>" style="width:70px;">
+                    </label>
+                    <label>Site limit/10s
+                        <input type="number" min="50" name="ds_toolkit_settings[bot_shield_global_limit]" value="<?php echo esc_attr( $bot_shield_global_limit ); ?>" style="width:80px;">
+                    </label>
+                    <label>Attack mode (min)
+                        <input type="number" min="1" name="ds_toolkit_settings[bot_shield_attack_mins]" value="<?php echo esc_attr( $bot_shield_attack_mins ); ?>" style="width:70px;">
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;">
+                        <input type="hidden" name="ds_toolkit_settings[bot_shield_challenge_enabled]" value="0">
+                        <input type="checkbox" name="ds_toolkit_settings[bot_shield_challenge_enabled]" value="1" <?php checked( $bot_shield_challenge_enabled ); ?>>
+                        Browser check when under attack
+                    </label>
+                </span>
+                <strong style="display:block;margin-top:10px;">Blocked user agents</strong>
+                <span>One per line, case-insensitive substring match, answered 403.</span>
+                <textarea name="ds_toolkit_settings[bot_shield_ua_blocklist]" rows="4" style="width:100%;margin-top:6px;"><?php echo esc_textarea( $bot_shield_ua_blocklist ); ?></textarea>
+                <strong style="display:block;margin-top:10px;">IP allowlist</strong>
+                <span>Never limited or challenged. One per line: exact IP, CIDR (203.0.113.0/24), or prefix (203.0.113.).</span>
+                <textarea name="ds_toolkit_settings[bot_shield_ip_allowlist]" rows="3" style="width:100%;margin-top:6px;"><?php echo esc_textarea( $bot_shield_ip_allowlist ); ?></textarea>
+            </div>
+        </div>
+    </div>
+
     <!-- LeagueApps modules (Beaver Builder blocks) — opt-in on ANY blueprint, off by default below gen 6 -->
     <p class="dst-section-title">LeagueApps Modules (Beaver Builder blocks)</p>
     <div class="dst-card">
