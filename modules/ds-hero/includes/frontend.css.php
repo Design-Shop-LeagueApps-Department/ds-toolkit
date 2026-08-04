@@ -221,6 +221,17 @@ $align_rules = function( $align ) use ( $node ) {
 if ( '' !== ( $settings->align_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){" . $align_rules( $settings->align_medium ) . "}\n"; }
 if ( '' !== ( $settings->align_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){" . $align_rules( $settings->align_responsive ) . "}\n"; }
 
+// ---- Buttons Alignment (GH #94): positions the CTA row independently of the
+// module Alignment. Emitted AFTER the alignment rules so an explicit value wins
+// the equal-specificity contest at every width; per-device values win over base.
+$ba_map = array( 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end' );
+$ba = $settings->btn_align ?? '';
+if ( isset( $ba_map[ $ba ] ) ) { echo "$node .ds-hero-cta{justify-content:{$ba_map[ $ba ]};}\n"; }
+$bam = $settings->btn_align_medium ?? '';
+if ( isset( $ba_map[ $bam ] ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-hero-cta{justify-content:{$ba_map[ $bam ]};} }\n"; }
+$bar = $settings->btn_align_responsive ?? '';
+if ( isset( $ba_map[ $bar ] ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-hero-cta{justify-content:{$ba_map[ $bar ]};} }\n"; }
+
 // ---- Spacing: padding on the content wrap, margin on the section (deferred) ----
 if ( class_exists( 'FLBuilderCSS' ) ) {
 	FLBuilderCSS::dimension_field_rule( array(
