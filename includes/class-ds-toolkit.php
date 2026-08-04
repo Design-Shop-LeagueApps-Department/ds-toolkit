@@ -303,12 +303,20 @@ class DS_Toolkit {
             // human browsing a cached site rarely produces more than ~20 PHP
             // hits/min; 180/min per IP only catches scrapers and floods.
             'bot_shield_enabled'                 => 1,
+            // Ships in monitor mode per the Site Stability Push rollout:
+            // count what would be blocked first, flip to 'block' per site
+            // once the numbers look right.
+            'bot_shield_mode'                    => 'monitor',
+            'bot_shield_page_cap'                => 20,
             'bot_shield_ip_limit'                => 180,
             'bot_shield_penalty_mins'            => 10,
             'bot_shield_global_limit'            => 150,
             'bot_shield_attack_mins'             => 10,
             'bot_shield_challenge_enabled'       => 1,
-            'bot_shield_ua_blocklist'            => "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot",
+            // msie / trident: IE is dead since 2022; in 2026 those UA strings
+            // are the "older browser" bot signature WPE support identified in
+            // the sportsatthebeach flood. Real IE visitors no longer exist.
+            'bot_shield_ua_blocklist'            => "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
             'bot_shield_ip_allowlist'            => '',
             'partner_plugin_access'              => 0,
             'design_academy_enabled'             => 1,

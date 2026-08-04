@@ -127,7 +127,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <div class="dst-card-icon"><span class="dashicons dashicons-shield"></span></div>
             <div class="dst-card-info">
                 <strong>Bot Shield</strong>
-                <span>Origin protection against bot floods that page caching and Defender miss (valid-URL request storms that exhaust PHP workers and cause 502s). Rejects abusive traffic in ~1ms before the page render: per-IP rate limit with a penalty box, an automatic "under attack" browser check when the whole site is being flooded, and a crawler blocklist. Logged-in users, WP Engine internals, and known search engines are never touched. Auto-enabled on every install.
+                <span>Origin protection against bot floods that page caching and Defender miss (valid-URL request storms that exhaust PHP workers and cause 502s). Rejects abusive traffic in ~1ms before the page render: per-IP rate limit with a penalty box, an automatic "under attack" browser check when the whole site is being flooded, and a crawler blocklist. Logged-in users, WP Engine internals, and known search engines are never touched. Ships in Monitor mode (counts, blocks nothing) so a day of numbers can be read before flipping to Block. A Bot Shield box on the WP dashboard shows mode and today's counts.
                 <?php if ( $bot_shield_stats ) : ?><br><strong>Today:</strong> <?php echo esc_html( $bot_shield_stats ); ?><?php endif; ?></span>
             </div>
             <div class="dst-toggle">
@@ -139,7 +139,21 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <div class="dst-card-row" style="padding-top:0;">
             <div class="dst-card-icon" aria-hidden="true"></div>
             <div class="dst-card-info" style="width:100%;">
-                <span style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
+                <strong>Mode</strong>
+                <span style="display:flex;gap:20px;align-items:center;margin-top:4px;">
+                    <label style="display:flex;align-items:center;gap:6px;">
+                        <input type="radio" name="ds_toolkit_settings[bot_shield_mode]" value="monitor" <?php checked( 'monitor', $bot_shield_mode ); ?>>
+                        Monitor (count only, block nothing)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;">
+                        <input type="radio" name="ds_toolkit_settings[bot_shield_mode]" value="block" <?php checked( 'block', $bot_shield_mode ); ?>>
+                        Block (enforce)
+                    </label>
+                    <label>Pagination cap
+                        <input type="number" min="5" name="ds_toolkit_settings[bot_shield_page_cap]" value="<?php echo esc_attr( $bot_shield_page_cap ); ?>" style="width:70px;">
+                    </label>
+                </span>
+                <span style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:8px;">
                     <label>Per-IP limit/min
                         <input type="number" min="30" name="ds_toolkit_settings[bot_shield_ip_limit]" value="<?php echo esc_attr( $bot_shield_ip_limit ); ?>" style="width:80px;">
                     </label>

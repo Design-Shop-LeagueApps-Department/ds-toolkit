@@ -62,7 +62,19 @@ class DS_Bot_Shield {
         if ( ! apply_filters( 'ds_bot_shield_enabled', true ) ) {
             return;
         }
+        if ( is_admin() ) {
+            add_action( 'wp_dashboard_setup', array( $this, 'register_dashboard_widget' ) );
+        }
         $this->intercept();
+    }
+
+    /**
+     * Monitor mode counts what WOULD be blocked but blocks nothing. It is the
+     * shipping default per the Site Stability Push rollout: watch first, read
+     * the numbers, then flip to block per site.
+     */
+    public function is_monitor_mode() {
+        return 'block' !== $this->opt( 'bot_shield_mode', 'monitor' );
     }
 
     // ------------------------------------------------------------------ core
@@ -80,14 +92,26 @@ class DS_Bot_Shield {
             $_COOKIE
         );
 
+        if ( 'pass' !== $verdict && $this->is_monitor_mode() ) {
+            // Count it, let it through. Counters and penalty/attack state
+            // still advance so the numbers show real would-block behavior.
+            $this->bump_stat( $verdict );
+            return;
+        }
+
         switch ( $verdict ) {
+            case 'page-trap':
+                $this->bump_stat( 'page-trap' );
+                $this->respond( 410, 'Gone.', array( 'X-DS-Bot-Shield: page-trap' ) );
+                break;
+
             case 'ua-block':
-                $this->bump_stat( '403' );
+                $this->bump_stat( 'ua-block' );
                 $this->respond( 403, 'Access denied.', array( 'X-DS-Bot-Shield: ua-block' ) );
                 break; // unreachable, respond() exits
 
             case 'rate-limit':
-                $this->bump_stat( '429' );
+                $this->bump_stat( 'rate-limit' );
                 $this->respond( 429, 'Too many requests. Please slow down and try again in a minute.', array(
                     'X-DS-Bot-Shield: rate-limit',
                     'Retry-After: 60',
@@ -138,7 +162,17 @@ class DS_Bot_Shield {
             return 'pass';
         }
 
-        // 3) UA blocklist, cheapest check that can block.
+        // Pagination URL trap (Site Stability Push cause #1): WordPress
+        // accepts /page/N/ on anything and runs a full query for pages that
+        // don't exist; crawlers follow these forever. No fleet site has
+        // anywhere near the cap's worth of real pages, so above it is bot
+        // traffic by construction and answers 410 Gone.
+        $page_cap = max( 5, (int) $this->opt( 'bot_shield_page_cap', 20 ) );
+        if ( preg_match( '#/page/(\d+)(?:/|$)#', $path, $m ) && (int) $m[1] > $page_cap ) {
+            return 'page-trap';
+        }
+
+        // UA blocklist, cheapest check that can block.
         if ( '' !== $ua && $this->ua_matches( $ua, $this->ua_blocklist() ) ) {
             return 'ua-block';
         }
@@ -427,6 +461,43 @@ class DS_Bot_Shield {
         $events   = is_array( $events ) ? $events : array();
         $events[] = array( 't' => time(), 'kind' => $kind, 'detail' => $detail );
         update_option( self::EVENTS_OPT, array_slice( $events, -30 ), false );
+    }
+
+    // ----------------------------------------------------- dashboard widget
+
+    /**
+     * The rollout confirmation box from the Site Stability Push brief: the
+     * dashboard shows the mode and today's numbers, so "the box is there"
+     * doubles as proof the shield is active on a site.
+     */
+    public function register_dashboard_widget() {
+        wp_add_dashboard_widget( 'ds_bot_shield_status', 'Bot Shield', array( $this, 'render_dashboard_widget' ) );
+    }
+
+    public function render_dashboard_widget() {
+        $monitor = $this->is_monitor_mode();
+        $rows    = array(
+            'rate-limit' => 'Rate-limited (429)',
+            'ua-block'   => 'Blocked crawlers (403)',
+            'challenge'  => 'Browser checks (503)',
+            'page-trap'  => 'Pagination traps (410)',
+        );
+        echo '<p><strong>' . ( $monitor
+            ? 'Monitor mode — nothing is being blocked yet.'
+            : 'Blocking mode — abusive traffic is being rejected.' ) . '</strong></p>';
+        echo '<p>' . ( $monitor ? 'Would have been blocked today:' : 'Blocked today:' ) . '</p><ul style="margin-left:1em;list-style:disc;">';
+        foreach ( $rows as $key => $label ) {
+            echo '<li>' . esc_html( $label ) . ': <strong>' . (int) $this->stat( $key ) . '</strong></li>';
+        }
+        echo '</ul>';
+        $events = get_option( self::EVENTS_OPT, array() );
+        if ( is_array( $events ) && $events ) {
+            echo '<p style="margin-top:8px;"><strong>Recent events</strong></p><ul style="margin-left:1em;list-style:disc;">';
+            foreach ( array_slice( array_reverse( $events ), 0, 5 ) as $e ) {
+                echo '<li>' . esc_html( gmdate( 'M j H:i', (int) $e['t'] ) . ' UTC — ' . $e['kind'] . ' (' . $e['detail'] . ')' ) . '</li>';
+            }
+            echo '</ul>';
+        }
     }
 
     // --------------------------------------------------------------- helpers

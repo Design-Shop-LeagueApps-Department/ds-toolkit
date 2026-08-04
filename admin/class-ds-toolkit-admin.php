@@ -234,6 +234,8 @@ class DS_Toolkit_Admin {
                 $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );
                 $image_optimization_enabled = ! empty( $opts['image_optimization_enabled'] );
                 $bot_shield_enabled           = ! empty( $opts['bot_shield_enabled'] );
+                $bot_shield_mode              = ( isset( $opts['bot_shield_mode'] ) && 'block' === $opts['bot_shield_mode'] ) ? 'block' : 'monitor';
+                $bot_shield_page_cap          = ! empty( $opts['bot_shield_page_cap'] ) ? (int) $opts['bot_shield_page_cap'] : 20;
                 $bot_shield_ip_limit          = ! empty( $opts['bot_shield_ip_limit'] ) ? (int) $opts['bot_shield_ip_limit'] : 180;
                 $bot_shield_penalty_mins      = ! empty( $opts['bot_shield_penalty_mins'] ) ? (int) $opts['bot_shield_penalty_mins'] : 10;
                 $bot_shield_global_limit      = ! empty( $opts['bot_shield_global_limit'] ) ? (int) $opts['bot_shield_global_limit'] : 150;
@@ -247,16 +249,15 @@ class DS_Toolkit_Admin {
                     require_once DS_TOOLKIT_PATH . 'features/class-ds-bot-shield.php';
                     $shield = new DS_Bot_Shield( $opts );
                     $parts  = array();
-                    if ( $shield->stat( '429' ) ) {
-                        $parts[] = $shield->stat( '429' ) . ' rate-limited';
-                    }
-                    if ( $shield->stat( '403' ) ) {
-                        $parts[] = $shield->stat( '403' ) . ' crawlers blocked';
-                    }
-                    if ( $shield->stat( 'challenge' ) ) {
-                        $parts[] = $shield->stat( 'challenge' ) . ' browser checks';
+                    foreach ( array( 'rate-limit' => 'rate-limited', 'ua-block' => 'crawlers blocked', 'challenge' => 'browser checks', 'page-trap' => 'pagination traps' ) as $sk => $sl ) {
+                        if ( $shield->stat( $sk ) ) {
+                            $parts[] = $shield->stat( $sk ) . ' ' . $sl;
+                        }
                     }
                     $bot_shield_stats = implode( ', ', $parts );
+                    if ( $bot_shield_stats && 'monitor' === $bot_shield_mode ) {
+                        $bot_shield_stats = 'would have blocked: ' . $bot_shield_stats;
+                    }
                 }
                 // Per-module on/off states for the always-visible "LeagueApps Modules" section.
                 $ds_module_states = array();
