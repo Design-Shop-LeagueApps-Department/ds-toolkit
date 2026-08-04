@@ -308,6 +308,10 @@ class DS_Toolkit {
             // once the numbers look right.
             'bot_shield_mode'                    => 'monitor',
             'bot_shield_page_cap'                => 20,
+            // Read-only stats endpoint for the ops dashboard. Off by default;
+            // turn on per site that should be pollable.
+            'bot_shield_stats_api'               => 0,
+            'bot_shield_stats_origin'            => 'https://dscommand.wpenginepowered.com',
             'bot_shield_ip_limit'                => 180,
             'bot_shield_penalty_mins'            => 10,
             'bot_shield_global_limit'            => 150,

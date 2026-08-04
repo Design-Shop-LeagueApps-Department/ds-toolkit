@@ -66,7 +66,60 @@ class DS_Bot_Shield {
         if ( is_admin() ) {
             add_action( 'wp_dashboard_setup', array( $this, 'register_dashboard_widget' ) );
         }
+        add_action( 'rest_api_init', array( $this, 'register_rest' ) );
         $this->intercept();
+    }
+
+    /**
+     * Read-only stats endpoint so an external ops dashboard can poll a site:
+     *   GET /wp-json/ds-toolkit/v1/bot-shield
+     * Returns the same numbers the dashboard widget shows. Public but
+     * cheap (cache reads + one option), CORS-limited to the dashboard
+     * origin, and off unless bot_shield_stats_api is enabled.
+     */
+    public function register_rest() {
+        if ( empty( $this->settings['bot_shield_stats_api'] ) ) {
+            return;
+        }
+        register_rest_route( 'ds-toolkit/v1', '/bot-shield', array(
+            'methods'             => 'GET',
+            'permission_callback' => '__return_true',
+            'callback'            => array( $this, 'rest_stats' ),
+        ) );
+    }
+
+    public function rest_stats() {
+        $origin = (string) $this->opt( 'bot_shield_stats_origin', 'https://dscommand.wpenginepowered.com' );
+        if ( '' !== $origin ) {
+            header( 'Access-Control-Allow-Origin: ' . $origin );
+            header( 'Vary: Origin' );
+        }
+        $this->flush_ip_log();
+
+        $offenders = array();
+        foreach ( array_slice( $this->ip_log(), 0, 10, true ) as $row ) {
+            $offenders[] = array(
+                'ip'      => $row['ip'],
+                'hits'    => (int) $row['n'],
+                'verdict' => $row['verdict'],
+                'ua'      => $row['ua'],
+                'path'    => $row['path'],
+            );
+        }
+        $counts = array();
+        foreach ( array( 'rate-limit', 'ua-block', 'challenge', 'page-trap' ) as $k ) {
+            $counts[ $k ] = (int) $this->stat( $k );
+        }
+
+        return rest_ensure_response( array(
+            'site'      => wp_parse_url( home_url(), PHP_URL_HOST ),
+            'mode'      => $this->is_monitor_mode() ? 'monitor' : 'block',
+            'seen'      => (int) $this->stat( 'seen' ),
+            'flagged'   => array_sum( $counts ),
+            'counts'    => $counts,
+            'offenders' => $offenders,
+            'utc'       => gmdate( 'c' ),
+        ) );
     }
 
     /**
