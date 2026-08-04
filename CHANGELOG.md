@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.65] - 2026-08-04
+### Added
+- **Hero Banner: responsive Buttons Alignment (GH #94).** A new Buttons Alignment control (Content → Buttons) positions the CTA button group Left / Center / Right independently of the module Alignment, with per-device values via the standard responsive control. Blank (the default) keeps following the module Alignment, so existing heroes render unchanged. Text, stats, typography, and button styling are unaffected; on phones the buttons remain full-width by design.
+
 ## [1.9.64] - 2026-08-04
 ### Changed
 - **Admin Menu Tidy: Appearance is visible to partner / non-LeagueApps users again.** The menu tidy hid the whole Appearance menu from any user without a LeagueApps email, locking partners out of Menus, Customize, and Widgets. Appearance now stays in the dashboard menu for every user whose role allows it; ACF and Beaver Builder remain LeagueApps-only, and the Partner role still never gets the in-admin file editors.
