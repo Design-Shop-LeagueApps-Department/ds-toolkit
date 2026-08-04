@@ -258,6 +258,10 @@ class DS_Toolkit_Admin {
                     if ( $bot_shield_stats && 'monitor' === $bot_shield_mode ) {
                         $bot_shield_stats = 'would have blocked: ' . $bot_shield_stats;
                     }
+                    $seen = $shield->stat( 'seen' );
+                    if ( $seen ) {
+                        $bot_shield_stats = $seen . ' requests evaluated' . ( $bot_shield_stats ? ', ' . $bot_shield_stats : ', nothing to block' );
+                    }
                 }
                 // Per-module on/off states for the always-visible "LeagueApps Modules" section.
                 $ds_module_states = array();

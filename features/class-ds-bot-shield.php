@@ -162,6 +162,11 @@ class DS_Bot_Shield {
             return 'pass';
         }
 
+        // Heartbeat: every request that reaches policing distance counts, so
+        // an all-zero block report is distinguishable from a dead feature
+        // (zeros with a live "evaluated" number = genuinely quiet day).
+        $this->bump_stat( 'seen' );
+
         // Pagination URL trap (Site Stability Push cause #1): WordPress
         // accepts /page/N/ on anything and runs a full query for pages that
         // don't exist; crawlers follow these forever. No fleet site has
@@ -502,6 +507,7 @@ class DS_Bot_Shield {
         echo '<p><strong>' . ( $monitor
             ? 'Monitor mode — nothing is being blocked yet.'
             : 'Blocking mode — abusive traffic is being rejected.' ) . '</strong></p>';
+        echo '<p>Requests evaluated today: <strong>' . (int) $this->stat( 'seen' ) . '</strong></p>';
         echo '<p>' . ( $monitor ? 'Would have been blocked today:' : 'Blocked today:' ) . '</p><ul style="margin-left:1em;list-style:disc;">';
         foreach ( $rows as $key => $label ) {
             echo '<li>' . esc_html( $label ) . ': <strong>' . (int) $this->stat( $key ) . '</strong></li>';
