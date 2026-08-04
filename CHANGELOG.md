@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.64] - 2026-08-04
+### Added
+- **Bot Shield: fleet-wide origin protection against bot floods.** Built after the sportsatthebeach.com 502 incidents (2026-07-27 and 2026-08-03), where a bot flood on valid URLs bypassed the WP Engine edge cache (unique query strings) and exhausted the pod's PHP workers; Defender never saw it (no 404s, no logins, rotating IPs, blocklist miss). The shield evaluates at `plugins_loaded`, so a rejected request costs ~1ms instead of a ~1s render: (1) per-IP rate limit, default 180 frontend GETs/min, then a 10-minute penalty box answering 429; (2) a global circuit breaker, default 150 PHP hits/10s site-wide, that switches on an "under attack" browser check (tiny 503 page that sets a signed cookie via JS and reloads) so non-JS bots never reach a full render while real browsers bounce through in under a second; (3) an editable user-agent blocklist answered with 403. Counters live in the persistent object cache (memcached on WP Engine) with APCu fallback; hosts with neither degrade to UA blocking only. Never touched: logged-in users, wp-admin/AJAX/REST/login/cron/CLI, private and allowlisted IPs, robots.txt/sitemaps/.well-known, and known search and social crawlers (challenge only). Client IP is read from `CF-Connecting-IP` (WP Engine's edge) with `REMOTE_ADDR` fallback. Settings card with today's block counters, thresholds, blocklist, and allowlist; kill switches via the toggle, the `DS_BOT_SHIELD_DISABLE` constant, or the `ds_bot_shield_enabled` filter. Default ON across the fleet.
+
 ## [1.9.63] - 2026-08-03
 ### Fixed
 - **Plugin header version sync.** The 1.9.61 and 1.9.62 zips shipped with the plugin-header `Version:` still reading 1.9.60 (only the `DS_TOOLKIT_VERSION` define was bumped), so updated sites kept reporting 1.9.60 and re-offering the update every check. Both version lines are back in lockstep from this release; sites on the mismatched builds converge here and the loop ends. No code changes beyond the version lines.
