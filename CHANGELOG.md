@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.67] - 2026-08-06
+### Changed
+- **Pathway: markers are outline by default and fill with the accent colour on hover (GH #98).** Hollow markers now fill smoothly on hover and fade back when the pointer leaves, with a configurable transition (default 250ms). Hovering anywhere on a stage lights its marker by default — keeping the marker tied to its card and giving visitors a real hit target instead of a few pixels — with a Hover Target option for marker-only, plus Fill On Hover (off switch), Hover Fill Colour, and Outline Thickness controls. Keyboard focus inside a stage fills its marker too; touch devices never get a stuck filled state; the fill is skipped for reduced-motion visitors. A stage can still be pinned solid with the per-stage "Always filled" marker option, and markers no longer change size between hollow and filled states.
+
 ## [1.9.66] - 2026-08-06
 ### Added
 - **New module: Pathway (GH #96).** Stage cards (auto-numbered eyebrow, title, description, optional link) connected by a progress line with one marker per stage. Markers and line segments are generated per card, so adding, removing, or reordering stages automatically re-fits the line, which ends at the final stage with a gradient fade and never continues past the last card. Per-stage Filled/Outline markers (upcoming stages), diamond or circle shapes, line/marker colours synced to the global accent, optional thin stage dividers, responsive gap and typography controls, and a configurable stack breakpoint below which the pathway becomes a vertical left-rail timeline so markers, spacing, and the line stay aligned on small screens. Pure CSS, no JS. Registered like every LeagueApps module (Features toggle; default on for blueprint 6+).

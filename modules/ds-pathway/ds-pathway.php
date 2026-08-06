@@ -62,7 +62,9 @@ class DS_Pathway_Module extends FLBuilderModule {
 				'text'    => $text,
 				'url'     => $url,
 				'target'  => $target,
-				'marker'  => ( $stage->marker ?? 'fill' ) === 'outline' ? 'outline' : 'fill',
+				// Outline is the default state (GH #98): hollow at rest, filling
+				// with the accent on hover. 'fill' pins a stage permanently solid.
+				'marker'  => ( $stage->marker ?? 'outline' ) === 'fill' ? 'fill' : 'outline',
 			);
 		}
 		return $out;
@@ -82,6 +84,11 @@ class DS_Pathway_Module extends FLBuilderModule {
 		$shape = ( $s->marker_shape ?? 'diamond' ) === 'circle' ? 'circle' : 'diamond';
 		$mods  = 'ds-pathway ds-pathway--m-' . $shape;
 		if ( ( $s->dividers ?? 'no' ) === 'yes' ) { $mods .= ' ds-pathway--dividers'; }
+		// Hover fill target: the whole stage (default — a 14px marker is a poor
+		// hit target) or the marker alone. 'no' disables the hover fill (GH #98).
+		if ( ( $s->marker_hover ?? 'yes' ) !== 'no' ) {
+			$mods .= ( $s->marker_hover_target ?? 'stage' ) === 'marker' ? ' ds-pathway--hovermarker' : ' ds-pathway--hoverstage';
+		}
 
 		echo '<section class="' . esc_attr( $mods ) . '"><div class="ds-pathway-wrap">';
 		echo '<div class="ds-pathway-grid" style="--ds-path-n:' . count( $stages ) . '">';
@@ -141,9 +148,9 @@ FLBuilder::register_settings_form( 'ds_pathway_stage_form', array(
 						'marker'  => array(
 							'type'    => 'select',
 							'label'   => __( 'Marker', 'ds-toolkit' ),
-							'default' => 'fill',
-							'options' => array( 'fill' => __( 'Filled', 'ds-toolkit' ), 'outline' => __( 'Outline (hollow)', 'ds-toolkit' ) ),
-							'help'    => __( 'Outline reads as an upcoming / future stage, like the reference design.', 'ds-toolkit' ),
+							'default' => 'outline',
+							'options' => array( 'outline' => __( 'Outline (fills on hover)', 'ds-toolkit' ), 'fill' => __( 'Always filled', 'ds-toolkit' ) ),
+							'help'    => __( 'Outline is the default: hollow at rest, filling with the accent colour on hover. Choose Always filled to pin a stage solid (e.g. a completed or current stage).', 'ds-toolkit' ),
 						),
 					),
 				),
@@ -169,7 +176,7 @@ FLBuilder::register_module( 'DS_Pathway_Module', array(
 						'default'      => array(
 							array( 'title' => 'Lorem Ipsum', 'text' => 'Dolor sit amet, consectetur adipiscing elit.' ),
 							array( 'title' => 'Dolor Sit', 'text' => 'Sed do eiusmod tempor incididunt ut labore.' ),
-							array( 'title' => 'Consectetur', 'text' => 'Ut enim ad minim veniam, quis nostrud.', 'marker' => 'outline' ),
+							array( 'title' => 'Consectetur', 'text' => 'Ut enim ad minim veniam, quis nostrud.' ),
 						),
 					),
 					'show_eyebrow' => array(
@@ -190,6 +197,27 @@ FLBuilder::register_module( 'DS_Pathway_Module', array(
 				'fields' => array(
 					'marker_shape'   => array( 'type' => 'select', 'label' => __( 'Marker Shape', 'ds-toolkit' ), 'default' => 'diamond', 'options' => array( 'diamond' => __( 'Diamond', 'ds-toolkit' ), 'circle' => __( 'Circle', 'ds-toolkit' ) ) ),
 					'marker_size'    => array( 'type' => 'unit', 'label' => __( 'Marker Size', 'ds-toolkit' ), 'default' => '14', 'description' => 'px', 'slider' => array( 'min' => 8, 'max' => 28, 'step' => 1 ) ),
+					'marker_border'  => array( 'type' => 'unit', 'label' => __( 'Outline Thickness', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 5, 'step' => 1 ), 'help' => __( 'Border weight of a hollow marker.', 'ds-toolkit' ) ),
+					'marker_hover'   => array(
+						'type'    => 'select',
+						'label'   => __( 'Fill On Hover', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes — hollow markers fill with the accent', 'ds-toolkit' ), 'no' => __( 'No — markers never change', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'marker_hover_target', 'marker_hover_color', 'marker_speed' ) ) ),
+						'help'    => __( 'Hollow markers fill with the accent colour on hover and fade back when the pointer leaves. Keyboard focus inside a stage does the same. Always-filled stages are unaffected.', 'ds-toolkit' ),
+					),
+					'marker_hover_target' => array(
+						'type'    => 'select',
+						'label'   => __( 'Hover Target', 'ds-toolkit' ),
+						'default' => 'stage',
+						'options' => array(
+							'stage'  => __( 'Whole stage (recommended)', 'ds-toolkit' ),
+							'marker' => __( 'The marker only', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Whole stage keeps the marker visually tied to its card and gives visitors a real hit target; the marker alone is only a few pixels wide.', 'ds-toolkit' ),
+					),
+					'marker_hover_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Hover Fill Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the Marker Colour (or the Line Colour).', 'ds-toolkit' ) ),
+					'marker_speed'   => array( 'type' => 'unit', 'label' => __( 'Hover Transition', 'ds-toolkit' ), 'default' => '250', 'description' => 'ms', 'slider' => array( 'min' => 0, 'max' => 800, 'step' => 10 ), 'help' => __( 'How smoothly the marker fills and empties. Ignored for reduced-motion visitors.', 'ds-toolkit' ) ),
 					'line_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Line Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
 					'marker_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Marker Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the Line Colour.', 'ds-toolkit' ) ),
 					'line_thickness' => array( 'type' => 'unit', 'label' => __( 'Line Thickness', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
