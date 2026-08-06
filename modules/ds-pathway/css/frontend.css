@@ -1,0 +1,31 @@
+/* LeagueApps Pathway — static base styles. Dynamic values in includes/frontend.css.php.
+   The track is per-stage: each stage's segment runs from its marker's right edge to
+   the next marker's left edge (spanning the grid gap); the LAST stage draws a
+   gradient fade tail instead, so the line ends with the final card. */
+
+.ds-pathway-wrap{width:100%;max-width:1280px;margin:0 auto;}
+.ds-pathway-grid{display:grid;grid-template-columns:repeat(var(--ds-path-n,4),1fr);column-gap:var(--ds-path-gap,32px);}
+.ds-path-stage{position:relative;min-width:0;}
+
+/* ---- Track row (horizontal mode) ---- */
+.ds-path-track{position:relative;display:block;height:var(--ds-path-msize,14px);margin-bottom:var(--ds-path-trackgap,26px);}
+.ds-path-track::before{content:"";position:absolute;top:50%;transform:translateY(-50%);left:var(--ds-path-msize,14px);right:calc(-1 * var(--ds-path-gap,32px));height:var(--ds-path-line,2px);background:var(--ds-path-line-c,var(--fl-global-accent,#f26a21));}
+/* Fade tail: the line ends WITH the last stage and never continues past it. */
+.ds-path-stage--last .ds-path-track::before{right:auto;width:min(160px,75%);background:linear-gradient(to right,var(--ds-path-line-c,var(--fl-global-accent,#f26a21)),transparent);}
+
+/* ---- Markers ---- */
+.ds-path-marker{position:absolute;top:50%;left:0;width:var(--ds-path-msize,14px);height:var(--ds-path-msize,14px);background:var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21)));transform:translateY(-50%) rotate(45deg);z-index:1;}
+.ds-pathway--m-circle .ds-path-marker{transform:translateY(-50%);border-radius:50%;}
+.ds-path-stage--outline .ds-path-marker{background:transparent;border:2px solid var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21)));}
+
+/* ---- Stage content ---- */
+.ds-path-eyebrow{display:block;font-size:.72rem;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:var(--fl-global-accent,#f26a21);margin:0 0 12px;}
+.ds-path-title{font-size:1.35rem;line-height:1.15;font-weight:800;text-transform:uppercase;color:var(--fl-global-headings,inherit);margin:0 0 12px;}
+.ds-path-title a{color:inherit;text-decoration:none;}
+.ds-path-title a:hover{text-decoration:underline;}
+.ds-path-text{font-size:.95rem;line-height:1.55;color:var(--fl-global-body,inherit);}
+.ds-path-text p{margin:0 0 .6em;}
+.ds-path-text p:last-child{margin-bottom:0;}
+
+/* ---- Optional thin dividers between stages (horizontal mode only) ---- */
+.ds-pathway--dividers .ds-path-stage:not(.ds-path-stage--last)::after{content:"";position:absolute;top:calc(var(--ds-path-msize,14px) + var(--ds-path-trackgap,26px));bottom:0;right:calc(-0.5 * var(--ds-path-gap,32px));width:1px;background:var(--ds-path-divider-c,rgba(255,255,255,.12));}
