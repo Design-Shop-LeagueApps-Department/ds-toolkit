@@ -112,6 +112,11 @@ class DS_Toolkit {
             'class'         => 'DS_Marquee',
             'min_blueprint' => 6,
         ),
+        'ds_pathway_module_enabled' => array(
+            'file'          => 'features/class-ds-pathway.php',
+            'class'         => 'DS_Pathway',
+            'min_blueprint' => 6,
+        ),
         'ds_post_loop_module_enabled' => array(
             'file'          => 'features/class-ds-post-loop.php',
             'class'         => 'DS_Post_Loop',
@@ -237,6 +242,7 @@ class DS_Toolkit {
             'ds_carousel_module_enabled'       => array( 'label' => 'Images/Videos Carousel', 'desc' => 'A stacked-deck slider or a multi-column reels strip of images and videos.' ),
             'ds_orgstats_module_enabled'       => array( 'label' => 'Org Stats',       'desc' => 'Headline stat figures (the record) as plain figures or photo cards.' ),
             'ds_marquee_module_enabled'        => array( 'label' => 'Marquee',         'desc' => 'A scrolling announcement ticker with a pinned label.' ),
+            'ds_pathway_module_enabled'        => array( 'label' => 'Pathway',         'desc' => 'Stage cards connected by a progress line: per-stage markers, a fading end, and a vertical timeline on small screens.' ),
             'ds_info_list_module_enabled'      => array( 'label' => 'Post Details',    'desc' => 'Icon-and-text rows from the current post\'s ACF fields, for Themer single templates (staff, events); empty rows hide.' ),
             'ds_cta_module_enabled'            => array( 'label' => 'CTA',             'desc' => 'A call-to-action band with a heading, text, and buttons.' ),
             'ds_heading_module_enabled'        => array( 'label' => 'Heading',         'desc' => 'A styled section heading with an eyebrow line and accent options.' ),
@@ -328,6 +334,7 @@ class DS_Toolkit {
             $defaults['ds_hero_module_enabled']       = 1;
             $defaults['ds_cta_module_enabled']        = 1;
             $defaults['ds_marquee_module_enabled']    = 1;
+            $defaults['ds_pathway_module_enabled']    = 1;
             $defaults['ds_post_loop_module_enabled']  = 1;
             $defaults['ds_orgstats_module_enabled']   = 1;
             $defaults['ds_carousel_module_enabled']   = 1;

@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.66] - 2026-08-06
+### Added
+- **New module: Pathway (GH #96).** Stage cards (auto-numbered eyebrow, title, description, optional link) connected by a progress line with one marker per stage. Markers and line segments are generated per card, so adding, removing, or reordering stages automatically re-fits the line, which ends at the final stage with a gradient fade and never continues past the last card. Per-stage Filled/Outline markers (upcoming stages), diamond or circle shapes, line/marker colours synced to the global accent, optional thin stage dividers, responsive gap and typography controls, and a configurable stack breakpoint below which the pathway becomes a vertical left-rail timeline so markers, spacing, and the line stay aligned on small screens. Pure CSS, no JS. Registered like every LeagueApps module (Features toggle; default on for blueprint 6+).
+
 ## [1.9.65] - 2026-08-04
 ### Added
 - **Hero Banner: responsive Buttons Alignment (GH #94).** A new Buttons Alignment control (Content → Buttons) positions the CTA button group Left / Center / Right independently of the module Alignment, with per-device values via the standard responsive control. Blank (the default) keeps following the module Alignment, so existing heroes render unchanged. Text, stats, typography, and button styling are unaffected; on phones the buttons remain full-width by design.
