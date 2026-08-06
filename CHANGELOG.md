@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.71] - 2026-08-06
+### Fixed
+- **Post Loop: the Tournament layout now honours its own Taxonomy Filter.** The Tournament Cards layout declares the Taxonomy Filter section in its settings, but `render_tournament()` built its own bare `get_posts()` call (it sorts on the `event_date` ACF field rather than through `WP_Query`, so it never went through the shared query builder). The filter therefore rendered in the builder UI and did nothing: every Tournament loop on a site listed every upcoming event, whatever term was picked. The `tax_query` construction has been lifted out of `run_query()` into a shared `tax_query_args()` helper that both code paths use, so a term selection now scopes the event list. This is what lets two pages off one `event` CPT show two different sets — e.g. a Boys and a Girls tournaments page. No change for loops with no taxonomy filter set, and no change to the event-date ordering or the past-event drop.
+
 ## [1.9.70] - 2026-08-06
 ### Added
 - **Menu: Off-canvas Sidebar layout (GH #101).** A new Layout control in the Menu module's General tab offers `Horizontal bar` (unchanged default) or `Off-canvas sidebar`. In sidebar mode the horizontal bar is hidden at every width and the hamburger is always visible; clicking it slides a docked side panel in from the chosen edge over a dimmed page, for partners who want sidebar navigation instead of a top nav. New Sidebar section: Dock Side (left/right), Panel Width (default 340px, capped to the viewport), Panel Width — Mobile (blank = full width), Dim Page Behind, and Dim Color. Every colour, divider, drawer-logo, CTA, and typography control in the existing Mobile Overlay section drives the panel, so a sidebar is fully styleable with the fields partners already know. The panel slides from its docked edge (cross-fade only under `prefers-reduced-motion`), and closes on the hamburger X, the scrim, or Escape.

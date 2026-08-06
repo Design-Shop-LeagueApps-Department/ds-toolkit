@@ -186,6 +186,37 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	 * Item 0 is the featured card; the rest are loop cards.
 	 */
 	/**
+	 * The Taxonomy Filter tab as a `tax_query`, or an empty array when no filter is
+	 * configured. Terms come from the per-taxonomy suggest field `flt_<tax>`
+	 * (comma-separated term IDs), falling back to the legacy `filter_terms` text
+	 * field. Shared so EVERY layout that exposes the Taxonomy Filter section honours
+	 * it — the Tournament layout builds its own query (it sorts by the event_date
+	 * ACF field, not by WP_Query) and silently ignored the filter before this.
+	 */
+	private function tax_query_args() {
+		$s   = $this->settings;
+		$tax = trim( (string) ( $s->filter_tax ?? '' ) );
+		if ( '' === $tax || ! taxonomy_exists( $tax ) ) { return array(); }
+
+		$field_key = 'flt_' . str_replace( '-', '_', $tax );
+		$raw       = $s->$field_key ?? '';
+		if ( is_array( $raw ) ) { $raw = implode( ',', $raw ); }
+		if ( '' === trim( (string) $raw ) && isset( $s->filter_terms ) ) { $raw = (string) $s->filter_terms; }
+
+		$list = array_filter( array_map( 'trim', explode( ',', (string) $raw ) ) );
+		if ( empty( $list ) ) { return array(); }
+
+		$numeric = count( $list ) === count( array_filter( $list, 'is_numeric' ) );
+		return array(
+			array(
+				'taxonomy' => $tax,
+				'field'    => $numeric ? 'term_id' : 'slug',
+				'terms'    => $list,
+			),
+		);
+	}
+
+	/**
 	 * The ONE query: built entirely from the Query tab (Post Type + number + order +
 	 * offset + taxonomy filter). Single source of truth for WHAT the loop fetches.
 	 */
@@ -230,26 +261,8 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			if ( '' !== $mk ) { $args['meta_key'] = $mk; } else { $args['orderby'] = 'date'; }
 		}
 
-		// Taxonomy filter: terms come from the per-taxonomy suggest field flt_<tax>
-		// (comma-separated term IDs). Falls back to the legacy filter_terms text field.
-		$tax = trim( (string) ( $s->filter_tax ?? '' ) );
-		if ( '' !== $tax && taxonomy_exists( $tax ) ) {
-			$field_key = 'flt_' . str_replace( '-', '_', $tax );
-			$raw       = $s->$field_key ?? '';
-			if ( is_array( $raw ) ) { $raw = implode( ',', $raw ); }
-			if ( '' === trim( (string) $raw ) && isset( $s->filter_terms ) ) { $raw = (string) $s->filter_terms; }
-			$list = array_filter( array_map( 'trim', explode( ',', (string) $raw ) ) );
-			if ( ! empty( $list ) ) {
-				$numeric = count( $list ) === count( array_filter( $list, 'is_numeric' ) );
-				$args['tax_query'] = array(
-					array(
-						'taxonomy' => $tax,
-						'field'    => $numeric ? 'term_id' : 'slug',
-						'terms'    => $list,
-					),
-				);
-			}
-		}
+		$tq = $this->tax_query_args();
+		if ( ! empty( $tq ) ) { $args['tax_query'] = $tq; }
 
 		// Date-range filter (GH #46). Bounds parse via strtotime, so absolute
 		// dates (2026-01-01) and relative windows (-30 days) both work; only
@@ -1030,7 +1043,13 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$ptype = preg_replace( '/[^a-z0-9_-]/', '', (string) ( $s->post_type ?? 'event' ) );
 		if ( '' === $ptype || 'post' === $ptype ) { $ptype = 'event'; }
 		$limit = (int) ( $s->posts_per_page ?? 6 ); if ( $limit <= 0 ) { $limit = 6; }
-		$posts = get_posts( array( 'post_type' => $ptype, 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'date', 'order' => 'DESC' ) );
+		// Pull wide (ordering + the past-event drop happen below, on event_date), but
+		// still scope to the Taxonomy Filter so two pages can list two different sets
+		// of events (e.g. a Boys and a Girls tournaments page off one CPT).
+		$q_args = array( 'post_type' => $ptype, 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'date', 'order' => 'DESC' );
+		$tq     = $this->tax_query_args();
+		if ( ! empty( $tq ) ) { $q_args['tax_query'] = $tq; }
+		$posts = get_posts( $q_args );
 		$today = strtotime( 'today' );
 		$items = array();
 		foreach ( $posts as $p ) {
