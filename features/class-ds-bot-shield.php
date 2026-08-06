@@ -110,18 +110,26 @@ class DS_Bot_Shield {
             );
         }
         $counts = array();
+        $totals = array();
         foreach ( array( 'rate-limit', 'ua-block', 'challenge', 'page-trap' ) as $k ) {
             $counts[ $k ] = (int) $this->stat( $k );
+            $totals[ $k ] = (int) $this->stat_total( $k );
         }
 
         return rest_ensure_response( array(
-            'site'      => wp_parse_url( home_url(), PHP_URL_HOST ),
-            'mode'      => $this->is_monitor_mode() ? 'monitor' : 'block',
-            'seen'      => (int) $this->stat( 'seen' ),
-            'flagged'   => array_sum( $counts ),
-            'counts'    => $counts,
-            'offenders' => $offenders,
-            'utc'       => gmdate( 'c' ),
+            'site'          => wp_parse_url( home_url(), PHP_URL_HOST ),
+            'mode'          => $this->is_monitor_mode() ? 'monitor' : 'block',
+            // today (resets at 00:00 UTC)
+            'seen'          => (int) $this->stat( 'seen' ),
+            'flagged'       => array_sum( $counts ),
+            'counts'        => $counts,
+            // running totals since logging began — never reset
+            'seen_total'    => (int) $this->stat_total( 'seen' ),
+            'flagged_total' => array_sum( $totals ),
+            'totals'        => $totals,
+            'since'         => $this->stat_since(),
+            'offenders'     => $offenders,
+            'utc'           => gmdate( 'c' ),
         ) );
     }
 
@@ -637,12 +645,11 @@ class DS_Bot_Shield {
             $this->roll_up_stats( $day );
         }
 
-        $totals = get_option( self::TOTALS_OPT, array() );
-        $totals = is_array( $totals ) ? $totals : array();
+        $totals = $this->read_totals();
 
-        $stored = isset( $totals[ $day ]['totals'][ $which ] ) ? (int) $totals[ $day ]['totals'][ $which ] : 0;
-        $last   = isset( $totals[ $day ]['last'][ $which ] )   ? (int) $totals[ $day ]['last'][ $which ]   : 0;
-        $hw     = isset( $totals[ $day ]['hw'][ $which ] )     ? (int) $totals[ $day ]['hw'][ $which ]     : 0;
+        $stored = isset( $totals['days'][ $day ]['totals'][ $which ] ) ? (int) $totals['days'][ $day ]['totals'][ $which ] : 0;
+        $last   = isset( $totals['days'][ $day ]['last'][ $which ] )   ? (int) $totals['days'][ $day ]['last'][ $which ]   : 0;
+        $hw     = isset( $totals['days'][ $day ]['hw'][ $which ] )     ? (int) $totals['days'][ $day ]['hw'][ $which ]     : 0;
         $live   = (int) $this->cache_get( 'stat_' . $which . '_' . $day );
 
         // $live < $last means the cache was wiped and has restarted from zero;
@@ -661,37 +668,41 @@ class DS_Bot_Shield {
      * option write every 2 minutes no matter how much traffic arrives.
      */
     private function roll_up_stats( $day ) {
-        $totals = get_option( self::TOTALS_OPT, array() );
-        $totals = is_array( $totals ) ? $totals : array();
-        if ( ! isset( $totals[ $day ] ) || ! is_array( $totals[ $day ] ) ) {
-            $totals[ $day ] = array( 'totals' => array(), 'last' => array(), 'hw' => array() );
+        $totals = $this->read_totals();
+        if ( ! isset( $totals['days'][ $day ] ) || ! is_array( $totals['days'][ $day ] ) ) {
+            $totals['days'][ $day ] = array( 'totals' => array(), 'last' => array(), 'hw' => array() );
         }
 
         $changed = false;
         foreach ( array( 'seen', 'rate-limit', 'ua-block', 'challenge', 'page-trap' ) as $k ) {
             $live = (int) $this->cache_get( 'stat_' . $k . '_' . $day );
-            $last = isset( $totals[ $day ]['last'][ $k ] ) ? (int) $totals[ $day ]['last'][ $k ] : 0;
+            $last = isset( $totals['days'][ $day ]['last'][ $k ] ) ? (int) $totals['days'][ $day ]['last'][ $k ] : 0;
             if ( 0 === $live && 0 === $last ) {
                 continue;
             }
             $delta = ( $live >= $last ) ? ( $live - $last ) : $live; // reset-aware
             if ( $delta > 0 || $live !== $last ) {
-                $cur   = isset( $totals[ $day ]['totals'][ $k ] ) ? (int) $totals[ $day ]['totals'][ $k ] : 0;
-                $hw    = isset( $totals[ $day ]['hw'][ $k ] )     ? (int) $totals[ $day ]['hw'][ $k ]     : 0;
+                $cur   = isset( $totals['days'][ $day ]['totals'][ $k ] ) ? (int) $totals['days'][ $day ]['totals'][ $k ] : 0;
+                $hw    = isset( $totals['days'][ $day ]['hw'][ $k ] )     ? (int) $totals['days'][ $day ]['hw'][ $k ]     : 0;
                 $total = $cur + $delta;
-                $totals[ $day ]['totals'][ $k ] = $total;
-                $totals[ $day ]['last'][ $k ]   = $live;
-                $totals[ $day ]['hw'][ $k ]     = max( $hw, $total );
+                $totals['days'][ $day ]['totals'][ $k ] = $total;
+                $totals['days'][ $day ]['last'][ $k ]   = $live;
+                $totals['days'][ $day ]['hw'][ $k ]     = max( $hw, $total );
+                // The running total never rolls over at midnight — this is what
+                // the report shows, so "Checked" is cumulative, not today-only.
+                $all = isset( $totals['all'][ $k ] ) ? (int) $totals['all'][ $k ] : 0;
+                $totals['all'][ $k ] = $all + $delta;
                 $changed = true;
             }
         }
 
-        // Keep today + yesterday. Cast both sides to string: PHP turns numeric
-        // string keys into ints, so a strict in_array() would drop every day.
-        $keep = array( (string) $day, gmdate( 'Ymd', time() - DAY_IN_SECONDS ) );
-        foreach ( array_keys( $totals ) as $d ) {
-            if ( ! in_array( (string) $d, $keep, true ) ) {
-                unset( $totals[ $d ] );
+        // Daily buckets are only kept for the trend chart; 30 days of five
+        // small ints is a trivial option. The all-time figures are never pruned.
+        $cutoff = gmdate( 'Ymd', time() - ( 30 * DAY_IN_SECONDS ) );
+        foreach ( array_keys( $totals['days'] ) as $d ) {
+            // PHP casts numeric string keys to int, so compare as strings.
+            if ( (string) $d < (string) $cutoff ) {
+                unset( $totals['days'][ $d ] );
                 $changed = true;
             }
         }
@@ -699,6 +710,61 @@ class DS_Bot_Shield {
         if ( $changed ) {
             update_option( self::TOTALS_OPT, $totals, false );
         }
+    }
+
+    /**
+     * Load the totals option, migrating the older shape (day keys at the top
+     * level, no running total) so existing installs keep the numbers they
+     * already collected instead of restarting from zero.
+     */
+    private function read_totals() {
+        $totals = get_option( self::TOTALS_OPT, array() );
+        $totals = is_array( $totals ) ? $totals : array();
+
+        if ( ! isset( $totals['days'] ) ) {
+            $days = array();
+            foreach ( $totals as $k => $v ) {
+                if ( is_array( $v ) && isset( $v['totals'] ) ) {
+                    $days[ (string) $k ] = $v;
+                }
+            }
+            $all = array();
+            foreach ( $days as $bucket ) {
+                foreach ( (array) $bucket['totals'] as $key => $n ) {
+                    $all[ $key ] = ( isset( $all[ $key ] ) ? $all[ $key ] : 0 ) + (int) $n;
+                }
+            }
+            $totals = array(
+                'days'  => $days,
+                'all'   => $all,
+                'since' => gmdate( 'Y-m-d' ),
+            );
+        }
+        if ( ! isset( $totals['all'] ) || ! is_array( $totals['all'] ) ) {
+            $totals['all'] = array();
+        }
+        if ( empty( $totals['since'] ) ) {
+            $totals['since'] = gmdate( 'Y-m-d' );
+        }
+        return $totals;
+    }
+
+    /** Running total since logging began — does not reset at midnight. */
+    public function stat_total( $which ) {
+        $totals = $this->read_totals();
+        $all    = isset( $totals['all'][ $which ] ) ? (int) $totals['all'][ $which ] : 0;
+        // Add whatever today's cache holds but has not been rolled up yet.
+        $day     = gmdate( 'Ymd' );
+        $last    = isset( $totals['days'][ $day ]['last'][ $which ] ) ? (int) $totals['days'][ $day ]['last'][ $which ] : 0;
+        $live    = (int) $this->cache_get( 'stat_' . $which . '_' . $day );
+        $pending = ( $live >= $last ) ? ( $live - $last ) : $live;
+        return $all + $pending;
+    }
+
+    /** Date logging started, for the "since" label on the report. */
+    public function stat_since() {
+        $t = $this->read_totals();
+        return $t['since'];
     }
 
     /**
