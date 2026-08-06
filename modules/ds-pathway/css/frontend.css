@@ -14,9 +14,28 @@
 .ds-path-stage--last .ds-path-track::before{right:auto;width:min(160px,75%);background:linear-gradient(to right,var(--ds-path-line-c,var(--fl-global-accent,#f26a21)),transparent);}
 
 /* ---- Markers ---- */
-.ds-path-marker{position:absolute;top:50%;left:0;width:var(--ds-path-msize,14px);height:var(--ds-path-msize,14px);background:var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21)));transform:translateY(-50%) rotate(45deg);z-index:1;}
+/* box-sizing pinned so a hollow marker's border can never make it larger than a
+   filled one (the segment starts at exactly --ds-path-msize). */
+.ds-path-marker{position:absolute;top:50%;left:0;box-sizing:border-box;width:var(--ds-path-msize,14px);height:var(--ds-path-msize,14px);background:var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21)));border:var(--ds-path-mborder,2px) solid transparent;transform:translateY(-50%) rotate(45deg);z-index:1;transition:background-color var(--ds-path-mspeed,.25s) ease,border-color var(--ds-path-mspeed,.25s) ease;}
 .ds-pathway--m-circle .ds-path-marker{transform:translateY(-50%);border-radius:50%;}
-.ds-path-stage--outline .ds-path-marker{background:transparent;border:2px solid var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21)));}
+.ds-path-stage--outline .ds-path-marker{background:transparent;border-color:var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21)));}
+
+/* ---- Hover: hollow marker fills with the accent colour, then returns (GH #98) ----
+   The border stays the same colour as the fill, so nothing shifts or resizes.
+   Hover rules are pointer-only so touch devices never get a stuck filled state;
+   :focus-within covers keyboard users (a stage title can be a link). */
+@media (hover:hover){
+  .ds-pathway--hoverstage .ds-path-stage--outline:hover .ds-path-marker,
+  .ds-pathway--hovermarker .ds-path-stage--outline .ds-path-marker:hover{background:var(--ds-path-hover-c,var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21))));border-color:var(--ds-path-hover-c,var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21))));}
+}
+.ds-pathway--hoverstage .ds-path-stage--outline:focus-within .ds-path-marker,
+.ds-pathway--hovermarker .ds-path-stage--outline:focus-within .ds-path-marker{background:var(--ds-path-hover-c,var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21))));border-color:var(--ds-path-hover-c,var(--ds-path-marker-c,var(--ds-path-line-c,var(--fl-global-accent,#f26a21))));}
+/* Marker-only mode: the tiny marker is the hit target, so give it a pointer. */
+.ds-pathway--hovermarker .ds-path-stage--outline .ds-path-marker{cursor:pointer;}
+
+@media (prefers-reduced-motion:reduce){
+  .ds-path-marker{transition:none;}
+}
 
 /* ---- Stage content ---- */
 .ds-path-eyebrow{display:block;font-size:.72rem;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:var(--fl-global-accent,#f26a21);margin:0 0 12px;}

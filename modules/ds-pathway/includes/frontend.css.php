@@ -21,6 +21,8 @@ if ( 'full' === $cw ) {
 // ---- Track / marker custom properties on the section ----
 $vars   = array();
 $vars[] = '--ds-path-msize:' . $u( $settings->marker_size ?? '', 14 ) . 'px';
+$vars[] = '--ds-path-mborder:' . max( 1, $u( $settings->marker_border ?? '', 2 ) ) . 'px';
+$vars[] = '--ds-path-mspeed:' . max( 0, $u( $settings->marker_speed ?? '', 250 ) ) . 'ms';
 $vars[] = '--ds-path-line:' . $u( $settings->line_thickness ?? '', 2 ) . 'px';
 $vars[] = '--ds-path-trackgap:' . $u( $settings->track_gap ?? '', 26 ) . 'px';
 $vars[] = '--ds-path-gap:' . $u( $settings->gap ?? '', 32 ) . 'px';
@@ -28,6 +30,8 @@ $lc = $col( $settings->line_color ?? '' );
 if ( '' !== $lc ) { $vars[] = '--ds-path-line-c:' . $lc; }
 $mc = $col( $settings->marker_color ?? '' );
 if ( '' !== $mc ) { $vars[] = '--ds-path-marker-c:' . $mc; }
+$hc = $col( $settings->marker_hover_color ?? '' );
+if ( '' !== $hc ) { $vars[] = '--ds-path-hover-c:' . $hc; }
 $dc = $col( $settings->divider_color ?? '' );
 if ( '' !== $dc ) { $vars[] = '--ds-path-divider-c:' . $dc; }
 echo "$node .ds-pathway { " . implode( '; ', $vars ) . "; }\n";
