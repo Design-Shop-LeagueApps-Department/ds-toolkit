@@ -614,7 +614,17 @@ class DS_Bot_Shield {
                     $days[ (string) $dk ] = $dv;
                 }
             }
-            $log = array( 'days' => $days, 'all' => array(), 'seen' => array() );
+            $all = array();
+            foreach ( $days as $bucket ) {
+                foreach ( (array) $bucket as $ip => $row ) {
+                    if ( ! is_array( $row ) || ! isset( $row['n'] ) ) {
+                        continue;
+                    }
+                    $cur = isset( $all[ $ip ]['n'] ) ? (int) $all[ $ip ]['n'] : 0;
+                    $all[ $ip ] = array_merge( $row, array( 'n' => $cur + (int) $row['n'] ) );
+                }
+            }
+            $log = array( 'days' => $days, 'all' => $all, 'seen' => array() );
         }
         foreach ( array( 'days', 'all', 'seen' ) as $bucket ) {
             if ( ! isset( $log[ $bucket ] ) || ! is_array( $log[ $bucket ] ) ) {
@@ -626,24 +636,31 @@ class DS_Bot_Shield {
         // is daily and can be wiped, so track what was last folded and add the
         // delta — same reset-aware rule the stat counters use. Without this the
         // crawler table would restart every midnight.
+        if ( ! isset( $log['days'][ $day ] ) || ! is_array( $log['days'][ $day ] ) ) {
+            $log['days'][ $day ] = array();
+        }
         foreach ( $rows as $ip => $row ) {
-            $n    = (int) $row['n'];
-            $last = isset( $log['seen'][ $day ][ $ip ] ) ? (int) $log['seen'][ $day ][ $ip ] : 0;
+            $n     = (int) $row['n'];
+            $last  = isset( $log['seen'][ $day ][ $ip ] ) ? (int) $log['seen'][ $day ][ $ip ] : 0;
             $delta = ( $n >= $last ) ? ( $n - $last ) : $n;
-            if ( $delta > 0 || ! isset( $log['all'][ $ip ] ) ) {
-                $cur = isset( $log['all'][ $ip ]['n'] ) ? (int) $log['all'][ $ip ]['n'] : 0;
-                $log['all'][ $ip ] = array(
-                    'ip'      => $row['ip'],
-                    'verdict' => $row['verdict'],
-                    'ua'      => $row['ua'],
-                    'path'    => $row['path'],
-                    'n'       => $cur + $delta,
-                );
-            }
+
+            $day_cur = isset( $log['days'][ $day ][ $ip ]['n'] ) ? (int) $log['days'][ $day ][ $ip ]['n'] : 0;
+            $all_cur = isset( $log['all'][ $ip ]['n'] )          ? (int) $log['all'][ $ip ]['n']          : 0;
+
+            $base = array(
+                'ip'      => $row['ip'],
+                'verdict' => $row['verdict'],
+                'ua'      => $row['ua'],
+                'path'    => $row['path'],
+            );
+            // Accumulate — never overwrite. The cache counter is daily AND can
+            // be wiped mid-day (a purge, an eviction, a deploy), so replacing
+            // the stored row with the post-wipe snapshot silently discarded
+            // everything counted before it.
+            $log['days'][ $day ][ $ip ] = array_merge( $base, array( 'n' => $day_cur + $delta ) );
+            $log['all'][ $ip ]          = array_merge( $base, array( 'n' => $all_cur + $delta ) );
             $log['seen'][ $day ][ $ip ] = $n;
         }
-
-        $log['days'][ $day ] = $rows;
 
         // Daily snapshots and their fold-markers are kept for 30 days; the
         // running 'all' totals are never pruned by date, only capped by size.
