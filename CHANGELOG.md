@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.72] - 2026-08-07
+### Fixed
+- **Menu: the sidebar's close button no longer overhangs the panel.** With a Hamburger Label set (e.g. "MENU"/"CLOSE"), the open-state close button was positioned by offsetting `left` by a fixed icon width, so the labelled button ran past the panel's right edge and sat on top of the page behind it. Its right edge is now anchored to the panel's right edge, which is correct for any label width, any panel width, and any translation. The full-width phone panel resolves to the same 18px inset through the same rule.
+
 ## [1.9.71] - 2026-08-06
 ### Fixed
 - **Post Loop: the Tournament layout now honours its own Taxonomy Filter.** The Tournament Cards layout declares the Taxonomy Filter section in its settings, but `render_tournament()` built its own bare `get_posts()` call (it sorts on the `event_date` ACF field rather than through `WP_Query`, so it never went through the shared query builder). The filter therefore rendered in the builder UI and did nothing: every Tournament loop on a site listed every upcoming event, whatever term was picked. The `tax_query` construction has been lifted out of `run_query()` into a shared `tax_query_args()` helper that both code paths use, so a term selection now scopes the event list. This is what lets two pages off one `event` CPT show two different sets — e.g. a Boys and a Girls tournaments page. No change for loops with no taxonomy filter set, and no change to the event-date ordering or the past-event drop.
