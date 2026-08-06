@@ -96,6 +96,12 @@ class DS_Bot_Shield {
             header( 'Access-Control-Allow-Origin: ' . $origin );
             header( 'Vary: Origin' );
         }
+        // Never let the host edge-cache this. The CORS variant is a separate
+        // cache entry keyed by Origin, so a cached copy kept serving browsers
+        // a stale payload (missing new fields) long after a deploy, while
+        // curl — sending no Origin — saw the fresh one.
+        nocache_headers();
+        header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
         $this->flush_ip_log();
         $this->roll_up_stats( gmdate( 'Ymd' ) );
 
