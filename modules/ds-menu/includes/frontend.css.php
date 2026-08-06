@@ -593,14 +593,21 @@ if ( $is_oc ) {
 
 	/* Close (X) belongs to the panel, not the viewport corner. The base rule pins
 	   it top/right of the screen, which for a LEFT-docked panel would drop it on
-	   top of the page content instead of the menu. Park it inside the panel edge. */
+	   top of the page content instead of the menu.
+	 *
+	 * Anchor its RIGHT edge to the panel's right edge — never its left edge by a
+	 * guessed width. The toggle is as wide as its Hamburger Label ("CLOSE", "MENU",
+	 * a translation, or nothing), so offsetting `left` by a fixed icon width made
+	 * the labelled button overhang the panel and sit on the page behind it. */
 	if ( 'left' === $side ) {
-		echo "$open.ds-menu-wrap--offcanvas .ds-menu-toggle { left: min(" . ( $swide - 58 ) . "px, calc(100vw - 58px)); right: auto; }\n";
-		if ( $smob > 0 ) {
-			echo "@media (max-width: 767px) { $open.ds-menu-wrap--offcanvas .ds-menu-toggle { left: min(" . ( $smob - 58 ) . "px, calc(100vw - 58px)); } }\n";
-		} else {
-			echo "@media (max-width: 767px) { $open.ds-menu-wrap--offcanvas .ds-menu-toggle { left: auto; right: max(18px, env(safe-area-inset-right)); } }\n";
-		}
+		$edge = function ( $w ) {
+			// Distance from the viewport's right edge back to the panel's right edge,
+			// plus the same 18px inset the viewport-corner rule uses.
+			return "calc(100vw - min({$w}px, 100vw) + 18px)";
+		};
+		echo "$open.ds-menu-wrap--offcanvas .ds-menu-toggle { left: auto; right: " . $edge( $swide ) . "; }\n";
+		// Full-width phone panel resolves to the plain 18px inset via the same formula.
+		echo "@media (max-width: 767px) { $open.ds-menu-wrap--offcanvas .ds-menu-toggle { left: auto; right: " . $edge( $smob > 0 ? $smob : 100000 ) . "; } }\n";
 	}
 
 	/* The closed hamburger sits in the header flow. `margin-left:auto` (set by the
