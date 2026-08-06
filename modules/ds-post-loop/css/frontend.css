@@ -111,23 +111,6 @@
 .ds-commit--action .ds-people-name{font-size:1.05rem;}
 .ds-commit--action .ds-people-role{letter-spacing:.04em;}
 
-/* ---- Commitments: front-end filter bar (pills) ---- */
-.ds-commit-filter{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:26px;}
-.ds-commit-tabs{display:inline-flex;flex-wrap:wrap;gap:8px;}
-/* Every --fl-global-* reference carries a literal fallback: older Launchpad builds
-   (e.g. 495 Lacrosse) never emit those custom properties, and an unresolved var()
-   silently drops the whole declaration — which left the active pill unstyled. */
-.fl-builder-content .ds-commit-tab{appearance:none;-webkit-appearance:none;border:1px solid rgba(0,0,0,.14) !important;background:transparent !important;box-shadow:none;padding:9px 20px;border-radius:999px;font-size:.85rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;line-height:1.2;cursor:pointer;color:var(--fl-global-headings,#1f2937) !important;clip-path:none;-webkit-clip-path:none;transition:background-color .18s ease,color .18s ease,border-color .18s ease;}
-.fl-builder-content .ds-commit-tab:hover{border-color:var(--fl-global-accent,#1f2937) !important;color:var(--fl-global-accent,#1f2937) !important;}
-.fl-builder-content .ds-commit-tab.is-active{background:var(--fl-global-accent,#1f2937) !important;border-color:var(--fl-global-accent,#1f2937) !important;color:var(--fl-global-white,#fff) !important;}
-.fl-builder-content .ds-commit-tab:focus-visible{outline:2px solid var(--fl-global-accent,#1f2937);outline-offset:2px;}
-.ds-commit-count{font-size:.82rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;opacity:.65;}
-.ds-commit-none{margin:18px 0 0;opacity:.7;}
-.ds-commit--filter .ds-people-grid > *{animation:ds-commit-in .28s ease both;}
-@keyframes ds-commit-in{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
-@media (prefers-reduced-motion:reduce){.ds-commit--filter .ds-people-grid > *{animation:none;}}
-@media (max-width:560px){.ds-commit-filter{gap:12px;}.fl-builder-content .ds-commit-tab{padding:8px 15px;font-size:.78rem;}}
-
 /* ============================ Team list (shot 5) ============================ */
 .ds-teams-list{display:flex;flex-direction:column;gap:14px;}
 .ds-team-row{display:flex;align-items:center;justify-content:space-between;gap:18px;background:var(--fl-global-light-background);border:2px solid var(--fl-global-accent);border-radius:var(--ds-radius);padding:13px 14px 13px 24px;text-decoration:none;transition:transform .2s ease,box-shadow .2s ease;}

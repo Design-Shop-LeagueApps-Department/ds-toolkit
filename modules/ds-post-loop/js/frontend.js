@@ -192,49 +192,10 @@
 		apply();
 	}
 
-	/* ------------------------------------------- Commitment card filter (pills) */
-	function initCommitFilter(root) {
-		if (root.dsCommitInit) return;
-		var bar  = root.querySelector('.ds-commit-filter');
-		var grid = root.querySelector('.ds-people-grid');
-		if (!bar || !grid) return;
-		root.dsCommitInit = true;
-
-		var cards = [].slice.call(grid.querySelectorAll('.ds-commit-card,.ds-commit-row,.ds-commit-action'));
-		var tabs  = [].slice.call(bar.querySelectorAll('.ds-commit-tab'));
-		var count = bar.querySelector('.ds-commit-count');
-		var none  = root.querySelector('.ds-commit-none');
-		var noun  = (count && count.dataset.noun) || 'commitments';
-		var facet = '';
-
-		function apply() {
-			var shown = 0;
-			cards.forEach(function (c) {
-				var ok = !facet || (' ' + (c.dataset.facet || '') + ' ').indexOf(' ' + facet + ' ') !== -1;
-				c.style.display = ok ? '' : 'none';
-				if (ok) shown++;
-			});
-			if (count) count.textContent = shown + ' ' + noun;
-			if (none) none.hidden = shown !== 0;
-		}
-
-		tabs.forEach(function (t) {
-			t.addEventListener('click', function () {
-				tabs.forEach(function (x) { x.classList.remove('is-active'); x.setAttribute('aria-pressed', 'false'); });
-				t.classList.add('is-active');
-				t.setAttribute('aria-pressed', 'true');
-				facet = t.dataset.tab || '';
-				apply();
-			});
-		});
-		apply();
-	}
-
 	function boot(rt) {
 		(rt || document).querySelectorAll('.ds-loopcar').forEach(initCarousel);
 		(rt || document).querySelectorAll('.ds-looppage').forEach(initPagination);
 		(rt || document).querySelectorAll('.ds-tourn--filter').forEach(initTournFilter);
-		(rt || document).querySelectorAll('.ds-commit--filter').forEach(initCommitFilter);
 	}
 	if (document.readyState !== 'loading') boot();
 	else document.addEventListener('DOMContentLoaded', function () { boot(); });
