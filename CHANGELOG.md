@@ -19,6 +19,14 @@ All notable changes to DS Toolkit are documented here.
 ### Fixed
 - **Menu: drawer logo no longer pushed out of view in a narrow drawer.** The right-aligned drawer logo's clearance was measured against the viewport width rather than the drawer's own right edge. Identical for the full-screen drawer, but it padded the logo completely off-panel in the new sidebar layout.
 
+## [1.9.69] - 2026-08-06
+### Fixed
+- **Post Loop: Commitment filter pills carry literal fallbacks for `--fl-global-*` (follow-up to 1.9.68, found on 495lacrosse.com).** Older Launchpad builds never emit the `--fl-global-accent` / `--fl-global-white` custom properties, and CSS drops a declaration whose `var()` is unresolvable, so the active pill lost both its background and text colour. Every reference now carries a literal fallback: the active state is always a filled dark pill with white text at minimum, and still picks up the site accent where the variables exist.
+
+## [1.9.68] - 2026-08-06
+### Added
+- **Post Loop: Commitment filter bar + college field auto-detection (GH #100).** The Athletes Photo / Logo Row / Action Cards layouts gain an optional pill filter bar above the grid (facet from `meta:<key>` or `tax:<slug>`, optional explicit pill order, "All" pill, no reload), and the commitment college field is auto-detected across common ACF names.
+
 ## [1.9.67] - 2026-08-06
 ### Changed
 - **Pathway: markers are outline by default and fill with the accent colour on hover (GH #98).** Hollow markers now fill smoothly on hover and fade back when the pointer leaves, with a configurable transition (default 250ms). Hovering anywhere on a stage lights its marker by default — keeping the marker tied to its card and giving visitors a real hit target instead of a few pixels — with a Hover Target option for marker-only, plus Fill On Hover (off switch), Hover Fill Colour, and Outline Thickness controls. Keyboard focus inside a stage fills its marker too; touch devices never get a stuck filled state; the fill is skipped for reduced-motion visitors. A stage can still be pinned solid with the per-stage "Always filled" marker option, and markers no longer change size between hollow and filled states.
