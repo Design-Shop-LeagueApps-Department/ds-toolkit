@@ -27,6 +27,20 @@ $osubhov    = $col( $settings->overlay_subtext_hover ?? '' ); // overlay submenu
 $osubbg     = $col( $settings->overlay_sub_bg ?? '' );        // overlay submenu link background
 $dgap       = isset( $settings->dropdown_gap ) && '' !== $settings->dropdown_gap ? (int) $settings->dropdown_gap : 0; // desktop bar -> dropdown gap
 $bp         = isset( $settings->breakpoint ) && '' !== $settings->breakpoint ? (int) $settings->breakpoint : 1000;
+
+/* Off-canvas sidebar layout. Everything the sidebar needs — hamburger always
+   visible, horizontal bar always hidden, drill drawer always active — is exactly
+   what the existing "below the breakpoint" rules already do. So instead of
+   restructuring those media queries (which every fleet site's mobile menu
+   depends on), the layout pins the breakpoint above any real viewport:
+     - every `max-width: $bp`  rule now matches at all widths  -> drawer mode on
+     - every `min-width: $bp+1` rule can never match           -> desktop bar off
+   The panel is then re-anchored from full-screen to a docked side panel at the
+   bottom of this file. Horizontal layout is untouched. */
+$is_oc      = ( ( $settings->layout ?? 'horizontal' ) === 'offcanvas' );
+if ( $is_oc ) {
+	$bp = 99999;
+}
 $align      = $settings->alignment ?? 'right';
 $justify    = array( 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end', 'justify' => 'space-between' )[ $align ] ?? 'flex-end';
 
@@ -533,5 +547,67 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		'setting_name' => 'mobile_subtypography',
 		'selector'     => "$open .ds-submenu a, $open .ds-mega a, $node .ds-drill-panel:not(.is-root)",
 	) );
+}
+
+/* ===================================================================
+ * Off-canvas sidebar geometry.
+ *
+ * Emitted OUTSIDE the breakpoint media query and last, so it re-anchors
+ * the drawer the `max-width: $bp` block just set up full-screen. Only the
+ * box changes here — colours, dividers, drawer logo, CTA and typography all
+ * still come from the Mobile Overlay fields, so the panel is fully styleable
+ * with the controls partners already know.
+ * =================================================================== */
+if ( $is_oc ) {
+	$side  = ( ( $settings->sidebar_side ?? 'left' ) === 'right' ) ? 'right' : 'left';
+	$swide = isset( $settings->sidebar_width ) && '' !== $settings->sidebar_width ? (int) $settings->sidebar_width : 340;
+	$swide = max( 220, min( 720, $swide ) );
+	$smob  = isset( $settings->sidebar_width_mobile ) && '' !== $settings->sidebar_width_mobile ? (int) $settings->sidebar_width_mobile : 0;
+	$scrim = ( $settings->sidebar_scrim ?? 'yes' ) !== 'no';
+	$scol  = $col( $settings->sidebar_scrim_color ?? '' ) ?: 'rgba(0,0,0,0.5)';
+
+	// Dock the panel to one edge. `min()` keeps it inside the viewport on any
+	// screen narrower than the configured width, so it can never overflow.
+	$inset = ( 'right' === $side ) ? '0 0 0 auto' : '0 auto 0 0';
+	echo "$node .ds-drill { inset: {$inset}; width: min({$swide}px, 100vw); max-width: 100vw; }\n";
+
+	// Phones: full width by default (a 340px panel on a 360px screen looks broken).
+	if ( $smob > 0 ) {
+		echo "@media (max-width: 767px) { $node .ds-drill { width: min({$smob}px, 100vw); } }\n";
+	} else {
+		echo "@media (max-width: 767px) { $node .ds-drill { width: 100vw; } }\n";
+	}
+
+	// Slide in from the docked edge instead of the full-screen cross-fade.
+	$hidden = ( 'right' === $side ) ? 'translateX(100%)' : 'translateX(-100%)';
+	echo "$node .ds-menu-wrap--offcanvas .ds-drill { transform: {$hidden}; transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .2s ease; }\n";
+	echo "$node .ds-menu-wrap--offcanvas.ds-menu-open .ds-drill { transform: translateX(0); }\n";
+	echo "@media (prefers-reduced-motion: reduce) { $node .ds-menu-wrap--offcanvas .ds-drill { transition: opacity .2s ease; transform: none; } }\n";
+
+	// Scrim over the page behind the panel. Node-scoped via the wrap (the drawer
+	// lives inside it) so a second menu on the page is never dimmed by this one.
+	if ( $scrim ) {
+		echo "$node .ds-menu-wrap--offcanvas.ds-menu-open::before { content: ''; position: fixed; inset: 0; z-index: 99999; background: {$scol}; animation: ds-menu-scrim-in .25s ease both; }\n";
+		echo "@keyframes ds-menu-scrim-in { from { opacity: 0; } to { opacity: 1; } }\n";
+	}
+
+	/* Close (X) belongs to the panel, not the viewport corner. The base rule pins
+	   it top/right of the screen, which for a LEFT-docked panel would drop it on
+	   top of the page content instead of the menu. Park it inside the panel edge. */
+	if ( 'left' === $side ) {
+		echo "$open.ds-menu-wrap--offcanvas .ds-menu-toggle { left: min(" . ( $swide - 58 ) . "px, calc(100vw - 58px)); right: auto; }\n";
+		if ( $smob > 0 ) {
+			echo "@media (max-width: 767px) { $open.ds-menu-wrap--offcanvas .ds-menu-toggle { left: min(" . ( $smob - 58 ) . "px, calc(100vw - 58px)); } }\n";
+		} else {
+			echo "@media (max-width: 767px) { $open.ds-menu-wrap--offcanvas .ds-menu-toggle { left: auto; right: max(18px, env(safe-area-inset-right)); } }\n";
+		}
+	}
+
+	/* The closed hamburger sits in the header flow. `margin-left:auto` (set by the
+	   responsive block) shoves it to the far right of its column; in sidebar mode
+	   the module is usually alone in a narrow column, so honour Alignment instead. */
+	$oc_just = array( 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end', 'justify' => 'flex-start' )[ $align ] ?? 'flex-end';
+	echo "$node .ds-menu-wrap--offcanvas { display: flex; justify-content: {$oc_just}; }\n";
+	echo "$node .ds-menu-wrap--offcanvas .ds-menu-toggle { margin-left: 0; }\n";
 }
 ?>

@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.68] - 2026-08-06
+### Added
+- **Menu: Off-canvas Sidebar layout (GH #101).** A new Layout control in the Menu module's General tab offers `Horizontal bar` (unchanged default) or `Off-canvas sidebar`. In sidebar mode the horizontal bar is hidden at every width and the hamburger is always visible; clicking it slides a docked side panel in from the chosen edge over a dimmed page, for partners who want sidebar navigation instead of a top nav. New Sidebar section: Dock Side (left/right), Panel Width (default 340px, capped to the viewport), Panel Width — Mobile (blank = full width), Dim Page Behind, and Dim Color. Every colour, divider, drawer-logo, CTA, and typography control in the existing Mobile Overlay section drives the panel, so a sidebar is fully styleable with the fields partners already know. The panel slides from its docked edge (cross-fade only under `prefers-reduced-motion`), and closes on the hamburger X, the scrim, or Escape.
+
+### Fixed
+- **Menu: drawer logo no longer pushed out of view in a narrow drawer.** The right-aligned drawer logo's clearance was measured against the viewport width rather than the drawer's own right edge. Identical for the full-screen drawer, but it padded the logo completely off-panel in the new sidebar layout.
+
 ## [1.9.67] - 2026-08-06
 ### Changed
 - **Pathway: markers are outline by default and fill with the accent colour on hover (GH #98).** Hollow markers now fill smoothly on hover and fade back when the pointer leaves, with a configurable transition (default 250ms). Hovering anywhere on a stage lights its marker by default — keeping the marker tied to its card and giving visitors a real hit target instead of a few pixels — with a Hover Target option for marker-only, plus Fill On Hover (off switch), Hover Fill Colour, and Outline Thickness controls. Keyboard focus inside a stage fills its marker too; touch devices never get a stuck filled state; the fill is skipped for reduced-motion visitors. A stage can still be pinned solid with the per-stage "Always filled" marker option, and markers no longer change size between hollow and filled states.
