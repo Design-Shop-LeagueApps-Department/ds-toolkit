@@ -105,16 +105,21 @@ class DS_Bot_Shield {
         $this->flush_ip_log();
         $this->roll_up_stats( gmdate( 'Ymd' ) );
 
-        $offenders = array();
-        foreach ( array_slice( $this->ip_log(), 0, 10, true ) as $row ) {
-            $offenders[] = array(
-                'ip'      => $row['ip'],
-                'hits'    => (int) $row['n'],
-                'verdict' => $row['verdict'],
-                'ua'      => $row['ua'],
-                'path'    => $row['path'],
-            );
-        }
+        $shape = function ( $rows, $limit ) {
+            $out = array();
+            foreach ( array_slice( $rows, 0, $limit, true ) as $row ) {
+                $out[] = array(
+                    'ip'      => $row['ip'],
+                    'hits'    => (int) $row['n'],
+                    'verdict' => $row['verdict'],
+                    'ua'      => $row['ua'],
+                    'path'    => $row['path'],
+                );
+            }
+            return $out;
+        };
+        $offenders       = $shape( $this->ip_log(), 10 );
+        $offenders_total = $shape( $this->ip_log_total(), 25 );
         $counts = array();
         $totals = array();
         foreach ( array( 'rate-limit', 'ua-block', 'challenge', 'page-trap' ) as $k ) {
@@ -134,7 +139,8 @@ class DS_Bot_Shield {
             'flagged_total' => array_sum( $totals ),
             'totals'        => $totals,
             'since'         => $this->stat_since(),
-            'offenders'     => $offenders,
+            'offenders'       => $offenders,
+            'offenders_total' => $offenders_total,
             'utc'           => gmdate( 'c' ),
         ) );
     }
@@ -597,26 +603,89 @@ class DS_Bot_Shield {
         uasort( $rows, function ( $a, $b ) { return $b['n'] - $a['n']; } );
         $rows = array_slice( $rows, 0, 200, true );
 
-        $log         = get_option( self::IPLOG_OPT, array() );
-        $log         = is_array( $log ) ? $log : array();
-        $log[ $day ] = $rows;
-        // NOTE: PHP casts numeric-string array keys to int, so array_keys()
-        // returns ints here while $keep holds strings — compare as strings or
-        // the strict check drops every day and wipes the log on each flush.
-        $keep = array( (string) $day, gmdate( 'Ymd', time() - DAY_IN_SECONDS ) );
-        foreach ( array_keys( $log ) as $d ) {
-            if ( ! in_array( (string) $d, $keep, true ) ) {
-                unset( $log[ $d ] );
+        $log = get_option( self::IPLOG_OPT, array() );
+        $log = is_array( $log ) ? $log : array();
+
+        // Migrate the older shape (day keys at the top level) into 'days'.
+        if ( ! isset( $log['days'] ) ) {
+            $days = array();
+            foreach ( $log as $dk => $dv ) {
+                if ( is_array( $dv ) ) {
+                    $days[ (string) $dk ] = $dv;
+                }
+            }
+            $log = array( 'days' => $days, 'all' => array(), 'seen' => array() );
+        }
+        foreach ( array( 'days', 'all', 'seen' ) as $bucket ) {
+            if ( ! isset( $log[ $bucket ] ) || ! is_array( $log[ $bucket ] ) ) {
+                $log[ $bucket ] = array();
             }
         }
+
+        // Fold today's snapshot into a running per-IP total. The cache counter
+        // is daily and can be wiped, so track what was last folded and add the
+        // delta — same reset-aware rule the stat counters use. Without this the
+        // crawler table would restart every midnight.
+        foreach ( $rows as $ip => $row ) {
+            $n    = (int) $row['n'];
+            $last = isset( $log['seen'][ $day ][ $ip ] ) ? (int) $log['seen'][ $day ][ $ip ] : 0;
+            $delta = ( $n >= $last ) ? ( $n - $last ) : $n;
+            if ( $delta > 0 || ! isset( $log['all'][ $ip ] ) ) {
+                $cur = isset( $log['all'][ $ip ]['n'] ) ? (int) $log['all'][ $ip ]['n'] : 0;
+                $log['all'][ $ip ] = array(
+                    'ip'      => $row['ip'],
+                    'verdict' => $row['verdict'],
+                    'ua'      => $row['ua'],
+                    'path'    => $row['path'],
+                    'n'       => $cur + $delta,
+                );
+            }
+            $log['seen'][ $day ][ $ip ] = $n;
+        }
+
+        $log['days'][ $day ] = $rows;
+
+        // Daily snapshots and their fold-markers are kept for 30 days; the
+        // running 'all' totals are never pruned by date, only capped by size.
+        $cutoff = gmdate( 'Ymd', time() - ( 30 * DAY_IN_SECONDS ) );
+        foreach ( array( 'days', 'seen' ) as $bucket ) {
+            foreach ( array_keys( $log[ $bucket ] ) as $d ) {
+                // PHP casts numeric-string keys to int — compare as strings.
+                if ( (string) $d < (string) $cutoff ) {
+                    unset( $log[ $bucket ][ $d ] );
+                }
+            }
+        }
+        if ( count( $log['all'] ) > 300 ) {
+            uasort( $log['all'], function ( $a, $b ) { return $b['n'] - $a['n']; } );
+            $log['all'] = array_slice( $log['all'], 0, 300, true );
+        }
+
         update_option( self::IPLOG_OPT, $log, false );
+    }
+
+    /** Running per-IP offender totals since logging began. */
+    public function ip_log_total() {
+        $log = get_option( self::IPLOG_OPT, array() );
+        if ( ! is_array( $log ) || ! isset( $log['all'] ) || ! is_array( $log['all'] ) ) {
+            return array();
+        }
+        $all = $log['all'];
+        uasort( $all, function ( $a, $b ) { return $b['n'] - $a['n']; } );
+        return $all;
     }
 
     /** Persisted offender rows for a day, sorted by hit count. */
     public function ip_log( $day = null ) {
         $day = $day ?: gmdate( 'Ymd' );
         $log = get_option( self::IPLOG_OPT, array() );
-        return ( is_array( $log ) && isset( $log[ $day ] ) ) ? $log[ $day ] : array();
+        if ( ! is_array( $log ) ) {
+            return array();
+        }
+        if ( isset( $log['days'] ) ) {
+            return isset( $log['days'][ $day ] ) ? $log['days'][ $day ] : array();
+        }
+        return isset( $log[ $day ] ) ? $log[ $day ] : array(); // pre-migration
     }
 
     // ------------------------------------------------------- stats & logging
