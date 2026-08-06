@@ -42,6 +42,7 @@ class DS_Bot_Shield {
     const CACHE_GROUP  = 'ds_bot_shield';
     const EVENTS_OPT   = 'ds_bot_shield_events';
     const IPLOG_OPT    = 'ds_bot_shield_iplog';
+    const TOTALS_OPT   = 'ds_bot_shield_totals';
 
     /** UA substrings that always pass the challenge (still rate-limited per IP). */
     const GOOD_BOTS = 'googlebot,bingbot,slurp,duckduckbot,applebot,yandexbot,facebookexternalhit,twitterbot,linkedinbot,pinterest,slackbot,whatsapp,uptimerobot,statuscake,pingdom';
@@ -51,6 +52,7 @@ class DS_Bot_Shield {
 
     private $settings;
     private $backend = null; // 'object-cache' | 'apcu' | null (degraded)
+    private $rolled  = false; // stats folded into the durable total this request
 
     public function __construct( $settings = array() ) {
         $this->settings = is_array( $settings ) ? $settings : array();
@@ -95,6 +97,7 @@ class DS_Bot_Shield {
             header( 'Vary: Origin' );
         }
         $this->flush_ip_log();
+        $this->roll_up_stats( gmdate( 'Ymd' ) );
 
         $offenders = array();
         foreach ( array_slice( $this->ip_log(), 0, 10, true ) as $row ) {
@@ -553,8 +556,9 @@ class DS_Bot_Shield {
         }
 
         if ( ! $this->cache_get( 'ipflush' ) ) {
-            $this->cache_set( 'ipflush', 1, 120 );
+            $this->cache_set( 'ipflush', 1, 60 );
             $this->flush_ip_log( $day );
+            $this->roll_up_stats( $day );
         }
     }
 
@@ -603,13 +607,98 @@ class DS_Bot_Shield {
 
     // ------------------------------------------------------- stats & logging
 
-    /** Daily counters surfaced on the settings page. Cache-only, cheap. */
+    /** Counters are incremented in the object cache — cheap enough for a flood. */
     private function bump_stat( $which ) {
         $this->cache_incr( 'stat_' . $which . '_' . gmdate( 'Ymd' ), 2 * DAY_IN_SECONDS );
     }
 
+    /**
+     * A day's total for a counter.
+     *
+     * The live counter lives in the object cache, which is VOLATILE: a WP Engine
+     * purge, a plugin update, a pod restart, or memcached evicting the key under
+     * memory pressure all reset it to zero. Reporting the raw cache value made
+     * the dashboard appear to count DOWN (observed on icelinerinks: 287 -> 189).
+     *
+     * So the cache is treated as a fast tick counter that may reset at any time,
+     * and the durable total lives in an option updated by roll_up_stats() on the
+     * same throttled 2-minute flush as the IP log. The answer is the persisted
+     * total plus whatever has ticked since the last roll-up.
+     */
     public function stat( $which ) {
-        return (int) $this->cache_get( 'stat_' . $which . '_' . gmdate( 'Ymd' ) );
+        $day = gmdate( 'Ymd' );
+
+        // Fold anything pending into the durable total before reporting, once
+        // per request. Without this a cache wipe between two reads would drop
+        // the figure. Only admin/REST read stats, never front-end traffic, so
+        // this costs at most one option write per dashboard poll.
+        if ( ! $this->rolled ) {
+            $this->rolled = true;
+            $this->roll_up_stats( $day );
+        }
+
+        $totals = get_option( self::TOTALS_OPT, array() );
+        $totals = is_array( $totals ) ? $totals : array();
+
+        $stored = isset( $totals[ $day ]['totals'][ $which ] ) ? (int) $totals[ $day ]['totals'][ $which ] : 0;
+        $last   = isset( $totals[ $day ]['last'][ $which ] )   ? (int) $totals[ $day ]['last'][ $which ]   : 0;
+        $hw     = isset( $totals[ $day ]['hw'][ $which ] )     ? (int) $totals[ $day ]['hw'][ $which ]     : 0;
+        $live   = (int) $this->cache_get( 'stat_' . $which . '_' . $day );
+
+        // $live < $last means the cache was wiped and has restarted from zero;
+        // everything currently in it is new since the roll-up.
+        $pending = ( $live >= $last ) ? ( $live - $last ) : $live;
+
+        // A wipe loses whatever had ticked since the last roll-up, so the
+        // computed figure can dip. The high-water mark keeps the reported
+        // number monotonic — it may under-count, but it never counts DOWN.
+        return max( $stored + $pending, $hw );
+    }
+
+    /**
+     * Fold the live cache counters into the durable per-day totals.
+     * Called from the same throttled flush as the IP log, so at most one extra
+     * option write every 2 minutes no matter how much traffic arrives.
+     */
+    private function roll_up_stats( $day ) {
+        $totals = get_option( self::TOTALS_OPT, array() );
+        $totals = is_array( $totals ) ? $totals : array();
+        if ( ! isset( $totals[ $day ] ) || ! is_array( $totals[ $day ] ) ) {
+            $totals[ $day ] = array( 'totals' => array(), 'last' => array(), 'hw' => array() );
+        }
+
+        $changed = false;
+        foreach ( array( 'seen', 'rate-limit', 'ua-block', 'challenge', 'page-trap' ) as $k ) {
+            $live = (int) $this->cache_get( 'stat_' . $k . '_' . $day );
+            $last = isset( $totals[ $day ]['last'][ $k ] ) ? (int) $totals[ $day ]['last'][ $k ] : 0;
+            if ( 0 === $live && 0 === $last ) {
+                continue;
+            }
+            $delta = ( $live >= $last ) ? ( $live - $last ) : $live; // reset-aware
+            if ( $delta > 0 || $live !== $last ) {
+                $cur   = isset( $totals[ $day ]['totals'][ $k ] ) ? (int) $totals[ $day ]['totals'][ $k ] : 0;
+                $hw    = isset( $totals[ $day ]['hw'][ $k ] )     ? (int) $totals[ $day ]['hw'][ $k ]     : 0;
+                $total = $cur + $delta;
+                $totals[ $day ]['totals'][ $k ] = $total;
+                $totals[ $day ]['last'][ $k ]   = $live;
+                $totals[ $day ]['hw'][ $k ]     = max( $hw, $total );
+                $changed = true;
+            }
+        }
+
+        // Keep today + yesterday. Cast both sides to string: PHP turns numeric
+        // string keys into ints, so a strict in_array() would drop every day.
+        $keep = array( (string) $day, gmdate( 'Ymd', time() - DAY_IN_SECONDS ) );
+        foreach ( array_keys( $totals ) as $d ) {
+            if ( ! in_array( (string) $d, $keep, true ) ) {
+                unset( $totals[ $d ] );
+                $changed = true;
+            }
+        }
+
+        if ( $changed ) {
+            update_option( self::TOTALS_OPT, $totals, false );
+        }
     }
 
     /**
