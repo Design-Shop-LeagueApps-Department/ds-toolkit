@@ -4,7 +4,7 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
-## [1.9.68] - 2026-08-06
+## [1.9.70] - 2026-08-06
 ### Added
 - **Menu: Off-canvas Sidebar layout (GH #101).** A new Layout control in the Menu module's General tab offers `Horizontal bar` (unchanged default) or `Off-canvas sidebar`. In sidebar mode the horizontal bar is hidden at every width and the hamburger is always visible; clicking it slides a docked side panel in from the chosen edge over a dimmed page, for partners who want sidebar navigation instead of a top nav. New Sidebar section: Dock Side (left/right), Panel Width (default 340px, capped to the viewport), Panel Width — Mobile (blank = full width), Dim Page Behind, and Dim Color. Every colour, divider, drawer-logo, CTA, and typography control in the existing Mobile Overlay section drives the panel, so a sidebar is fully styleable with the fields partners already know. The panel slides from its docked edge (cross-fade only under `prefers-reduced-motion`), and closes on the hamburger X, the scrim, or Escape.
 
