@@ -263,7 +263,8 @@
 				if ( state ) { drawer.removeAttribute( 'inert' ); } else { drawer.setAttribute( 'inert', '' ); }
 			},
 			activePanel: function () { return stack[ stack.length - 1 ] || null; },
-			brand: brand
+			brand: brand,
+			el: drawer
 		};
 	}
 
@@ -313,7 +314,12 @@
 					if ( drill.brand && toggle && -1 !== drill.brand.className.indexOf( 'ds-drill-brand--right' ) ) {
 						requestAnimationFrame( function () {
 							var t = toggle.getBoundingClientRect();
-							drill.brand.style.paddingRight = Math.max( 76, Math.round( window.innerWidth - t.left + 14 ) ) + 'px';
+							// Measure to the DRAWER's right edge, not the viewport's. They are
+							// the same for the full-screen drawer, but an off-canvas sidebar is
+							// only as wide as its panel — using innerWidth there padded the
+							// drawer logo clean out of view.
+							var dr = drill.el ? drill.el.getBoundingClientRect().right : window.innerWidth;
+							drill.brand.style.paddingRight = Math.max( 76, Math.round( dr - t.left + 14 ) ) + 'px';
 						} );
 					}
 				} else if ( drill ) {
@@ -346,6 +352,15 @@
 
 		if ( toggle ) { toggle.addEventListener( 'click', function () { open( ! wrap.classList.contains( 'ds-menu-open' ) ); } ); }
 		if ( close ) { close.addEventListener( 'click', function () { open( false ); } ); }
+
+		/* Off-canvas sidebar: clicking the scrim closes the panel. The scrim is a
+		   ::before on the wrap, so scrim clicks report the wrap itself as the target
+		   — the drawer, toggle and menu are all child elements and never match. */
+		if ( wrap.classList.contains( 'ds-menu-wrap--offcanvas' ) ) {
+			wrap.addEventListener( 'click', function ( e ) {
+				if ( e.target === wrap && wrap.classList.contains( 'ds-menu-open' ) ) { open( false ); }
+			} );
+		}
 
 		if ( ! isDrill ) {
 			// The +/- icon toggles its submenu.

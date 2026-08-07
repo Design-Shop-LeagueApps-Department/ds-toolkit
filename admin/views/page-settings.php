@@ -2,58 +2,51 @@
 /**
  * Features tab content.
  * Rendered inside the shared wrap + header + tabs in DS_Toolkit_Admin::render_page().
- * Variables available: $enabled, $logo_id, $logo_url, $default_url, $hide_fl_assistant,
- *                      $acf_css_vars_enabled, $acf_css_vars_mappings, $getsubmenu_enabled,
- *                      $current_year_enabled, $overlay_nav_enabled,
- *                      $forminator_email_partner_enabled,
- *                      $forminator_email_partner_fallback, $child_pages_enabled,
- *                      $child_pages_template_id, $child_pages_columns,
- *                      $child_pages_columns_tablet, $child_pages_columns_mobile,
- *                      $uabb_post_loop_fix_enabled, $blueprint_version,
- *                      $disable_comments_enabled, $theme_setting_enabled,
- *                      $admin_menu_tidy_enabled, $ds_menu_module_enabled,
- *                      $image_optimization_enabled
+ *
+ * Cards are organised into collapsible GROUPS (<details>) so ~30 features stay
+ * navigable: Security & Access, Partner Experience, Builder Modules,
+ * Site & Content, Shortcodes & Dev Tools. Each summary shows an on/total count,
+ * open/closed state persists per group in localStorage, and the filter box at
+ * the top searches card titles/descriptions across all groups.
+ *
+ * Blueprint gating is PER CARD here (not one big wrapper) because gated cards
+ * live in different groups.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
+
+// ---- group counts (on / total), computed from the same vars the cards use ----
+$dst_bp6 = ( $blueprint_version >= 6 );
+
+$dst_grp_security = array( $hide_fl_assistant, $user_roles_enabled, $cf_turnstile_enabled, $bot_shield_enabled );
+if ( $dst_bp6 ) {
+	$dst_grp_security[] = $disable_comments_enabled;
+	$dst_grp_security[] = $admin_menu_tidy_enabled;
+}
+$dst_grp_partner = array( $enabled, $design_academy_enabled );
+$dst_grp_site    = $dst_bp6 ? array( $theme_setting_enabled, $image_optimization_enabled ) : array();
+$dst_grp_dev     = array( $uabb_post_loop_fix_enabled, $acf_css_vars_enabled, $getsubmenu_enabled, $current_year_enabled, $overlay_nav_enabled, $forminator_email_partner_enabled, $child_pages_enabled );
+
+$dst_count = function ( $arr ) {
+	return count( array_filter( $arr ) ) . ' of ' . count( $arr ) . ' on';
+};
+$dst_mod_on  = count( array_filter( (array) $ds_module_states ) );
+$dst_mod_all = count( DS_Toolkit::module_features() );
 ?>
 <form method="post" action="options.php">
     <?php settings_fields( 'ds_toolkit_options' ); ?>
 
-    <p class="dst-section-title">Features</p>
-    <div class="dst-card">
-
-        <div class="dst-card-row">
-            <div class="dst-card-icon"><span class="dashicons dashicons-admin-appearance"></span></div>
-            <div class="dst-card-info">
-                <strong>LeagueApps Custom Login</strong>
-                <span>Custom logo, "Powered by LeagueApps Design Shop" branding, and support link on the WP login page.</span>
-            </div>
-            <div class="dst-toggle">
-                <input type="hidden" name="ds_toolkit_settings[enable_login_branding]" value="0">
-                <input type="checkbox" id="enable_login_branding" name="ds_toolkit_settings[enable_login_branding]" value="1" <?php checked( $enabled ); ?>>
-                <label for="enable_login_branding"></label>
-            </div>
-        </div>
-
-        <div class="dst-card-row" id="dst-logo-row" <?php echo $enabled ? '' : 'style="display:none"'; ?>>
-            <div class="dst-card-icon"><span class="dashicons dashicons-format-image"></span></div>
-            <div class="dst-logo-label">
-                <strong>Login Logo</strong>
-                <span>Replaces the default LeagueApps logo on the login page.</span>
-            </div>
-            <div class="dst-logo-picker">
-                <div class="dst-logo-preview">
-                    <img id="dst-logo-img" src="<?php echo esc_url( $logo_url ?: $default_url ); ?>" alt="Login logo">
-                </div>
-                <div class="dst-logo-actions">
-                    <input type="hidden" id="dst-logo-id" name="ds_toolkit_settings[login_logo_id]" value="<?php echo esc_attr( $logo_id ); ?>">
-                    <button type="button" class="button" id="dst-logo-select">Select Logo</button>
-                    <button type="button" class="button" id="dst-logo-remove" <?php echo $logo_id ? '' : 'style="display:none"'; ?>>Use Default</button>
-                </div>
-            </div>
-        </div>
-
+    <div class="dst-filter-bar">
+        <span class="dashicons dashicons-search" aria-hidden="true"></span>
+        <input type="search" id="dst-filter" placeholder="Filter features… (e.g. turnstile, shortcode, hero)" autocomplete="off">
     </div>
+
+    <!-- ============================== SECURITY & ACCESS ============================== -->
+    <details class="dst-group" data-dst-group="security" open>
+        <summary class="dst-group-head">
+            <span class="dst-group-title"><span class="dashicons dashicons-shield-alt" aria-hidden="true"></span> Security &amp; Access</span>
+            <span class="dst-group-count"><?php echo esc_html( $dst_count( $dst_grp_security ) ); ?></span>
+        </summary>
+        <div class="dst-group-body">
 
     <div class="dst-card">
         <div class="dst-card-row">
@@ -96,31 +89,121 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
     </div>
 
-    <!-- Design Academy dashboard panel (fleet-wide) -->
+    <!-- Cloudflare Turnstile (fleet-wide, OFF by default) -->
     <div class="dst-card">
         <div class="dst-card-row">
-            <div class="dst-card-icon"><span class="dashicons dashicons-welcome-learn-more"></span></div>
+            <div class="dst-card-icon"><span class="dashicons dashicons-shield-alt"></span></div>
             <div class="dst-card-info">
-                <strong>Design Academy Dashboard</strong>
-                <span>Puts a <strong>Design Academy</strong> panel at the top of the WordPress dashboard: a pinned getting-started course plus the five newest tutorials from <a href="https://designacademy.leagueapps.com/" target="_blank" rel="noopener">designacademy.leagueapps.com</a> (cached 6 hours; falls back to the last good list if the academy is unreachable). Auto-enabled on every install.</span>
+                <strong>Cloudflare Turnstile (spam protection)</strong>
+                <span>
+                    Protects <strong>wp-login</strong> (sign in, register, lost password) and supplies the API keys to
+                    <strong>Forminator</strong>, so every form and the login screen are covered from one place.
+                    Get free keys at <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener">dash.cloudflare.com &rarr; Turnstile</a>.
+                    <?php if ( ! $cf_keys_ready ) : ?>
+                        <br><strong style="color:#b32d2e;">Nothing is enforced until both keys below are filled in.</strong>
+                    <?php endif; ?>
+                    <br><em>This is Turnstile only — it does not put Cloudflare's proxy/WAF in front of the site (that is a DNS change).</em>
+                </span>
             </div>
             <div class="dst-toggle">
-                <input type="hidden" name="ds_toolkit_settings[design_academy_enabled]" value="0">
-                <input type="checkbox" id="design_academy_enabled" name="ds_toolkit_settings[design_academy_enabled]" value="1" <?php checked( $design_academy_enabled ); ?>>
-                <label for="design_academy_enabled"></label>
+                <input type="hidden" name="ds_toolkit_settings[cf_turnstile_enabled]" value="0">
+                <input type="checkbox" id="cf_turnstile_enabled" name="ds_toolkit_settings[cf_turnstile_enabled]" value="1" <?php checked( $cf_turnstile_enabled ); ?>>
+                <label for="cf_turnstile_enabled"></label>
             </div>
         </div>
         <div class="dst-card-row" style="padding-top:0;">
             <div class="dst-card-icon" aria-hidden="true"></div>
             <div class="dst-card-info" style="width:100%;">
-                <strong>Pinned course</strong>
-                <span>The "Start here" item at the top of the panel.</span>
-                <input type="text" name="ds_toolkit_settings[academy_pinned_label]" value="<?php echo esc_attr( $academy_pinned_label ); ?>" placeholder="Pinned label" style="width:100%;margin-top:6px;">
-                <input type="url" name="ds_toolkit_settings[academy_pinned_url]" value="<?php echo esc_attr( $academy_pinned_url ); ?>" placeholder="https://designacademy.leagueapps.com/…" style="width:100%;margin-top:6px;">
+                <strong>API keys</strong>
+                <span>Change them here and both the login screen and Forminator pick them up.</span>
+                <input type="text" name="ds_toolkit_settings[cf_turnstile_site_key]" value="<?php echo esc_attr( $cf_site_key ); ?>" placeholder="Site key (public, e.g. 0x4AAA…)" style="width:100%;margin-top:6px;" autocomplete="off">
+                <input type="password" name="ds_toolkit_settings[cf_turnstile_secret_key]" value="<?php echo esc_attr( $cf_secret_key ); ?>" placeholder="Secret key (private)" style="width:100%;margin-top:6px;" autocomplete="new-password">
+            </div>
+        </div>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info" style="width:100%;">
+                <strong>Where to enforce</strong>
+                <span>Untick anything you do not want challenged.</span>
+                <label style="display:flex;align-items:center;gap:8px;margin-top:6px;cursor:pointer;">
+                    <input type="hidden" name="ds_toolkit_settings[cf_turnstile_protect_login]" value="0">
+                    <input type="checkbox" name="ds_toolkit_settings[cf_turnstile_protect_login]" value="1" <?php checked( $cf_login ); ?>> Login form
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="hidden" name="ds_toolkit_settings[cf_turnstile_protect_register]" value="0">
+                    <input type="checkbox" name="ds_toolkit_settings[cf_turnstile_protect_register]" value="1" <?php checked( $cf_register ); ?>> Registration form
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="hidden" name="ds_toolkit_settings[cf_turnstile_protect_lostpassword]" value="0">
+                    <input type="checkbox" name="ds_toolkit_settings[cf_turnstile_protect_lostpassword]" value="1" <?php checked( $cf_lostpassword ); ?>> Lost-password form
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="hidden" name="ds_toolkit_settings[cf_turnstile_sync_forminator]" value="0">
+                    <input type="checkbox" name="ds_toolkit_settings[cf_turnstile_sync_forminator]" value="1" <?php checked( $cf_sync_forminator ); ?>> Push these keys into Forminator
+                </label>
+            </div>
+        </div>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info" style="width:100%;">
+                <strong>Monitor mode</strong>
+                <span>
+                    Logs what <em>would</em> have been blocked and lets everyone through. Leave this ON until you have
+                    signed in once with the widget showing, then switch it off to start blocking. Safety rails that always apply:
+                    a Cloudflare outage lets logins through rather than locking you out, WP-CLI / cron / REST are never challenged,
+                    and <code>define('DS_TURNSTILE_OFF', true);</code> in <code>wp-config.php</code> disables enforcement outright.
+                </span>
+                <label style="display:flex;align-items:center;gap:8px;margin-top:6px;cursor:pointer;">
+                    <input type="hidden" name="ds_toolkit_settings[cf_turnstile_monitor]" value="0">
+                    <input type="checkbox" name="ds_toolkit_settings[cf_turnstile_monitor]" value="1" <?php checked( $cf_monitor ); ?>> Monitor only (do not block)
+                </label>
+                <label style="display:block;margin-top:8px;">
+                    <span style="display:block;margin-bottom:4px;">Widget theme</span>
+                    <select name="ds_toolkit_settings[cf_turnstile_theme]">
+                        <?php foreach ( array( 'auto' => 'Auto', 'light' => 'Light', 'dark' => 'Dark' ) as $tk => $tl ) : ?>
+                            <option value="<?php echo esc_attr( $tk ); ?>" <?php selected( $cf_theme, $tk ); ?>><?php echo esc_html( $tl ); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
             </div>
         </div>
     </div>
 
+    <?php if ( $dst_bp6 ) : ?>
+    <!-- Disable Comments (blueprint generation 6+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-admin-comments"></span></div>
+            <div class="dst-card-info">
+                <strong>Disable Comments</strong>
+                <span>Turns WordPress comments off site-wide — closes comments and pings, hides existing comments, removes comment support from every post type, and cleans the admin (Comments menu, dashboard widget, admin-bar item). Replaces the standalone Disable Comments plugin. Auto-enabled on DSLP6 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[disable_comments_enabled]" value="0">
+                <input type="checkbox" id="disable_comments_enabled" name="ds_toolkit_settings[disable_comments_enabled]" value="1" <?php checked( $disable_comments_enabled ); ?>>
+                <label for="disable_comments_enabled"></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Menu Tidy (blueprint generation 6+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
+            <div class="dst-card-info">
+                <strong>Admin Menu Tidy</strong>
+                <span>Declutters the admin menu: moves Defender, Yoast, and Media Library Organizer under <strong>Tools</strong>. Hides ACF and Beaver Builder from non-LeagueApps users (left in place for LeagueApps; Appearance stays visible to everyone so partners can manage menus). Capabilities are preserved, so it only relocates what a user can already access. Auto-enabled on DSLP6 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[admin_menu_tidy_enabled]" value="0">
+                <input type="checkbox" id="admin_menu_tidy_enabled" name="ds_toolkit_settings[admin_menu_tidy_enabled]" value="1" <?php checked( $admin_menu_tidy_enabled ); ?>>
+                <label for="admin_menu_tidy_enabled"></label>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
+        </div>
     <!-- Bot Shield (fleet-wide) -->
     <div class="dst-card">
         <div class="dst-card-row">
@@ -184,6 +267,88 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
     <!-- LeagueApps modules (Beaver Builder blocks) — opt-in on ANY blueprint, off by default below gen 6 -->
     <p class="dst-section-title">LeagueApps Modules (Beaver Builder blocks)</p>
+
+    </details>
+
+    <!-- ============================== PARTNER EXPERIENCE ============================== -->
+    <details class="dst-group" data-dst-group="partner" open>
+        <summary class="dst-group-head">
+            <span class="dst-group-title"><span class="dashicons dashicons-welcome-learn-more" aria-hidden="true"></span> Partner Experience</span>
+            <span class="dst-group-count"><?php echo esc_html( $dst_count( $dst_grp_partner ) ); ?></span>
+        </summary>
+        <div class="dst-group-body">
+
+    <div class="dst-card">
+
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-admin-appearance"></span></div>
+            <div class="dst-card-info">
+                <strong>LeagueApps Custom Login</strong>
+                <span>Custom logo, "Powered by LeagueApps Design Shop" branding, and support link on the WP login page.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[enable_login_branding]" value="0">
+                <input type="checkbox" id="enable_login_branding" name="ds_toolkit_settings[enable_login_branding]" value="1" <?php checked( $enabled ); ?>>
+                <label for="enable_login_branding"></label>
+            </div>
+        </div>
+
+        <div class="dst-card-row" id="dst-logo-row" <?php echo $enabled ? '' : 'style="display:none"'; ?>>
+            <div class="dst-card-icon"><span class="dashicons dashicons-format-image"></span></div>
+            <div class="dst-logo-label">
+                <strong>Login Logo</strong>
+                <span>Replaces the default LeagueApps logo on the login page.</span>
+            </div>
+            <div class="dst-logo-picker">
+                <div class="dst-logo-preview">
+                    <img id="dst-logo-img" src="<?php echo esc_url( $logo_url ?: $default_url ); ?>" alt="Login logo">
+                </div>
+                <div class="dst-logo-actions">
+                    <input type="hidden" id="dst-logo-id" name="ds_toolkit_settings[login_logo_id]" value="<?php echo esc_attr( $logo_id ); ?>">
+                    <button type="button" class="button" id="dst-logo-select">Select Logo</button>
+                    <button type="button" class="button" id="dst-logo-remove" <?php echo $logo_id ? '' : 'style="display:none"'; ?>>Use Default</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Design Academy dashboard panel (fleet-wide) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-welcome-learn-more"></span></div>
+            <div class="dst-card-info">
+                <strong>Design Academy Dashboard</strong>
+                <span>Puts a <strong>Design Academy</strong> panel at the top of the WordPress dashboard: a pinned getting-started course plus the five newest tutorials from <a href="https://designacademy.leagueapps.com/" target="_blank" rel="noopener">designacademy.leagueapps.com</a> (cached 6 hours; falls back to the last good list if the academy is unreachable). Auto-enabled on every install.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[design_academy_enabled]" value="0">
+                <input type="checkbox" id="design_academy_enabled" name="ds_toolkit_settings[design_academy_enabled]" value="1" <?php checked( $design_academy_enabled ); ?>>
+                <label for="design_academy_enabled"></label>
+            </div>
+        </div>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info" style="width:100%;">
+                <strong>Pinned course</strong>
+                <span>The "Start here" item at the top of the panel.</span>
+                <input type="text" name="ds_toolkit_settings[academy_pinned_label]" value="<?php echo esc_attr( $academy_pinned_label ); ?>" placeholder="Pinned label" style="width:100%;margin-top:6px;">
+                <input type="url" name="ds_toolkit_settings[academy_pinned_url]" value="<?php echo esc_attr( $academy_pinned_url ); ?>" placeholder="https://designacademy.leagueapps.com/…" style="width:100%;margin-top:6px;">
+            </div>
+        </div>
+    </div>
+
+        </div>
+    </details>
+
+    <!-- ============================== BUILDER MODULES ============================== -->
+    <details class="dst-group" data-dst-group="modules" open>
+        <summary class="dst-group-head">
+            <span class="dst-group-title"><span class="dashicons dashicons-grid-view" aria-hidden="true"></span> LeagueApps Modules (Beaver Builder blocks)</span>
+            <span class="dst-group-count"><?php echo esc_html( $dst_mod_on . ' of ' . $dst_mod_all . ' on' ); ?></span>
+        </summary>
+        <div class="dst-group-body">
+
     <div class="dst-card">
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-grid-view"></span></div>
@@ -230,22 +395,17 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     } )();
     </script>
 
-    <?php if ( $blueprint_version >= 6 ) : ?>
-    <!-- Disable Comments (blueprint generation 6+) -->
-    <div class="dst-card">
-        <div class="dst-card-row">
-            <div class="dst-card-icon"><span class="dashicons dashicons-admin-comments"></span></div>
-            <div class="dst-card-info">
-                <strong>Disable Comments</strong>
-                <span>Turns WordPress comments off site-wide — closes comments and pings, hides existing comments, removes comment support from every post type, and cleans the admin (Comments menu, dashboard widget, admin-bar item). Replaces the standalone Disable Comments plugin. Auto-enabled on DSLP6 builds.</span>
-            </div>
-            <div class="dst-toggle">
-                <input type="hidden" name="ds_toolkit_settings[disable_comments_enabled]" value="0">
-                <input type="checkbox" id="disable_comments_enabled" name="ds_toolkit_settings[disable_comments_enabled]" value="1" <?php checked( $disable_comments_enabled ); ?>>
-                <label for="disable_comments_enabled"></label>
-            </div>
         </div>
-    </div>
+    </details>
+
+    <?php if ( $dst_bp6 ) : ?>
+    <!-- ============================== SITE & CONTENT ============================== -->
+    <details class="dst-group" data-dst-group="site" open>
+        <summary class="dst-group-head">
+            <span class="dst-group-title"><span class="dashicons dashicons-admin-customizer" aria-hidden="true"></span> Site &amp; Content</span>
+            <span class="dst-group-count"><?php echo esc_html( $dst_count( $dst_grp_site ) ); ?></span>
+        </summary>
+        <div class="dst-group-body">
 
     <!-- Theme Setting page (blueprint generation 6+) -->
     <div class="dst-card">
@@ -263,23 +423,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
     </div>
 
-    <!-- Admin Menu Tidy (blueprint generation 6+) -->
-    <div class="dst-card">
-        <div class="dst-card-row">
-            <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
-            <div class="dst-card-info">
-                <strong>Admin Menu Tidy</strong>
-                <span>Declutters the admin menu: moves Defender, Yoast, and Media Library Organizer under <strong>Tools</strong>. Hides ACF, Beaver Builder, and Appearance from non-LeagueApps users (left in place for LeagueApps). Capabilities are preserved, so it only relocates what a user can already access. Auto-enabled on DSLP6 builds.</span>
-            </div>
-            <div class="dst-toggle">
-                <input type="hidden" name="ds_toolkit_settings[admin_menu_tidy_enabled]" value="0">
-                <input type="checkbox" id="admin_menu_tidy_enabled" name="ds_toolkit_settings[admin_menu_tidy_enabled]" value="1" <?php checked( $admin_menu_tidy_enabled ); ?>>
-                <label for="admin_menu_tidy_enabled"></label>
-            </div>
-        </div>
-    </div>
-
-
     <!-- Image Optimization on Upload (blueprint generation 6+) -->
     <div class="dst-card">
         <div class="dst-card-row">
@@ -295,7 +438,18 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             </div>
         </div>
     </div>
+
+        </div>
+    </details>
     <?php endif; ?>
+
+    <!-- ============================== SHORTCODES & DEV TOOLS ============================== -->
+    <details class="dst-group" data-dst-group="dev">
+        <summary class="dst-group-head">
+            <span class="dst-group-title"><span class="dashicons dashicons-editor-code" aria-hidden="true"></span> Shortcodes &amp; Dev Tools</span>
+            <span class="dst-group-count"><?php echo esc_html( $dst_count( $dst_grp_dev ) ); ?></span>
+        </summary>
+        <div class="dst-group-body">
 
     <!-- UABB Advanced Posts featured-image loop fix -->
     <div class="dst-card">
@@ -526,6 +680,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
     </div>
 
+        </div>
+    </details>
+
     <div class="dst-footer">
         <?php submit_button( 'Save Changes', 'primary', 'submit', false ); ?>
         <span class="dst-footer-meta">
@@ -533,5 +690,54 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             &nbsp;&middot;&nbsp; By Alipio Gabriel
         </span>
     </div>
+
+    <script>
+    ( function () {
+        // ---- remember each group's open/closed state --------------------------
+        var groups = [].slice.call( document.querySelectorAll( 'details.dst-group' ) );
+        groups.forEach( function ( g ) {
+            var key = 'dst-group-' + g.getAttribute( 'data-dst-group' );
+            try {
+                var saved = window.localStorage.getItem( key );
+                if ( 'closed' === saved ) { g.open = false; }
+                if ( 'open' === saved )   { g.open = true;  }
+            } catch ( e ) {}
+            g.addEventListener( 'toggle', function () {
+                try { window.localStorage.setItem( key, g.open ? 'open' : 'closed' ); } catch ( e ) {}
+            } );
+        } );
+
+        // ---- filter box: search card titles + descriptions across groups ------
+        var input = document.getElementById( 'dst-filter' );
+        if ( ! input ) { return; }
+        var cards = [].slice.call( document.querySelectorAll( '.dst-group .dst-card' ) );
+
+        function apply() {
+            var q = input.value.trim().toLowerCase();
+            cards.forEach( function ( card ) {
+                var hit = ! q || card.textContent.toLowerCase().indexOf( q ) !== -1;
+                card.style.display = hit ? '' : 'none';
+            } );
+            groups.forEach( function ( g ) {
+                var visible = [].slice.call( g.querySelectorAll( '.dst-card' ) ).some( function ( c ) {
+                    return c.style.display !== 'none';
+                } );
+                g.style.display = visible ? '' : 'none';
+                if ( q && visible ) { g.open = true; } // reveal matches while searching
+            } );
+            if ( ! q ) {
+                // restore saved open/closed states after clearing the search
+                groups.forEach( function ( g ) {
+                    var key = 'dst-group-' + g.getAttribute( 'data-dst-group' );
+                    try {
+                        var saved = window.localStorage.getItem( key );
+                        if ( 'closed' === saved ) { g.open = false; }
+                    } catch ( e ) {}
+                } );
+            }
+        }
+        input.addEventListener( 'input', apply );
+    } )();
+    </script>
 
 </form>

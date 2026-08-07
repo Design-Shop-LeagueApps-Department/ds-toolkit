@@ -108,7 +108,10 @@ class DS_Menu_Module extends FLBuilderModule {
 		}
 		$this->mega_use_picker = ! empty( $this->mega_map );
 
-		$mstyle = ( ( $s->mobile_menu_style ?? 'drill' ) === 'overlay' ) ? 'overlay' : 'drill';
+		// Off-canvas sidebar always uses the drill drawer — the legacy full-screen
+		// overlay has no docked form, so the Mobile Menu Style choice is ignored here.
+		$is_offcanvas = ( ( $s->layout ?? 'horizontal' ) === 'offcanvas' );
+		$mstyle       = ( ! $is_offcanvas && ( $s->mobile_menu_style ?? 'drill' ) === 'overlay' ) ? 'overlay' : 'drill';
 
 		// Drawer logo (drill style): module image → Partner Logo option → site logo.
 		$drill_logo = '';
@@ -131,7 +134,11 @@ class DS_Menu_Module extends FLBuilderModule {
 		}
 
 		$megasmart = ( ( $s->mega_enabled ?? 'no' ) === 'yes' && ( $s->mega_smart ?? 'yes' ) === 'yes' );
-		echo '<nav class="ds-menu-wrap' . ( 'drill' === $mstyle ? ' ds-menu-wrap--drill' : '' ) . ( $megasmart ? ' ds-menu-wrap--megasmart' : '' ) . '"' . $drill_attrs . ' aria-label="' . esc_attr__( 'Primary', 'ds-toolkit' ) . '">';
+		$oc_class = '';
+		if ( $is_offcanvas ) {
+			$oc_class = ' ds-menu-wrap--offcanvas ds-menu-wrap--offcanvas-' . ( ( $s->sidebar_side ?? 'left' ) === 'right' ? 'right' : 'left' );
+		}
+		echo '<nav class="ds-menu-wrap' . ( 'drill' === $mstyle ? ' ds-menu-wrap--drill' : '' ) . ( $megasmart ? ' ds-menu-wrap--megasmart' : '' ) . $oc_class . '"' . $drill_attrs . ' aria-label="' . esc_attr__( 'Primary', 'ds-toolkit' ) . '">';
 
 		// Hamburger toggle (animates into an X via CSS when the overlay opens).
 		echo '<button type="button" class="ds-menu-toggle" aria-expanded="false" aria-label="' . esc_attr__( 'Toggle menu', 'ds-toolkit' ) . '">';
@@ -264,6 +271,25 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 						'label'   => __( 'WordPress Menu', 'ds-toolkit' ),
 						'options' => DS_Menu_Module::menu_options(),
 					),
+					'layout'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Layout', 'ds-toolkit' ),
+						'default' => 'horizontal',
+						'options' => array(
+							'horizontal' => __( 'Horizontal bar', 'ds-toolkit' ),
+							'offcanvas'  => __( 'Off-canvas sidebar', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Horizontal bar is the standard menu. Off-canvas sidebar hides the bar at every width and opens the menu as a docked side panel from the hamburger — use it when the site wants sidebar navigation instead of a top nav.', 'ds-toolkit' ),
+						'toggle'  => array(
+							'horizontal' => array(
+								'fields'   => array( 'alignment' ),
+								'sections' => array( 'mega', 'bar', 'hover', 'space', 'pill', 'drop' ),
+							),
+							'offcanvas'  => array(
+								'sections' => array( 'sidebar' ),
+							),
+						),
+					),
 					'alignment' => array(
 						'type'    => 'select',
 						'label'   => __( 'Alignment', 'ds-toolkit' ),
@@ -274,6 +300,56 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 							'right'  => __( 'Right', 'ds-toolkit' ),
 							'justify' => __( 'Justify (even spacing)', 'ds-toolkit' ),
 						),
+					),
+				),
+			),
+			// Off-canvas sidebar geometry. Only shown when Layout = Off-canvas sidebar;
+			// every COLOUR/typography aspect of the panel is already covered by the
+			// Mobile Overlay section, which drives the same drawer markup.
+			'sidebar' => array(
+				'title'  => __( 'Sidebar', 'ds-toolkit' ),
+				'fields' => array(
+					'sidebar_side'         => array(
+						'type'    => 'select',
+						'label'   => __( 'Dock Side', 'ds-toolkit' ),
+						'default' => 'left',
+						'options' => array(
+							'left'  => __( 'Left', 'ds-toolkit' ),
+							'right' => __( 'Right', 'ds-toolkit' ),
+						),
+					),
+					'sidebar_width'        => array(
+						'type'        => 'unit',
+						'label'       => __( 'Panel Width', 'ds-toolkit' ),
+						'default'     => '340',
+						'description' => 'px',
+						'slider'      => array( 'min' => 220, 'max' => 520, 'step' => 10 ),
+						'help'        => __( 'Width of the docked panel on desktop. Never exceeds the viewport.', 'ds-toolkit' ),
+					),
+					'sidebar_width_mobile' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Panel Width — Mobile', 'ds-toolkit' ),
+						'default'     => '',
+						'description' => 'px',
+						'help'        => __( 'Leave blank for a full-width panel on phones (recommended).', 'ds-toolkit' ),
+					),
+					'sidebar_scrim'        => array(
+						'type'    => 'select',
+						'label'   => __( 'Dim Page Behind', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array(
+							'yes' => __( 'Yes', 'ds-toolkit' ),
+							'no'  => __( 'No', 'ds-toolkit' ),
+						),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'sidebar_scrim_color' ) ) ),
+					),
+					'sidebar_scrim_color'  => array(
+						'type'        => 'color',
+						'connections' => array( 'color' ),
+						'label'       => __( 'Dim Color', 'ds-toolkit' ),
+						'default'     => 'rgba(0,0,0,0.5)',
+						'show_reset'  => true,
+						'show_alpha'  => true,
 					),
 				),
 			),

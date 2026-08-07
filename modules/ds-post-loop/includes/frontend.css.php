@@ -274,6 +274,7 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		'staff_role_typo'          => '.ds-people-role',
 		'commit_name_typo'         => '.ds-people-name',
 		'commit_meta_typo'         => '.ds-people-role',
+		'cf_tab_typo'              => '.ds-commit-tab',
 		'team_name_typo'           => '.ds-team-name',
 		// Custom Program card
 		'pg_date_typo'             => '.ds-program-date',
@@ -418,6 +419,22 @@ if ( in_array( $settings->card_layout ?? '', array( 'athlete_photo', 'athlete_lo
 	echo "$node .ds-commit--photo .ds-people-photo, $node .ds-commit--action .ds-people-photo { background-size: {$cfit}; background-position: {$cpos}; }\n";
 	$cpb = $col( $settings->commit_photo_bg ?? '' );
 	if ( '' !== $cpb ) { echo "$node .ds-commit--photo .ds-people-photo, $node .ds-commit--action .ds-people-photo { background-color: {$cpb}; }\n"; }
+
+	// Filter bar (pills). Every colour is optional — blank keeps the base
+	// stylesheet's accent-driven look so it matches the site palette for free.
+	if ( ( $settings->cf_filter ?? 'disable' ) === 'enable' ) {
+		$fmapa = array( 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end' );
+		$falign = $settings->cf_align ?? 'left';
+		echo "$node .ds-commit-filter { justify-content: " . $fmapa[ isset( $fmapa[ $falign ] ) ? $falign : 'left' ] . "; }\n";
+		$fbg = $col( $settings->cf_bar_bg ?? '' );
+		if ( '' !== $fbg ) { echo "$node .ds-commit-filter { background: {$fbg}; border-radius: var(--ds-radius); padding: 12px 16px; }\n"; }
+		$ftc = $col( $settings->cf_tab_color ?? '' );
+		if ( '' !== $ftc ) { echo "$node .ds-commit-tab { color: {$ftc} !important; }\n"; }
+		$fab = $col( $settings->cf_tab_active_bg ?? '' );
+		if ( '' !== $fab ) { echo "$node .ds-commit-tab.is-active { background: {$fab} !important; border-color: {$fab} !important; }\n$node .ds-commit-tab:hover { border-color: {$fab} !important; color: {$fab} !important; }\n$node .ds-commit-tab.is-active:hover { color: inherit !important; }\n"; }
+		$fac = $col( $settings->cf_tab_active_color ?? '' );
+		if ( '' !== $fac ) { echo "$node .ds-commit-tab.is-active, $node .ds-commit-tab.is-active:hover { color: {$fac} !important; }\n"; }
+	}
 }
 
 // ---- Team list (content_type = team) ----

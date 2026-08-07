@@ -77,6 +77,13 @@ class DS_Toolkit {
             'class'         => 'DS_Theme_Setting',
             'min_blueprint' => 6,
         ),
+        // Loads the Google font picked on Theme Setting -> Heading -> "All".
+        // Beaver Builder renders that rule but never enqueues its font.
+        'ds_global_heading_font_enabled' => array(
+            'file'          => 'features/class-ds-global-heading-font.php',
+            'class'         => 'DS_Global_Heading_Font',
+            'min_blueprint' => 6,
+        ),
         'admin_menu_tidy_enabled' => array(
             'file'          => 'features/class-ds-admin-menu.php',
             'class'         => 'DS_Admin_Menu',
@@ -110,6 +117,11 @@ class DS_Toolkit {
         'ds_marquee_module_enabled' => array(
             'file'          => 'features/class-ds-marquee.php',
             'class'         => 'DS_Marquee',
+            'min_blueprint' => 6,
+        ),
+        'ds_pathway_module_enabled' => array(
+            'file'          => 'features/class-ds-pathway.php',
+            'class'         => 'DS_Pathway',
             'min_blueprint' => 6,
         ),
         'ds_post_loop_module_enabled' => array(
@@ -189,6 +201,13 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-bot-shield.php',
             'class' => 'DS_Bot_Shield',
         ),
+        // Cloudflare Turnstile on wp-login + centrally-managed keys for
+        // Forminator's native Turnstile. Fleet-wide, but ships OFF: a captcha on
+        // the login form with bad keys locks everyone out.
+        'cf_turnstile_enabled' => array(
+            'file'  => 'features/class-ds-cloudflare.php',
+            'class' => 'DS_Cloudflare',
+        ),
         'design_academy_enabled' => array(
             'file'  => 'features/class-ds-design-academy.php',
             'class' => 'DS_Design_Academy',
@@ -243,6 +262,7 @@ class DS_Toolkit {
             'ds_carousel_module_enabled'       => array( 'label' => 'Images/Videos Carousel', 'desc' => 'A stacked-deck slider or a multi-column reels strip of images and videos.' ),
             'ds_orgstats_module_enabled'       => array( 'label' => 'Org Stats',       'desc' => 'Headline stat figures (the record) as plain figures or photo cards.' ),
             'ds_marquee_module_enabled'        => array( 'label' => 'Marquee',         'desc' => 'A scrolling announcement ticker with a pinned label.' ),
+            'ds_pathway_module_enabled'        => array( 'label' => 'Pathway',         'desc' => 'Stage cards connected by a progress line: per-stage markers, a fading end, and a vertical timeline on small screens.' ),
             'ds_info_list_module_enabled'      => array( 'label' => 'Post Details',    'desc' => 'Icon-and-text rows from the current post\'s ACF fields, for Themer single templates (staff, events); empty rows hide.' ),
             'ds_cta_module_enabled'            => array( 'label' => 'CTA',             'desc' => 'A call-to-action band with a heading, text, and buttons.' ),
             'ds_heading_module_enabled'        => array( 'label' => 'Heading',         'desc' => 'A styled section heading with an eyebrow line and accent options.' ),
@@ -322,6 +342,19 @@ class DS_Toolkit {
             // the sportsatthebeach flood. Real IE visitors no longer exist.
             'bot_shield_ua_blocklist'            => "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
             'bot_shield_ip_allowlist'            => '',
+            // Cloudflare Turnstile — OFF by default on purpose. Enabling it with
+            // wrong keys would lock every user out of wp-login, so it must be a
+            // deliberate per-site decision, and it refuses to enforce until both
+            // keys are filled in.
+            'cf_turnstile_enabled'               => 0,
+            'cf_turnstile_site_key'              => '',
+            'cf_turnstile_secret_key'            => '',
+            'cf_turnstile_theme'                 => 'auto',
+            'cf_turnstile_monitor'               => 1,
+            'cf_turnstile_protect_login'         => 1,
+            'cf_turnstile_protect_register'      => 1,
+            'cf_turnstile_protect_lostpassword'  => 1,
+            'cf_turnstile_sync_forminator'       => 1,
             'partner_plugin_access'              => 0,
             'design_academy_enabled'             => 1,
             'academy_pinned_url'                 => 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/',
@@ -350,6 +383,7 @@ class DS_Toolkit {
             $defaults['copyright_shortcode_enabled'] = 1;
             $defaults['footer_copyright_text']       = '&copy; {year} LeagueApps Design Shop';
             $defaults['theme_setting_enabled']        = 1;
+            $defaults['ds_global_heading_font_enabled'] = 1;
             $defaults['admin_menu_tidy_enabled']      = 1;
             $defaults['ds_menu_module_enabled']       = 1;
             $defaults['ds_social_module_enabled']     = 1;
@@ -357,6 +391,7 @@ class DS_Toolkit {
             $defaults['ds_hero_module_enabled']       = 1;
             $defaults['ds_cta_module_enabled']        = 1;
             $defaults['ds_marquee_module_enabled']    = 1;
+            $defaults['ds_pathway_module_enabled']    = 1;
             $defaults['ds_post_loop_module_enabled']  = 1;
             $defaults['ds_orgstats_module_enabled']   = 1;
             $defaults['ds_carousel_module_enabled']   = 1;

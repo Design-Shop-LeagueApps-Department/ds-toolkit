@@ -186,6 +186,37 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	 * Item 0 is the featured card; the rest are loop cards.
 	 */
 	/**
+	 * The Taxonomy Filter tab as a `tax_query`, or an empty array when no filter is
+	 * configured. Terms come from the per-taxonomy suggest field `flt_<tax>`
+	 * (comma-separated term IDs), falling back to the legacy `filter_terms` text
+	 * field. Shared so EVERY layout that exposes the Taxonomy Filter section honours
+	 * it — the Tournament layout builds its own query (it sorts by the event_date
+	 * ACF field, not by WP_Query) and silently ignored the filter before this.
+	 */
+	private function tax_query_args() {
+		$s   = $this->settings;
+		$tax = trim( (string) ( $s->filter_tax ?? '' ) );
+		if ( '' === $tax || ! taxonomy_exists( $tax ) ) { return array(); }
+
+		$field_key = 'flt_' . str_replace( '-', '_', $tax );
+		$raw       = $s->$field_key ?? '';
+		if ( is_array( $raw ) ) { $raw = implode( ',', $raw ); }
+		if ( '' === trim( (string) $raw ) && isset( $s->filter_terms ) ) { $raw = (string) $s->filter_terms; }
+
+		$list = array_filter( array_map( 'trim', explode( ',', (string) $raw ) ) );
+		if ( empty( $list ) ) { return array(); }
+
+		$numeric = count( $list ) === count( array_filter( $list, 'is_numeric' ) );
+		return array(
+			array(
+				'taxonomy' => $tax,
+				'field'    => $numeric ? 'term_id' : 'slug',
+				'terms'    => $list,
+			),
+		);
+	}
+
+	/**
 	 * The ONE query: built entirely from the Query tab (Post Type + number + order +
 	 * offset + taxonomy filter). Single source of truth for WHAT the loop fetches.
 	 */
@@ -230,26 +261,8 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			if ( '' !== $mk ) { $args['meta_key'] = $mk; } else { $args['orderby'] = 'date'; }
 		}
 
-		// Taxonomy filter: terms come from the per-taxonomy suggest field flt_<tax>
-		// (comma-separated term IDs). Falls back to the legacy filter_terms text field.
-		$tax = trim( (string) ( $s->filter_tax ?? '' ) );
-		if ( '' !== $tax && taxonomy_exists( $tax ) ) {
-			$field_key = 'flt_' . str_replace( '-', '_', $tax );
-			$raw       = $s->$field_key ?? '';
-			if ( is_array( $raw ) ) { $raw = implode( ',', $raw ); }
-			if ( '' === trim( (string) $raw ) && isset( $s->filter_terms ) ) { $raw = (string) $s->filter_terms; }
-			$list = array_filter( array_map( 'trim', explode( ',', (string) $raw ) ) );
-			if ( ! empty( $list ) ) {
-				$numeric = count( $list ) === count( array_filter( $list, 'is_numeric' ) );
-				$args['tax_query'] = array(
-					array(
-						'taxonomy' => $tax,
-						'field'    => $numeric ? 'term_id' : 'slug',
-						'terms'    => $list,
-					),
-				);
-			}
-		}
+		$tq = $this->tax_query_args();
+		if ( ! empty( $tq ) ) { $args['tax_query'] = $tq; }
 
 		// Date-range filter (GH #46). Bounds parse via strtotime, so absolute
 		// dates (2026-01-01) and relative windows (-30 days) both work; only
@@ -411,67 +424,181 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 	/* ------------------------------------------------------- Commitments / Athletes */
 
+	/**
+	 * The college/school NAME for a commitment. The blueprint key is school_name,
+	 * but partner sites name the field differently (495 Lacrosse uses `university`),
+	 * which silently rendered a blank line. The developer can pin the key in the
+	 * Commitment Cards section; blank auto-detects across the known key names.
+	 */
+	private function commit_school( $id ) {
+		$key = trim( (string) ( $this->settings->commit_school_key ?? '' ) );
+		if ( '' !== $key ) { return trim( (string) $this->acf( $key, $id ) ); }
+		foreach ( array( 'school_name', 'university', 'college', 'college_name', 'school' ) as $k ) {
+			$v = trim( (string) $this->acf( $k, $id ) );
+			if ( '' !== $v ) { return $v; }
+		}
+		return '';
+	}
+
+	/** The college/school LOGO for a commitment. Same key-resolution story as commit_school(). */
+	private function commit_logo( $id ) {
+		$key = trim( (string) ( $this->settings->commit_logo_key ?? '' ) );
+		if ( '' !== $key ) { return $this->acf_image_url( $this->acf( $key, $id ) ); }
+		foreach ( array( 'school_logo', 'college_logo', 'logo' ) as $k ) {
+			$url = $this->acf_image_url( $this->acf( $k, $id ) );
+			if ( $url ) { return $url; }
+		}
+		return '';
+	}
+
+	/** True when the Commitment filter bar is switched on. */
+	private function commit_filter_on() {
+		return ( $this->settings->cf_filter ?? 'disable' ) === 'enable';
+	}
+
+	/**
+	 * The facet value(s) a commitment is tagged with, per the developer-chosen
+	 * source: a meta/ACF field ("meta:<key>", e.g. the default meta:division) or a
+	 * taxonomy ("tax:<slug>"). A comma/pipe-separated meta value counts as several.
+	 */
+	private function commit_facets( $id ) {
+		$src = trim( (string) ( $this->settings->cf_source ?? 'meta:division' ) );
+		if ( '' === $src ) { return array(); }
+		if ( 0 === strpos( $src, 'tax:' ) ) {
+			$terms = get_the_terms( $id, substr( $src, 4 ) );
+			return ( $terms && ! is_wp_error( $terms ) ) ? array_values( wp_list_pluck( $terms, 'name' ) ) : array();
+		}
+		$raw = $this->acf( 0 === strpos( $src, 'meta:' ) ? substr( $src, 5 ) : $src, $id );
+		if ( is_array( $raw ) ) { $raw = implode( ',', array_map( 'strval', $raw ) ); }
+		return array_values( array_filter( array_map( 'trim', preg_split( '/[,|]/', (string) $raw ) ) ) );
+	}
+
+	/** data-* attributes that let the front-end JS filter a card without a round trip. */
+	private function commit_data_attr( $facets ) {
+		if ( ! $this->commit_filter_on() ) { return ''; }
+		return ' data-facet="' . esc_attr( strtolower( implode( ' ', $facets ) ) ) . '"';
+	}
+
+	/**
+	 * The Commitment filter bar: an "All" pill plus one pill per facet value found
+	 * in the result set. Order follows the Tab Order field when set, else the order
+	 * the values first appear in the loop (so the developer controls it either way).
+	 */
+	private function commit_filter_bar( $all_facets, $total ) {
+		$s = $this->settings;
+		$tabs = array();
+		foreach ( $all_facets as $v ) { $tabs[ strtolower( $v ) ] = $v; }
+		if ( empty( $tabs ) ) { return false; }
+
+		$explicit = array_filter( array_map( 'trim', explode( ',', (string) ( $s->cf_order ?? '' ) ) ) );
+		if ( ! empty( $explicit ) ) {
+			$ordered = array();
+			foreach ( $explicit as $v ) { $k = strtolower( $v ); if ( isset( $tabs[ $k ] ) ) { $ordered[ $k ] = $tabs[ $k ]; unset( $tabs[ $k ] ); } }
+			$tabs = $ordered + $tabs; // anything not named in Tab Order keeps its natural place at the end
+		}
+
+		$label = trim( (string) ( $s->cf_all_label ?? '' ) ) ?: __( 'All', 'ds-toolkit' );
+		echo '<div class="ds-commit-filter">';
+		echo '<div class="ds-commit-tabs" role="group" aria-label="' . esc_attr__( 'Filter commitments', 'ds-toolkit' ) . '">';
+		echo '<button type="button" class="ds-commit-tab is-active" data-tab="" aria-pressed="true">' . esc_html( $label ) . '</button>';
+		foreach ( $tabs as $key => $text ) {
+			echo '<button type="button" class="ds-commit-tab" data-tab="' . esc_attr( $key ) . '" aria-pressed="false">' . esc_html( $text ) . '</button>';
+		}
+		echo '</div>';
+		if ( ( $s->cf_count ?? 'show' ) === 'show' ) {
+			$noun = trim( (string) ( $s->cf_count_noun ?? '' ) ) ?: __( 'commitments', 'ds-toolkit' );
+			echo '<span class="ds-commit-count" data-noun="' . esc_attr( $noun ) . '">' . (int) $total . ' ' . esc_html( $noun ) . '</span>';
+		}
+		echo '</div>';
+		return true;
+	}
+
+	/** Shared open/close for the three athlete layouts so the filter bar is wired once. */
+	private function athlete_section_open( $modifier, $q, &$rows ) {
+		$filter = $this->commit_filter_on();
+		$rows   = array();
+		if ( $filter ) {
+			foreach ( $q->posts as $p ) { foreach ( $this->commit_facets( $p->ID ) as $f ) { $rows[ strtolower( $f ) ] = $f; } }
+		}
+		$root = 'ds-news ds-people ds-people--commit ' . $modifier . ( $filter ? ' ds-commit--filter' : '' );
+		echo '<section class="' . esc_attr( $root ) . '"><div class="ds-news-wrap">';
+		$this->render_head();
+		if ( ! $q->have_posts() ) {
+			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Commitments published yet.', 'ds-toolkit' ) . '</p>'; }
+			echo '</div></section>';
+			return false;
+		}
+		if ( $filter ) { $this->commit_filter_bar( $rows, count( $q->posts ) ); }
+		return true;
+	}
+
+	/** Close the athlete section: grid close, the "no matches" line, wrappers, reset. */
+	private function athlete_section_close() {
+		$this->loop_close();
+		if ( $this->commit_filter_on() ) {
+			echo '<p class="ds-commit-none" hidden>' . esc_html__( 'No commitments match this filter.', 'ds-toolkit' ) . '</p>';
+		}
+		echo '</div></section>';
+		wp_reset_postdata();
+	}
+
 	/** Photo Cards — portrait photo + name + school (screenshot 2). */
 	public function render_athlete_photo() {
-		$ph = self::placeholder_image();
-		$q  = $this->run_query();
-		echo '<section class="ds-news ds-people ds-people--commit ds-commit--photo"><div class="ds-news-wrap">';
-		$this->render_head();
-		if ( ! $q->have_posts() ) { if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Commitments published yet.', 'ds-toolkit' ) . '</p>'; } echo '</div></section>'; return; }
+		$ph   = self::placeholder_image();
+		$q    = $this->run_query();
+		$rows = array();
+		if ( ! $this->athlete_section_open( 'ds-commit--photo', $q, $rows ) ) { return; }
 		$this->loop_open( 'ds-people-grid' );
 		while ( $q->have_posts() ) { $q->the_post(); $id = get_the_ID();
 			$img    = get_the_post_thumbnail_url( $id, 'large' ) ?: $ph;
 			$name   = get_the_title( $id );
-			$school = (string) get_post_meta( $id, 'school_name', true );
-			echo '<div class="ds-commit-card">'; echo $this->card_link( $id );
+			$school = $this->commit_school( $id );
+			echo '<div class="ds-commit-card"' . $this->commit_data_attr( $this->commit_facets( $id ) ) . '>'; echo $this->card_link( $id );
 			echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
 			echo '<div class="ds-people-body">';
 			if ( '' !== $name )   { echo '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>'; }
 			if ( '' !== $school ) { echo '<span class="ds-people-role">' . esc_html( $school ) . '</span>'; }
 			echo '</div></div>';
 		}
-		$this->loop_close(); echo '</div></section>';
-		wp_reset_postdata();
+		$this->athlete_section_close();
 	}
 
 	/** Logo Row — dark horizontal card: school logo + name + school (screenshot 3). */
 	public function render_athlete_logo() {
-		$q = $this->run_query();
-		echo '<section class="ds-news ds-people ds-people--commit ds-commit--logo"><div class="ds-news-wrap">';
-		$this->render_head();
-		if ( ! $q->have_posts() ) { if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Commitments published yet.', 'ds-toolkit' ) . '</p>'; } echo '</div></section>'; return; }
+		$q    = $this->run_query();
+		$rows = array();
+		if ( ! $this->athlete_section_open( 'ds-commit--logo', $q, $rows ) ) { return; }
 		$this->loop_open( 'ds-people-grid' );
 		while ( $q->have_posts() ) { $q->the_post(); $id = get_the_ID();
-			$logo   = $this->acf_image_url( $this->acf( 'school_logo', $id ) );
+			$logo   = $this->commit_logo( $id );
 			$name   = get_the_title( $id );
-			$school = (string) get_post_meta( $id, 'school_name', true );
-			echo '<div class="ds-commit-row">'; echo $this->card_link( $id );
+			$school = $this->commit_school( $id );
+			echo '<div class="ds-commit-row"' . $this->commit_data_attr( $this->commit_facets( $id ) ) . '>'; echo $this->card_link( $id );
 			echo '<div class="ds-commit-row-logo">' . ( $logo ? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $school ) . '" loading="lazy" />' : '' ) . '</div>';
 			echo '<div class="ds-commit-row-body">';
 			if ( '' !== $name )   { echo '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>'; }
 			if ( '' !== $school ) { echo '<span class="ds-people-role">' . esc_html( $school ) . '</span>'; }
 			echo '</div></div>';
 		}
-		$this->loop_close(); echo '</div></section>';
-		wp_reset_postdata();
+		$this->athlete_section_close();
 	}
 
 	/** Action Cards — action photo + logo + name + "year | school" (screenshot 4). */
 	public function render_athlete_action() {
-		$ph = self::placeholder_image();
-		$q  = $this->run_query();
-		echo '<section class="ds-news ds-people ds-people--commit ds-commit--action"><div class="ds-news-wrap">';
-		$this->render_head();
-		if ( ! $q->have_posts() ) { if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Commitments published yet.', 'ds-toolkit' ) . '</p>'; } echo '</div></section>'; return; }
+		$ph       = self::placeholder_image();
+		$q        = $this->run_query();
+		$rows     = array();
+		$show_yr  = ( $this->settings->commit_show_year ?? 'yes' ) === 'yes';
+		if ( ! $this->athlete_section_open( 'ds-commit--action', $q, $rows ) ) { return; }
 		$this->loop_open( 'ds-people-grid' );
 		while ( $q->have_posts() ) { $q->the_post(); $id = get_the_ID();
 			$img    = get_the_post_thumbnail_url( $id, 'large' ) ?: $ph;
-			$logo   = $this->acf_image_url( $this->acf( 'school_logo', $id ) );
+			$logo   = $this->commit_logo( $id );
 			$name   = get_the_title( $id );
-			$school = (string) get_post_meta( $id, 'school_name', true );
-			$year   = (string) $this->acf( 'year', $id );
+			$school = $this->commit_school( $id );
+			$year   = $show_yr ? trim( (string) $this->acf( 'year', $id ) ) : '';
 			$meta   = trim( $year . ( ( '' !== $year && '' !== $school ) ? ' | ' : '' ) . $school );
-			echo '<div class="ds-commit-action">'; echo $this->card_link( $id );
+			echo '<div class="ds-commit-action"' . $this->commit_data_attr( $this->commit_facets( $id ) ) . '>'; echo $this->card_link( $id );
 			echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
 			echo '<div class="ds-commit-action-body">';
 			echo '<div class="ds-commit-action-logo">' . ( $logo ? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $school ) . '" loading="lazy" />' : '' ) . '</div>';
@@ -480,8 +607,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			if ( '' !== $meta ) { echo '<span class="ds-people-role">' . esc_html( $meta ) . '</span>'; }
 			echo '</div></div></div>';
 		}
-		$this->loop_close(); echo '</div></section>';
-		wp_reset_postdata();
+		$this->athlete_section_close();
 	}
 
 	/* ------------------------------------------------------------------------ Team */
@@ -917,7 +1043,13 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$ptype = preg_replace( '/[^a-z0-9_-]/', '', (string) ( $s->post_type ?? 'event' ) );
 		if ( '' === $ptype || 'post' === $ptype ) { $ptype = 'event'; }
 		$limit = (int) ( $s->posts_per_page ?? 6 ); if ( $limit <= 0 ) { $limit = 6; }
-		$posts = get_posts( array( 'post_type' => $ptype, 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'date', 'order' => 'DESC' ) );
+		// Pull wide (ordering + the past-event drop happen below, on event_date), but
+		// still scope to the Taxonomy Filter so two pages can list two different sets
+		// of events (e.g. a Boys and a Girls tournaments page off one CPT).
+		$q_args = array( 'post_type' => $ptype, 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'date', 'order' => 'DESC' );
+		$tq     = $this->tax_query_args();
+		if ( ! empty( $tq ) ) { $q_args['tax_query'] = $tq; }
+		$posts = get_posts( $q_args );
 		$today = strtotime( 'today' );
 		$items = array();
 		foreach ( $posts as $p ) {
@@ -1146,9 +1278,9 @@ $ds_pl_form = array(
 							'news_featured'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'layout', 'featured', 'cards', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
 							'news_grid'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'cards2', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'staff_card'     => array( 'sections' => array( 'header', 'query', 'query_filter', 'staff_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_photo'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_logo'   => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_action' => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_photo'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_logo'   => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_action' => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'team_list'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'team_list_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
 							'team_card'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'team_card_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'custom'         => array( 'sections' => array( 'header', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
@@ -1485,6 +1617,28 @@ $ds_pl_form = array(
 					'commit_school_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'School / Meta', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'commit_name_typo'   => array( 'type' => 'typography', 'label' => __( 'Name Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-people-name' ) ),
 					'commit_meta_typo'   => array( 'type' => 'typography', 'label' => __( 'School / Meta Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-people-role' ) ),
+					'commit_show_year'   => array( 'type' => 'select', 'label' => __( 'Show Class Year (Action Card)', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'help' => __( 'The Action Card meta line reads "year | college". Set to No for a college-only line.', 'ds-toolkit' ) ),
+					'commit_school_key'  => array( 'type' => 'text', 'label' => __( 'College Name Field', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Meta/ACF key holding the college name. Blank auto-detects school_name, university, college, college_name, school.', 'ds-toolkit' ) ),
+					'commit_logo_key'    => array( 'type' => 'text', 'label' => __( 'College Logo Field', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Meta/ACF key holding the college logo image. Blank auto-detects school_logo, college_logo, logo.', 'ds-toolkit' ) ),
+				),
+			),
+			// --- Front-end filter bar for the Commitment / Athlete card grids ---
+			'commit_filter_opts' => array(
+				'title'       => __( 'Filter Bar (Commitments)', 'ds-toolkit' ),
+				'description' => __( 'A pill bar above the card grid that filters the flat list in place — no page reload, no grouping. The facet is developer-chosen (a meta field like Division, or a taxonomy); every value found in the results becomes a pill, and "All" shows everything.', 'ds-toolkit' ),
+				'fields'      => array(
+					'cf_filter'     => array( 'type' => 'select', 'label' => __( 'Filter Bar', 'ds-toolkit' ), 'default' => 'disable', 'options' => array( 'disable' => __( 'Disable', 'ds-toolkit' ), 'enable' => __( 'Enable', 'ds-toolkit' ) ), 'toggle' => array( 'enable' => array( 'fields' => array( 'cf_source', 'cf_order', 'cf_all_label', 'cf_count', 'cf_count_noun', 'cf_align', 'cf_bar_bg', 'cf_tab_color', 'cf_tab_active_bg', 'cf_tab_active_color', 'cf_tab_typo' ) ) ) ),
+					'cf_source'     => array( 'type' => 'text', 'label' => __( 'Filter By', 'ds-toolkit' ), 'default' => 'meta:division', 'help' => __( 'meta:&lt;field_key&gt; for an ACF/meta field (default meta:division), or tax:&lt;taxonomy_slug&gt; for a taxonomy. A comma or pipe separated meta value tags the card with several values.', 'ds-toolkit' ) ),
+					'cf_order'      => array( 'type' => 'text', 'label' => __( 'Pill Order', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Optional comma-separated order for the pills, e.g. "D1, D2, D3, MCLA". Values not listed keep their natural order at the end.', 'ds-toolkit' ) ),
+					'cf_all_label'  => array( 'type' => 'text', 'label' => __( '"All" Pill Label', 'ds-toolkit' ), 'default' => 'All' ),
+					'cf_count'      => array( 'type' => 'select', 'label' => __( 'Result Count', 'ds-toolkit' ), 'default' => 'show', 'options' => array( 'show' => __( 'Show', 'ds-toolkit' ), 'hide' => __( 'Hide', 'ds-toolkit' ) ) ),
+					'cf_count_noun' => array( 'type' => 'text', 'label' => __( 'Count Noun', 'ds-toolkit' ), 'default' => 'commitments', 'help' => __( 'Word after the number, e.g. "20 commitments".', 'ds-toolkit' ) ),
+					'cf_align'      => array( 'type' => 'select', 'label' => __( 'Alignment', 'ds-toolkit' ), 'default' => 'left', 'options' => array( 'left' => __( 'Left', 'ds-toolkit' ), 'center' => __( 'Center', 'ds-toolkit' ), 'right' => __( 'Right', 'ds-toolkit' ) ) ),
+					'cf_bar_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Bar Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = transparent (pills sit straight on the page).', 'ds-toolkit' ) ),
+					'cf_tab_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Pill Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'cf_tab_active_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Active Pill Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the global Accent colour.', 'ds-toolkit' ) ),
+					'cf_tab_active_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Active Pill Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'cf_tab_typo'   => array( 'type' => 'typography', 'label' => __( 'Pill Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-commit-tab' ) ),
 				),
 			),
 			// --- Team list options ---
