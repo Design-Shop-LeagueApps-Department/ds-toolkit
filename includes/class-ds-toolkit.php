@@ -77,6 +77,13 @@ class DS_Toolkit {
             'class'         => 'DS_Theme_Setting',
             'min_blueprint' => 6,
         ),
+        // Loads the Google font picked on Theme Setting -> Heading -> "All".
+        // Beaver Builder renders that rule but never enqueues its font.
+        'ds_global_heading_font_enabled' => array(
+            'file'          => 'features/class-ds-global-heading-font.php',
+            'class'         => 'DS_Global_Heading_Font',
+            'min_blueprint' => 6,
+        ),
         'admin_menu_tidy_enabled' => array(
             'file'          => 'features/class-ds-admin-menu.php',
             'class'         => 'DS_Admin_Menu',
@@ -187,6 +194,13 @@ class DS_Toolkit {
         'user_roles_enabled' => array(
             'file'  => 'features/class-ds-user-roles.php',
             'class' => 'DS_User_Roles',
+        ),
+        // Cloudflare Turnstile on wp-login + centrally-managed keys for
+        // Forminator's native Turnstile. Fleet-wide, but ships OFF: a captcha on
+        // the login form with bad keys locks everyone out.
+        'cf_turnstile_enabled' => array(
+            'file'  => 'features/class-ds-cloudflare.php',
+            'class' => 'DS_Cloudflare',
         ),
         'design_academy_enabled' => array(
             'file'  => 'features/class-ds-design-academy.php',
@@ -299,6 +313,19 @@ class DS_Toolkit {
             // Partner-safe access control + the Design Academy dashboard panel:
             // on for the whole fleet regardless of blueprint generation.
             'user_roles_enabled'                 => 1,
+            // Cloudflare Turnstile — OFF by default on purpose. Enabling it with
+            // wrong keys would lock every user out of wp-login, so it must be a
+            // deliberate per-site decision, and it refuses to enforce until both
+            // keys are filled in.
+            'cf_turnstile_enabled'               => 0,
+            'cf_turnstile_site_key'              => '',
+            'cf_turnstile_secret_key'            => '',
+            'cf_turnstile_theme'                 => 'auto',
+            'cf_turnstile_monitor'               => 1,
+            'cf_turnstile_protect_login'         => 1,
+            'cf_turnstile_protect_register'      => 1,
+            'cf_turnstile_protect_lostpassword'  => 1,
+            'cf_turnstile_sync_forminator'       => 1,
             'partner_plugin_access'              => 0,
             'design_academy_enabled'             => 1,
             'academy_pinned_url'                 => 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/',
@@ -327,6 +354,7 @@ class DS_Toolkit {
             $defaults['copyright_shortcode_enabled'] = 1;
             $defaults['footer_copyright_text']       = '&copy; {year} LeagueApps Design Shop';
             $defaults['theme_setting_enabled']        = 1;
+            $defaults['ds_global_heading_font_enabled'] = 1;
             $defaults['admin_menu_tidy_enabled']      = 1;
             $defaults['ds_menu_module_enabled']       = 1;
             $defaults['ds_social_module_enabled']     = 1;

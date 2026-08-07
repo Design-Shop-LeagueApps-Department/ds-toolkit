@@ -147,13 +147,43 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 		$out .= $this->wysiwyg_section( 'sched', __( 'Schedule', 'ds-toolkit' ), 'schedule', $tag, $pid );
 		$out .= $this->coaches_section( $tag, $pid );
 
-		if ( '' === $out && ! $has_img ) {
-			if ( FLBuilderModel::is_builder_active() ) {
-				echo '<div class="ds-teamdetail"><div class="ds-teamdetail-main"><p style="padding:14px;opacity:.7">'
-					. esc_html__( 'This team has no roster, schedule, coaches or featured image yet — nothing renders on the live page.', 'ds-toolkit' )
-					. '</p></div></div>';
+		// Nothing filled in yet. A blank team page reads as broken, so unless the
+		// notice is switched off we show a "Coming Soon" placeholder instead of
+		// leaving the page empty. Fires whenever the sections are empty — a team
+		// with only a featured image is still a team with no information on it.
+		if ( '' === $out ) {
+			$empty_show = ( $s->empty_show ?? 'yes' ) === 'yes';
+			$empty_text = trim( (string) ( $s->empty_text ?? '' ) );
+			if ( '' === $empty_text ) {
+				$empty_text = __( 'Coming Soon', 'ds-toolkit' );
 			}
-			return;
+
+			if ( $empty_show ) {
+				$heading = trim( (string) ( $s->empty_heading ?? '' ) );
+				$desc    = trim( (string) ( $s->empty_desc ?? '' ) );
+				$align   = ( ( $s->empty_align ?? 'center' ) === 'left' ) ? 'left' : 'center';
+
+				$out = '<div class="ds-teamdetail-empty ds-teamdetail-empty--' . esc_attr( $align ) . '">';
+				if ( '' !== $empty_text ) {
+					$out .= '<span class="ds-teamdetail-soon">' . esc_html( $empty_text ) . '</span>';
+				}
+				if ( '' !== $heading ) {
+					$out .= '<' . $tag . ' class="ds-teamdetail-empty-title">' . DS_Module_UI::inline( $heading ) . '</' . $tag . '>';
+				}
+				if ( '' !== $desc ) {
+					$out .= '<div class="ds-teamdetail-empty-desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>';
+				}
+				$out .= '</div>';
+			} elseif ( ! $has_img ) {
+				// Notice off and nothing to show at all — keep the old behaviour of
+				// rendering nothing live, with a builder-only explanation.
+				if ( FLBuilderModel::is_builder_active() ) {
+					echo '<div class="ds-teamdetail"><div class="ds-teamdetail-main"><p style="padding:14px;opacity:.7">'
+						. esc_html__( 'This team has no roster, schedule, coaches or featured image yet — nothing renders on the live page.', 'ds-toolkit' )
+						. '</p></div></div>';
+				}
+				return;
+			}
 		}
 
 		$cls = 'ds-teamdetail' . ( $has_img ? ' ds-teamdetail--hasimg' : '' );
@@ -177,6 +207,49 @@ FLBuilder::register_module( 'DS_Team_Detail_Module', array(
 					'media_gap'    => array( 'type' => 'unit', 'label' => __( 'Column Gap', 'ds-toolkit' ), 'default' => '40', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
 					'heading_tag'  => array( 'type' => 'select', 'label' => __( 'Section Heading Tag', 'ds-toolkit' ), 'default' => 'h3', 'options' => array( 'h2' => 'H2', 'h3' => 'H3 (default)', 'h4' => 'H4', 'h5' => 'H5' ) ),
 					'divider_show' => array( 'type' => 'select', 'label' => __( 'Section Divider', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+				),
+			),
+			'empty_cfg' => array(
+				'title'       => __( 'Empty Team Notice', 'ds-toolkit' ),
+				'description' => __( 'What a team page shows before its roster, schedule or coaches have been filled in.', 'ds-toolkit' ),
+				'fields'      => array(
+					'empty_show' => array(
+						'type'    => 'select',
+						'label'   => __( 'Show notice when the team is empty', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes — show the placeholder', 'ds-toolkit' ), 'no' => __( 'No — leave the page blank', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'empty_text', 'empty_heading', 'empty_desc', 'empty_align' ) ) ),
+						'help'    => __( 'A team with nothing filled in renders as an empty page, which reads as broken. This shows a proper placeholder instead.', 'ds-toolkit' ),
+					),
+					'empty_text' => array(
+						'type'        => 'text',
+						'label'       => __( 'Badge', 'ds-toolkit' ),
+						'default'     => 'Coming Soon',
+						'connections' => array( 'string' ),
+						'help'        => __( 'Small pill above the heading. Leave blank to hide it.', 'ds-toolkit' ),
+					),
+					'empty_heading' => array(
+						'type'        => 'text',
+						'label'       => __( 'Heading', 'ds-toolkit' ),
+						'default'     => 'Roster and Schedule Coming Soon',
+						'connections' => array( 'string' ),
+						'help'        => __( 'Leave blank to hide. Wrap a word in {a}…{/a} to accent it.', 'ds-toolkit' ),
+					),
+					'empty_desc' => array(
+						'type'          => 'editor',
+						'label'         => __( 'Description', 'ds-toolkit' ),
+						'media_buttons' => false,
+						'rows'          => 4,
+						'wpautop'       => false,
+						'default'       => "This team's roster, coaching staff and game schedule will be published here shortly. Rosters and registration are managed on our LeagueApps site in the meantime.",
+						'connections'   => array( 'string' ),
+					),
+					'empty_align' => array(
+						'type'    => 'select',
+						'label'   => __( 'Alignment', 'ds-toolkit' ),
+						'default' => 'center',
+						'options' => array( 'center' => __( 'Center', 'ds-toolkit' ), 'left' => __( 'Left', 'ds-toolkit' ) ),
+					),
 				),
 			),
 			'sections_cfg' => array(
