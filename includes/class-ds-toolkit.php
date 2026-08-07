@@ -195,6 +195,12 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-user-roles.php',
             'class' => 'DS_User_Roles',
         ),
+        // Fleet-wide origin protection against bot floods (see the class
+        // docblock for the sportsatthebeach incident that motivated it).
+        'bot_shield_enabled' => array(
+            'file'  => 'features/class-ds-bot-shield.php',
+            'class' => 'DS_Bot_Shield',
+        ),
         // Cloudflare Turnstile on wp-login + centrally-managed keys for
         // Forminator's native Turnstile. Fleet-wide, but ships OFF: a captcha on
         // the login form with bad keys locks everyone out.
@@ -313,6 +319,36 @@ class DS_Toolkit {
             // Partner-safe access control + the Design Academy dashboard panel:
             // on for the whole fleet regardless of blueprint generation.
             'user_roles_enabled'                 => 1,
+            // Bot Shield: on fleet-wide with conservative thresholds. A legit
+            // human browsing a cached site rarely produces more than ~20 PHP
+            // hits/min; 180/min per IP only catches scrapers and floods.
+            'bot_shield_enabled'                 => 1,
+            // Ships in monitor mode: staged rollout. Every rule is safe on
+            // its own — the pagination rule only refuses pages WordPress
+            // confirms are empty, and reverse-DNS-verified search engines are
+            // exempt from all of them — but there is no fast fleet-wide kill
+            // switch, so blocking is enabled per site after its numbers are
+            // read. Set 'block' on a site to enforce.
+            'bot_shield_mode'                    => 'monitor',
+            'bot_shield_page_cap'                => 20,
+            // Read-only stats endpoint for the ops dashboard. Off by default;
+            // turn on per site that should be pollable.
+            'bot_shield_stats_api'               => 0,
+            'bot_shield_stats_origin'            => 'https://dscommand.wpenginepowered.com',
+            'bot_shield_ip_limit'                => 180,
+            'bot_shield_penalty_mins'            => 10,
+            'bot_shield_global_limit'            => 150,
+            'bot_shield_attack_mins'             => 10,
+            // OFF by default: WP Engine strips non-allowlisted cookies before
+            // PHP sees them, so a cookie-based challenge cannot complete there.
+            // The loop-breaker makes it fail open if enabled anyway, but there
+            // is no point paying for a check the platform cannot support.
+            'bot_shield_challenge_enabled'       => 0,
+            // msie / trident: IE is dead since 2022; in 2026 those UA strings
+            // are the "older browser" bot signature WPE support identified in
+            // the sportsatthebeach flood. Real IE visitors no longer exist.
+            'bot_shield_ua_blocklist'            => "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
+            'bot_shield_ip_allowlist'            => '',
             // Cloudflare Turnstile — OFF by default on purpose. Enabling it with
             // wrong keys would lock every user out of wp-login, so it must be a
             // deliberate per-site decision, and it refuses to enforce until both
