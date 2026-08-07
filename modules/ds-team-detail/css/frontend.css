@@ -42,3 +42,45 @@
 @media (max-width:480px){
 	.ds-teamdetail .ds-people-grid--coaches{grid-template-columns:1fr;max-width:none;}
 }
+
+/* ---- Empty-team placeholder ("Coming Soon") ---------------------------
+   Shown when a team has no roster / schedule / coaches yet, so the page reads
+   as "not published yet" rather than broken. Colours use the global palette
+   with LITERAL fallbacks — some older Launchpad installs do not define
+   --fl-global-*, and a var() with no fallback drops the whole declaration. */
+.ds-teamdetail-empty{padding:8px 0 4px;}
+.ds-teamdetail-empty--center{text-align:center;}
+.ds-teamdetail-empty--left{text-align:left;}
+
+.ds-teamdetail-soon{
+	display:inline-block;
+	margin:0 0 18px;
+	padding:8px 18px;
+	border-radius:var(--ds-radius,4px);
+	background:var(--fl-global-accent,#069e33);
+	color:var(--fl-global-white,#fff);
+	font-weight:800;
+	font-size:.72rem;
+	letter-spacing:.14em;
+	text-transform:uppercase;
+	line-height:1.2;
+}
+.ds-teamdetail-empty-title{
+	margin:0 0 14px;
+	color:var(--fl-global-headings,#111);
+	font-size:clamp(1.6rem,3.4vw,2.6rem);
+	line-height:1.05;
+	letter-spacing:-.01em;
+	text-transform:uppercase;
+	font-weight:900;
+}
+.ds-teamdetail-empty-desc{
+	margin:0 auto;
+	max-width:56ch;
+	color:var(--fl-global-body,#444);
+	font-size:1rem;
+	line-height:1.6;
+}
+.ds-teamdetail-empty--left .ds-teamdetail-empty-desc{margin-left:0;}
+.ds-teamdetail-empty-desc p{margin:0 0 .7em;}
+.ds-teamdetail-empty-desc p:last-child{margin-bottom:0;}

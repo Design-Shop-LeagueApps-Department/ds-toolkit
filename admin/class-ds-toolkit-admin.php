@@ -229,6 +229,17 @@ class DS_Toolkit_Admin {
                 $user_roles_enabled       = ! empty( $opts['user_roles_enabled'] );
                 $partner_plugin_access    = ! empty( $opts['partner_plugin_access'] );
                 $design_academy_enabled   = ! empty( $opts['design_academy_enabled'] );
+                // Cloudflare Turnstile
+                $cf_turnstile_enabled     = ! empty( $opts['cf_turnstile_enabled'] );
+                $cf_site_key              = isset( $opts['cf_turnstile_site_key'] ) ? $opts['cf_turnstile_site_key'] : '';
+                $cf_secret_key            = isset( $opts['cf_turnstile_secret_key'] ) ? $opts['cf_turnstile_secret_key'] : '';
+                $cf_theme                 = isset( $opts['cf_turnstile_theme'] ) ? $opts['cf_turnstile_theme'] : 'auto';
+                $cf_monitor               = ! empty( $opts['cf_turnstile_monitor'] );
+                $cf_login                 = ! empty( $opts['cf_turnstile_protect_login'] );
+                $cf_register              = ! empty( $opts['cf_turnstile_protect_register'] );
+                $cf_lostpassword          = ! empty( $opts['cf_turnstile_protect_lostpassword'] );
+                $cf_sync_forminator       = ! empty( $opts['cf_turnstile_sync_forminator'] );
+                $cf_keys_ready            = '' !== trim( (string) $cf_site_key ) && '' !== trim( (string) $cf_secret_key );
                 $academy_pinned_url       = ! empty( $opts['academy_pinned_url'] ) ? $opts['academy_pinned_url'] : 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/';
                 $academy_pinned_label     = ! empty( $opts['academy_pinned_label'] ) ? $opts['academy_pinned_label'] : "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder";
                 $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );
