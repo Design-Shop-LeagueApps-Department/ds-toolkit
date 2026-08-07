@@ -349,6 +349,20 @@ class DS_Bot_Shield {
             if ( $this->cookie_valid( $cookies ) ) {
                 return 'pass';
             }
+            // The challenge reload carries ?ds_bs=1. Seeing it here means the
+            // browser was already asked once, set the cookie, and came back
+            // WITHOUT it — i.e. the host strips non-allowlisted cookies, as
+            // WP Engine does (proven: HTTP_COOKIE arrives empty). Challenging
+            // again would loop the visitor forever, so fail OPEN and stop
+            // trying on this site until the flag expires.
+            if ( ! empty( $_GET['ds_bs'] ) ) {
+                $this->cache_set( 'nochallenge', 1, 6 * 3600 );
+                $this->log_event( 'challenge-unsupported', 'host strips cookies; challenge disabled 6h' );
+                return 'pass';
+            }
+            if ( $this->cache_get( 'nochallenge' ) ) {
+                return 'pass';
+            }
             return 'challenge';
         }
 
@@ -451,7 +465,10 @@ class DS_Bot_Shield {
             . '<noscript><p>JavaScript is required. Please enable it and reload.</p></noscript></div>'
             . '<script>(function(){var t="' . esc_js( $a ) . '"+"' . esc_js( $b ) . '".split("").reverse().join("");'
             . 'document.cookie="' . self::COOKIE . '="+t+";path=/;max-age=86400;samesite=Lax' . $secure . '";'
-            . 'if(document.cookie.indexOf("' . self::COOKIE . '=")!==-1){location.reload();}'
+            . 'if(document.cookie.indexOf("' . self::COOKIE . '=")!==-1){'
+            . 'var u=location.href.split("#")[0];'
+            . 'u+=(u.indexOf("?")===-1?"?":"&")+"ds_bs=1";'
+            . 'location.replace(u);}'
             . 'else{document.getElementById("ds-bs-msg").style.display="block";}})();</script>'
             . '</body></html>';
         exit;

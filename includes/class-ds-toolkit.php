@@ -337,7 +337,11 @@ class DS_Toolkit {
             'bot_shield_penalty_mins'            => 10,
             'bot_shield_global_limit'            => 150,
             'bot_shield_attack_mins'             => 10,
-            'bot_shield_challenge_enabled'       => 1,
+            // OFF by default: WP Engine strips non-allowlisted cookies before
+            // PHP sees them, so a cookie-based challenge cannot complete there.
+            // The loop-breaker makes it fail open if enabled anyway, but there
+            // is no point paying for a check the platform cannot support.
+            'bot_shield_challenge_enabled'       => 0,
             // msie / trident: IE is dead since 2022; in 2026 those UA strings
             // are the "older browser" bot signature WPE support identified in
             // the sportsatthebeach flood. Real IE visitors no longer exist.
