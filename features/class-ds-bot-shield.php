@@ -47,12 +47,35 @@ class DS_Bot_Shield {
     /** UA substrings that always pass the challenge (still rate-limited per IP). */
     const GOOD_BOTS = 'googlebot,bingbot,slurp,duckduckbot,applebot,yandexbot,facebookexternalhit,twitterbot,linkedinbot,pinterest,slackbot,whatsapp,uptimerobot,statuscake,pingdom';
 
+    /**
+     * Search engines and social link-preview crawlers that must NEVER be
+     * refused, so indexing and link cards can't be harmed. Claiming one of
+     * these is not enough — verify_crawler() confirms it by reverse DNS
+     * before the exemption applies, otherwise the UA is a free bypass.
+     * Key = UA substring, value = hostnames the PTR record must end with.
+     */
+    const SE_VERIFY = array(
+        'googlebot'            => array( '.googlebot.com', '.google.com' ),
+        'google-inspectiontool' => array( '.googlebot.com', '.google.com' ),
+        'adsbot-google'        => array( '.googlebot.com', '.google.com' ),
+        'mediapartners-google' => array( '.googlebot.com', '.google.com' ),
+        'bingbot'              => array( '.search.msn.com' ),
+        'adidxbot'             => array( '.search.msn.com' ),
+        'msnbot'               => array( '.search.msn.com' ),
+        'duckduckbot'          => array( '.duckduckgo.com' ),
+        'yandexbot'            => array( '.yandex.ru', '.yandex.net', '.yandex.com' ),
+        'baiduspider'          => array( '.baidu.com', '.baidu.jp' ),
+        'applebot'             => array( '.applebot.apple.com', '.apple.com' ),
+    );
+
     /** Paths that must stay reachable and are never challenged or limited. */
     const EXEMPT_PATHS = 'robots.txt,favicon.ico,sitemap,.well-known/,wp-cron.php';
 
     private $settings;
     private $backend = null; // 'object-cache' | 'apcu' | null (degraded)
     private $rolled  = false; // stats folded into the durable total this request
+    private $page_candidate = 0; // deep /page/N/ request awaiting confirmation
+    private $se_checked = null;  // memoised verified-search-engine result
 
     public function __construct( $settings = array() ) {
         $this->settings = is_array( $settings ) ? $settings : array();
@@ -70,6 +93,12 @@ class DS_Bot_Shield {
         }
         add_action( 'rest_api_init', array( $this, 'register_rest' ) );
         $this->intercept();
+
+        // A deep /page/N/ request is only judged once WordPress has resolved
+        // the query and we can tell a real archive page from an empty one.
+        if ( $this->page_candidate ) {
+            add_action( 'template_redirect', array( $this, 'confirm_page_trap' ), 0 );
+        }
     }
 
     /**
@@ -252,14 +281,25 @@ class DS_Bot_Shield {
         // (zeros with a live "evaluated" number = genuinely quiet day).
         $this->bump_stat( 'seen' );
 
+        // Verified search engines are never refused, by anything. Checked
+        // here so indexing can't be harmed; spoofers fail verification and
+        // fall through to the rules below.
+        if ( $this->is_verified_se( $ua, $ip ) ) {
+            return 'pass';
+        }
+
         // Pagination URL trap (Site Stability Push cause #1): WordPress
-        // accepts /page/N/ on anything and runs a full query for pages that
-        // don't exist; crawlers follow these forever. No fleet site has
-        // anywhere near the cap's worth of real pages, so above it is bot
-        // traffic by construction and answers 410 Gone.
+        // accepts /page/N/ on anything and renders a full page for numbers
+        // that don't exist; crawlers follow these forever.
+        //
+        // Deciding on the page NUMBER alone is not safe — a site with a deep
+        // real archive would have genuine pages refused, which would deindex
+        // content. So this only marks the request as a candidate; the verdict
+        // is settled later in confirm_page_trap(), once WordPress knows
+        // whether that page actually exists.
         $page_cap = max( 5, (int) $this->opt( 'bot_shield_page_cap', 20 ) );
         if ( preg_match( '#/page/(\d+)(?:/|$)#', $path, $m ) && (int) $m[1] > $page_cap ) {
-            return 'page-trap';
+            $this->page_candidate = (int) $m[1];
         }
 
         // UA blocklist, cheapest check that can block.
@@ -313,6 +353,58 @@ class DS_Bot_Shield {
         }
 
         return 'pass';
+    }
+
+    /**
+     * Decide a deep /page/N/ request now that the main query has run.
+     *
+     * Two shapes of the trap:
+     *  - singular: /some-article/page/50/ where the post has no such page
+     *    (WordPress happily renders the whole post again at 200).
+     *  - archive:  /news/page/50/ with no posts on it.
+     *
+     * A page that genuinely exists is left completely alone, so a real deep
+     * archive is never refused. This runs before the theme renders, so a
+     * confirmed trap still skips the expensive part (the ~142 KB build).
+     */
+    public function confirm_page_trap() {
+        if ( ! $this->page_candidate || is_admin() ) {
+            return;
+        }
+        // Never refuse a verified search engine, even on a page that is empty.
+        if ( $this->is_verified_se(
+                isset( $_SERVER['HTTP_USER_AGENT'] ) ? $_SERVER['HTTP_USER_AGENT'] : '',
+                $this->client_ip() ) ) {
+            return;
+        }
+        $empty = false;
+
+        if ( is_singular() ) {
+            $post = get_queried_object();
+            if ( $post instanceof WP_Post ) {
+                $numpages = substr_count( $post->post_content, '<!--nextpage-->' ) + 1;
+                $empty    = ( $this->page_candidate > $numpages );
+            }
+        } elseif ( is_404() ) {
+            $empty = true;
+        } else {
+            global $wp_query;
+            $empty = ( isset( $wp_query->post_count ) && 0 === (int) $wp_query->post_count );
+        }
+
+        if ( ! $empty ) {
+            return; // a real page — never touched
+        }
+
+        $this->log_ip( 'page-trap', $this->client_ip(),
+            isset( $_SERVER['HTTP_USER_AGENT'] ) ? $_SERVER['HTTP_USER_AGENT'] : '',
+            isset( $_SERVER['REQUEST_URI'] ) ? $_SERVER['REQUEST_URI'] : '/' );
+        $this->bump_stat( 'page-trap' );
+
+        if ( $this->is_monitor_mode() ) {
+            return;
+        }
+        $this->respond( 410, 'Gone.', array( 'X-DS-Bot-Shield: page-trap' ) );
     }
 
     // ------------------------------------------------------------- responses
@@ -449,6 +541,63 @@ class DS_Bot_Shield {
         // Accept today's and yesterday's token so midnight rollover never
         // challenges an active visitor mid-session.
         return hash_equals( $this->cookie_token(), $sent ) || hash_equals( $this->cookie_token( 1 ), $sent );
+    }
+
+    /**
+     * Is this request a genuine search-engine crawler?
+     *
+     * Reverse-DNS then forward-confirm, the method Google and Bing document.
+     * A spoofed user agent fails because the requesting IP's PTR record will
+     * not resolve into the search engine's own domain. Results are cached per
+     * IP for a day, and the lookup only runs for a request that both claims to
+     * be a crawler and is otherwise about to be refused, so it is rare.
+     */
+    private function is_verified_se( $ua, $ip ) {
+        if ( null === $this->se_checked ) {
+            $this->se_checked = $this->verify_crawler( $ua, $ip );
+        }
+        return $this->se_checked;
+    }
+
+    private function verify_crawler( $ua, $ip ) {
+        if ( '' === $ua || '' === $ip ) {
+            return false;
+        }
+        $ua_l  = strtolower( $ua );
+        $hosts = null;
+        foreach ( self::SE_VERIFY as $needle => $domains ) {
+            if ( false !== strpos( $ua_l, $needle ) ) {
+                $hosts = $domains;
+                break;
+            }
+        }
+        if ( null === $hosts ) {
+            return false; // does not even claim to be one
+        }
+
+        $key    = 'se_' . md5( $ip );
+        $cached = $this->cache_get( $key );
+        if ( false !== $cached ) {
+            return (bool) $cached;
+        }
+
+        $ok   = false;
+        $host = @gethostbyaddr( $ip );
+        if ( $host && $host !== $ip ) {
+            $host_l = strtolower( rtrim( $host, '.' ) );
+            foreach ( $hosts as $suffix ) {
+                if ( substr( $host_l, -strlen( $suffix ) ) === $suffix ) {
+                    // Forward-confirm so a hostile PTR record cannot fake it.
+                    $forward = @gethostbynamel( $host_l );
+                    if ( is_array( $forward ) && in_array( $ip, $forward, true ) ) {
+                        $ok = true;
+                    }
+                    break;
+                }
+            }
+        }
+        $this->cache_set( $key, $ok ? 1 : 0, DAY_IN_SECONDS );
+        return $ok;
     }
 
     // ------------------------------------------------------------------- ua

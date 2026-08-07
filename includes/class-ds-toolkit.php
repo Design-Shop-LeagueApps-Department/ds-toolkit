@@ -323,10 +323,11 @@ class DS_Toolkit {
             // human browsing a cached site rarely produces more than ~20 PHP
             // hits/min; 180/min per IP only catches scrapers and floods.
             'bot_shield_enabled'                 => 1,
-            // Ships in monitor mode per the Site Stability Push rollout:
-            // count what would be blocked first, flip to 'block' per site
-            // once the numbers look right.
-            'bot_shield_mode'                    => 'monitor',
+            // Enforcing by default. Every rule is either evidence-based or
+            // self-verifying: the pagination rule only refuses pages WordPress
+            // confirms are empty, and reverse-DNS-verified search engines are
+            // exempt from all of them. Set to 'monitor' per site to count only.
+            'bot_shield_mode'                    => 'block',
             'bot_shield_page_cap'                => 20,
             // Read-only stats endpoint for the ops dashboard. Off by default;
             // turn on per site that should be pollable.
