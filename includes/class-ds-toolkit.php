@@ -206,13 +206,6 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-bot-shield.php',
             'class' => 'DS_Bot_Shield',
         ),
-        // Cloudflare Turnstile on wp-login + centrally-managed keys for
-        // Forminator's native Turnstile. Fleet-wide, but ships OFF: a captcha on
-        // the login form with bad keys locks everyone out.
-        'cf_turnstile_enabled' => array(
-            'file'  => 'features/class-ds-cloudflare.php',
-            'class' => 'DS_Cloudflare',
-        ),
         'design_academy_enabled' => array(
             'file'  => 'features/class-ds-design-academy.php',
             'class' => 'DS_Design_Academy',
@@ -355,19 +348,6 @@ class DS_Toolkit {
             // the sportsatthebeach flood. Real IE visitors no longer exist.
             'bot_shield_ua_blocklist'            => "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
             'bot_shield_ip_allowlist'            => '',
-            // Cloudflare Turnstile — OFF by default on purpose. Enabling it with
-            // wrong keys would lock every user out of wp-login, so it must be a
-            // deliberate per-site decision, and it refuses to enforce until both
-            // keys are filled in.
-            'cf_turnstile_enabled'               => 0,
-            'cf_turnstile_site_key'              => '',
-            'cf_turnstile_secret_key'            => '',
-            'cf_turnstile_theme'                 => 'auto',
-            'cf_turnstile_monitor'               => 1,
-            'cf_turnstile_protect_login'         => 1,
-            'cf_turnstile_protect_register'      => 1,
-            'cf_turnstile_protect_lostpassword'  => 1,
-            'cf_turnstile_sync_forminator'       => 1,
             'partner_plugin_access'              => 0,
             'design_academy_enabled'             => 1,
             'academy_pinned_url'                 => 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/',
