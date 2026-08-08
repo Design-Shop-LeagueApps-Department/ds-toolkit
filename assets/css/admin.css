@@ -193,6 +193,19 @@
     color: #1d2327;
     margin-bottom: 2px;
 }
+/* Only the card TITLE (a direct child) is meant to be a block. The rule above
+   matches every descendant, so bolding a word inside a description was forcing
+   it onto its own line at title size and title colour — which read as a heading
+   and broke the sentence around it. */
+.dst-card-info span strong,
+.dst-card-info p strong,
+.dst-card-info li strong,
+.dst-card-info label strong {
+    display: inline;
+    font-size: inherit;
+    color: inherit;
+    margin-bottom: 0;
+}
 .dst-card-info span {
     font-size: 12px;
     color: #8c9aaa;

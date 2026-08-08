@@ -101,6 +101,9 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                     Get free keys at <a href="https://dash.cloudflare.com/?to=/:account/turnstile" target="_blank" rel="noopener">dash.cloudflare.com &rarr; Turnstile</a>.
                     <?php if ( ! $cf_keys_ready ) : ?>
                         <br><strong style="color:#b32d2e;">Nothing is enforced until both keys below are filled in.</strong>
+                    <?php elseif ( $cf_turnstile_enabled && $cf_monitor ) : ?>
+                        <br><strong style="color:#b32d2e;">Monitor mode is ON, so nothing is being blocked.</strong>
+                        The widget appears on the login screen but a visitor who ignores it still gets in. Untick <em>Monitor only</em> below to enforce.
                     <?php endif; ?>
                     <br><em>This is Turnstile only — it does not put Cloudflare's proxy/WAF in front of the site (that is a DNS change).</em>
                 </span>
@@ -157,6 +160,36 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                     <input type="hidden" name="ds_toolkit_settings[cf_turnstile_monitor]" value="0">
                     <input type="checkbox" name="ds_toolkit_settings[cf_turnstile_monitor]" value="1" <?php checked( $cf_monitor ); ?>> Monitor only (do not block)
                 </label>
+                <?php
+                // Evidence. Monitor mode used to write only to error_log(), which
+                // on a stock install (WP_DEBUG_LOG off, log_errors off) is thrown
+                // away — so a site could sit here for months with a widget on
+                // screen, nothing enforced, and no way to tell the difference.
+                ?>
+                <?php if ( $cf_stats_summary ) : ?>
+                    <p style="margin:8px 0 0;"><strong>Seen so far:</strong> <?php echo esc_html( $cf_stats_summary ); ?></p>
+                    <?php if ( $cf_stats['recent'] ) : ?>
+                        <details style="margin-top:6px;">
+                            <summary style="cursor:pointer;">Last <?php echo count( $cf_stats['recent'] ); ?> checks</summary>
+                            <table class="widefat striped" style="margin-top:6px;">
+                                <thead><tr><th>When</th><th>Where</th><th>Outcome</th><th>Cloudflare says</th><th>IP</th></tr></thead>
+                                <tbody>
+                                <?php foreach ( $cf_stats['recent'] as $ev ) : ?>
+                                    <tr>
+                                        <td><?php echo esc_html( human_time_diff( (int) $ev['t'] ) ); ?> ago</td>
+                                        <td><?php echo esc_html( $ev['c'] ); ?></td>
+                                        <td><?php echo esc_html( $ev['o'] ); ?></td>
+                                        <td><code><?php echo esc_html( $ev['e'] ? implode( ', ', (array) $ev['e'] ) : '—' ); ?></code></td>
+                                        <td><?php echo esc_html( $ev['ip'] ? $ev['ip'] : '—' ); ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </details>
+                    <?php endif; ?>
+                <?php elseif ( $cf_turnstile_enabled && $cf_keys_ready ) : ?>
+                    <p style="margin:8px 0 0;"><em>No checks recorded yet. Sign out and sign back in once to produce one.</em></p>
+                <?php endif; ?>
                 <label style="display:block;margin-top:8px;">
                     <span style="display:block;margin-bottom:4px;">Widget theme</span>
                     <select name="ds_toolkit_settings[cf_turnstile_theme]">
@@ -165,6 +198,71 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                         <?php endforeach; ?>
                     </select>
                 </label>
+            </div>
+        </div>
+        <?php
+        // Pushing the keys into Forminator is NOT protection: Forminator renders
+        // and validates its own captcha field, so a form still pointed at
+        // reCAPTCHA ignores our keys entirely, and a form with no captcha field
+        // is simply open. Neither is visible from the settings above, hence this
+        // list and the explicit switch action.
+        ?>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info" style="width:100%;">
+                <strong>Forminator forms</strong>
+                <?php if ( ! $cf_forminator_on ) : ?>
+                    <span>Forminator is not active on this site, so there is nothing to protect here.</span>
+                <?php else : ?>
+                    <span>
+                        Pushing the keys above only stores them. A form is protected only when its captcha field uses the
+                        <strong>Turnstile</strong> provider. <strong>Monitor mode does not apply here</strong> — Forminator
+                        validates its own field, so a converted form starts blocking immediately.
+                    </span>
+                    <?php if ( ! empty( $cf_convert_report['error'] ) ) : ?>
+                        <p style="margin:8px 0 0;color:#b32d2e;"><strong><?php echo esc_html( $cf_convert_report['error'] ); ?></strong></p>
+                    <?php elseif ( ! empty( $cf_convert_report['forms'] ) ) : ?>
+                        <p style="margin:8px 0 0;"><strong>Last run:</strong></p>
+                        <ul style="margin:4px 0 0 18px;list-style:disc;">
+                            <?php foreach ( $cf_convert_report['forms'] as $t => $msg ) : ?>
+                                <li><strong><?php echo esc_html( $t ); ?></strong> — <?php echo esc_html( $msg ); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    <?php endif; ?>
+                    <?php if ( ! $cf_forms ) : ?>
+                        <p style="margin:8px 0 0;"><em>No Forminator forms on this site.</em></p>
+                    <?php else : ?>
+                        <table class="widefat striped" style="margin-top:8px;">
+                            <thead><tr><th>Form</th><th>Captcha field</th><th>Status</th></tr></thead>
+                            <tbody>
+                            <?php foreach ( $cf_forms as $f ) : ?>
+                                <?php
+                                $labels = array(
+                                    'turnstile' => array( 'Protected by Turnstile', '#008a20' ),
+                                    'other'     => array( 'Not Turnstile — our keys do nothing here', '#b32d2e' ),
+                                    'none'      => array( 'NO captcha field — this form is unprotected', '#b32d2e' ),
+                                );
+                                list( $label, $colour ) = $labels[ $f['status'] ];
+                                ?>
+                                <tr>
+                                    <td>
+                                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=forminator-cform-wizard&id=' . $f['id'] ) ); ?>"><?php echo esc_html( $f['title'] ); ?></a>
+                                    </td>
+                                    <td><code><?php echo esc_html( $f['providers'] ? implode( ', ', $f['providers'] ) : '—' ); ?></code></td>
+                                    <td style="color:<?php echo esc_attr( $colour ); ?>;"><?php echo esc_html( $label ); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        <p style="margin:10px 0 0;">
+                            <a class="button" href="<?php echo esc_url( $cf_convert_url ); ?>"
+                               onclick="return confirm('Switch every Forminator captcha field on this site to Turnstile? This starts blocking immediately — there is no monitor mode for forms.');">
+                                Switch all captcha fields to Turnstile
+                            </a>
+                        </p>
+                        <p style="margin:6px 0 0;"><em>A form with no captcha field cannot be fixed from here — add a Captcha field to it in Forminator first.</em></p>
+                    <?php endif; ?>
+                <?php endif; ?>
             </div>
         </div>
     </div>
