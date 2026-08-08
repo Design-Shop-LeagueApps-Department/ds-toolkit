@@ -55,12 +55,6 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-overlay-nav.php',
             'class' => 'DS_Overlay_Nav',
         ),
-        // [ds_footer_nav] — one-line footer nav with the partner logo centred in it.
-        'ds_footer_nav_enabled' => array(
-            'file'  => 'features/class-ds-footer-nav.php',
-            'class' => 'DS_Footer_Nav',
-        ),
-
         // --- Blueprint generation 6+ features --------------------------------
         // 'min_blueprint' gates a feature to a blueprint generation: it only
         // loads, defaults on, and shows a toggle on sites stamped at that
@@ -301,7 +295,6 @@ class DS_Toolkit {
             'getsubmenu_enabled'                  => 0,
             'current_year_enabled'               => 0,
             'overlay_nav_enabled'                => 0,
-            'ds_footer_nav_enabled'              => 1,
             'forminator_email_partner_enabled'   => 0,
             'forminator_email_partner_fallback'  => 'designshop' . DS_TOOLKIT_ADMIN_DOMAIN,
             'global_css_enabled'                 => 0,

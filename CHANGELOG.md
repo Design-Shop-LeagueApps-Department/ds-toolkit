@@ -4,6 +4,11 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.81] - 2026-08-08
+### Removed
+- **`[ds_footer_nav]` removed.** Footer Style 4 is now built the plain Beaver Builder way — three columns holding a Text Editor, a Photo module bound to the ACF `partner_logo` option, and another Text Editor — so there is nothing for the plugin to render. The shortcode existed to keep a single WP menu splittable around a centred logo, but that bought a PHP feature, a scoped-and-forced CSS block and a shortcode API in exchange for a layout an editor can now open and change directly in the builder. Native modules win: partners edit the links in place, the logo already follows Partner Setting through a normal dynamic-field connection, and the colours come from the row's own Link Color field instead of hand-written CSS. `features/class-ds-footer-nav.php` deleted and dropped from the feature registry and defaults.
+- Sites that already stored `ds_footer_nav_enabled` keep the key in `ds_toolkit_settings`; it is inert once nothing in the registry reads it, and leaving it costs nothing.
+
 ## [1.9.80] - 2026-08-08
 ### Removed
 - **Cloudflare Turnstile parked (feature removed, work preserved).** Turnstile itself is free — unlimited challenges on the free plan — but the free plan caps a widget at **10 hostnames** and an account at **20 widgets**, and a Turnstile widget only works on hostnames explicitly listed on it. Against 372 installs on 372 distinct domains that is 42 widgets needed and a 192-domain shortfall, so covering the fleet needs an Enterprise plan ("Any Hostname" mode) and therefore an approval that has not been sought. Rather than ship a feature that can only ever reach a fraction of partners, it comes out until that decision is made. Nothing on the fleet changes: it shipped OFF and refused to render or verify without both keys, so no site was relying on it. Removed from the feature registry, the defaults, the admin page and the Features tab; `features/class-ds-cloudflare.php` deleted. Stored `cf_turnstile_*` keys are deliberately LEFT in `ds_toolkit_settings` — they are inert with no feature reading them, and leaving them means a restore does not lose per-site configuration. The full implementation, including the 1.9.78 observability work, is kept on the `parked/cloudflare-turnstile` branch and at tag `v1.9.79`.
