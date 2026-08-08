@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_User_Roles {
 
 	/** Bump when the Partner capability set changes so existing installs re-sync. */
-	const ROLE_VERSION = 1;
+	const ROLE_VERSION = 2;
 	const ROLE_SLUG    = 'partner';
 
 	private $settings;
@@ -120,6 +120,23 @@ class DS_User_Roles {
 	}
 
 	/**
+	 * Theme MANAGEMENT capabilities — dropped from Partner (role version 2).
+	 *
+	 * The child theme is frozen and byte-identical fleet-wide, so a partner has no
+	 * reason to switch, install or delete one, and every reason not to. This is a
+	 * real capability drop, not a hidden menu: `remove_menu_page()` only removes the
+	 * link, the screen stays reachable by URL.
+	 *
+	 * `edit_theme_options` is deliberately KEPT — Appearance → Menus and Customize
+	 * both require it, and partners own their own navigation. The screens that ride
+	 * on the same capability (Widgets, Patterns, Fonts) are blocked by
+	 * DS_Admin_Menu instead, which can gate them individually.
+	 */
+	private static function theme_admin_caps() {
+		return array( 'switch_themes', 'install_themes', 'update_themes', 'delete_themes' );
+	}
+
+	/**
 	 * Create/refresh the Partner role. Cheap on every load: only writes when the
 	 * stored state (cap-set version + escape-hatch position) differs from the
 	 * target, or the role is missing entirely.
@@ -135,8 +152,8 @@ class DS_User_Roles {
 		}
 		$caps = $admin->capabilities;
 		$drop = $this->plugin_access_allowed()
-			? self::editor_caps()
-			: array_merge( self::plugin_caps(), self::editor_caps() );
+			? array_merge( self::editor_caps(), self::theme_admin_caps() )
+			: array_merge( self::plugin_caps(), self::editor_caps(), self::theme_admin_caps() );
 		foreach ( $drop as $cap ) {
 			unset( $caps[ $cap ] );
 		}
