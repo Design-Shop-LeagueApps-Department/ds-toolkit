@@ -38,6 +38,15 @@ class DS_Cloudflare {
 	const SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
 	const FIELD      = 'cf-turnstile-response';
 
+	/** Durable outcome counters. Monitor mode is worthless without them. */
+	const STATS_OPT = 'ds_turnstile_stats';
+
+	/** admin-post action behind the "switch forms to Turnstile" button. */
+	const CONVERT_ACTION = 'ds_turnstile_convert_forms';
+
+	/** Report from the last conversion run, handed to the settings page. */
+	const CONVERT_TRANSIENT = 'ds_turnstile_convert_report';
+
 	private $settings;
 
 	public function __construct( $settings = array() ) {
@@ -48,6 +57,11 @@ class DS_Cloudflare {
 		// Keep Forminator's own Turnstile keys in step with ours, so editors set
 		// the API keys in ONE place. Cheap: only writes when they differ.
 		add_action( 'init', array( $this, 'sync_forminator_keys' ), 20 );
+
+		// Registered before the keys gate: the button must still answer (with a
+		// refusal) on a site that has the feature on but no keys yet, rather than
+		// 400-ing from admin-post.php with no explanation.
+		add_action( 'admin_post_' . self::CONVERT_ACTION, array( $this, 'handle_convert_forms' ) );
 
 		if ( ! $this->keys_ready() ) {
 			return; // never render a widget we cannot verify
@@ -223,17 +237,21 @@ class DS_Cloudflare {
 		$result = $this->verify_token( $token );
 
 		if ( $result['ok'] ) {
+			$this->record( $context, 'pass', array() );
 			return '';
 		}
 		// A Cloudflare outage must never lock people out of their own site.
 		if ( $result['transport_error'] ) {
+			$this->record( $context, 'failopen', $result['codes'] );
 			$this->log( $context, 'allowed (could not reach Cloudflare)', $result['codes'] );
 			return '';
 		}
 		if ( $this->monitor_mode() ) {
+			$this->record( $context, 'would-block', $result['codes'] );
 			$this->log( $context, 'WOULD BLOCK (monitor mode)', $result['codes'] );
 			return '';
 		}
+		$this->record( $context, 'blocked', $result['codes'] );
 		$this->log( $context, 'blocked', $result['codes'] );
 		return __( 'Human verification failed. Please try again.', 'ds-toolkit' );
 	}
@@ -248,6 +266,90 @@ class DS_Cloudflare {
 			$outcome,
 			$codes ? ' — ' . implode( ',', array_map( 'sanitize_text_field', $codes ) ) : ''
 		) );
+	}
+
+	/* ------------------------------------------------------------------ stats */
+
+	/**
+	 * Persist one outcome.
+	 *
+	 * `log()` writes through `error_log()`, which on a stock install goes nowhere:
+	 * the fleet ships `WP_DEBUG_LOG` off and PHP's `log_errors` off, so the
+	 * "WOULD BLOCK" lines monitor mode exists to produce were being discarded.
+	 * That made monitor mode indistinguishable from no protection at all — the
+	 * widget renders, nothing is enforced, and there is no evidence either way.
+	 * These counters are the evidence, and they survive a cache wipe.
+	 *
+	 * A direct option write per event is deliberate rather than the object-cache
+	 * tick + roll-up Bot Shield uses. Every counted event has ALREADY paid for an
+	 * HTTP round trip to Cloudflare (8s timeout), so one autoloaded-off option
+	 * write is noise beside it, and it cannot be lost on a site with no persistent
+	 * object cache. Volume is low by construction: login only reaches here after
+	 * the password already verified, and registration is closed on fleet sites.
+	 */
+	private function record( $context, $outcome, $codes ) {
+		$s = get_option( self::STATS_OPT, array() );
+		if ( ! is_array( $s ) ) {
+			$s = array();
+		}
+		if ( empty( $s['since'] ) ) {
+			$s['since'] = gmdate( 'Y-m-d' );
+		}
+
+		$s['all'][ $outcome ]              = ( isset( $s['all'][ $outcome ] ) ? (int) $s['all'][ $outcome ] : 0 ) + 1;
+		$s['ctx'][ $context ][ $outcome ]  = ( isset( $s['ctx'][ $context ][ $outcome ] ) ? (int) $s['ctx'][ $context ][ $outcome ] : 0 ) + 1;
+
+		$recent   = isset( $s['recent'] ) && is_array( $s['recent'] ) ? $s['recent'] : array();
+		$recent[] = array(
+			't'  => time(),
+			'c'  => $context,
+			'o'  => $outcome,
+			// Cloudflare's own error codes, e.g. missing-input-response,
+			// invalid-input-secret. The reason a rollout is failing is usually here.
+			'e'  => array_slice( array_map( 'sanitize_text_field', (array) $codes ), 0, 3 ),
+			'ip' => $this->client_ip(),
+		);
+		$s['recent'] = array_slice( $recent, -10 );
+
+		update_option( self::STATS_OPT, $s, false );
+	}
+
+	/** Raw counters, normalised so callers never have to guard the shape. */
+	public static function stats() {
+		$s = get_option( self::STATS_OPT, array() );
+		$s = is_array( $s ) ? $s : array();
+		return array(
+			'since'  => ! empty( $s['since'] ) ? $s['since'] : '',
+			'all'    => isset( $s['all'] ) && is_array( $s['all'] ) ? $s['all'] : array(),
+			'ctx'    => isset( $s['ctx'] ) && is_array( $s['ctx'] ) ? $s['ctx'] : array(),
+			'recent' => isset( $s['recent'] ) && is_array( $s['recent'] ) ? array_reverse( $s['recent'] ) : array(),
+		);
+	}
+
+	/**
+	 * One-line summary for the settings card, or '' when nothing has been seen.
+	 *
+	 * Deliberately blunt about the monitor-mode case: a site sitting on
+	 * "would have blocked" numbers is a site where the widget is decorative.
+	 */
+	public static function stats_summary() {
+		$s     = self::stats();
+		$all   = $s['all'];
+		$parts = array();
+		foreach ( array(
+			'pass'        => 'verified',
+			'would-block' => 'WOULD have been blocked',
+			'blocked'     => 'blocked',
+			'failopen'    => 'let through (Cloudflare unreachable)',
+		) as $k => $label ) {
+			if ( ! empty( $all[ $k ] ) ) {
+				$parts[] = (int) $all[ $k ] . ' ' . $label;
+			}
+		}
+		if ( ! $parts ) {
+			return '';
+		}
+		return implode( ', ', $parts ) . ( $s['since'] ? ' (since ' . $s['since'] . ')' : '' );
 	}
 
 	/**
@@ -322,16 +424,74 @@ class DS_Cloudflare {
 		}
 	}
 
+	/** Is Forminator on this site at all? */
+	public static function forminator_active() {
+		return defined( 'FORMINATOR_VERSION' ) || class_exists( 'Forminator' );
+	}
+
+	/**
+	 * Every Forminator form with the captcha provider(s) it actually uses.
+	 *
+	 * READ ONLY. This is what the settings card shows, because the state it
+	 * reveals is the whole point: pushing our keys into Forminator does nothing
+	 * on a form whose captcha field is still pointed at reCAPTCHA, and a form
+	 * with no captcha field at all is simply unprotected. Both look identical
+	 * from the Turnstile settings until you list them.
+	 *
+	 * @return array<int,array{id:int,title:string,providers:array,status:string}>
+	 */
+	public static function forminator_report() {
+		$out = array();
+		if ( ! self::forminator_active() ) {
+			return $out;
+		}
+		$forms = get_posts( array(
+			'post_type'      => 'forminator_forms',
+			'post_status'    => 'any',
+			'posts_per_page' => 200,
+			'fields'         => 'ids',
+		) );
+		foreach ( $forms as $form_id ) {
+			$meta      = get_post_meta( $form_id, 'forminator_form_meta', true );
+			$providers = array();
+			if ( is_array( $meta ) && ! empty( $meta['fields'] ) && is_array( $meta['fields'] ) ) {
+				foreach ( $meta['fields'] as $field ) {
+					if ( is_array( $field ) && ( $field['type'] ?? '' ) === 'captcha' ) {
+						$providers[] = (string) ( $field['captcha_provider'] ?? 'recaptcha' );
+					}
+				}
+			}
+			if ( ! $providers ) {
+				$status = 'none';
+			} elseif ( ! array_diff( $providers, array( 'turnstile' ) ) ) {
+				$status = 'turnstile';
+			} else {
+				$status = 'other';
+			}
+			$out[] = array(
+				'id'        => (int) $form_id,
+				'title'     => get_the_title( $form_id ),
+				'providers' => array_values( array_unique( $providers ) ),
+				'status'    => $status,
+			);
+		}
+		return $out;
+	}
+
 	/**
 	 * Point every existing Forminator captcha FIELD at the turnstile provider.
 	 *
-	 * Not run automatically — it edits partner form definitions, so it is exposed
-	 * as an explicit action from the settings screen. Returns a per-form report.
+	 * It edits partner form definitions, so it is never automatic — it runs only
+	 * from the explicit button on the settings screen (see handle_convert_forms).
 	 *
-	 * @return array<string,string>
+	 * Note there is no monitor mode on this side: Forminator renders AND validates
+	 * its own captcha field, so the moment a form is switched it enforces for real.
+	 * The Monitor-only setting covers the login screen and nothing else.
+	 *
+	 * @return array<string,string> Per-form outcome, keyed by form title.
 	 */
 	public static function convert_forminator_fields_to_turnstile() {
-		$out = array();
+		$out   = array();
 		$forms = get_posts( array(
 			'post_type'      => 'forminator_forms',
 			'post_status'    => 'any',
@@ -367,5 +527,59 @@ class DS_Cloudflare {
 			}
 		}
 		return $out;
+	}
+
+	/** Nonce'd URL for the convert button on the settings card. */
+	public static function convert_url() {
+		return wp_nonce_url(
+			admin_url( 'admin-post.php?action=' . self::CONVERT_ACTION ),
+			self::CONVERT_ACTION
+		);
+	}
+
+	/**
+	 * Run the conversion from the settings screen, then hand the report back.
+	 *
+	 * The report goes through a transient rather than the redirect URL: it is
+	 * per-form prose that would not survive a query string, and it must not be
+	 * replayable by pasting a link. Keyed per user so two devs on the same site
+	 * never read each other's run.
+	 */
+	public function handle_convert_forms() {
+		if ( ! current_user_can( 'manage_options' ) || ! DS_Toolkit::is_leagueapps_user() ) {
+			wp_die( 'Not allowed.' );
+		}
+		check_admin_referer( self::CONVERT_ACTION );
+
+		$back = admin_url( 'options-general.php?page=ds-toolkit' );
+
+		if ( ! self::forminator_active() ) {
+			set_transient( self::CONVERT_TRANSIENT . '_' . get_current_user_id(), array( 'error' => 'Forminator is not active on this site.' ), 60 );
+			wp_safe_redirect( $back . '&ts_converted=1' );
+			exit;
+		}
+		// Switching a form to Turnstile with no keys stored would take a working
+		// reCAPTCHA off and put nothing in its place.
+		if ( ! $this->keys_ready() ) {
+			set_transient( self::CONVERT_TRANSIENT . '_' . get_current_user_id(), array( 'error' => 'Add both Turnstile keys first — switching a form with no keys would leave it unprotected.' ), 60 );
+			wp_safe_redirect( $back . '&ts_converted=1' );
+			exit;
+		}
+
+		$report = self::convert_forminator_fields_to_turnstile();
+		set_transient( self::CONVERT_TRANSIENT . '_' . get_current_user_id(), array( 'forms' => $report ), 60 );
+		wp_safe_redirect( $back . '&ts_converted=1' );
+		exit;
+	}
+
+	/** One-shot read of the last conversion report (deleted as it is read). */
+	public static function take_convert_report() {
+		$key    = self::CONVERT_TRANSIENT . '_' . get_current_user_id();
+		$report = get_transient( $key );
+		if ( false === $report ) {
+			return array();
+		}
+		delete_transient( $key );
+		return is_array( $report ) ? $report : array();
 	}
 }
