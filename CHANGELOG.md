@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.76] - 2026-08-08
+### Fixed
+- **Partner role had no Beaver Builder access — "Edit with Beaver Builder" was missing everywhere.** Beaver Builder stores editing permission PER ROLE in its own `_fl_builder_user_access` option, and its defaults are `administrator` + `editor` only. **Partner** is a role DS Toolkit invents afterwards, so it was never in that list: a partner account could hold every WordPress capability it needed and still see no builder — no row action on Pages, no admin-bar link, no front-end edit. Granting capabilities on the role was never going to be enough; BB has to be told separately. The User Roles feature now adds Partner to BB's `builder_access` and `unrestricted_editing` on `init` (priority 20, after BB registers its settings). `global_styles` and `builder_admin` are deliberately NOT granted — the palette and typography stay a Design Shop concern, edited from Theme Setting. Reads BB's saved settings first and writes only when a value actually changes, so choices made on BB's own settings screen are preserved and no other role's entry is touched.
+
 ## [1.9.75] - 2026-08-08
 ### Fixed
 - **FATAL on every site running 1.9.73 / 1.9.74 — missing feature file.** 1.9.73 added a feature-registry entry for `ds_global_heading_font_enabled` but the class file it points at, `features/class-ds-global-heading-font.php`, was never included in the release. `DS_Toolkit->run()` `require_once`s each enabled feature, so on any blueprint-6 site the plugin threw `Failed opening required .../class-ds-global-heading-font.php` and took the whole site down with a critical error (front end AND wp-admin). The missing file is now shipped. No settings change is needed — the option key was already being backfilled, so affected sites recover as soon as they update.

@@ -41,10 +41,68 @@ class DS_User_Roles {
 		$this->settings = $settings;
 	}
 
+	/**
+	 * Beaver Builder capabilities the Partner role needs to actually build.
+	 *
+	 * `builder_access` alone only opens the builder; without `unrestricted_editing`
+	 * a partner gets the limited/locked editing mode. `global_styles` is left OUT
+	 * on purpose — the palette and typography are a Design Shop concern, edited
+	 * from Theme Setting, and BB's Global Styles menu is hidden from partners.
+	 */
+	private static function bb_caps() {
+		return array( 'builder_access', 'unrestricted_editing' );
+	}
+
 	public function init() {
 		add_action( 'init', array( $this, 'sync_role' ), 5 );
+		// After Beaver Builder has registered its own settings.
+		add_action( 'init', array( $this, 'sync_builder_access' ), 20 );
 		// Very late, after every plugin has registered its menus.
 		add_action( 'admin_menu', array( $this, 'hide_admin_menus' ), 999999 );
+	}
+
+	/**
+	 * Grant the Partner role access to Beaver Builder.
+	 *
+	 * BB stores editing permission PER ROLE in its own `_fl_builder_user_access`
+	 * option, and its defaults are `administrator` + `editor` only. Partner is a
+	 * role we invent afterwards, so it is never in that list — which meant a
+	 * partner account had every WordPress capability it needed and still saw no
+	 * "Edit with Beaver Builder" anywhere. Granting caps on the role is not
+	 * enough; BB has to be told separately.
+	 *
+	 * Writes only when a value actually changes, so this is safe on every load,
+	 * and it never touches any other role's entry.
+	 */
+	public function sync_builder_access() {
+		if ( ! class_exists( 'FLBuilderUserAccess' ) ) {
+			return;
+		}
+		if ( ! get_role( self::ROLE_SLUG ) ) {
+			return;
+		}
+
+		// get_saved_settings() returns defaults merged with anything stored, so
+		// reading it first preserves choices a dev made on BB's own settings screen.
+		$settings = FLBuilderUserAccess::get_saved_settings();
+		if ( ! is_array( $settings ) ) {
+			return;
+		}
+
+		$changed = false;
+		foreach ( self::bb_caps() as $cap ) {
+			if ( ! isset( $settings[ $cap ] ) || ! is_array( $settings[ $cap ] ) ) {
+				continue;
+			}
+			if ( empty( $settings[ $cap ][ self::ROLE_SLUG ] ) ) {
+				$settings[ $cap ][ self::ROLE_SLUG ] = true;
+				$changed = true;
+			}
+		}
+
+		if ( $changed ) {
+			update_option( '_fl_builder_user_access', $settings );
+		}
 	}
 
 	private function plugin_access_allowed() {
