@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * A "stacked deck" carousel: the active image sits in front and the upcoming
  * images peek behind it (offset + scale + fade) for depth, cycling with optional
  * autoplay, loop, pause-on-hover and drag/swipe. Each slide can carry a caption
- * pill and a link. An optional offset frame bracket (à la the editorial
+ * pill (text, an image such as a sponsor logo or crest, or both) and a link. An optional offset frame bracket (à la the editorial
  * "LOCKED IN" reference) frames the front card.
  *
  * Multi-STYLE scaffold (same pattern as ds-hero / ds-cta / ds-news / ds-orgstats):
@@ -46,12 +46,20 @@ class DS_Carousel_Module extends FLBuilderModule {
 	}
 
 	/** Resolve a BB photo value to its attachment alt text ('' when unknown). */
-	private function photo_alt( $val ) {
+	/**
+	 * @param mixed  $val      A BB photo field value.
+	 * @param string $fallback Used only when the attachment carries no alt of its
+	 *                         own — the media library's alt is what it was set for,
+	 *                         and repeating adjacent caption text would announce the
+	 *                         same words twice.
+	 */
+	private function photo_alt( $val, $fallback = '' ) {
 		$id = 0;
 		if ( is_object( $val ) )      { $id = (int) ( $val->id ?? 0 ); }
 		elseif ( is_array( $val ) )   { $id = (int) ( $val['id'] ?? 0 ); }
 		elseif ( is_numeric( $val ) ) { $id = (int) $val; }
-		return $id ? (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) : '';
+		$alt = $id ? trim( (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) ) : '';
+		return '' !== $alt ? $alt : trim( wp_strip_all_tags( (string) $fallback ) );
 	}
 
 	/** Style 4 — Overlapping Images: a static two-image editorial composition. */
@@ -113,7 +121,7 @@ class DS_Carousel_Module extends FLBuilderModule {
 		$this->$method();
 	}
 
-	/** Normalised slide list (image, caption, url, target). */
+	/** Normalised slide list (image, caption, caption image, url, target). */
 	private function collect_slides() {
 		$s      = $this->settings;
 		$raw    = ( isset( $s->slides ) && is_array( $s->slides ) ) ? $s->slides : array();
@@ -124,11 +132,17 @@ class DS_Carousel_Module extends FLBuilderModule {
 			$img = $this->photo_url( $row->image ?? '' );
 			if ( '' === $img ) { $img = $ph; }
 			list( $url, $target ) = $this->link_parts( $row->link ?? '' );
+			$caption = trim( (string) ( $row->caption ?? '' ) );
+			// 'medium' rather than 'large': the caption image is a badge/logo a few
+			// dozen pixels tall, so shipping the full-size file would be wasteful.
+			$cap_img = $this->photo_url( $row->caption_image ?? '', 'medium' );
 			$slides[] = array(
-				'image'   => $img,
-				'caption' => trim( (string) ( $row->caption ?? '' ) ),
-				'url'     => $url,
-				'target'  => $target,
+				'image'       => $img,
+				'caption'     => $caption,
+				'caption_img' => $cap_img,
+				'caption_alt' => '' === $cap_img ? '' : $this->photo_alt( $row->caption_image ?? '', $caption ),
+				'url'         => $url,
+				'target'      => $target,
 			);
 		}
 		return $slides;
@@ -139,7 +153,8 @@ class DS_Carousel_Module extends FLBuilderModule {
 		$s      = $this->settings;
 		$slides = $this->collect_slides();
 
-		$cap_pos = in_array( $s->caption_position ?? 'bl', array( 'bl', 'bc', 'br' ), true ) ? ( $s->caption_position ?? 'bl' ) : 'bl';
+		$cap_pos     = in_array( $s->caption_position ?? 'bl', array( 'bl', 'bc', 'br' ), true ) ? ( $s->caption_position ?? 'bl' ) : 'bl';
+		$cap_img_pos = in_array( $s->caption_image_position ?? 'left', array( 'left', 'right', 'above' ), true ) ? ( $s->caption_image_position ?? 'left' ) : 'left';
 		$navpos  = in_array( $s->arrow_position ?? 'overlay', array( 'overlay', 'outside' ), true ) ? ( $s->arrow_position ?? 'overlay' ) : 'overlay';
 		$aicon   = in_array( $s->arrow_icon ?? 'chevron', array( 'chevron', 'angle', 'arrow', 'caret' ), true ) ? ( $s->arrow_icon ?? 'chevron' ) : 'chevron';
 
@@ -196,8 +211,24 @@ class DS_Carousel_Module extends FLBuilderModule {
 			if ( '' !== $slide['image'] ) {
 				echo '<span class="ds-carousel-img" style="background-image:url(' . esc_url( $slide['image'] ) . ')"></span>';
 			}
-			if ( '' !== $slide['caption'] ) {
-				echo '<span class="ds-carousel-caption">' . DS_Module_UI::inline( $slide['caption'] ) . '</span>';
+			// The pill now shows a text caption, an image (GH #109), or both. An
+			// image-only pill is a legitimate use (a sponsor mark, a crest), so the
+			// guard is "either", not "text".
+			if ( '' !== $slide['caption'] || '' !== $slide['caption_img'] ) {
+				$cap_cls = 'ds-carousel-caption';
+				// The arrangement only means anything with both parts present.
+				if ( '' !== $slide['caption_img'] && '' !== $slide['caption'] ) {
+					if ( 'above' === $cap_img_pos )      { $cap_cls .= ' ds-carousel-caption--stack'; }
+					elseif ( 'right' === $cap_img_pos )  { $cap_cls .= ' ds-carousel-caption--imgright'; }
+				}
+				echo '<span class="' . esc_attr( $cap_cls ) . '">';
+				if ( '' !== $slide['caption_img'] ) {
+					echo '<img class="ds-carousel-caption-img" src="' . esc_url( $slide['caption_img'] ) . '" alt="' . esc_attr( $slide['caption_alt'] ) . '" loading="lazy" />';
+				}
+				if ( '' !== $slide['caption'] ) {
+					echo '<span class="ds-carousel-caption-text">' . DS_Module_UI::inline( $slide['caption'] ) . '</span>';
+				}
+				echo '</span>';
 			}
 			echo '</' . $tag . '>';
 		}
@@ -416,6 +447,13 @@ FLBuilder::register_settings_form( 'ds_carousel_slide_form', array(
 							'label'       => __( 'Caption', 'ds-toolkit' ),
 							'connections' => array( 'string' ),
 							'help'        => __( 'Optional. Shown in the caption pill over the image.', 'ds-toolkit' ),
+						),
+						'caption_image' => array(
+							'type'        => 'photo',
+							'label'       => __( 'Caption Image', 'ds-toolkit' ),
+							'show_remove' => true,
+							'connections' => array( 'photo' ),
+							'help'        => __( 'Optional — Stacked Deck (Style 1) only. A logo or badge shown inside the caption pill. Works with or without caption text; set one and leave the other blank for an image-only or text-only pill. Size and placement are on the Style tab under Caption.', 'ds-toolkit' ),
 						),
 						'link'    => array(
 							'type'        => 'link',
@@ -669,6 +707,37 @@ FLBuilder::register_module( 'DS_Carousel_Module', array(
 					'caption_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Pill Text', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'caption_radius'     => array( 'type' => 'unit', 'label' => __( 'Pill Radius', 'ds-toolkit' ), 'default' => '0', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
 					'caption_typography' => array( 'type' => 'typography', 'label' => __( 'Pill Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-carousel-caption' ) ),
+					'caption_image_height'   => array(
+						'type'        => 'unit',
+						'label'       => __( 'Caption Image Height', 'ds-toolkit' ),
+						'default'     => '22',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 10, 'max' => 120, 'step' => 1 ),
+						'help'        => __( 'Set on the module, not per slide, so every pill lines up however different the source logos are. Width follows the aspect ratio.', 'ds-toolkit' ),
+						'preview'     => array( 'type' => 'css', 'selector' => '.ds-carousel-caption-img', 'property' => 'height', 'unit' => 'px' ),
+					),
+					'caption_image_max_width' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Caption Image Max Width', 'ds-toolkit' ),
+						'default'     => '90',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 30, 'max' => 320, 'step' => 5 ),
+						'help'        => __( 'Stops a wide logo taking the whole pill and pushing the caption text out. Past this width the image scales down to fit rather than claiming the space. Raise it for a long wordmark.', 'ds-toolkit' ),
+						'preview'     => array( 'type' => 'css', 'selector' => '.ds-carousel-caption-img', 'property' => 'max-width', 'unit' => 'px' ),
+					),
+					'caption_image_position' => array(
+						'type'    => 'select',
+						'label'   => __( 'Caption Image Placement', 'ds-toolkit' ),
+						'default' => 'left',
+						'options' => array(
+							'left'  => __( 'Left of the text', 'ds-toolkit' ),
+							'right' => __( 'Right of the text', 'ds-toolkit' ),
+							'above' => __( 'Above the text', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Only applies to slides that have both a caption image and caption text.', 'ds-toolkit' ),
+					),
 				),
 			),
 			'navigation' => array(

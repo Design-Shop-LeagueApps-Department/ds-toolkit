@@ -17,7 +17,23 @@
 .ds-carousel-slide.is-front{cursor:pointer;}
 
 /* Caption pill */
-.ds-carousel-caption{position:absolute;left:18px;bottom:18px;z-index:2;display:inline-block;max-width:80%;background:var(--fl-global-accent);color:var(--fl-global-white);font-weight:700;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;padding:9px 16px;line-height:1.2;}
+.ds-carousel-caption{position:absolute;left:18px;bottom:18px;z-index:2;display:inline-flex;align-items:center;gap:var(--ds-cap-gap,10px);max-width:80%;background:var(--fl-global-accent);color:var(--fl-global-white);font-weight:700;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;padding:9px 16px;line-height:1.2;}
+/* Caption image (GH #109). Height is authored; width follows the aspect ratio but is
+   CAPPED, because partners upload whatever they have: a wide screenshot at a fixed
+   height resolves hundreds of pixels wide and pushes the caption text out of the pill
+   entirely. Past the cap the image letterboxes (object-fit) instead of taking the room.
+   flex:none keeps it at that size rather than being squeezed by long text. */
+/* Scoped to the pill on purpose: Beaver Builder ships `.fl-module img{max-width:100%}`
+   at (0,1,1), which outranks a single class (0,1,0) and silently defeated the cap.
+   Two classes (0,2,0) win it back. */
+.ds-carousel-caption .ds-carousel-caption-img{display:block;flex:none;height:var(--ds-cap-img-h,22px);width:auto;max-width:var(--ds-cap-img-maxw,90px);object-fit:contain;}
+/* min-width:0 lets a long caption wrap inside the flex row instead of overflowing. */
+.ds-carousel-caption .ds-carousel-caption-text{min-width:0;}
+.ds-carousel-caption--imgright{flex-direction:row-reverse;}
+.ds-carousel-caption--stack{flex-direction:column;align-items:flex-start;}
+.ds-carousel-caption.ds-carousel-caption--stack .ds-carousel-caption-img{max-width:100%;}
+.ds-carousel--cap-bc .ds-carousel-caption--stack{align-items:center;}
+.ds-carousel--cap-br .ds-carousel-caption--stack{align-items:flex-end;}
 .ds-carousel--cap-bc .ds-carousel-caption{left:50%;right:auto;transform:translateX(-50%);text-align:center;}
 .ds-carousel--cap-br .ds-carousel-caption{left:auto;right:18px;text-align:right;}
 
