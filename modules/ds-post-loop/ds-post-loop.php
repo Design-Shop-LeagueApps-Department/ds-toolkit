@@ -95,6 +95,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			'athlete_photo'  => __( 'Athletes: Photo Cards', 'ds-toolkit' ),
 			'athlete_logo'   => __( 'Athletes: Logo Row (dark)', 'ds-toolkit' ),
 			'athlete_action' => __( 'Athletes: Action Cards', 'ds-toolkit' ),
+			'athlete_strip'  => __( 'Athletes: Compact Strip', 'ds-toolkit' ),
 			'team_list'      => __( 'Teams: List', 'ds-toolkit' ),
 			'team_card'      => __( 'Teams: Cards (photo grid)', 'ds-toolkit' ),
 			// Still selectable: it has the same manual-list defect as `program` but no
@@ -341,6 +342,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			'athlete_photo'  => 'render_athlete_photo',
 			'athlete_logo'   => 'render_athlete_logo',
 			'athlete_action' => 'render_athlete_action',
+			'athlete_strip'  => 'render_athlete_strip',
 			'team_list'      => 'render_team_list',
 			'team_card'      => 'render_team_card',
 			'sponsor'        => 'render_sponsor',
@@ -606,6 +608,56 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			if ( '' !== $name ) { echo '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>'; }
 			if ( '' !== $meta ) { echo '<span class="ds-people-role">' . esc_html( $meta ) . '</span>'; }
 			echo '</div></div></div>';
+		}
+		$this->athlete_section_close();
+	}
+
+	/**
+	 * The club/partner mark shown on the right of a Compact Strip. Falls back to the
+	 * site's ACF `partner_logo` option, so the layout is correct on any fleet site with
+	 * zero configuration; the module's own Club Logo field overrides it per instance.
+	 */
+	private function commit_brand_logo() {
+		$own = $this->acf_image_url( $this->settings->cr_brand ?? '' );
+		if ( $own ) { return $own; }
+		if ( function_exists( 'get_field' ) ) {
+			$opt = $this->acf_image_url( get_field( 'partner_logo', 'option' ) );
+			if ( $opt ) { return $opt; }
+		}
+		return '';
+	}
+
+	/**
+	 * Compact Strip — a short, dense row instead of a tall photo card:
+	 * [college logo] [player name + college] [club logo]. Modelled on the 4Leaf
+	 * commitments strip a partner asked us to match. No athlete photo at all, which
+	 * is the point: it stays readable when every athlete shares one placeholder image,
+	 * and it fits three or four across without dominating the page.
+	 */
+	public function render_athlete_strip() {
+		$s     = $this->settings;
+		$q     = $this->run_query();
+		$rows  = array();
+		if ( ! $this->athlete_section_open( 'ds-commit--strip', $q, $rows ) ) { return; }
+
+		$brand      = ( $s->cr_brand_show ?? 'yes' ) === 'yes' ? $this->commit_brand_logo() : '';
+		$show_coll  = ( $s->cr_show_college ?? 'yes' ) === 'yes';
+		$brand_alt  = get_bloginfo( 'name' );
+
+		$this->loop_open( 'ds-people-grid' );
+		while ( $q->have_posts() ) { $q->the_post(); $id = get_the_ID();
+			$logo   = $this->commit_logo( $id );
+			$name   = get_the_title( $id );
+			$school = $show_coll ? $this->commit_school( $id ) : '';
+			echo '<div class="ds-commit-strip"' . $this->commit_data_attr( $this->commit_facets( $id ) ) . '>';
+			echo $this->card_link( $id );
+			echo '<span class="ds-commit-strip-logo">' . ( $logo ? '<img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $school ?: $name ) . '" loading="lazy" />' : '' ) . '</span>';
+			echo '<span class="ds-commit-strip-body">';
+			if ( '' !== $name )   { echo '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>'; }
+			if ( '' !== $school ) { echo '<span class="ds-people-role">' . esc_html( $school ) . '</span>'; }
+			echo '</span>';
+			if ( '' !== $brand ) { echo '<span class="ds-commit-strip-brand"><img src="' . esc_url( $brand ) . '" alt="' . esc_attr( $brand_alt ) . '" loading="lazy" /></span>'; }
+			echo '</div>';
 		}
 		$this->athlete_section_close();
 	}
@@ -1281,6 +1333,7 @@ $ds_pl_form = array(
 							'athlete_photo'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'athlete_logo'   => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'athlete_action' => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_strip'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_strip_opts', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'team_list'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'team_list_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
 							'team_card'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'team_card_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'custom'         => array( 'sections' => array( 'header', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
@@ -1620,6 +1673,29 @@ $ds_pl_form = array(
 					'commit_show_year'   => array( 'type' => 'select', 'label' => __( 'Show Class Year (Action Card)', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'help' => __( 'The Action Card meta line reads "year | college". Set to No for a college-only line.', 'ds-toolkit' ) ),
 					'commit_school_key'  => array( 'type' => 'text', 'label' => __( 'College Name Field', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Meta/ACF key holding the college name. Blank auto-detects school_name, university, college, college_name, school.', 'ds-toolkit' ) ),
 					'commit_logo_key'    => array( 'type' => 'text', 'label' => __( 'College Logo Field', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Meta/ACF key holding the college logo image. Blank auto-detects school_logo, college_logo, logo.', 'ds-toolkit' ) ),
+				),
+			),
+			// --- Compact Strip (logo | name | club mark) ---
+			'commit_strip_opts' => array(
+				'title'       => __( 'Compact Strip', 'ds-toolkit' ),
+				'description' => __( 'A short dense row per athlete: college logo on the left, name and college in the middle, the club mark on the right. No athlete photo — ideal when athletes share a placeholder image.', 'ds-toolkit' ),
+				'fields'      => array(
+					'cr_cols'         => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 5, 'step' => 1 ), 'help' => __( 'Defaults: 2 tablet, 1 mobile.', 'ds-toolkit' ) ),
+					'cr_gap'          => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '16', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+					'card_link'       => array( 'type' => 'select', 'label' => __( 'Link Card to Post', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ),
+					'cr_show_college' => array( 'type' => 'select', 'label' => __( 'Show College Name', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'help' => __( 'Off leaves just the athlete name beside the logo.', 'ds-toolkit' ) ),
+					'cr_bg'           => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Strip Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the global Accent colour.', 'ds-toolkit' ) ),
+					'cr_radius'       => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '4', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 24, 'step' => 1 ) ),
+					'cr_pad'          => array( 'type' => 'unit', 'label' => __( 'Padding', 'ds-toolkit' ), 'default' => '12', 'description' => 'px', 'slider' => array( 'min' => 4, 'max' => 32, 'step' => 1 ) ),
+					'cr_name_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Name Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = white.', 'ds-toolkit' ) ),
+					'cr_meta_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'College Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'cr_logo_size'    => array( 'type' => 'unit', 'label' => __( 'College Logo Size', 'ds-toolkit' ), 'default' => '44', 'description' => 'px', 'slider' => array( 'min' => 24, 'max' => 90, 'step' => 1 ) ),
+					'cr_logo_bg'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'College Logo Backdrop', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'A light chip behind the logo keeps dark college marks legible on a strong background. Blank = white.', 'ds-toolkit' ) ),
+					'cr_brand_show'   => array( 'type' => 'select', 'label' => __( 'Show Club Logo', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'cr_brand', 'cr_brand_size' ) ) ) ),
+					'cr_brand'        => array( 'type' => 'photo', 'label' => __( 'Club Logo', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Blank = the site\'s Partner Logo setting. Use a version that reads on the strip background (a white mark on a strong colour).', 'ds-toolkit' ) ),
+					'cr_brand_size'   => array( 'type' => 'unit', 'label' => __( 'Club Logo Size', 'ds-toolkit' ), 'default' => '38', 'description' => 'px', 'slider' => array( 'min' => 20, 'max' => 80, 'step' => 1 ) ),
+					'cr_name_typo'    => array( 'type' => 'typography', 'label' => __( 'Name Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-commit-strip .ds-people-name' ) ),
+					'cr_meta_typo'    => array( 'type' => 'typography', 'label' => __( 'College Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-commit-strip .ds-people-role' ) ),
 				),
 			),
 			// --- Front-end filter bar for the Commitment / Athlete card grids ---

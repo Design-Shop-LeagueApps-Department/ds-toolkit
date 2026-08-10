@@ -200,7 +200,9 @@
 		if (!bar || !grid) return;
 		root.dsCommitInit = true;
 
-		var cards = [].slice.call(grid.querySelectorAll('.ds-commit-card,.ds-commit-row,.ds-commit-action'));
+		// Match on the data-facet contract, not a list of card class names — every
+		// filterable card emits it, so a new card layout works without touching this.
+		var cards = [].slice.call(grid.querySelectorAll('[data-facet]'));
 		var tabs  = [].slice.call(bar.querySelectorAll('.ds-commit-tab'));
 		var count = bar.querySelector('.ds-commit-count');
 		var none  = root.querySelector('.ds-commit-none');
