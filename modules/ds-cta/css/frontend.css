@@ -65,7 +65,7 @@
 .ds-cta--style3 .ds-cta-bento-cell{position:relative;overflow:hidden;border-radius:var(--ds-radius);text-decoration:none;display:flex;}
 .ds-cta--style3 .ds-cta-bento-img{background:var(--fl-global-dark-background);}
 .ds-cta--style3 .ds-cta-bento-bg{position:absolute;inset:0;background-position:center;background-size:cover;background-repeat:no-repeat;transition:transform .6s ease;}
-.ds-cta--style3 a.ds-cta-bento-img:hover .ds-cta-bento-bg{transform:scale(1.05);}
+
 .ds-cta--style3 .ds-cta-bento-text{flex-direction:column;justify-content:center;background:var(--fl-global-dark-background);color:var(--fl-global-white);padding:34px;}
 .ds-cta--style3 .ds-cta-bento-title{font-size:1.6rem;line-height:1;text-transform:uppercase;font-weight:800;margin:0 0 12px;color:var(--fl-global-white);}
 .ds-cta--style3 .ds-cta-bento-celldesc{color:#c7ccd2;font-size:.95rem;line-height:1.5;margin-bottom:18px;}
@@ -75,6 +75,51 @@
 .ds-cta--style3 .ds-cta-bento-btn:hover{filter:brightness(1.08);transform:translateY(-1px);}
 /* Cell eyebrow: small accent label in text cells; overlay pill on image cells. */
 .ds-cta--style3 .ds-cta-bento-eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--fl-global-accent);margin:0 0 10px;}
+/* ---- Bento flexible cards (GH #123) ---------------------------------------
+   Treatments let ONE grid mix an image card, a light card and a brand-colour
+   feature card. Literal fallbacks throughout: --fl-global-* is absent on older
+   Launchpad builds, and CSS drops a declaration whose var() cannot resolve. */
+/* Doubled class on purpose (0,3,0): includes/frontend.css.php emits the module-wide
+   cell background as `.fl-node-<id> .ds-cta-bento-text` at (0,2,0), AFTER this file,
+   so a single-class treatment tied on specificity and lost on source order. */
+.ds-cta--style3 .ds-cta-bento-cell.ds-cta-bento-cell--dark{background:var(--fl-global-dark-background,#101631);color:var(--fl-global-white,#fff);}
+.ds-cta--style3 .ds-cta-bento-cell.ds-cta-bento-cell--light{background:var(--fl-global-white,#fff);color:var(--fl-global-heading-color,#101631);}
+.ds-cta--style3 .ds-cta-bento-cell.ds-cta-bento-cell--accent{background:var(--fl-global-accent,#0b782d);color:var(--fl-global-white,#fff);}
+/* Two classes deep so a per-card treatment beats the module-wide title/desc
+   colours emitted at (0,2,0) from includes/frontend.css.php. */
+.ds-cta--style3 .ds-cta-bento-cell--dark .ds-cta-bento-title,.ds-cta--style3 .ds-cta-bento-cell--dark .ds-cta-bento-celldesc,
+.ds-cta--style3 .ds-cta-bento-cell--light .ds-cta-bento-title,.ds-cta--style3 .ds-cta-bento-cell--light .ds-cta-bento-celldesc,
+.ds-cta--style3 .ds-cta-bento-cell--accent .ds-cta-bento-title,.ds-cta--style3 .ds-cta-bento-cell--accent .ds-cta-bento-celldesc{color:inherit;}
+
+/* Overlay behind the content of an image card, so a title stays readable. */
+.ds-cta--style3 .ds-cta-bento-ov{position:absolute;inset:0;z-index:0;pointer-events:none;background:var(--ds-bento-ovc,#101631);opacity:var(--ds-bento-ov,0);transition:opacity .3s ease;}
+/* Content block for image cards. Text cards keep their original direct-child
+   flex layout untouched. */
+.ds-cta--style3 .ds-cta-bento-img .ds-cta-bento-content{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:9px;width:100%;padding:28px;color:var(--fl-global-white,#fff);}
+.ds-cta--style3 .ds-cta-bento-img .ds-cta-bento-content .ds-cta-bento-eyebrow{position:static;padding:0;background:none;border-radius:0;}
+.ds-cta--style3 .ds-cta-bento-img .ds-cta-bento-content .ds-cta-bento-title{margin:0;}
+
+.ds-cta--style3 .ds-cta-bento-num{font-weight:800;font-size:.78rem;letter-spacing:.14em;opacity:.72;}
+.ds-cta--style3 .ds-cta-bento-badge{align-self:flex-start;display:inline-block;padding:5px 11px;border-radius:999px;background:var(--fl-global-accent,#0b782d);color:var(--fl-global-white,#fff);font-weight:700;font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;}
+.ds-cta--style3 .ds-cta-bento-cell--accent .ds-cta-bento-badge{background:var(--fl-global-white,#fff);color:var(--fl-global-accent,#0b782d);}
+/* The button is accent-on-accent on an accent card, so it inverts. Two classes
+   to clear the (0,2,0) button rule this file already sets. */
+.ds-cta--style3 .ds-cta-bento-cell--accent .ds-cta-bento-btn{background:var(--fl-global-white,#fff);color:var(--fl-global-accent,#0b782d);}
+
+/* Hover: every card responds to its OWN hover, link or not (GH #123 item 5). */
+@media (hover:hover){
+	.ds-cta--style3 .ds-cta-bento--hover-lift .ds-cta-bento-cell{transition:transform .3s ease,box-shadow .3s ease;}
+	.ds-cta--style3 .ds-cta-bento--hover-lift .ds-cta-bento-cell:hover{transform:translateY(-4px);box-shadow:0 14px 34px rgba(15,18,24,.18);}
+	.ds-cta--style3 .ds-cta-bento--hover-lift .ds-cta-bento-img:hover .ds-cta-bento-bg,
+	.ds-cta--style3 .ds-cta-bento--hover-zoom .ds-cta-bento-img:hover .ds-cta-bento-bg{transform:scale(1.05);}
+	.ds-cta--style3 .ds-cta-bento--hover-lift .ds-cta-bento-img:hover .ds-cta-bento-ov,
+	.ds-cta--style3 .ds-cta-bento--hover-zoom .ds-cta-bento-img:hover .ds-cta-bento-ov{opacity:calc(var(--ds-bento-ov,0) + .12);}
+}
+@media (prefers-reduced-motion:reduce){
+	.ds-cta--style3 .ds-cta-bento-cell,.ds-cta--style3 .ds-cta-bento-bg,.ds-cta--style3 .ds-cta-bento-ov{transition:none;}
+	.ds-cta--style3 .ds-cta-bento--hover-lift .ds-cta-bento-cell:hover{transform:none;box-shadow:none;}
+	.ds-cta--style3 .ds-cta-bento-img:hover .ds-cta-bento-bg{transform:none;}
+}
 .ds-cta--style3 .ds-cta-bento-img .ds-cta-bento-eyebrow{position:absolute;left:14px;bottom:12px;z-index:1;margin:0;padding:7px 13px;border-radius:999px;background:color-mix(in srgb, var(--fl-global-dark-background) 78%, transparent);color:var(--fl-global-white);}
 
 /* ---- Style 4: Big Hero contact CTA (sub-heading, heading, partner contact + social, big button over a background image) ---- */

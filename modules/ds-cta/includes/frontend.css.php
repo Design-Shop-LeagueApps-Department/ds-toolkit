@@ -125,6 +125,11 @@ if ( 'style3' === $style ) {
 	} elseif ( $accent ) {
 		echo "$node .ds-cta-bento-btn { background: {$accent} !important; color: var(--fl-global-white) !important; }\n";
 	}
+	// An accent-treatment card paints the button colour as its own background, so the
+	// button would be accent-on-accent. Emitted here rather than in css/frontend.css
+	// because both branches above use !important to beat the theme's button rules —
+	// a static rule cannot outrank that, however specific. (0,3,0) so it beats them.
+	echo "$node .ds-cta-bento-cell--accent .ds-cta-bento-btn { background: var(--fl-global-white,#fff) !important; color: " . ( $accent ? $accent : 'var(--fl-global-accent,#0b782d)' ) . " !important; }\n";
 
 	$typo = array( 'heading_typography' => '.ds-cta-heading', 'title_typography' => '.ds-cta-bento-title', 'eyebrow_typography' => '.ds-cta-bento-desc' );
 } elseif ( 'style2' === $style ) {
