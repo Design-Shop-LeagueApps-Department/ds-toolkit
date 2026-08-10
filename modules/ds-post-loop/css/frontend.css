@@ -111,6 +111,24 @@
 .ds-commit--action .ds-people-name{font-size:1.05rem;}
 .ds-commit--action .ds-people-role{letter-spacing:.04em;}
 
+/* ---- Commitments: Compact Strip — [college logo][name + college][club mark] ----
+   Literal fallbacks throughout: older Launchpad builds emit no --fl-global-* props,
+   and an unresolved var() drops the whole declaration. */
+.ds-commit--strip .ds-commit-strip{position:relative;display:flex;align-items:center;gap:12px;padding:12px;border-radius:4px;background:var(--fl-global-accent,#b32033);min-width:0;overflow:hidden;}
+.ds-commit--strip .ds-commit-strip-logo{flex:0 0 auto;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:3px;background:var(--fl-global-white,#fff);padding:3px;}
+.ds-commit--strip .ds-commit-strip-logo img{max-width:100%;max-height:100%;object-fit:contain;}
+.ds-commit--strip .ds-commit-strip-body{display:flex;flex-direction:column;gap:1px;text-align:left;min-width:0;flex:1 1 auto;}
+.ds-commit--strip .ds-people-name{margin:0;font-size:1rem;line-height:1.15;color:var(--fl-global-white,#fff);overflow-wrap:anywhere;}
+.ds-commit--strip .ds-people-role{font-size:.72rem;line-height:1.25;letter-spacing:.05em;text-transform:uppercase;color:rgba(255,255,255,.85);overflow-wrap:anywhere;}
+.ds-commit--strip .ds-commit-strip-brand{flex:0 0 auto;width:38px;height:38px;display:flex;align-items:center;justify-content:center;margin-left:auto;}
+.ds-commit--strip .ds-commit-strip-brand img{max-width:100%;max-height:100%;object-fit:contain;}
+.ds-commit--strip .ds-commit-strip{transition:transform .18s ease,box-shadow .18s ease;}
+.ds-commit--strip .ds-commit-strip:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.18);}
+@media (prefers-reduced-motion:reduce){.ds-commit--strip .ds-commit-strip:hover{transform:none;}}
+/* Narrow phones: shrink the club mark rather than drop it — it is a requested part
+   of the strip, so it should survive every breakpoint. */
+@media (max-width:420px){.ds-commit--strip .ds-commit-strip{gap:10px;}.ds-commit--strip .ds-commit-strip-brand{width:30px;height:30px;}}
+
 /* ---- Commitments: front-end filter bar (pills) ---- */
 .ds-commit-filter{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:26px;}
 .ds-commit-tabs{display:inline-flex;flex-wrap:wrap;gap:8px;}

@@ -275,6 +275,8 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		'commit_name_typo'         => '.ds-people-name',
 		'commit_meta_typo'         => '.ds-people-role',
 		'cf_tab_typo'              => '.ds-commit-tab',
+		'cr_name_typo'             => '.ds-commit-strip .ds-people-name',
+		'cr_meta_typo'             => '.ds-commit-strip .ds-people-role',
 		'team_name_typo'           => '.ds-team-name',
 		// Custom Program card
 		'pg_date_typo'             => '.ds-program-date',
@@ -381,7 +383,42 @@ if ( ( $settings->card_layout ?? '' ) === 'staff_card' ) {
 }
 
 // ---- Commitments / Athletes (content_type = athlete) ----
-if ( in_array( $settings->card_layout ?? '', array( 'athlete_photo', 'athlete_logo', 'athlete_action' ), true ) ) {
+if ( in_array( $settings->card_layout ?? '', array( 'athlete_photo', 'athlete_logo', 'athlete_action', 'athlete_strip' ), true ) ) {
+$strip = ( $settings->card_layout ?? '' ) === 'athlete_strip';
+if ( $strip ) {
+	// Compact Strip has its own, smaller geometry: it shares the grid and the filter
+	// bar with the photo/action cards but none of their photo-card settings.
+	$rcols = max( 1, $u( $settings->cr_cols ?? '', 3 ) );
+	$rgap  = $u( $settings->cr_gap ?? '', 16 );
+	echo "$node .ds-people-grid { grid-template-columns: repeat({$rcols},1fr); gap: {$rgap}px; }\n";
+	$rcolsM = max( 1, $u( $settings->cr_cols_medium ?? '', min( $rcols, 2 ) ) );
+	echo "@media (max-width:{$bpm}px){ $node .ds-people-grid { grid-template-columns: repeat({$rcolsM},1fr); } }\n";
+	$rcolsR = max( 1, $u( $settings->cr_cols_responsive ?? '', 1 ) );
+	echo "@media (max-width:{$bpr}px){ $node .ds-people-grid { grid-template-columns: repeat({$rcolsR},1fr); } }\n";
+
+	$rrad = $u( $settings->cr_radius ?? '', 4 );
+	$rpad = $u( $settings->cr_pad ?? '', 12 );
+	echo "$node .ds-commit-strip { border-radius: {$rrad}px; padding: {$rpad}px; }\n";
+	$rbg = $col( $settings->cr_bg ?? '' );
+	if ( '' !== $rbg ) { echo "$node .ds-commit-strip { background: {$rbg}; }\n"; }
+	$rnc = $col( $settings->cr_name_color ?? '' );
+	if ( '' !== $rnc ) { echo "$node .ds-commit-strip .ds-people-name { color: {$rnc}; }\n"; }
+	$rmc = $col( $settings->cr_meta_color ?? '' );
+	if ( '' !== $rmc ) { echo "$node .ds-commit-strip .ds-people-role { color: {$rmc}; }\n"; }
+	// Both marks shrink on phones so the name/college keep their width. Emitted here
+	// rather than left to the stylesheet: these node rules match the base rules'
+	// specificity and print after them, so a plain @media in frontend.css would lose.
+	$rls = $u( $settings->cr_logo_size ?? '', 44 );
+	echo "$node .ds-commit-strip-logo { width: {$rls}px; height: {$rls}px; }\n";
+	$rlsm = max( 26, (int) round( $rls * 0.82 ) );
+	echo "@media (max-width:{$bpr}px){ $node .ds-commit-strip-logo { width: {$rlsm}px; height: {$rlsm}px; } }\n";
+	$rlb = $col( $settings->cr_logo_bg ?? '' );
+	if ( '' !== $rlb ) { echo "$node .ds-commit-strip-logo { background: {$rlb}; }\n"; }
+	$rbs = $u( $settings->cr_brand_size ?? '', 38 );
+	echo "$node .ds-commit-strip-brand { width: {$rbs}px; height: {$rbs}px; }\n";
+	$rbsm = max( 22, (int) round( $rbs * 0.75 ) );
+	echo "@media (max-width:{$bpr}px){ $node .ds-commit-strip-brand { width: {$rbsm}px; height: {$rbsm}px; } }\n";
+} else {
 	$ccols = max( 1, $u( $settings->commit_cols ?? '', 4 ) );
 	$cgap  = $u( $settings->commit_gap ?? '', 24 );
 	echo "$node .ds-people-grid { grid-template-columns: repeat({$ccols},1fr); gap: {$cgap}px; }\n";
@@ -419,8 +456,9 @@ if ( in_array( $settings->card_layout ?? '', array( 'athlete_photo', 'athlete_lo
 	echo "$node .ds-commit--photo .ds-people-photo, $node .ds-commit--action .ds-people-photo { background-size: {$cfit}; background-position: {$cpos}; }\n";
 	$cpb = $col( $settings->commit_photo_bg ?? '' );
 	if ( '' !== $cpb ) { echo "$node .ds-commit--photo .ds-people-photo, $node .ds-commit--action .ds-people-photo { background-color: {$cpb}; }\n"; }
+}
 
-	// Filter bar (pills). Every colour is optional — blank keeps the base
+	// Filter bar (pills). Shared by every athlete layout. Every colour is optional — blank keeps the base
 	// stylesheet's accent-driven look so it matches the site palette for free.
 	if ( ( $settings->cf_filter ?? 'disable' ) === 'enable' ) {
 		$fmapa = array( 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end' );
