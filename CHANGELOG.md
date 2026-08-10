@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.82] - 2026-08-08
+### Added
+- **Page Cards: partners can add their own cards alongside the automatic ones (GH request).** A new **Cards From** control offers *Child pages (automatic)* (unchanged default), *Child pages + my own cards*, or *My own cards only*, with a **My Cards** repeater taking a title, link, image, description and optional link text per card, and a control for whether they sit before or after the generated ones. This covers everything that is not a child page: an external registration link, a sponsor, a "Coming Soon" placeholder. Both kinds go through ONE renderer, so every Card Style / Image / Text / Grid setting applies to both and a hand-added card cannot drift away from the generated ones. Details that matter in practice: a card with no link renders as a `div` rather than an anchor to nowhere (styled identically, since the CSS targets the class) and suppresses its link text, so a "Coming Soon" card is not a dead end; a card with no image falls back to the brand social card exactly like a page with no featured image; blank repeater rows are skipped instead of leaving a hole in the grid; and a description typed on a card always shows and is never trimmed, because unlike a page excerpt it was written for that card — honouring "Show Excerpt" there would make a partner's own text vanish with no explanation. Manual cards always use the built-in card design, noted in the field help, so picking a saved layout template does not silently change them.
+
+### Fixed
+- **Page Cards: "Undefined property: order_by" on layouts saved before that field existed.** The value was read a second time in the true branch of its own `in_array()` guard, and since the `??` fallback is itself a valid option that branch is exactly the one an unset property takes. Resolved once now.
+
 ## [1.9.81] - 2026-08-08
 ### Removed
 - **`[ds_footer_nav]` removed.** Footer Style 4 is now built the plain Beaver Builder way — three columns holding a Text Editor, a Photo module bound to the ACF `partner_logo` option, and another Text Editor — so there is nothing for the plugin to render. The shortcode existed to keep a single WP menu splittable around a centred logo, but that bought a PHP feature, a scoped-and-forced CSS block and a shortcode API in exchange for a layout an editor can now open and change directly in the builder. Native modules win: partners edit the links in place, the logo already follows Partner Setting through a normal dynamic-field connection, and the colours come from the row's own Link Color field instead of hand-written CSS. `features/class-ds-footer-nav.php` deleted and dropped from the feature registry and defaults.
