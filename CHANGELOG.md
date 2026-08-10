@@ -4,6 +4,22 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.85] - 2026-08-10
+### Fixed
+- **CTA Bento Grid: an image cell was silently dropping its Title, Description and Link Text (GH #123).** Only the eyebrow ever reached the page, so anything else typed on an image cell disappeared with no warning. All of it renders now, in a content block over the image. **This is visible on existing sites:** any Bento image cell that already has a Title stored starts showing it on update, which is the point of the fix. The blueprint's own Home page is an example — its three image cells carried titles and buttons that were never drawn. A cell carrying *only* an eyebrow is untouched and still renders the corner pill exactly as before, and text cells keep their original markup down to the DOM nesting, because the existing flex rules lay out their direct children.
+
+### Added
+- **CTA Bento Grid: per-card treatments, so one grid can mix card styles (GH #123).** A **Treatment** control per card offers Automatic (the existing look, so nothing changes by default), *Dark background / light text*, *Light background / dark text*, and *Brand accent / light text*. One grid can now hold an image card, a light card and a brand-colour feature card without splitting into separate CTA modules. Per-card **Background Colour** and **Text Colour** override the treatment where a build needs something specific, and an **Image Overlay** control (blank = automatic: none for a bare eyebrow pill, 45% once the card carries a title) keeps text readable over a photo. On an accent card the button and badge invert to white so they do not vanish into the background.
+- **CTA Bento Grid: per-card Number and Badge fields**, for an index like `01` and a pill label like `NEW`.
+- **CTA Bento Grid: hover on every card.** Previously only an image cell that was *also a link* responded, so solid cards had no hover at all. A module-level **Card Hover** control offers *Lift + shadow (image cards also zoom)*, *Image zoom only*, or *None*, and every card reacts to hovering anywhere on itself. Skipped under `prefers-reduced-motion`.
+
+### Notes
+- Column Span and Row Span already existed per card and were verified working (a 2x2 and a 1x1 in the same grid). They live under the **Bento (Style 3)** tab inside each card, which is easy to miss, and every card is forced to 1x1 below the tablet breakpoint so a phone never overflows — which can read as "spans do nothing" when judged on a narrow window. Their help text now says both things.
+
+## [1.9.84] - 2026-08-10
+### Added
+- **Post Loop: Athletes "Compact Strip" layout.** A fifth Athlete card layout — a short, dense row (college logo left, athlete name and college centre, club mark right) instead of a tall photo card, for pages listing many commitments. The club mark falls back to the site's ACF `partner_logo` option, so the layout is correct on any fleet site with no configuration; the module's own Club Logo field overrides it per instance. (Released as a build-only cut: the layout merged just after v1.9.83 was tagged and so shipped in no zip.)
+
 ## [1.9.83] - 2026-08-08
 ### Added
 - **Images/Videos Carousel: the caption pill accepts an image as well as text (GH #109).** Each slide on the Stacked Deck layout gains a **Caption Image** field, so a pill can carry a sponsor logo or club crest beside its label, in place of it, or with no label at all. Set the image and leave the caption blank for an image-only pill; the pill now renders whenever *either* is filled. Size and arrangement are set once on the module rather than per slide, so pills line up however different the source logos are: **Caption Image Height** (default 22px, responsive), **Caption Image Max Width** (default 90px, responsive) and **Caption Image Placement** (left of, right of, or above the text — it only applies to slides that have both). Alt text comes from the attachment's own alt, falling back to the caption text only when the image has none, so a pill with both parts does not announce the same words twice. Text-only pills are byte-identical to before, and a layout saved before this release is unaffected.

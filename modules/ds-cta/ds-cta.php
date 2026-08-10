@@ -284,22 +284,47 @@ class DS_CTA_Module extends FLBuilderModule {
 
 		$arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 
-		echo '<div class="ds-cta-bento">';
+		// Hover behaviour is module-wide; every cell responds to its own hover.
+		$hover = in_array( $s->bento_hover ?? 'lift', array( 'lift', 'zoom', 'none' ), true ) ? ( $s->bento_hover ?? 'lift' ) : 'lift';
+
+		echo '<div class="ds-cta-bento ds-cta-bento--hover-' . esc_attr( $hover ) . '">';
 		foreach ( $cards as $cell ) {
 			$cell = (object) $cell;
 			$cs   = max( 1, (int) ( $cell->col_span ?? 1 ) );
 			$rs   = max( 1, (int) ( $cell->row_span ?? 1 ) );
-			$span = ' style="grid-column:span ' . $cs . ';grid-row:span ' . $rs . ';"';
 			$type = ( ( $cell->type ?? 'image' ) === 'text' ) ? 'text' : 'image';
 			list( $url, $target ) = $this->link_parts( $cell->link ?? '' );
 			$rel = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 
+			$eyebrow = trim( (string) ( $cell->eyebrow ?? '' ) );
+			$title   = trim( (string) ( $cell->title ?? '' ) );
+			$desc    = trim( (string) ( $cell->desc ?? '' ) );
+			$num     = trim( (string) ( $cell->number ?? '' ) );
+			$badge   = trim( (string) ( $cell->badge ?? '' ) );
+			$lt      = trim( (string) ( $cell->link_text ?? '' ) );
+
+			// Colour scheme for this cell. 'auto' is the historical look, so a card
+			// saved before this release renders exactly as it did.
+			$tr  = in_array( $cell->treatment ?? 'auto', array( 'auto', 'dark', 'light', 'accent' ), true ) ? ( $cell->treatment ?? 'auto' ) : 'auto';
+			$cls = 'ds-cta-bento-cell ds-cta-bento-' . ( 'text' === $type ? 'text' : 'img' );
+			if ( 'auto' !== $tr ) { $cls .= ' ds-cta-bento-cell--' . $tr; }
+
+			$style = 'grid-column:span ' . $cs . ';grid-row:span ' . $rs . ';';
+			$cbg   = DS_Module_UI::color( $cell->cell_bg ?? '' );
+			if ( '' !== $cbg ) { $style .= 'background:' . $cbg . ';'; }
+			$ctx = DS_Module_UI::color( $cell->cell_text ?? '' );
+			if ( '' !== $ctx ) { $style .= 'color:' . $ctx . ';'; }
+
 			if ( 'text' === $type ) {
-				echo '<div class="ds-cta-bento-cell ds-cta-bento-text"' . $span . '>';
-				if ( ! empty( $cell->eyebrow ) ) { echo '<div class="ds-cta-bento-eyebrow">' . DS_Module_UI::inline( $cell->eyebrow ) . '</div>'; }
-				if ( ! empty( $cell->title ) ) { echo '<h3 class="ds-cta-bento-title">' . DS_Module_UI::inline( $cell->title ) . '</h3>'; }
-				if ( ! empty( $cell->desc ) ) { echo '<div class="ds-cta-bento-celldesc">' . wpautop( wp_kses_post( $cell->desc ) ) . '</div>'; }
-				$lt = trim( (string) ( $cell->link_text ?? '' ) );
+				// Markup order and nesting kept identical to before — the existing
+				// .ds-cta-bento-text flex rules lay out these DIRECT children, so a
+				// wrapper here would silently re-flow every Bento already in the fleet.
+				echo '<div class="' . esc_attr( $cls ) . '" style="' . esc_attr( $style ) . '">';
+				if ( '' !== $num )     { echo '<span class="ds-cta-bento-num">' . esc_html( $num ) . '</span>'; }
+				if ( '' !== $badge )   { echo '<span class="ds-cta-bento-badge">' . esc_html( $badge ) . '</span>'; }
+				if ( '' !== $eyebrow ) { echo '<div class="ds-cta-bento-eyebrow">' . DS_Module_UI::inline( $eyebrow ) . '</div>'; }
+				if ( '' !== $title )   { echo '<h3 class="ds-cta-bento-title">' . DS_Module_UI::inline( $title ) . '</h3>'; }
+				if ( '' !== $desc )    { echo '<div class="ds-cta-bento-celldesc">' . wpautop( wp_kses_post( $desc ) ) . '</div>'; }
 				if ( '' !== $lt ) {
 					echo '<a class="ds-cta-bento-btn" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>' . esc_html( $lt ) . '</a>';
 				}
@@ -309,9 +334,43 @@ class DS_CTA_Module extends FLBuilderModule {
 				$has  = ( $url && '#' !== $url );
 				$tag  = $has ? 'a' : 'div';
 				$attr = $has ? ' href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel : '';
-				echo '<' . $tag . ' class="ds-cta-bento-cell ds-cta-bento-img"' . $span . $attr . '>';
+
+				// GH #123: image cells used to render the eyebrow and nothing else, so a
+				// Title / Description / Link Text typed on one silently vanished. They
+				// render now, in a content block over the image.
+				$block = ( '' !== $title || '' !== $desc || '' !== $num || '' !== $badge || '' !== $lt );
+
+				// Blank overlay means "decide from the content": a bare eyebrow is a pill
+				// with its own backing, so it needs none and stays pixel-identical to
+				// before; a title over a photo is unreadable without one.
+				$ovr = $cell->cell_overlay ?? '';
+				$ov  = ( '' === $ovr || null === $ovr ) ? ( $block ? 45 : 0 ) : max( 0, min( 100, (int) $ovr ) );
+				if ( $ov > 0 ) { $style .= '--ds-bento-ov:' . round( $ov / 100, 2 ) . ';'; }
+
+				echo '<' . $tag . ' class="' . esc_attr( $cls ) . '" style="' . esc_attr( $style ) . '"' . $attr . '>';
 				echo '<div class="ds-cta-bento-bg"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
-				if ( ! empty( $cell->eyebrow ) ) { echo '<div class="ds-cta-bento-eyebrow">' . esc_html( $cell->eyebrow ) . '</div>'; }
+				if ( $ov > 0 ) { echo '<div class="ds-cta-bento-ov"></div>'; }
+
+				if ( $block ) {
+					echo '<div class="ds-cta-bento-content">';
+					if ( '' !== $num )     { echo '<span class="ds-cta-bento-num">' . esc_html( $num ) . '</span>'; }
+					if ( '' !== $badge )   { echo '<span class="ds-cta-bento-badge">' . esc_html( $badge ) . '</span>'; }
+					if ( '' !== $eyebrow ) { echo '<div class="ds-cta-bento-eyebrow">' . DS_Module_UI::inline( $eyebrow ) . '</div>'; }
+					if ( '' !== $title )   { echo '<h3 class="ds-cta-bento-title">' . DS_Module_UI::inline( $title ) . '</h3>'; }
+					if ( '' !== $desc )    { echo '<div class="ds-cta-bento-celldesc">' . wpautop( wp_kses_post( $desc ) ) . '</div>'; }
+					if ( '' !== $lt ) {
+						// The whole cell is already the anchor when it has a link, and an
+						// anchor inside an anchor is invalid HTML that browsers unnest.
+						echo 'a' === $tag
+							? '<span class="ds-cta-bento-btn">' . esc_html( $lt ) . '</span>'
+							: '<a class="ds-cta-bento-btn" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>' . esc_html( $lt ) . '</a>';
+					}
+					echo '</div>';
+				} elseif ( '' !== $eyebrow ) {
+					// Unchanged: the standalone corner pill, for image cells that carry
+					// nothing but an eyebrow.
+					echo '<div class="ds-cta-bento-eyebrow">' . esc_html( $eyebrow ) . '</div>';
+				}
 				echo '</' . $tag . '>';
 			}
 		}
@@ -479,17 +538,36 @@ FLBuilder::register_settings_form( 'ds_cta_card_form', array(
 				'bento' => array(
 					'title'  => __( 'Bento (Style 3)', 'ds-toolkit' ),
 					'fields' => array(
-						'type'     => array(
+						'type'      => array(
 							'type'    => 'select',
 							'label'   => __( 'Cell Type', 'ds-toolkit' ),
 							'default' => 'image',
 							'options' => array( 'image' => __( 'Image', 'ds-toolkit' ), 'text' => __( 'Text / CTA', 'ds-toolkit' ) ),
-							'toggle'  => array( 'text' => array( 'fields' => array( 'desc' ) ) ),
-							'help'    => __( 'Bento (Style 3) only. Image cells use the Background Image; Text cells use Title + Description + the Link Text button.', 'ds-toolkit' ),
+							// 'desc' is no longer toggled off for image cells: they render
+							// Title / Description / Link Text now too (GH #123).
+							'toggle'  => array( 'image' => array( 'fields' => array( 'cell_overlay' ) ) ),
+							'help'    => __( 'Bento (Style 3) only. Image cells sit on the Background Image with an overlay; Text cells sit on the Treatment background. Both render Eyebrow, Title, Description and the Link Text button.', 'ds-toolkit' ),
 						),
-						'desc'     => array( 'type' => 'editor', 'media_buttons' => false, 'rows' => 6, 'wpautop' => false, 'label' => __( 'Description', 'ds-toolkit' ) ),
-						'col_span' => array( 'type' => 'unit', 'label' => __( 'Column Span', 'ds-toolkit' ), 'default' => '1', 'slider' => array( 'min' => 1, 'max' => 4, 'step' => 1 ) ),
-						'row_span' => array( 'type' => 'unit', 'label' => __( 'Row Span', 'ds-toolkit' ), 'default' => '1', 'slider' => array( 'min' => 1, 'max' => 3, 'step' => 1 ) ),
+						'desc'      => array( 'type' => 'editor', 'media_buttons' => false, 'rows' => 6, 'wpautop' => false, 'label' => __( 'Description', 'ds-toolkit' ) ),
+						'number'    => array( 'type' => 'text', 'label' => __( 'Number', 'ds-toolkit' ), 'connections' => array( 'string' ), 'help' => __( 'Optional index shown above the eyebrow, e.g. 01. Free text, so 01 / A / 1 of 4 all work.', 'ds-toolkit' ) ),
+						'badge'     => array( 'type' => 'text', 'label' => __( 'Badge', 'ds-toolkit' ), 'connections' => array( 'string' ), 'help' => __( 'Optional pill label, e.g. NEW or SOLD OUT.', 'ds-toolkit' ) ),
+						'treatment' => array(
+							'type'    => 'select',
+							'label'   => __( 'Treatment', 'ds-toolkit' ),
+							'default' => 'auto',
+							'options' => array(
+								'auto'   => __( 'Automatic (module colours)', 'ds-toolkit' ),
+								'dark'   => __( 'Dark background, light text', 'ds-toolkit' ),
+								'light'  => __( 'Light background, dark text', 'ds-toolkit' ),
+								'accent' => __( 'Brand accent, light text', 'ds-toolkit' ),
+							),
+							'help'    => __( 'Lets one grid mix an image card, a light card and a brand-colour feature card without needing separate modules. Automatic keeps the module-wide colours, so existing layouts are unchanged.', 'ds-toolkit' ),
+						),
+						'cell_bg'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Background Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Overrides the Treatment background for this card only. On an image card it shows wherever the image does not cover.', 'ds-toolkit' ) ),
+						'cell_text' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Overrides the Treatment text colour for this card only. Set this if you pick a Background Colour the Treatment was not designed for.', 'ds-toolkit' ) ),
+						'cell_overlay' => array( 'type' => 'unit', 'label' => __( 'Image Overlay', 'ds-toolkit' ), 'default' => '', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 5 ), 'help' => __( 'Darkens the image so text stays readable. Blank is automatic: none for a card with only an eyebrow pill, 45% once it carries a title or description.', 'ds-toolkit' ) ),
+						'col_span'  => array( 'type' => 'unit', 'label' => __( 'Column Span', 'ds-toolkit' ), 'default' => '1', 'slider' => array( 'min' => 1, 'max' => 4, 'step' => 1 ), 'help' => __( 'How many grid columns this card occupies. Combine with Row Span for a 2x2 feature card, a 2x1 wide card, or a 1x2 tall card. Every card drops to 1x1 below the tablet breakpoint so nothing overflows on a phone.', 'ds-toolkit' ) ),
+						'row_span'  => array( 'type' => 'unit', 'label' => __( 'Row Span', 'ds-toolkit' ), 'default' => '1', 'slider' => array( 'min' => 1, 'max' => 3, 'step' => 1 ) ),
 					),
 				),
 			),
@@ -733,6 +811,17 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 				'title'  => __( 'Bento', 'ds-toolkit' ),
 				'fields' => array(
 					'row_height' => array( 'type' => 'unit', 'label' => __( 'Row Height', 'ds-toolkit' ), 'default' => '220', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 120, 'max' => 400, 'step' => 10 ) ),
+					'bento_hover' => array(
+						'type'    => 'select',
+						'label'   => __( 'Card Hover', 'ds-toolkit' ),
+						'default' => 'lift',
+						'options' => array(
+							'lift' => __( 'Lift + shadow (image cards also zoom)', 'ds-toolkit' ),
+							'zoom' => __( 'Image zoom only', 'ds-toolkit' ),
+							'none' => __( 'None', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Applies to every card, image or solid, and responds to hovering anywhere on the card rather than only on a link. Skipped for visitors who ask for reduced motion.', 'ds-toolkit' ),
+					),
 					'bento_radius' => array( 'type' => 'unit', 'label' => __( 'Cell Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Rounds every bento cell (image + text cells).', 'ds-toolkit' ) ),
 					'bento_border_width' => array( 'type' => 'unit', 'label' => __( 'Cell Border Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 10, 'step' => 1 ), 'help' => __( 'Border around every bento cell. Blank or 0 = no border.', 'ds-toolkit' ) ),
 					'bento_border_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Cell Border Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-line-color)', 'show_reset' => true, 'show_alpha' => true ),
