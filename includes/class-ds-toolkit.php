@@ -250,7 +250,7 @@ class DS_Toolkit {
             'ds_hero_module_enabled'           => array( 'label' => 'Hero Banner',     'desc' => 'Full-width hero (image, video, or slideshow) with overlay, eyebrow, headline, and call-to-action buttons.' ),
             'ds_menu_module_enabled'           => array( 'label' => 'Menu',            'desc' => 'Responsive navigation bar with dropdowns, mega-menus, and a full-screen mobile overlay.' ),
             'ds_post_loop_module_enabled'      => array( 'label' => 'Post Loop',       'desc' => 'Lists of news, staff, teams, programs, sponsors, or tournaments in a range of card layouts.' ),
-            'ds_page_cards_module_enabled'     => array( 'label' => 'Page Cards',      'desc' => 'A grid of linked cards built from child pages or a manual list.' ),
+            'ds_page_cards_module_enabled'     => array( 'label' => 'Page Cards',      'desc' => 'A grid of linked cards built from child pages, from your own manually added cards, or both together.' ),
             'ds_carousel_module_enabled'       => array( 'label' => 'Images/Videos Carousel', 'desc' => 'A stacked-deck slider or a multi-column reels strip of images and videos.' ),
             'ds_orgstats_module_enabled'       => array( 'label' => 'Org Stats',       'desc' => 'Headline stat figures (the record) as plain figures or photo cards.' ),
             'ds_marquee_module_enabled'        => array( 'label' => 'Marquee',         'desc' => 'A scrolling announcement ticker with a pinned label.' ),
