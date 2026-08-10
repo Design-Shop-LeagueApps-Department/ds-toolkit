@@ -161,6 +161,22 @@ if ( '' !== $cco ) { echo "$node .ds-carousel-caption { color: {$cco}; }\n"; }
 $crd = $u( $settings->caption_radius ?? '', 0 );
 echo "$node .ds-carousel-caption { border-radius: {$crd}px; }\n";
 
+// Caption image height (GH #109) — a custom property so the static rule keeps its
+// own fallback and the pill still works if this block is ever skipped.
+$cih = $u( $settings->caption_image_height ?? '', 22 );
+echo "$node .ds-carousel-caption { --ds-cap-img-h: {$cih}px; }\n";
+$cimw = $u( $settings->caption_image_max_width ?? '', 90 );
+echo "$node .ds-carousel-caption { --ds-cap-img-maxw: {$cimw}px; }\n";
+foreach ( array( 'caption_image_height' => array( '--ds-cap-img-h', 22 ), 'caption_image_max_width' => array( '--ds-cap-img-maxw', 90 ) ) as $key => $meta ) {
+	list( $prop, $def ) = $meta;
+	foreach ( array( 'medium' => $bpm, 'responsive' => $bpr ) as $sfx => $bp ) {
+		$v = $settings->{$key . '_' . $sfx} ?? '';
+		if ( '' !== $v && null !== $v ) {
+			echo "@media (max-width: {$bp}px) { $node .ds-carousel-caption { {$prop}: " . $u( $v, $def ) . "px; } }\n";
+		}
+	}
+}
+
 } // end style1 / non-style2
 
 /* ---- Navigation (arrows + dots) — shared by both styles ---- */
