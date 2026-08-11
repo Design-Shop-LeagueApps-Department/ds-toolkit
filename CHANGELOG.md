@@ -4,6 +4,14 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.86] - 2026-08-11
+### Fixed
+- **Menu: a CLOSED mega panel was intercepting clicks aimed at other open dropdowns (GH #125).** On any menu with a mega item, hovering an item in a neighbouring dropdown showed the wrong URL in the status bar and clicking navigated to it — on skywalkerslax, "FAQ" under About Us went to a `/teams/` page. The closed panel was hidden with `opacity: 0` and `visibility: hidden`, but `visibility` is inheritable and the `.ds-mega-col .ds-submenu` rule sets it back to `visible` on the panel's own columns, while `opacity: 0` hides a layer without disabling hit testing. The result was an invisible, fully clickable layer at `z-index: 999` sitting over whatever it overlapped. The closed state now sets `pointer-events: none`, which the open states switch back on — that also covers the 0.15s closing transition, which a `visibility` fix would not. Plain (non-mega) dropdowns were never affected, because nothing re-enables visibility inside them while closed.
+- **Menu: the same fix does not break the mobile drawer.** In the overlay the mega panel is reused as a height-animated accordion at `opacity: 1`, collapsed by `height: 0`, and none of the three desktop open selectors match there — so the guard alone would have made every mega link in the drawer unclickable. The overlay rule now re-enables `pointer-events` explicitly. Verified both ways in a hit-test harness: without the re-enable a drawer mega link hits nothing at all; with it the link resolves normally.
+
+### Notes
+- Sites carrying the interim Additional CSS workaround (`.ds-mega { pointer-events: none }` plus the three open selectors) should have it removed once they are on 1.9.86. That workaround is the two-rule version and has **no overlay override**, so on those sites the mobile drawer's mega links are currently dead. skywalkerslax is one — its rendered CSS has the two rules and no `.ds-menu-open .ds-mega` override.
+
 ## [1.9.85] - 2026-08-10
 ### Fixed
 - **CTA Bento Grid: an image cell was silently dropping its Title, Description and Link Text (GH #123).** Only the eyebrow ever reached the page, so anything else typed on an image cell disappeared with no warning. All of it renders now, in a content block over the image. **This is visible on existing sites:** any Bento image cell that already has a Title stored starts showing it on update, which is the point of the fix. The blueprint's own Home page is an example — its three image cells carried titles and buttons that were never drawn. A cell carrying *only* an eyebrow is untouched and still renders the corner pill exactly as before, and text cells keep their original markup down to the DOM nesting, because the existing flex rules lay out their direct children.
