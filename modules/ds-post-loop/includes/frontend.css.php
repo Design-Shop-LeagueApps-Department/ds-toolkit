@@ -253,6 +253,12 @@ if ( ( $settings->card_layout ?? '' ) === 'tournament' ) {
 		$tal = ( ( $settings->tn_align ?? 'center' ) === 'left' ) ? 'left' : 'center'; $tai = ( 'left' === $tal ) ? 'flex-start' : 'center';
 		echo "$node .ds-tourn-body{margin:-{$ov}px {$ins}px 0;padding:{$tpad}px;text-align:{$tal};align-items:{$tai};}\n";
 	}
+	// The card surface. Three classes on purpose: css/frontend.css hardcodes
+	// `.ds-tourn--event .ds-tourn-card{background:var(--fl-global-white)}` at (0,2,0),
+	// and "$node .ds-tourn-card" would only tie with it and win on source order.
+	// Scoped to the card alone so the filter bar, the grid and the section around it
+	// are untouched. Blank emits nothing, so the built-in white stays the default.
+	$c = $col( $settings->tn_surface_bg ?? '' ); if ( $c ) { echo "$node .ds-tourn .ds-tourn-card{background:{$c};}\n"; }
 	$c = $col( $settings->tn_card_bg ?? '' );    if ( $c ) { echo "$node .ds-tourn-body{background:{$c};}\n"; }
 	$c = $col( $settings->tn_title_color ?? '' ); if ( $c ) { echo "$node .ds-tourn-title{color:{$c};}\n"; }
 	$c = $col( $settings->tn_meta_color ?? '' );  if ( $c ) { echo "$node .ds-tourn-date,$node .ds-tourn-loc{color:{$c};}\n"; }
