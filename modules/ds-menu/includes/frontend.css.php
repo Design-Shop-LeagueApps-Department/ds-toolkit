@@ -494,6 +494,11 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	<?php echo $open; ?> .ds-submenu,
 	<?php echo $open; ?> .ds-mega {
 		position: static; opacity: 1; visibility: visible; transform: none; box-shadow: none;
+		/* Restores what the closed-state guard in css/frontend.css switches off (GH #125).
+		   In the overlay the panel is a flattened accordion collapsed by height:0, not by
+		   opacity, and none of the desktop open selectors match here — so without this
+		   every mega link in the drawer would be unclickable. */
+		pointer-events: auto;
 		display: block; grid-template-columns: 1fr; width: 100%; min-width: 0; background: transparent;
 		height: 0; overflow: hidden; margin-top: 0; padding: 0 0 0 14px;
 		transition: height .3s ease;

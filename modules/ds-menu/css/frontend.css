@@ -52,12 +52,21 @@
 	   min-width floor). min-content column floors keep text wrapping at words. */
 	gap: 8px 28px; padding: 22px 26px; min-width: 460px; max-width: 90vw; overflow-x: auto;
 	opacity: 0; visibility: hidden; transform: translateY(6px);
+	/* pointer-events is what actually stops the CLOSED panel eating clicks (GH #125).
+	   opacity:0 hides it but does not disable hit testing, and visibility:hidden does
+	   not help either because the .ds-mega-col .ds-submenu rule below sets
+	   visibility:visible back on its own children — visibility is inheritable and a
+	   descendant can override it. The result was an invisible, fully clickable layer
+	   at z-index 999 sitting over any other open dropdown it overlapped: hovering
+	   "FAQ" under About Us reported a /teams/ URL and clicking navigated there.
+	   Guarding pointer-events also covers the 0.15s closing transition. */
+	pointer-events: none;
 	transition: opacity .15s ease, transform .15s ease, visibility .15s;
 	box-shadow: 0 12px 32px rgba(0,0,0,.14); border-radius: var(--ds-radius);
 }
 .ds-menu-wrap:not(.ds-js-hover) .ds-menu-item.is-mega:hover > .ds-mega,
 .ds-menu-item.is-mega.ds-hover-open > .ds-mega,
-.ds-menu-item.is-mega:focus-within > .ds-mega { opacity: 1; visibility: visible; transform: translateY(0); }
+.ds-menu-item.is-mega:focus-within > .ds-mega { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
 .ds-mega-col .ds-mega-head { display: block; font-weight: 700; text-decoration: none; padding: 4px 0 6px; }
 .ds-mega-col .ds-submenu { position: static; opacity: 1; visibility: visible; transform: none; box-shadow: none; padding: 0; min-width: 0; }
 .ds-mega-col .ds-submenu .ds-menu-item > a { padding: 4px 0; white-space: normal; }
