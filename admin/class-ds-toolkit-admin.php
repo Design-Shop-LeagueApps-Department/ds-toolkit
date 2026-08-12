@@ -243,6 +243,12 @@ class DS_Toolkit_Admin {
                 $bot_shield_challenge_enabled = ! empty( $opts['bot_shield_challenge_enabled'] );
                 $bot_shield_ua_blocklist      = isset( $opts['bot_shield_ua_blocklist'] ) ? $opts['bot_shield_ua_blocklist'] : '';
                 $bot_shield_ip_allowlist      = isset( $opts['bot_shield_ip_allowlist'] ) ? $opts['bot_shield_ip_allowlist'] : '';
+                $origin_guard_enabled         = ! empty( $opts['origin_guard_enabled'] );
+                $origin_guard_block_login     = ! isset( $opts['origin_guard_block_login'] ) || ! empty( $opts['origin_guard_block_login'] );
+                $origin_guard_block_xmlrpc    = ! isset( $opts['origin_guard_block_xmlrpc'] ) || ! empty( $opts['origin_guard_block_xmlrpc'] );
+                // Is the mu-plugin actually on disk right now? (installer may
+                // have failed to write, e.g. read-only mu-plugins dir.)
+                $origin_guard_installed = file_exists( ( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ) . '/ds-origin-guard.php' );
                 // Today's block counters (cache reads only; empty string hides the line).
                 $bot_shield_stats = '';
                 if ( $bot_shield_enabled ) {

@@ -341,6 +341,18 @@ class DS_Toolkit {
             // the sportsatthebeach flood. Real IE visitors no longer exist.
             'bot_shield_ua_blocklist'            => "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
             'bot_shield_ip_allowlist'            => '',
+            // Origin Guard: an mu-plugin (installed/maintained by the toolkit)
+            // that refuses the flood's exact request shapes BEFORE plugins load,
+            // so each attack request costs ~20ms instead of a full render. This
+            // is the pre-plugin layer Bot Shield cannot reach. ON fleet-wide by
+            // default — the rules only refuse traffic no real visitor produces.
+            'origin_guard_enabled'               => 1,
+            // Sub-rules, each independently disableable. Login-POST guard drops
+            // credential-stuffing POSTs that never rendered the login form.
+            // xmlrpc guard is auto-skipped on sites running Jetpack / the WP
+            // mobile app (detected at install time).
+            'origin_guard_block_login'           => 1,
+            'origin_guard_block_xmlrpc'          => 1,
             'partner_plugin_access'              => 0,
             'design_academy_enabled'             => 1,
             'academy_pinned_url'                 => 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/',
@@ -471,6 +483,15 @@ class DS_Toolkit {
             require_once DS_TOOLKIT_PATH . 'includes/class-ds-toolkit-updater.php';
             $updater = new DS_Toolkit_Updater();
             $updater->init();
+
+            // Origin Guard is an mu-plugin the toolkit writes and maintains, not
+            // a request-time feature — it must run before plugins load, which
+            // the features[] loop below (plugins_loaded) is too late for. Sync
+            // the file here in admin/cron/CLI only, so frontend hits never pay
+            // for it. sync() is a single option read unless state changed, and
+            // it handles install, version refresh, and removal-on-disable.
+            require_once DS_TOOLKIT_PATH . 'includes/class-ds-origin-guard-installer.php';
+            ( new DS_Origin_Guard_Installer( $settings ) )->sync();
         }
 
         $blueprint    = self::blueprint_version();

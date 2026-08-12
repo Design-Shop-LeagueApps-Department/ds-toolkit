@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // ---- group counts (on / total), computed from the same vars the cards use ----
 $dst_bp6 = ( $blueprint_version >= 6 );
 
-$dst_grp_security = array( $hide_fl_assistant, $user_roles_enabled, $bot_shield_enabled );
+$dst_grp_security = array( $hide_fl_assistant, $user_roles_enabled, $bot_shield_enabled, $origin_guard_enabled );
 if ( $dst_bp6 ) {
 	$dst_grp_security[] = $disable_comments_enabled;
 	$dst_grp_security[] = $admin_menu_tidy_enabled;
@@ -181,6 +181,41 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                 <strong style="display:block;margin-top:10px;">IP allowlist</strong>
                 <span>Never limited or challenged. One per line: exact IP, CIDR (203.0.113.0/24), or prefix (203.0.113.).</span>
                 <textarea name="ds_toolkit_settings[bot_shield_ip_allowlist]" rows="3" style="width:100%;margin-top:6px;"><?php echo esc_textarea( $bot_shield_ip_allowlist ); ?></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Origin Guard (pre-plugin mu-plugin) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-shield-alt"></span></div>
+            <div class="dst-card-info">
+                <strong>Origin Guard</strong>
+                <span>The layer below Bot Shield. Installs a tiny must-use plugin that refuses the exact request shapes of a bot flood <em>before WordPress loads any plugins</em>, so each attack request costs ~20ms instead of a full render (a 50-100x capacity gain on the attacked endpoints). Rejects anonymous REST user-enumeration (<code>/wp-json/wp/v2/users</code>), credential-stuffing login POSTs that never rendered the login form, and XML-RPC. Logged-in users, authenticated API calls, and normal visitors are never touched; the XML-RPC rule is skipped automatically on sites running Jetpack or the WP mobile app. Built after WPE ticket #8578620 (the Aug 2026 fleet flood).
+                <?php if ( $origin_guard_enabled && ! $origin_guard_installed ) : ?><br><strong style="color:#b32d2e;">Not installed:</strong> the mu-plugins directory could not be written. Check filesystem permissions.<?php elseif ( $origin_guard_installed ) : ?><br><strong style="color:#1a7f37;">Active</strong> — running as <code>mu-plugins/ds-origin-guard.php</code>.<?php endif; ?></span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[origin_guard_enabled]" value="0">
+                <input type="checkbox" id="origin_guard_enabled" name="ds_toolkit_settings[origin_guard_enabled]" value="1" <?php checked( $origin_guard_enabled ); ?>>
+                <label for="origin_guard_enabled"></label>
+            </div>
+        </div>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info" style="width:100%;">
+                <strong>Rules</strong>
+                <span style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+                    <label style="display:flex;align-items:center;gap:6px;">
+                        <input type="hidden" name="ds_toolkit_settings[origin_guard_block_login]" value="0">
+                        <input type="checkbox" name="ds_toolkit_settings[origin_guard_block_login]" value="1" <?php checked( $origin_guard_block_login ); ?>>
+                        Block cold login POSTs
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;">
+                        <input type="hidden" name="ds_toolkit_settings[origin_guard_block_xmlrpc]" value="0">
+                        <input type="checkbox" name="ds_toolkit_settings[origin_guard_block_xmlrpc]" value="1" <?php checked( $origin_guard_block_xmlrpc ); ?>>
+                        Block XML-RPC (auto-skipped if Jetpack is active)
+                    </label>
+                </span>
             </div>
         </div>
     </div>
