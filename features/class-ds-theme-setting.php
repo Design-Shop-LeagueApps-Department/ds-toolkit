@@ -107,10 +107,44 @@ CSS;
             $pos    = (string) get_theme_mod( $prefix . '-position', 'center top' );
             $size   = (string) get_theme_mod( $prefix . '-size', 'auto' );
             $attach = (string) get_theme_mod( $prefix . '-attachment', 'scroll' );
-            $decl  .= 'background-image:url(' . esc_url( $image ) . ');background-repeat:' . $repeat . ';background-position:' . $pos . ';background-size:' . $size . ';background-attachment:' . $attach . ';';
+            $decl  .= 'background-image:' . self::overlay_layer( $prefix ) . 'url(' . esc_url( $image ) . ');background-repeat:' . $repeat . ';background-position:' . $pos . ';background-size:' . $size . ';background-attachment:' . $attach . ';';
         }
         if ( '' !== $blend && 'normal' !== $blend ) { $decl .= 'background-blend-mode:' . $blend . ';'; }
         return $decl;
+    }
+
+    /**
+     * A tint stacked over the background image, as a flat gradient in the same
+     * `background-image` shorthand. Done this way so no surface needs an extra
+     * element or pseudo-element — these three all paint elements the base Themer
+     * template owns, and adding markup to them would ripple through every build.
+     *
+     * Only meaningful WITH an image: over a plain colour a tint is just a
+     * different colour, so it is skipped and the Background Colour field is the
+     * right control. Returns '' when nothing is set, which leaves the emitted CSS
+     * byte-identical to before.
+     */
+    private static function overlay_layer( $prefix ) {
+        $c = trim( (string) get_theme_mod( $prefix . '-overlay', '' ) );
+        if ( '' === $c ) { return ''; }
+        return 'linear-gradient(' . $c . ',' . $c . '),';
+    }
+
+    /**
+     * Guards for `background-attachment: fixed`, which is what "parallax" is.
+     *
+     * iOS Safari does not support it: the browser falls back to scroll but keeps
+     * sizing the image against the viewport, so a `cover` background renders
+     * zoomed and cropped. Most partner traffic is iPhone, so exposing Fixed
+     * without this makes the setting actively worse than Scroll on the devices
+     * that matter most. Coarse pointers get scroll, and so does anyone who has
+     * asked for reduced motion — a background that slides under the content is
+     * exactly the kind of movement that request is about.
+     */
+    private static function parallax_guard_css( $prefix, $selector ) {
+        if ( 'fixed' !== (string) get_theme_mod( $prefix . '-attachment', 'scroll' ) ) { return ''; }
+        return '@media (hover:none) and (pointer:coarse){' . $selector . '{background-attachment:scroll;}}'
+             . '@media (prefers-reduced-motion:reduce){' . $selector . '{background-attachment:scroll;}}';
     }
 
     /**
@@ -121,7 +155,8 @@ CSS;
     public function output_page_bg_css() {
         $decl = $this->bg_decl( 'fl-body-bg' );
         if ( '' === $decl ) { return; }
-        echo '<style id="ds-base-page-bg-css">.ds-base-page-bg > .fl-row-content-wrap{' . $decl . '}</style>' . "\n";
+        $sel = '.ds-base-page-bg > .fl-row-content-wrap';
+        echo '<style id="ds-base-page-bg-css">' . $sel . '{' . $decl . '}' . self::parallax_guard_css( 'fl-body-bg', $sel ) . '</style>' . "\n";
     }
 
     /**
@@ -132,7 +167,8 @@ CSS;
     public function output_content_bg_css() {
         $decl = $this->bg_decl( 'fl-content-bg' );
         if ( '' === $decl ) { return; }
-        echo '<style id="ds-base-content-bg-css">.ds-base-content-bg > .fl-col-content{' . $decl . '}</style>' . "\n";
+        $sel = '.ds-base-content-bg > .fl-col-content';
+        echo '<style id="ds-base-content-bg-css">' . $sel . '{' . $decl . '}' . self::parallax_guard_css( 'fl-content-bg', $sel ) . '</style>' . "\n";
     }
 
     /**
@@ -178,11 +214,15 @@ CSS;
         if ( '' !== $image ) {
             $repeat = (string) get_theme_mod( 'ds-banner-nobg-repeat', 'repeat' );
             $size   = (string) get_theme_mod( 'ds-banner-nobg-size', 'auto' );
-            $decl  .= 'background-image:url(' . esc_url( $image ) . ');background-repeat:' . $repeat . ';background-position:center;background-size:' . $size . ';';
+            // Position was hardcoded to `center`; the setting defaults to the
+            // equivalent `center center`, so an existing banner does not move.
+            $pos    = (string) get_theme_mod( 'ds-banner-nobg-position', 'center center' );
+            $attach = (string) get_theme_mod( 'ds-banner-nobg-attachment', 'scroll' );
+            $decl  .= 'background-image:' . self::overlay_layer( 'ds-banner-nobg' ) . 'url(' . esc_url( $image ) . ');background-repeat:' . $repeat . ';background-position:' . $pos . ';background-size:' . $size . ';background-attachment:' . $attach . ';';
         }
         if ( '' !== $blend && 'normal' !== $blend ) { $decl .= 'background-blend-mode:' . $blend . ';'; }
         if ( '' === $decl ) { return; }
-        echo '<style id="ds-banner-nobg-css">.ds-banner--no-bg{' . $decl . '}</style>' . "\n";
+        echo '<style id="ds-banner-nobg-css">.ds-banner--no-bg{' . $decl . '}' . self::parallax_guard_css( 'ds-banner-nobg', '.ds-banner--no-bg' ) . '</style>' . "\n";
         $o_color = (string) get_theme_mod( 'ds-outline-color', '' );
         $o_width = max( 1, (int) get_theme_mod( 'ds-outline-width', 2 ) );
         echo '<style id="ds-outline-text-css">.ds-outline-text{color:transparent;-webkit-text-stroke:var(--ds-outline-w,' . $o_width . 'px) var(--ds-outline-c,' . ( '' !== $o_color ? esc_html( $o_color ) : 'currentColor' ) . ');}</style>' . "\n";
@@ -798,7 +838,10 @@ JS;
                         $this->field_open( 'Position' ); echo $this->sel( 'general[bg_position]', $mod( 'fl-body-bg-position', 'center top' ), $pos ); $this->field_close();
                         $this->field_open( 'Size' ); echo $this->sel( 'general[bg_size]', $mod( 'fl-body-bg-size', 'auto' ), $size ); $this->field_close();
                         $this->field_open( 'Attachment' ); echo $this->sel( 'general[bg_attachment]', $mod( 'fl-body-bg-attachment', 'scroll' ), $attach ); $this->field_close();
+                        echo '<p class="description" style="margin:4px 0 0"><strong>Attachment: Fixed</strong> is the parallax effect &mdash; the image holds still while the page scrolls over it. It is automatically switched back to Scroll on touch devices (iOS cannot do it and would render the image zoomed) and for visitors who ask for reduced motion.</p>';
                         $this->field_open( 'Blend Mode' ); echo $this->sel( 'general[bg_blend]', $mod( 'fl-body-bg-blend', 'normal' ), $blend ); $this->field_close();
+                        $this->color_field( 'Image Overlay', 'general[bg_overlay]', $mod( 'fl-body-bg-overlay' ) );
+                        echo '<p class="description" style="margin:4px 0 0">Tints the background image. Use a colour with transparency — a solid colour hides the image entirely. Has no effect without an image (use Background Color instead).</p>';
                         echo '<p class="ds-ts-help">Paints the <strong>Base Container</strong> row of the base themer template (the page band behind the content on every single page). Add a Background Image as a pattern and a Blend Mode to mix it with the Background Color.</p>';
                     $this->acc_end();
 
@@ -817,7 +860,10 @@ JS;
                         $this->field_open( 'Position' ); echo $this->sel( 'general[content_bg_position]', $mod( 'fl-content-bg-position', 'center top' ), $pos ); $this->field_close();
                         $this->field_open( 'Size' ); echo $this->sel( 'general[content_bg_size]', $mod( 'fl-content-bg-size', 'auto' ), $size ); $this->field_close();
                         $this->field_open( 'Attachment' ); echo $this->sel( 'general[content_bg_attachment]', $mod( 'fl-content-bg-attachment', 'scroll' ), $attach ); $this->field_close();
+                        echo '<p class="description" style="margin:4px 0 0"><strong>Attachment: Fixed</strong> is the parallax effect &mdash; the image holds still while the page scrolls over it. It is automatically switched back to Scroll on touch devices (iOS cannot do it and would render the image zoomed) and for visitors who ask for reduced motion.</p>';
                         $this->field_open( 'Blend Mode' ); echo $this->sel( 'general[content_bg_blend]', $mod( 'fl-content-bg-blend', 'normal' ), $blend ); $this->field_close();
+                        $this->color_field( 'Image Overlay', 'general[content_bg_overlay]', $mod( 'fl-content-bg-overlay' ) );
+                        echo '<p class="description" style="margin:4px 0 0">Tints the background image. Use a colour with transparency — a solid colour hides the image entirely. Has no effect without an image (use Background Color instead).</p>';
                         echo '<p class="ds-ts-help">Paints the <strong>content column</strong> inside the Base Container row (the inner box that holds the body on every single page). Use a Background Image as a pattern and Blend Mode to mix it with the Background Color.</p>';
                     $this->acc_end();
 
@@ -857,6 +903,11 @@ JS;
                         <?php
                         $this->field_open( 'Repeat' ); echo $this->sel( 'general[banner_nobg_repeat]', $mod( 'ds-banner-nobg-repeat', 'repeat' ), $repeat ); $this->field_close();
                         $this->field_open( 'Size' ); echo $this->sel( 'general[banner_nobg_size]', $mod( 'ds-banner-nobg-size', 'auto' ), $size ); $this->field_close();
+                        $this->field_open( 'Position' ); echo $this->sel( 'general[banner_nobg_position]', $mod( 'ds-banner-nobg-position', 'center center' ), $pos ); $this->field_close();
+                        $this->field_open( 'Attachment' ); echo $this->sel( 'general[banner_nobg_attachment]', $mod( 'ds-banner-nobg-attachment', 'scroll' ), $attach ); $this->field_close();
+                        echo '<p class="description" style="margin:4px 0 0"><strong>Attachment: Fixed</strong> is the parallax effect &mdash; the image holds still while the page scrolls over it. It is automatically switched back to Scroll on touch devices (iOS cannot do it and would render the image zoomed) and for visitors who ask for reduced motion.</p>';
+                        $this->color_field( 'Image Overlay', 'general[banner_nobg_overlay]', $mod( 'ds-banner-nobg-overlay' ) );
+                        echo '<p class="description" style="margin:4px 0 0">Tints the background image. Use a colour with transparency — a solid colour hides the image entirely. Has no effect without an image (use Background Color instead).</p>';
                         $this->field_open( 'Blend Mode' ); echo $this->sel( 'general[banner_nobg_blend]', $mod( 'ds-banner-nobg-blend', 'normal' ), $blend ); $this->field_close();
                         echo '<p class="ds-ts-help">Default background for the <strong>Page Banner</strong> (Leagueapps Hero Banner) on pages with <strong>no banner photo or video</strong>. A small tileable pattern suits Repeat = Tile. The hero module can still override this per page.</p>';
                     $this->acc_end();
@@ -1082,6 +1133,7 @@ JS;
             set_theme_mod( 'fl-body-bg-size', in_array( $g['bg_size'] ?? '', $size_ok, true ) ? $g['bg_size'] : 'auto' );
             set_theme_mod( 'fl-body-bg-attachment', in_array( $g['bg_attachment'] ?? '', $attach_ok, true ) ? $g['bg_attachment'] : 'scroll' );
             set_theme_mod( 'fl-body-bg-blend', in_array( $g['bg_blend'] ?? '', $blend_ok, true ) ? $g['bg_blend'] : 'normal' );
+            set_theme_mod( 'fl-body-bg-overlay', $this->sanitize_color( $g['bg_overlay'] ?? '' ) );
             // Base Page Content Background (the inner content box) -> the content COLUMN, fl-content-bg-* mods.
             set_theme_mod( 'fl-content-bg-color', $this->sanitize_color( $g['content_bg_color'] ?? '' ) );
             set_theme_mod( 'fl-content-bg-image', esc_url_raw( $g['content_bg_image'] ?? '' ) );
@@ -1090,12 +1142,17 @@ JS;
             set_theme_mod( 'fl-content-bg-size', in_array( $g['content_bg_size'] ?? '', $size_ok, true ) ? $g['content_bg_size'] : 'auto' );
             set_theme_mod( 'fl-content-bg-attachment', in_array( $g['content_bg_attachment'] ?? '', $attach_ok, true ) ? $g['content_bg_attachment'] : 'scroll' );
             set_theme_mod( 'fl-content-bg-blend', in_array( $g['content_bg_blend'] ?? '', $blend_ok, true ) ? $g['content_bg_blend'] : 'normal' );
+            set_theme_mod( 'fl-content-bg-overlay', $this->sanitize_color( $g['content_bg_overlay'] ?? '' ) );
             // Page Banner (no-image) default background -> ds-banner-nobg-* mods.
             set_theme_mod( 'ds-banner-nobg-color', $this->sanitize_color( $g['banner_nobg_color'] ?? '' ) );
             set_theme_mod( 'ds-banner-nobg-image', esc_url_raw( $g['banner_nobg_image'] ?? '' ) );
             set_theme_mod( 'ds-banner-nobg-repeat', in_array( $g['banner_nobg_repeat'] ?? '', $repeat_ok, true ) ? $g['banner_nobg_repeat'] : 'repeat' );
             set_theme_mod( 'ds-banner-nobg-size', in_array( $g['banner_nobg_size'] ?? '', $size_ok, true ) ? $g['banner_nobg_size'] : 'auto' );
             set_theme_mod( 'ds-banner-nobg-blend', in_array( $g['banner_nobg_blend'] ?? '', $blend_ok, true ) ? $g['banner_nobg_blend'] : 'normal' );
+            // Default 'center center' matches the value that used to be hardcoded.
+            set_theme_mod( 'ds-banner-nobg-position', in_array( $g['banner_nobg_position'] ?? '', $pos_ok, true ) ? $g['banner_nobg_position'] : 'center center' );
+            set_theme_mod( 'ds-banner-nobg-attachment', in_array( $g['banner_nobg_attachment'] ?? '', $attach_ok, true ) ? $g['banner_nobg_attachment'] : 'scroll' );
+            set_theme_mod( 'ds-banner-nobg-overlay', $this->sanitize_color( $g['banner_nobg_overlay'] ?? '' ) );
             if ( isset( $g['banner_featured_types_set'] ) ) {
                 set_theme_mod( 'ds-banner-featured-types', array_map( 'sanitize_key', (array) ( $g['banner_featured_types'] ?? array() ) ) );
             }
