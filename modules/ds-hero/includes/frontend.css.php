@@ -50,6 +50,25 @@ if ( ( $settings->kenburns ?? 'no' ) === 'yes' ) {
 $cw = is_numeric( $settings->content_width ?? '' ) ? (int) $settings->content_width : 760;
 echo "$node .ds-hero-inner { max-width: {$cw}px; }\n";
 
+// The text column lives inside .ds-hero-wrap, which carries its own cap — 1280px
+// from the stylesheet, or whatever Container Width is set to. A Content Width above
+// that cap was therefore silently clamped: asking for 1600 rendered 1280, with
+// nothing in the UI to say why (GH #134). It is NOT alignment-specific, despite how
+// it presents; left, center and right all clamp identically.
+//
+// So when the content asks for more room than its container allows, the container is
+// widened to match. Only ever widened, and only in that case: a Container Width set
+// narrower than the content is a deliberate choice and is left alone below the cap.
+$cwrap = $settings->container_width ?? 'boxed';
+if ( 'full' !== $cwrap ) {
+	$cap = ( 'custom' === $cwrap && isset( $settings->container_max_width ) && '' !== $settings->container_max_width )
+		? (int) $settings->container_max_width
+		: 1280; // the .ds-hero-wrap default in css/frontend.css
+	if ( $cw > $cap ) {
+		echo "$node .ds-hero-wrap { max-width: {$cw}px; margin: 0 auto; }\n";
+	}
+}
+
 // ---- Overlay ----
 $ostyle = $settings->overlay_style ?? 'gradient';
 if ( 'solid' === $ostyle ) {

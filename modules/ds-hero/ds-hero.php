@@ -760,7 +760,7 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 				'title'  => __( 'Layout', 'ds-toolkit' ),
 				'fields' => array(
 					'min_height'    => array( 'type' => 'unit', 'label' => __( 'Min Height', 'ds-toolkit' ), 'default' => '92', 'description' => 'vh', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
-					'content_width' => array( 'type' => 'unit', 'label' => __( 'Content Width', 'ds-toolkit' ), 'default' => '760', 'description' => 'px', 'slider' => array( 'min' => 300, 'max' => 1280, 'step' => 10 ), 'help' => __( 'Max width of the text column (eyebrow, headline, subtext, buttons, stats).', 'ds-toolkit' ) ),
+					'content_width' => array( 'type' => 'unit', 'label' => __( 'Content Width', 'ds-toolkit' ), 'default' => '760', 'description' => 'px', 'slider' => array( 'min' => 300, 'max' => 1920, 'step' => 10 ), 'help' => __( 'Max width of the text column (eyebrow, headline, subtext, buttons, stats). Going wider than the Container Width below now widens the container to match, so this value is always honoured.', 'ds-toolkit' ) ),
 					'align'         => array(
 						'type'       => 'select',
 						'label'      => __( 'Alignment', 'ds-toolkit' ),
