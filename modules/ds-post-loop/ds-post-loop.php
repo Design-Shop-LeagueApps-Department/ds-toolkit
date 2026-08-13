@@ -140,6 +140,33 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		return (string) $node->settings->card_layout;
 	}
 	/** Public post types for the Query tab's Post Type select. */
+	/**
+	 * The Include / Exclude id lists for the post type currently selected (GH #132).
+	 *
+	 * The suggest fields are generated per post type (see the form builder at the
+	 * bottom of this file), because a BB settings form is registered once at init
+	 * and cannot know which type a given module instance has chosen. So the values
+	 * live in `inc_<type>` / `exc_<type>` and only the pair matching the active
+	 * type is read — switching Post Type therefore reveals that type's own picks
+	 * instead of silently applying another type's ids.
+	 *
+	 * BB's suggest field stores a comma-separated id string; older saves and
+	 * programmatic writes can hand back an array, so both shapes are accepted.
+	 *
+	 * @return array{0:array<int>,1:array<int>} include ids, exclude ids
+	 */
+	private function include_exclude_ids( $ptype ) {
+		$s   = $this->settings;
+		$key = str_replace( '-', '_', (string) $ptype );
+		$get = function ( $field ) use ( $s ) {
+			$v = $s->{$field} ?? '';
+			if ( is_array( $v ) ) { $ids = $v; } else { $ids = explode( ',', (string) $v ); }
+			$ids = array_filter( array_map( 'absint', $ids ) );
+			return array_values( array_unique( $ids ) );
+		};
+		return array( $get( 'inc_' . $key ), $get( 'exc_' . $key ) );
+	}
+
 	public static function post_type_options() {
 		$out = array();
 		foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $pt ) {
@@ -236,7 +263,12 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 		$ptype = preg_replace( '/[^a-z0-9_-]/', '', (string) ( $s->post_type ?? 'post' ) ) ?: 'post';
 		$num   = (int) ( $s->posts_per_page ?? 5 );
-		$ob    = in_array( $s->order_by ?? 'date', array( 'date', 'title', 'menu_order', 'rand', 'modified', 'meta_value', 'meta_value_num' ), true ) ? $s->order_by : 'date';
+		// Resolve the fallback ONCE. Reading $s->order_by again in the true branch
+		// warned "Undefined property" on any layout saved before the field existed —
+		// and worse, returned null rather than 'date', because the ?? default is
+		// itself a valid option so an unset property takes exactly that branch.
+		$ob    = (string) ( $s->order_by ?? 'date' );
+		if ( ! in_array( $ob, array( 'date', 'title', 'menu_order', 'rand', 'modified', 'meta_value', 'meta_value_num' ), true ) ) { $ob = 'date'; }
 		$order = ( strtoupper( (string) ( $s->order ?? 'DESC' ) ) === 'ASC' ) ? 'ASC' : 'DESC';
 
 		$args = array(
@@ -252,9 +284,22 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 		// On a single view, optionally drop the post being viewed so a "More News /
 		// Related" strip never relists the current article.
+		$not_in = array();
 		if ( ( $s->exclude_current ?? 'no' ) === 'yes' && is_singular() ) {
-			$args['post__not_in'] = array( get_queried_object_id() );
+			$not_in[] = get_queried_object_id();
 		}
+
+		// Hand-picked posts (GH #132). Include narrows the loop to exactly those
+		// entries; exclude drops them from an otherwise normal query. Order, count
+		// and offset are left alone on purpose so every existing query setting keeps
+		// working — in particular `orderby` is NOT forced to post__in, so an included
+		// set still sorts by whatever the module is set to.
+		list( $inc, $exc ) = $this->include_exclude_ids( $ptype );
+		if ( ! empty( $inc ) ) { $args['post__in'] = $inc; }
+		if ( ! empty( $exc ) ) { $not_in = array_merge( $not_in, $exc ); }
+		// Merged rather than assigned: Exclude Current Post writes here too, and one
+		// overwriting the other would silently drop a filter the editor had set.
+		if ( ! empty( $not_in ) ) { $args['post__not_in'] = array_values( array_unique( $not_in ) ); }
 
 		// Order by a custom meta field (e.g. an ACF key). Falls back to date if no key.
 		if ( 'meta_value' === $ob || 'meta_value_num' === $ob ) {
@@ -1101,6 +1146,12 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$q_args = array( 'post_type' => $ptype, 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'date', 'order' => 'DESC' );
 		$tq     = $this->tax_query_args();
 		if ( ! empty( $tq ) ) { $q_args['tax_query'] = $tq; }
+		// This layout builds its own query (it sorts on the event_date ACF field, so it
+		// never goes through run_query), which is exactly how the Taxonomy Filter came to
+		// be ignored here in 1.9.71. Include / Exclude has to be applied in both places.
+		list( $tn_inc, $tn_exc ) = $this->include_exclude_ids( $ptype );
+		if ( ! empty( $tn_inc ) ) { $q_args['post__in'] = $tn_inc; }
+		if ( ! empty( $tn_exc ) ) { $q_args['post__not_in'] = $tn_exc; }
 		$posts = get_posts( $q_args );
 		$today = strtotime( 'today' );
 		$items = array();
@@ -1981,6 +2032,46 @@ $ds_pl_form = array(
 );
 // Shared "Border & Divider" section appended to the Style tab for every layout.
 $ds_pl_form['style']['sections'] = array_merge( $ds_pl_form['style']['sections'], DS_Module_UI::border_section( false ) );
+
+/* Include / Exclude specific posts (GH #132) — one post-suggest (autocomplete + pills)
+   pair per public post type, revealed by the Post Type selector's toggle. Built the
+   same way as the taxonomy filter below and for the same reason: a BB settings form is
+   registered once at init, so a single field cannot know which post type a given module
+   instance will be set to. Generating a pair per type means each one can point
+   `fl_as_posts` at its own type, which is what makes the picker search only Staff when
+   Staff is selected. */
+$ds_pl_q =& $ds_pl_form['query']['sections']['query']['fields'];
+if ( isset( $ds_pl_q['post_type'] ) ) {
+	if ( ! isset( $ds_pl_q['post_type']['toggle'] ) ) { $ds_pl_q['post_type']['toggle'] = array(); }
+	foreach ( DS_Post_Loop_Module::post_type_options() as $ds_pt_name => $ds_pt_label ) {
+		$ds_pt_key = str_replace( '-', '_', $ds_pt_name );
+		$ds_inc    = 'inc_' . $ds_pt_key;
+		$ds_exc    = 'exc_' . $ds_pt_key;
+		$ds_pl_q['post_type']['toggle'][ $ds_pt_name ] = array( 'fields' => array( $ds_inc, $ds_exc ) );
+		if ( isset( $ds_pl_q['source']['toggle']['custom']['fields'] ) ) {
+			// A field named in no toggle branch is always visible, so without this the
+			// pickers would linger when Source is "Current archive" (which ignores them).
+			$ds_pl_q['source']['toggle']['custom']['fields'][] = $ds_inc;
+			$ds_pl_q['source']['toggle']['custom']['fields'][] = $ds_exc;
+		}
+		$ds_pl_q[ $ds_inc ] = array(
+			'type'   => 'suggest',
+			'label'  => sprintf( __( 'Include Specific %s', 'ds-toolkit' ), $ds_pt_label ),
+			'action' => 'fl_as_posts',
+			'data'   => $ds_pt_name,
+			'help'   => __( 'Type to search; picks show as pills. Leave empty for the normal query. When set, ONLY these entries are shown — Number of Posts, Order and Offset still apply on top.', 'ds-toolkit' ),
+		);
+		$ds_pl_q[ $ds_exc ] = array(
+			'type'   => 'suggest',
+			'label'  => sprintf( __( 'Exclude Specific %s', 'ds-toolkit' ), $ds_pt_label ),
+			'action' => 'fl_as_posts',
+			'data'   => $ds_pt_name,
+			'help'   => __( 'Everything the query would normally return, minus these. Combines with Exclude Current Post rather than replacing it.', 'ds-toolkit' ),
+		);
+	}
+	unset( $ds_pt_name, $ds_pt_label, $ds_pt_key, $ds_inc, $ds_exc );
+}
+unset( $ds_pl_q );
 
 /* Taxonomy filter — a Taxonomy selector plus one term-suggest (autocomplete + pills)
    field per public taxonomy, revealed by the selector's toggle. Built dynamically so
