@@ -15,6 +15,28 @@ Alipio Gabriel
 - HTTPS (live sites) — or `define('WP_ENVIRONMENT_TYPE', 'local')` for LocalWP
 - Node.js / npx — required on developer machines for the Claude Desktop MCP connection
 
+## Installing on a new site
+
+Upload the release zip, then **load the Plugins page before clicking Activate.**
+
+Activating straight from the upload screen can fail with:
+
+> The plugin does not have a valid header.
+
+That is a WordPress race, not a broken package. WordPress calls `get_plugins()` early in
+the install request and caches the result for that request; if the snapshot was taken
+before the new folder landed, the activation later in the *same* request consults the
+stale list, does not find `ds-toolkit/ds-toolkit.php`, and reports a missing header. The
+files are complete and correct — the next request rescans and activation succeeds.
+
+Nothing in the plugin can prevent it: `validate_plugin()` runs before any plugin code
+loads, so there is no hook available at that point. Seen on Flywheel (bluespringsbaseball,
+2026-08-13), where the plugin folder, permissions, header and byte count were all verified
+correct while the error was showing.
+
+If it persists *after* a Plugins-page visit, then it is a real problem — check for a folder
+not named `ds-toolkit`, a truncated upload, or permissions stopping PHP reading the header.
+
 ---
 
 ## Plugin Structure
