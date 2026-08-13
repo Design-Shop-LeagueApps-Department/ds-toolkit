@@ -1,6 +1,19 @@
 <?php
 /**
  * Leagueapps Hero Banner — dynamic CSS. $module, $settings, $id in scope.
+ *
+ * Child selectors are written "$node .ds-hero .ds-hero-x" — three classes, not the
+ * two "$node .ds-hero-x" would give. The stylesheet carries modifier rules such as
+ * `.ds-hero--center .ds-hero-inner{max-width:760px}` at (0,2,0), and a page that
+ * renders a Themer layout PLUS page content loads TWO Beaver Builder layout
+ * stylesheets, each carrying a copy of this module's static CSS. The second copy
+ * lands after the per-node rules, so a two-class node rule ties on specificity and
+ * loses on source order — which is how a Content Width of 1600 rendered as 760 when
+ * Alignment was Center (GH #136). Three classes settle it whatever the load order.
+ *
+ * Root-level rules are deliberately left at two classes ($node .ds-hero, and the
+ * .ds-hero--x / .ds-banner--x modifiers): the root cannot be a descendant of itself,
+ * and nothing static competes with them at that specificity.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -13,10 +26,10 @@ $style = isset( $settings->hero_style ) ? preg_replace( '/[^a-z0-9_]/', '', $set
 // ---- Content width (boxed / full / custom) so the hero can fill a full-width container ----
 $cw = $settings->container_width ?? 'boxed';
 if ( 'full' === $cw ) {
-	echo "$node .ds-hero-wrap { max-width: none; margin: 0; }\n";
+	echo "$node .ds-hero .ds-hero-wrap { max-width: none; margin: 0; }\n";
 } elseif ( 'custom' === $cw ) {
 	$cmw = ( isset( $settings->container_max_width ) && '' !== $settings->container_max_width ) ? (int) $settings->container_max_width : 1280;
-	echo "$node .ds-hero-wrap { max-width: {$cmw}px; margin: 0 auto; }\n";
+	echo "$node .ds-hero .ds-hero-wrap { max-width: {$cmw}px; margin: 0 auto; }\n";
 }
 
 $col = array( 'DS_Module_UI', 'color' );
@@ -48,7 +61,7 @@ if ( ( $settings->kenburns ?? 'no' ) === 'yes' ) {
 
 // ---- Content width ----
 $cw = is_numeric( $settings->content_width ?? '' ) ? (int) $settings->content_width : 760;
-echo "$node .ds-hero-inner { max-width: {$cw}px; }\n";
+echo "$node .ds-hero .ds-hero-inner { max-width: {$cw}px; }\n";
 
 // The text column lives inside .ds-hero-wrap, which carries its own cap — 1280px
 // from the stylesheet, or whatever Container Width is set to. A Content Width above
@@ -65,7 +78,7 @@ if ( 'full' !== $cwrap ) {
 		? (int) $settings->container_max_width
 		: 1280; // the .ds-hero-wrap default in css/frontend.css
 	if ( $cw > $cap ) {
-		echo "$node .ds-hero-wrap { max-width: {$cw}px; margin: 0 auto; }\n";
+		echo "$node .ds-hero .ds-hero-wrap { max-width: {$cw}px; margin: 0 auto; }\n";
 	}
 }
 
@@ -73,12 +86,12 @@ if ( 'full' !== $cwrap ) {
 $ostyle = $settings->overlay_style ?? 'gradient';
 if ( 'solid' === $ostyle ) {
 	$bg = $mix( $settings->overlay_color ?? 'var(--fl-global-dark-background)', $settings->overlay_opacity ?? 70 );
-	if ( $bg ) { echo "$node .ds-hero-overlay { background: {$bg}; }\n"; }
+	if ( $bg ) { echo "$node .ds-hero .ds-hero-overlay { background: {$bg}; }\n"; }
 } elseif ( 'gradient' === $ostyle ) {
 	$c1  = $mix( $settings->grad_color1 ?? 'var(--fl-global-dark-background)', $settings->grad_opacity1 ?? 92 );
 	$c2  = $mix( $settings->grad_color2 ?? 'var(--fl-global-dark-background)', $settings->grad_opacity2 ?? 35 );
 	$ang = $u( $settings->grad_angle ?? '', 105 );
-	if ( $c1 && $c2 ) { echo "$node .ds-hero-overlay { background: linear-gradient({$ang}deg, {$c1} 0%, {$c2} 100%); }\n"; }
+	if ( $c1 && $c2 ) { echo "$node .ds-hero .ds-hero-overlay { background: linear-gradient({$ang}deg, {$c1} 0%, {$c2} 100%); }\n"; }
 }
 
 // ---- Colours (Style 1 content colours; Style 2 banner has its own below) ----
@@ -130,9 +143,9 @@ if ( 'style2' === $style ) {
 
 	// Banner title / subtitle colours (blank = the per-state CSS default).
 	$bt = $col( $settings->banner_title_color ?? '' );
-	if ( '' !== $bt ) { echo "$node .ds-hero-title { color: {$bt}; }\n"; }
+	if ( '' !== $bt ) { echo "$node .ds-hero .ds-hero-title { color: {$bt}; }\n"; }
 	$bs = $col( $settings->banner_sub_color ?? '' );
-	if ( '' !== $bs ) { echo "$node .ds-hero-sub { color: {$bs}; }\n"; }
+	if ( '' !== $bs ) { echo "$node .ds-hero .ds-hero-sub { color: {$bs}; }\n"; }
 
 		// ---- Image scrim (designed darkening preset over the photo, for legibility) ----
 		$scrim = preg_replace( '/[^a-z]/', '', (string) ( $settings->scrim_preset ?? 'none' ) );
@@ -143,15 +156,15 @@ if ( 'style2' === $style ) {
 				elseif ( 'top' === $scrim )      { $bgv = "linear-gradient(to bottom, {$sc} 0%, transparent 60%)"; }
 				elseif ( 'vignette' === $scrim ) { $bgv = "radial-gradient(ellipse at center, transparent 38%, {$sc} 100%)"; }
 				else                             { $bgv = $sc; }
-				echo "$node .ds-banner-scrim { background: {$bgv}; }\n";
+				echo "$node .ds-hero .ds-banner-scrim { background: {$bgv}; }\n";
 			}
 		}
 
 	// Breadcrumbs colour + typography.
 	$bc = $col( $settings->breadcrumbs_color ?? '' );
-	if ( '' !== $bc ) { echo "$node .ds-banner-crumbs, $node .ds-banner-crumbs a, $node .ds-banner-crumbs .breadcrumb_last { color: {$bc}; }\n"; }
+	if ( '' !== $bc ) { echo "$node .ds-hero .ds-banner-crumbs, $node .ds-hero .ds-banner-crumbs a, $node .ds-hero .ds-banner-crumbs .breadcrumb_last { color: {$bc}; }\n"; }
 	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $settings->breadcrumbs_typography ) ) {
-		FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'breadcrumbs_typography', 'selector' => "$node .ds-banner-crumbs" ) );
+		FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'breadcrumbs_typography', 'selector' => "$node .ds-hero .ds-banner-crumbs" ) );
 	}
 
 	// Default the banner text to the Theme Setting global typography (heading + body),
@@ -181,13 +194,13 @@ if ( 'style2' === $style ) {
 // ---- Slideshow nav (arrows, dots, progress lines) ----
 // Progress-line cooldown duration tracks the slide interval.
 $bar_dur = $u( $settings->slide_interval ?? '', 6 );
-echo "$node .ds-hero-bars { --ds-hero-bar-dur: {$bar_dur}s; }\n";
+echo "$node .ds-hero .ds-hero-bars { --ds-hero-bar-dur: {$bar_dur}s; }\n";
 // Accent tint for the active indicators + arrow hover.
 $nav_acc = $col( $settings->accent_color ?? '' );
 if ( '' !== $nav_acc ) {
-	echo "$node .ds-hero-nav:hover { background: {$nav_acc}; }\n";
-	echo "$node .ds-hero-dot.is-active { background: {$nav_acc}; }\n";
-	echo "$node .ds-hero-bar-fill { background: {$nav_acc}; }\n";
+	echo "$node .ds-hero .ds-hero-nav:hover { background: {$nav_acc}; }\n";
+	echo "$node .ds-hero .ds-hero-dot.is-active { background: {$nav_acc}; }\n";
+	echo "$node .ds-hero .ds-hero-bar-fill { background: {$nav_acc}; }\n";
 }
 
 // ---- Buttons: respect the Theme Setting global Button by default ----
@@ -208,9 +221,9 @@ if ( $gs ) {
 
 if ( $btn_global && $gs ) {
 	// FULL theme Button sync (bg, text, hover, border + radius + shadow, typography).
-	DS_Module_UI::global_button_css( "$node .ds-hero-btn--primary" );
+	DS_Module_UI::global_button_css( "$node .ds-hero .ds-hero-btn--primary" );
 	// Corner radius + typography on the GHOST button too so it matches the theme.
-	if ( '' !== $gradius ) { echo "$node .ds-hero-btn--ghost { border-radius: {$gradius}; }\n"; }
+	if ( '' !== $gradius ) { echo "$node .ds-hero .ds-hero-btn--ghost { border-radius: {$gradius}; }\n"; }
 	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
 		$gt = (object) array(
 			'gbtypo'            => $gs->button_typography,
@@ -218,24 +231,24 @@ if ( $btn_global && $gs ) {
 			'gbtypo_medium'     => $gs->button_typography_medium ?? '',
 			'gbtypo_responsive' => $gs->button_typography_responsive ?? '',
 		);
-		FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => "$node .ds-hero-btn--ghost" ) );
+		FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => "$node .ds-hero .ds-hero-btn--ghost" ) );
 	}
 } else {
 	// Accent colour primary button.
 	$acc = $col( $settings->accent_color ?? '' );
-	if ( '' !== $acc ) { echo "$node .ds-hero-btn--primary { background: {$acc} !important; }\n"; }
+	if ( '' !== $acc ) { echo "$node .ds-hero .ds-hero-btn--primary { background: {$acc} !important; }\n"; }
 }
 
 // ---- Alignment (responsive overrides; base set by the modifier class) ----
 $align_rules = function( $align ) use ( $node ) {
 	if ( 'center' === $align ) {
-		return "$node .ds-hero-inner{margin-left:auto;margin-right:auto;text-align:center;}"
-			. "$node .ds-hero-eyebrow,$node .ds-hero-cta,$node .ds-hero-proof{justify-content:center;}"
-			. "$node .ds-hero-sub{margin-left:auto;margin-right:auto;}";
+		return "$node .ds-hero .ds-hero-inner{margin-left:auto;margin-right:auto;text-align:center;}"
+			. "$node .ds-hero .ds-hero-eyebrow,$node .ds-hero .ds-hero-cta,$node .ds-hero .ds-hero-proof{justify-content:center;}"
+			. "$node .ds-hero .ds-hero-sub{margin-left:auto;margin-right:auto;}";
 	}
-	return "$node .ds-hero-inner{margin-left:0;margin-right:0;text-align:left;}"
-		. "$node .ds-hero-eyebrow,$node .ds-hero-cta,$node .ds-hero-proof{justify-content:flex-start;}"
-		. "$node .ds-hero-sub{margin-left:0;margin-right:0;}";
+	return "$node .ds-hero .ds-hero-inner{margin-left:0;margin-right:0;text-align:left;}"
+		. "$node .ds-hero .ds-hero-eyebrow,$node .ds-hero .ds-hero-cta,$node .ds-hero .ds-hero-proof{justify-content:flex-start;}"
+		. "$node .ds-hero .ds-hero-sub{margin-left:0;margin-right:0;}";
 };
 if ( '' !== ( $settings->align_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){" . $align_rules( $settings->align_medium ) . "}\n"; }
 if ( '' !== ( $settings->align_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){" . $align_rules( $settings->align_responsive ) . "}\n"; }
@@ -245,18 +258,18 @@ if ( '' !== ( $settings->align_responsive ?? '' ) ) { echo "@media (max-width:{$
 // the equal-specificity contest at every width; per-device values win over base.
 $ba_map = array( 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end' );
 $ba = $settings->btn_align ?? '';
-if ( isset( $ba_map[ $ba ] ) ) { echo "$node .ds-hero-cta{justify-content:{$ba_map[ $ba ]};}\n"; }
+if ( isset( $ba_map[ $ba ] ) ) { echo "$node .ds-hero .ds-hero-cta{justify-content:{$ba_map[ $ba ]};}\n"; }
 $bam = $settings->btn_align_medium ?? '';
-if ( isset( $ba_map[ $bam ] ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-hero-cta{justify-content:{$ba_map[ $bam ]};} }\n"; }
+if ( isset( $ba_map[ $bam ] ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-hero .ds-hero-cta{justify-content:{$ba_map[ $bam ]};} }\n"; }
 $bar = $settings->btn_align_responsive ?? '';
-if ( isset( $ba_map[ $bar ] ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-hero-cta{justify-content:{$ba_map[ $bar ]};} }\n"; }
+if ( isset( $ba_map[ $bar ] ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-hero .ds-hero-cta{justify-content:{$ba_map[ $bar ]};} }\n"; }
 
 // ---- Spacing: padding on the content wrap, margin on the section (deferred) ----
 if ( class_exists( 'FLBuilderCSS' ) ) {
 	FLBuilderCSS::dimension_field_rule( array(
 		'settings'     => $settings,
 		'setting_name' => 'padding',
-		'selector'     => "$node .ds-hero-wrap",
+		'selector'     => "$node .ds-hero .ds-hero-wrap",
 		'unit'         => 'px',
 		'props'        => array( 'padding-top' => 'padding_top', 'padding-right' => 'padding_right', 'padding-bottom' => 'padding_bottom', 'padding-left' => 'padding_left' ),
 	) );
