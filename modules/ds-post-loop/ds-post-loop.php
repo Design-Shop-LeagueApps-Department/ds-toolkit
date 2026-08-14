@@ -167,6 +167,47 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		return array( $get( 'inc_' . $key ), $get( 'exc_' . $key ) );
 	}
 
+	/**
+	 * What a visitor sees when the query returns nothing.
+	 *
+	 * Every layout used to hide its empty message behind is_builder_active(), so an
+	 * editor saw an explanation and the public saw a bare heading over blank space
+	 * (reported on /programs/tournaments/). The notice now renders on the front end
+	 * too, worded by the partner rather than by us.
+	 *
+	 * $hint stays builder-only on purpose: "Publish events with a future Event Date"
+	 * is a diagnostic for whoever is building the page, not copy for a visitor. In the
+	 * builder both appear, so an editor sees what the public sees AND why it is empty.
+	 *
+	 * @param string $hint Builder-only diagnostic for this layout.
+	 */
+	private function empty_state( $hint = '' ) {
+		$s    = $this->settings;
+		$show = ( $s->empty_show ?? 'yes' ) === 'yes';
+
+		if ( $show ) {
+			$badge   = trim( (string) ( $s->empty_text ?? '' ) );
+			$heading = trim( (string) ( $s->empty_heading ?? '' ) );
+			$desc    = trim( (string) ( $s->empty_desc ?? '' ) );
+			// Defaults so the notice is never blank on a site that has not touched
+			// these fields — which is every existing build.
+			if ( '' === $badge && '' === $heading && '' === $desc ) {
+				$heading = __( 'Coming Soon', 'ds-toolkit' );
+			}
+			$align = ( ( $s->empty_align ?? 'center' ) === 'left' ) ? 'left' : 'center';
+
+			echo '<div class="ds-loop-empty ds-loop-empty--' . esc_attr( $align ) . '">';
+			if ( '' !== $badge )   { echo '<span class="ds-loop-empty-badge">' . esc_html( $badge ) . '</span>'; }
+			if ( '' !== $heading ) { echo '<h3 class="ds-loop-empty-title">' . DS_Module_UI::inline( $heading ) . '</h3>'; }
+			if ( '' !== $desc )    { echo '<div class="ds-loop-empty-desc">' . wpautop( wp_kses_post( $desc ) ) . '</div>'; }
+			echo '</div>';
+		}
+
+		if ( '' !== $hint && class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active() ) {
+			echo '<p class="ds-loop-empty-hint" style="padding:14px;opacity:.7">' . esc_html( $hint ) . '</p>';
+		}
+	}
+
 	public static function post_type_options() {
 		$out = array();
 		foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $pt ) {
@@ -426,7 +467,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$this->render_head();
 
 		if ( ! $q->have_posts() ) {
-			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Staff entries published yet.', 'ds-toolkit' ) . '</p>'; }
+			$this->empty_state( __( 'No Staff entries published yet.', 'ds-toolkit' ) );
 			echo '</div></section>';
 			return;
 		}
@@ -571,7 +612,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		echo '<section class="' . esc_attr( $root ) . '"><div class="ds-news-wrap">';
 		$this->render_head();
 		if ( ! $q->have_posts() ) {
-			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Commitments published yet.', 'ds-toolkit' ) . '</p>'; }
+			$this->empty_state( __( 'No Commitments published yet.', 'ds-toolkit' ) );
 			echo '</div></section>';
 			return false;
 		}
@@ -714,7 +755,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$q = $this->run_query();
 		echo '<section class="ds-news ds-teams"><div class="ds-news-wrap">';
 		$this->render_head();
-		if ( ! $q->have_posts() ) { if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Teams published yet.', 'ds-toolkit' ) . '</p>'; } echo '</div></section>'; return; }
+		if ( ! $q->have_posts() ) { $this->empty_state( __( 'No Teams published yet.', 'ds-toolkit' ) ); echo '</div></section>'; return; }
 		$arrow = DS_Card::icon( 'arrow' );
 		$ext   = DS_Card::icon( 'external' );
 		echo '<div class="ds-teams-list">';
@@ -742,7 +783,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		echo '<section class="ds-news ds-teamcards"><div class="ds-news-wrap">';
 		$this->render_head();
 		if ( ! $q->have_posts() ) {
-			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No Teams published yet.', 'ds-toolkit' ) . '</p>'; }
+			$this->empty_state( __( 'No Teams published yet.', 'ds-toolkit' ) );
 			echo '</div></section>';
 			return;
 		}
@@ -924,9 +965,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 		$items = $this->collect_items();
 		if ( empty( $items ) ) {
-			if ( FLBuilderModel::is_builder_active() ) {
-				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No posts found for this query. Publish posts of the selected type, or adjust the Query tab.', 'ds-toolkit' ) . '</p>';
-			}
+			$this->empty_state( __( 'No posts found for this query. Publish posts of the selected type, or adjust the Query tab.', 'ds-toolkit' ) );
 			echo '</div></section>';
 			return;
 		}
@@ -976,9 +1015,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 		$items = $this->collect_items();
 		if ( empty( $items ) ) {
-			if ( FLBuilderModel::is_builder_active() ) {
-				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No posts found for this query. Publish posts of the selected type, or adjust the Query tab.', 'ds-toolkit' ) . '</p>';
-			}
+			$this->empty_state( __( 'No posts found for this query. Publish posts of the selected type, or adjust the Query tab.', 'ds-toolkit' ) );
 			echo '</div></section>';
 			return;
 		}
@@ -1003,7 +1040,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		echo '<section class="ds-news ds-people ds-sponsors"><div class="ds-news-wrap">';
 		$this->render_head();
 		if ( empty( $items ) ) {
-			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No sponsors yet. Add them in the Query tab (Sponsors list).', 'ds-toolkit' ) . '</p>'; }
+			$this->empty_state( __( 'No sponsors yet. Add them in the Query tab (Sponsors list).', 'ds-toolkit' ) );
 			echo '</div></section>'; return;
 		}
 		$this->loop_open( 'ds-sponsor-grid' );
@@ -1172,7 +1209,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		echo '<section class="' . esc_attr( $root ) . '"><div class="ds-news-wrap">';
 		$this->render_head();
 		if ( empty( $items ) ) {
-			if ( FLBuilderModel::is_builder_active() ) { echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No upcoming events. Publish events with a future Event Date.', 'ds-toolkit' ) . '</p>'; }
+			$this->empty_state( __( 'No upcoming events. Publish events with a future Event Date.', 'ds-toolkit' ) );
 			echo '</div></section>'; return;
 		}
 
@@ -1297,17 +1334,13 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 		$items = $this->collect_items();
 		if ( empty( $items ) ) {
-			if ( FLBuilderModel::is_builder_active() ) {
-				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No posts found for this query. Publish posts of the selected type, or adjust the Query tab.', 'ds-toolkit' ) . '</p>';
-			}
+			$this->empty_state( __( 'No posts found for this query. Publish posts of the selected type, or adjust the Query tab.', 'ds-toolkit' ) );
 			echo '</div></section>';
 			return;
 		}
 
 		if ( '' === trim( $tpl ) ) {
-			if ( FLBuilderModel::is_builder_active() ) {
-				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'Add your HTML / shortcode in the "Custom Item Markup" field — it is rendered once per post.', 'ds-toolkit' ) . '</p>';
-			}
+			$this->empty_state( __( 'Add your HTML / shortcode in the "Custom Item Markup" field — it is rendered once per post.', 'ds-toolkit' ) );
 			echo '</div></section>';
 			return;
 		}
@@ -1563,6 +1596,47 @@ $ds_pl_form = array(
 					'keyword'        => array( 'type' => 'text', 'label' => __( 'Keyword Search', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Only posts matching this keyword (searches title and content).', 'ds-toolkit' ) ),
 					'exclude_current' => array( 'type' => 'select', 'label' => __( 'Exclude Current Post', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ), 'help' => __( 'On a single post / CPT view, leave out the post being viewed — ideal for a “More News / Related” strip.', 'ds-toolkit' ) ),
 					'date_format'    => array( 'type' => 'text', 'label' => __( 'Date Format', 'ds-toolkit' ), 'default' => 'M Y', 'help' => __( 'PHP date format for the card date (e.g. M Y → Jun 2026).', 'ds-toolkit' ) ),
+				),
+			),
+			'empty_cfg' => array(
+				'title'  => __( 'When There Are No Results', 'ds-toolkit' ),
+				'fields' => array(
+					'empty_show' => array(
+						'type'    => 'select',
+						'label'   => __( 'Show a Notice', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No (render nothing)', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'empty_text', 'empty_heading', 'empty_desc', 'empty_align' ) ) ),
+						'help'    => __( 'What visitors see when the query returns nothing. Without it the section renders as a heading over blank space. Choose No only where an empty loop should collapse silently.', 'ds-toolkit' ),
+					),
+					'empty_text' => array(
+						'type'        => 'text',
+						'label'       => __( 'Badge', 'ds-toolkit' ),
+						'default'     => '',
+						'connections' => array( 'string' ),
+						'help'        => __( 'Optional small pill above the heading, e.g. COMING SOON.', 'ds-toolkit' ),
+					),
+					'empty_heading' => array(
+						'type'        => 'text',
+						'label'       => __( 'Heading', 'ds-toolkit' ),
+						'default'     => '',
+						'connections' => array( 'string' ),
+						'help'        => __( 'Blank shows "Coming Soon", unless a Badge or Description is set.', 'ds-toolkit' ),
+					),
+					'empty_desc' => array(
+						'type'          => 'editor',
+						'media_buttons' => false,
+						'rows'          => 3,
+						'wpautop'       => false,
+						'label'         => __( 'Description', 'ds-toolkit' ),
+						'help'          => __( 'Optional line under the heading, e.g. "Our next tournament dates are being finalised."', 'ds-toolkit' ),
+					),
+					'empty_align' => array(
+						'type'    => 'select',
+						'label'   => __( 'Alignment', 'ds-toolkit' ),
+						'default' => 'center',
+						'options' => array( 'center' => __( 'Center', 'ds-toolkit' ), 'left' => __( 'Left', 'ds-toolkit' ) ),
+					),
 				),
 			),
 			'query_filter' => array(
