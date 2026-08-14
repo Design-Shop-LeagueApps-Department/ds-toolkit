@@ -301,3 +301,17 @@
 .ds-teamcard:hover .ds-teamcard-ico{transform:translateX(3px);}
 @media(max-width:1024px){.ds-teamcard-grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:600px){.ds-teamcard-grid{grid-template-columns:1fr;}}
+
+/* ---- Empty state (GH: /programs/tournaments/ rendered a heading over blank space) --
+   Shown on the FRONT END when a loop returns nothing, not just in the builder.
+   Literal fallbacks throughout: --fl-global-* is absent on older Launchpad builds and
+   CSS drops a declaration whose var() cannot resolve. */
+.ds-loop-empty{padding:34px 18px;}
+.ds-loop-empty--center{text-align:center;}
+.ds-loop-empty--left{text-align:left;}
+.ds-loop-empty-badge{display:inline-block;margin:0 0 10px;padding:6px 14px;border-radius:999px;background:var(--fl-global-accent,#0b782d);color:var(--fl-global-white,#fff);font-weight:800;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;line-height:1;}
+.ds-loop-empty-title{margin:0;font-size:1.35rem;line-height:1.25;color:var(--fl-global-headings,#101631);}
+.ds-loop-empty-desc{margin:10px auto 0;max-width:56ch;color:var(--fl-global-body,#4a5568);}
+.ds-loop-empty--left .ds-loop-empty-desc{margin-left:0;}
+.ds-loop-empty-desc p{margin:0 0 .7em;}
+.ds-loop-empty-desc p:last-child{margin-bottom:0;}

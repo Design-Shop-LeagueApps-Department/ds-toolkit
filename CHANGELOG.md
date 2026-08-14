@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.93] - 2026-08-13
+### Fixed
+- **Post Loop: an empty query rendered a heading over blank space.** Seen on `/programs/tournaments/` — the section heading and its rule drew, then nothing. Every layout in this module hid its empty message behind `is_builder_active()`, so an editor got an explanation and visitors got a void. All ten of those branches now render a real notice on the front end.
+
+### Added
+- **Post Loop: a "When There Are No Results" section on the Query tab.** Optional **Badge** (a pill such as COMING SOON), **Heading**, **Description** and **Alignment**, so partners word it themselves. **Existing builds need no configuration**: with nothing set the notice falls back to a "Coming Soon" heading, which is what a fresh install and every current site will show. Set **Show a Notice → No** where an empty loop should collapse silently, which is the pre-1.9.93 behaviour. The builder-only diagnostics are kept and are now shown *alongside* the notice, so an editor sees both what visitors see and why it is empty — those lines ("Publish events with a future Event Date") stay out of the public page, since they are instructions for whoever is building it.
+
 ## [1.9.92] - 2026-08-13
 ### Fixed
 - **Hero: per-module settings were being beaten by the module's own stylesheet on Themer pages (GH #136).** Content Width 1600 with Alignment Center rendered at 760px on the published page while looking correct in the builder. The per-node rules were written `.fl-node-<id> .ds-hero-inner` — two classes, the same specificity as the stylesheet's own `.ds-hero--center .ds-hero-inner{max-width:760px}`. A page that renders a Themer layout **plus** page content loads two Beaver Builder layout stylesheets, and each carries its own copy of the module's static CSS; the second copy lands after the per-node rules, so the tie was decided by source order and the module setting lost. Every node-scoped rule targeting a hero child is now three classes (`.fl-node-<id> .ds-hero .ds-hero-inner`), which settles it whatever the load order. Root-level rules are deliberately left as they were, since nothing static competes with them at that specificity. Reproduced against the real stylesheet under the duplicate-stylesheet condition: 760px before, 1600px after, both collapsing cleanly to the viewport at 700px.
