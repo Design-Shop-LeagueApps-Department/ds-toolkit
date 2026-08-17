@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.94] - 2026-08-17
+### Fixed
+- **Zip-upload installs no longer offer the wrong file to activate.** Every upload install since Origin Guard shipped ended in "The plugin does not have a valid header": the installer class embedded its generated mu-plugin's header verbatim, putting the literal `Plugin Name: DS Origin Guard` inside the first 8KB of `includes/class-ds-origin-guard-installer.php`. WordPress's upload installer scans one subdirectory deep and sorts by plugin name, and "DS Origin Guard" outranks "DS Toolkit" alphabetically — so the success screen's Activate button targeted the class file, which `validate_plugin()` always rejects. The header key is now assembled at runtime (`'Plugin ' . 'Name:'`), so the literal never appears in the source file; the *generated* `ds-origin-guard.php` mu-plugin is byte-identical, so no payload refresh is triggered. This supersedes the 1.9.93 README explanation (#138), which blamed a `get_plugins()` caching race — the failure was deterministic, and activating later from the Plugins page only worked because that list never scans two levels deep.
+
 ## [1.9.93] - 2026-08-13
 ### Fixed
 - **Post Loop: an empty query rendered a heading over blank space.** Seen on `/programs/tournaments/` — the section heading and its rule drew, then nothing. Every layout in this module hid its empty message behind `is_builder_active()`, so an editor got an explanation and visitors got a void. All ten of those branches now render a real notice on the front end.

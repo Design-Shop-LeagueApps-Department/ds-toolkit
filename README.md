@@ -17,25 +17,29 @@ Alipio Gabriel
 
 ## Installing on a new site
 
-Upload the release zip, then **load the Plugins page before clicking Activate.**
-
-Activating straight from the upload screen can fail with:
+Upload the release zip and activate normally. On releases **before 1.9.94**, the
+Activate button on the upload-success screen fails every time with:
 
 > The plugin does not have a valid header.
 
-That is a WordPress race, not a broken package. WordPress calls `get_plugins()` early in
-the install request and caches the result for that request; if the snapshot was taken
-before the new folder landed, the activation later in the *same* request consults the
-stale list, does not find `ds-toolkit/ds-toolkit.php`, and reports a missing header. The
-files are complete and correct — the next request rescans and activation succeeds.
+Root cause (found on goldenwolves, 2026-08-17; earlier diagnosed as a WordPress
+caching race on bluespringsbaseball, 2026-08-13 — that diagnosis was wrong): the
+Origin Guard installer class embedded its generated mu-plugin's header, so the
+literal `Plugin Name: DS Origin Guard` sat within the first 8KB of
+`includes/class-ds-origin-guard-installer.php`. WordPress's upload installer scans
+the package one subdirectory deep and sorts what it finds by plugin name, and
+"DS Origin Guard" sorts before "DS Toolkit" — so the success screen's Activate
+button pointed at the class file, which `validate_plugin()` then rejects with the
+error above. Deterministic, not a race.
 
-Nothing in the plugin can prevent it: `validate_plugin()` runs before any plugin code
-loads, so there is no hook available at that point. Seen on Flywheel (bluespringsbaseball,
-2026-08-13), where the plugin folder, permissions, header and byte count were all verified
-correct while the error was showing.
+Since 1.9.94 the header key is assembled at runtime, the literal never appears in
+the file, and activating from the upload screen works. On an older zip, the
+workaround is simply: go to the **Plugins page** and activate "DS Toolkit" from
+the list there (the list only scans one level, so it always offers the right file).
 
-If it persists *after* a Plugins-page visit, then it is a real problem — check for a folder
-not named `ds-toolkit`, a truncated upload, or permissions stopping PHP reading the header.
+If activation fails from the Plugins page itself, that IS a real problem — check
+for a folder not named `ds-toolkit`, a truncated upload, or permissions stopping
+PHP reading the header.
 
 ---
 

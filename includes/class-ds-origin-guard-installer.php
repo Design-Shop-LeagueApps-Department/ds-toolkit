@@ -150,6 +150,13 @@ class DS_Origin_Guard_Installer {
 	private function render( $block_login, $block_xmlrpc ) {
 		$v = self::PAYLOAD_VERSION;
 
+		// The literal plugin-header key must never appear in this file's first
+		// 8KB: WordPress's upload installer scans one subdirectory deep, and a
+		// header here outranks the real one alphabetically ("DS Origin Guard" <
+		// "DS Toolkit"), pointing the post-install Activate button at this
+		// class file — which then always fails validate_plugin() (GH #138).
+		$header = 'Plugin ' . 'Name:';
+
 		$login_rule = $block_login ? <<<'PHP'
 
 // 2) Cold login POSTs (no test cookie = the login form was never rendered).
@@ -171,7 +178,7 @@ PHP : '';
 		return <<<PHP
 <?php
 /**
- * Plugin Name: DS Origin Guard
+ * {$header} DS Origin Guard
  * Description: Refuses known bot-flood request patterns before WordPress loads plugins, so each attack request costs ~20ms instead of a full render. Managed by ds-toolkit — do not edit; changes are overwritten on update. Payload v{$v}.
  * Version: {$v}
  *
