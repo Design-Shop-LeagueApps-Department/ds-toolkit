@@ -311,6 +311,15 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$ob    = (string) ( $s->order_by ?? 'date' );
 		if ( ! in_array( $ob, array( 'date', 'title', 'menu_order', 'rand', 'modified', 'meta_value', 'meta_value_num' ), true ) ) { $ob = 'date'; }
 		$order = ( strtoupper( (string) ( $s->order ?? 'DESC' ) ) === 'ASC' ) ? 'ASC' : 'DESC';
+		// "Menu Order / Nested Pages position" is a sequence somebody deliberately
+		// dragged, and Nested Pages numbers it ascending from the top of the list.
+		// Descending renders that order backwards, and the Order field's
+		// date-flavoured labels ("Descending (newest first)") give an editor no
+		// reason to expect it, so the module shipped DESC by default and quietly
+		// reversed every dragged order. Every other child-page renderer in this
+		// plugin (getsubmenu, child_pages, page cards) hardcodes ASC for menu_order;
+		// this makes the loop agree with them and with the option's own label.
+		if ( 'menu_order' === $ob ) { $order = 'ASC'; }
 
 		$args = array(
 			'post_type'           => $ptype,

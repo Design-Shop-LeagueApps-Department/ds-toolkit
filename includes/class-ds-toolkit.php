@@ -55,6 +55,13 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-overlay-nav.php',
             'class' => 'DS_Overlay_Nav',
         ),
+        // Front-end archives follow the WP Nested Pages drag order. Nested Pages
+        // writes menu_order but hooks no front-end query, so archives keep
+        // WordPress's default date DESC and ignore the order an editor set.
+        'nested_order_enabled' => array(
+            'file'  => 'features/class-ds-nested-order.php',
+            'class' => 'DS_Nested_Order',
+        ),
         // --- Blueprint generation 6+ features --------------------------------
         // 'min_blueprint' gates a feature to a blueprint generation: it only
         // loads, defaults on, and shows a toggle on sites stamped at that
@@ -295,6 +302,7 @@ class DS_Toolkit {
             'getsubmenu_enabled'                  => 0,
             'current_year_enabled'               => 0,
             'overlay_nav_enabled'                => 0,
+            'nested_order_enabled'               => 1,
             'forminator_email_partner_enabled'   => 0,
             'forminator_email_partner_fallback'  => 'designshop' . DS_TOOLKIT_ADMIN_DOMAIN,
             'global_css_enabled'                 => 0,
