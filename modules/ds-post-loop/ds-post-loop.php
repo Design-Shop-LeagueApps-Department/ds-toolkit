@@ -289,6 +289,20 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	 * The ONE query: built entirely from the Query tab (Post Type + number + order +
 	 * offset + taxonomy filter). Single source of truth for WHAT the loop fetches.
 	 */
+	/**
+	 * Is "Nested Pages Order on the Front End" switched on for this site?
+	 *
+	 * Read straight from the option rather than through DS_Nested_Order, because
+	 * that class is only loaded when the feature is enabled, so referencing it
+	 * here would fatal on every site that has it off.
+	 *
+	 * @return bool
+	 */
+	private static function nested_order_enabled() {
+		$s = get_option( 'ds_toolkit_settings' );
+		return is_array( $s ) && ! empty( $s['nested_order_enabled'] );
+	}
+
 	private function run_query() {
 		$s     = $this->settings;
 
@@ -316,10 +330,13 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		// Descending renders that order backwards, and the Order field's
 		// date-flavoured labels ("Descending (newest first)") give an editor no
 		// reason to expect it, so the module shipped DESC by default and quietly
-		// reversed every dragged order. Every other child-page renderer in this
-		// plugin (getsubmenu, child_pages, page cards) hardcodes ASC for menu_order;
-		// this makes the loop agree with them and with the option's own label.
-		if ( 'menu_order' === $ob ) { $order = 'ASC'; }
+		// reversed every dragged order.
+		//
+		// Gated on the same setting as the archive ordering so ONE switch governs
+		// "follow the Nested Pages order". With it off, a live site keeps rendering
+		// exactly as it does today rather than having its visible order changed by
+		// a plugin update.
+		if ( 'menu_order' === $ob && self::nested_order_enabled() ) { $order = 'ASC'; }
 
 		$args = array(
 			'post_type'           => $ptype,

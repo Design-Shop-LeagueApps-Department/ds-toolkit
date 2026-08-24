@@ -403,7 +403,7 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
             <div class="dst-card-icon"><span class="dashicons dashicons-sort"></span></div>
             <div class="dst-card-info">
                 <strong>Nested Pages Order on the Front End</strong>
-                <span>Makes archives list entries in the order set by dragging them in <strong>Nested Pages</strong>. Nested Pages saves that order but never applies it to the public site, so archives otherwise fall back to newest-first and ignore it. Applies to the custom post types Nested Pages manages (Teams, Staff, Athletes, Events). Blog posts stay newest-first, and any layout or loop that sets its own order always wins.</span>
+                <span><strong>Off by default on existing sites</strong>, because switching it on changes the visible order of live archives. Makes the front end list entries in the order set by dragging them in <strong>Nested Pages</strong>: Nested Pages saves that order but never applies it to the public site, so archives otherwise fall back to newest-first and ignore it. Also makes a Post Loop set to &ldquo;Menu Order / Nested Pages position&rdquo; read top-to-bottom instead of reversed. Applies to the custom post types Nested Pages manages (Teams, Staff, Athletes, Events). Blog posts stay newest-first, and any layout or loop that sets its own order always wins.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[nested_order_enabled]" value="0">
