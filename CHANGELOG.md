@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.96] - 2026-08-24
+### Changed
+- **Nested Pages Order is now OFF by default, not on.** 1.9.95 shipped it defaulting to `1`, and `maybe_set_defaults()` backfills any missing key on every load, so the first page view after updating would have switched it on for every existing partner site and changed the visible order of their live archives. Not every partner wants that, and it is their call to make. The default is now `0`, which also puts the feature back in line with the rule `get_defaults()` states for itself: on a fresh install only the core branding features are on and everything else is opt-in.
+- **New builds still get it on, by inheritance rather than by default.** A new site is cloned from the blueprint, the clone copies `wp_options`, and `maybe_set_defaults()` only fills keys that are MISSING. So the blueprint's stored `1` survives the clone while an existing site's absent key resolves to `0`. The blueprint installs need the toggle on once for this to hold.
+- **The Post Loop `menu_order` direction fix is gated on the same setting.** It was unconditional in 1.9.95, which meant a plugin update could reverse the visible order of any existing loop set to Menu Order. One switch now governs the whole "follow the Nested Pages order" behaviour: with it off a site renders exactly as it does today, with it on both the archive ordering and the Post Loop direction apply together.
+
 ## [1.9.95] - 2026-08-24
 ### Fixed
 - **Front-end listings now follow the WP Nested Pages drag order.** Nested Pages gives editors a drag-to-reorder tree and saves the result to each post's `menu_order`, but it registers no `pre_get_posts` and no `posts_orderby` hook, so it never touches a front-end query. Archives kept WordPress's default `date DESC` and ignored the order an editor had set. Where every entry shares a publish date (bulk-imported rosters, sample content) an archive could even look correct by accident and then reshuffle as soon as one post was edited.

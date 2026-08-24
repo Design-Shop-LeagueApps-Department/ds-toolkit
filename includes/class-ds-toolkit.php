@@ -58,6 +58,13 @@ class DS_Toolkit {
         // Front-end archives follow the WP Nested Pages drag order. Nested Pages
         // writes menu_order but hooks no front-end query, so archives keep
         // WordPress's default date DESC and ignore the order an editor set.
+        //
+        // OFF by default. Turning this on changes the visible order of live
+        // archives, which is a partner's call, not ours: an existing site keeps
+        // rendering exactly as it does today until someone opts in. New builds
+        // get it on by inheritance instead, because a clone of the blueprint
+        // copies wp_options and maybe_set_defaults() only fills keys that are
+        // MISSING, so the blueprint's 1 survives the clone.
         'nested_order_enabled' => array(
             'file'  => 'features/class-ds-nested-order.php',
             'class' => 'DS_Nested_Order',
@@ -302,7 +309,7 @@ class DS_Toolkit {
             'getsubmenu_enabled'                  => 0,
             'current_year_enabled'               => 0,
             'overlay_nav_enabled'                => 0,
-            'nested_order_enabled'               => 1,
+            'nested_order_enabled'               => 0,
             'forminator_email_partner_enabled'   => 0,
             'forminator_email_partner_fallback'  => 'designshop' . DS_TOOLKIT_ADMIN_DOMAIN,
             'global_css_enabled'                 => 0,
