@@ -24,6 +24,7 @@ if ( $dst_bp6 ) {
 }
 $dst_grp_partner = array( $enabled, $design_academy_enabled );
 $dst_grp_site    = $dst_bp6 ? array( $theme_setting_enabled, $image_optimization_enabled ) : array();
+$dst_grp_site[]  = $nested_order_enabled;
 $dst_grp_dev     = array( $uabb_post_loop_fix_enabled, $acf_css_vars_enabled, $getsubmenu_enabled, $current_year_enabled, $overlay_nav_enabled, $forminator_email_partner_enabled, $child_pages_enabled );
 
 $dst_count = function ( $arr ) {
@@ -395,6 +396,22 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
     </div>
 
         </div>
+
+    <!-- Nested Pages order on the front end -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-sort"></span></div>
+            <div class="dst-card-info">
+                <strong>Nested Pages Order on the Front End</strong>
+                <span>Makes archives list entries in the order set by dragging them in <strong>Nested Pages</strong>. Nested Pages saves that order but never applies it to the public site, so archives otherwise fall back to newest-first and ignore it. Applies to the custom post types Nested Pages manages (Teams, Staff, Athletes, Events). Blog posts stay newest-first, and any layout or loop that sets its own order always wins.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[nested_order_enabled]" value="0">
+                <input type="checkbox" id="nested_order_enabled" name="ds_toolkit_settings[nested_order_enabled]" value="1" <?php checked( $nested_order_enabled ); ?>>
+                <label for="nested_order_enabled"></label>
+            </div>
+        </div>
+    </div>
     </details>
     <?php endif; ?>
 
