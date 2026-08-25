@@ -611,27 +611,6 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					),
 				),
 			),
-			'header' => array(
-				'title'  => __( 'Header', 'ds-toolkit' ),
-				'fields' => array(
-					'show_header'  => array(
-						'type'    => 'select',
-						'label'   => __( 'Show Header', 'ds-toolkit' ),
-						'default' => 'yes',
-						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'heading', 'header_label' ) ) ),
-					),
-					'heading'      => array(
-						'type'    => 'textarea',
-						'label'   => __( 'Heading', 'ds-toolkit' ),
-						'rows'    => 2,
-						'default' => '{a}Lorem{/a} Ipsum Dolor',
-						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
-					),
-					'header_label' => array( 'type' => 'text', 'label' => __( 'Right-side Label', 'ds-toolkit' ), 'default' => 'Lorem ipsum →' ),
-					'header_desc'  => array( 'type' => 'editor', 'media_buttons' => false, 'rows' => 6, 'wpautop' => false, 'label' => __( 'Header Description', 'ds-toolkit' ), 'help' => __( 'Paragraph beside the heading (Bento / Style 3).', 'ds-toolkit' ) ),
-				),
-			),
 			'cards' => array(
 				'title'  => __( 'Cards', 'ds-toolkit' ),
 				'fields' => array(
@@ -760,6 +739,27 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 						'preview_text' => 'prog_title',
 						'multiple'     => true,
 					),
+				),
+			),
+			'header' => array(
+				'title'  => __( 'Header', 'ds-toolkit' ),
+				'fields' => array(
+					'show_header'  => array(
+						'type'    => 'select',
+						'label'   => __( 'Show Header', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'heading', 'header_label' ) ) ),
+					),
+					'heading'      => array(
+						'type'    => 'textarea',
+						'label'   => __( 'Heading', 'ds-toolkit' ),
+						'rows'    => 2,
+						'default' => '{a}Lorem{/a} Ipsum Dolor',
+						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
+					),
+					'header_label' => array( 'type' => 'text', 'label' => __( 'Right-side Label', 'ds-toolkit' ), 'default' => 'Lorem ipsum →' ),
+					'header_desc'  => array( 'type' => 'editor', 'media_buttons' => false, 'rows' => 6, 'wpautop' => false, 'label' => __( 'Header Description', 'ds-toolkit' ), 'help' => __( 'Paragraph beside the heading (Bento / Style 3).', 'ds-toolkit' ) ),
 				),
 			),
 		),
@@ -1187,7 +1187,14 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 			'program_opts' => array(
 				'title'  => __( 'Program Cards', 'ds-toolkit' ),
 				'fields' => array(
-					'pg_cols'        => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
+					'pg_cols'        => array(
+						'type'       => 'unit',
+						'label'      => __( 'Columns', 'ds-toolkit' ),
+						'default'    => '3',
+						'responsive' => true,
+						'slider'     => array( 'min' => 1, 'max' => 6, 'step' => 1 ),
+						'help'       => __( 'Cards per row. Use the responsive icon on this field for tablet and mobile counts; leaving one blank keeps the size above it. The saved value stays the desktop count, so existing layouts are unchanged.', 'ds-toolkit' ),
+					),
 					'pg_gap'         => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 					'pg_align'       => array( 'type' => 'select', 'label' => __( 'Alignment', 'ds-toolkit' ), 'default' => 'left', 'options' => array( 'left' => __( 'Left', 'ds-toolkit' ), 'center' => __( 'Center', 'ds-toolkit' ) ) ),
 					'pg_same_height' => array( 'type' => 'select', 'label' => __( 'Card Height', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Equal (match tallest in row)', 'ds-toolkit' ), 'no' => __( 'Natural (fit content)', 'ds-toolkit' ) ), 'help' => __( 'Equal makes every card in a row the same height (buttons line up at the bottom).', 'ds-toolkit' ) ),

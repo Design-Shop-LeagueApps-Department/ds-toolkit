@@ -394,11 +394,23 @@ class DS_Program_Cards {
 		$col = array( 'DS_Module_UI', 'color' );
 		$u   = array( 'DS_Module_UI', 'u' );
 
-		$pgc = max( 1, (int) ( $settings->pg_cols ?? 3 ) );
+		$pgc = max( 1, min( 6, (int) ( $settings->pg_cols ?? 3 ) ) );
 		$pgg = $u( $settings->pg_gap ?? '', 24 );
 		echo "$node .ds-program-grid{grid-template-columns:repeat({$pgc},1fr);gap:{$pgg}px;}\n";
-		echo "@media(max-width:1024px){ $node .ds-program-grid{grid-template-columns:repeat(2,1fr);} }\n";
-		echo "@media(max-width:600px){ $node .ds-program-grid{grid-template-columns:1fr;} }\n";
+
+		// Tablet and mobile counts were hardcoded to 2 and 1, so the Columns control
+		// only ever changed the desktop row (GH #148). They are configurable now, and
+		// an unset value keeps the number that was hardcoded before — so every
+		// existing layout renders exactly as it did. The 1024/600 breakpoints are the
+		// ones this grid has always used; no new ones are introduced.
+		$cols_at = static function ( $val, $fallback ) {
+			if ( '' === $val || null === $val ) { return $fallback; }
+			return max( 1, min( 6, (int) $val ) );
+		};
+		$pgm = $cols_at( $settings->pg_cols_medium ?? '', 2 );
+		$pgr = $cols_at( $settings->pg_cols_responsive ?? '', 1 );
+		echo "@media(max-width:1024px){ $node .ds-program-grid{grid-template-columns:repeat({$pgm},1fr);} }\n";
+		echo "@media(max-width:600px){ $node .ds-program-grid{grid-template-columns:repeat({$pgr},1fr);} }\n";
 
 		if ( ( $settings->pg_same_height ?? 'yes' ) === 'yes' ) {
 			echo "$node .ds-program-grid{align-items:stretch;} $node .ds-program-card{height:100%;}\n";
