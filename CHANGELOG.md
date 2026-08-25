@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.101] - 2026-08-25
+### Fixed
+- **CTA: Section Background is reachable from every card style (GH #154).** The control was defined inside the **Grid** panel, which Styles 5 and 6 do not show — so switching to Program Cards made it vanish even though the setting still applied. It now lives in its own **Section** panel, shown for Styles 1, 2, 3, 5 and 6. Style 4 keeps its own Hero Background controls and is deliberately left out. Nothing about the value or its output changed: it is the same `section_bg` field with the same default, still emitted by both the CTA stylesheet and the shared Program Cards chrome, so **existing modules of every style render exactly as before** — the control simply became visible where it was already working. Section Background and Card Background remain separate settings.
+
 ## [1.9.100] - 2026-08-25
 ### Changed
 - **CTA: Show Header is off for new modules (GH #147).** The Heading field's default is the placeholder `{a}Lorem{/a} Ipsum Dolor`, so with the header on by default every freshly dropped CTA rendered Lorem copy onto the page until someone edited it or unticked the box. Lorem reaching a live page is a worse outcome than a section without a heading, so the header is now opt-in: switch Show Header to Yes and the placeholder heading is waiting to be edited. **Existing modules are untouched** — they carry their own saved value — and the render paths still fall back to showing the header for any module whose settings predate the field.

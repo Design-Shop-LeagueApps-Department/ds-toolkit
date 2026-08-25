@@ -590,22 +590,22 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 						'help'    => __( 'Choose a CTA layout. More styles will be added; the options below adapt to the selected style.', 'ds-toolkit' ),
 						'toggle'  => array(
 							'style1' => array(
-								'sections' => array( 'header', 'cards', 'grid', 'clip', 'overlay', 'colors', 'typography', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'cards', 'grid', 'clip', 'overlay', 'colors', 'typography', 'spacing' ),
 							),
 							'style2' => array(
-								'sections' => array( 'header', 'cards', 'grid', 'card2', 'overlay', 'colors', 'typography', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'cards', 'grid', 'card2', 'overlay', 'colors', 'typography', 'spacing' ),
 							),
 							'style3' => array(
-								'sections' => array( 'header', 'cards', 'grid', 'bento', 'colors', 'typography', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'cards', 'grid', 'bento', 'colors', 'typography', 'spacing' ),
 							),
 							'style4' => array(
 								'sections' => array( 'hero', 'hero_contact', 'hero_button', 'hero_social', 'hero_bg', 'hero_box', 'hero_colors', 'hero_social_style', 'hero_typography', 'spacing' ),
 							),
 							'style5' => array(
-								'sections' => array( 'header', 'cards', 'mcard', 'mcard_fx', 'mcard_logo', 'typography', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'cards', 'mcard', 'mcard_fx', 'mcard_logo', 'typography', 'spacing' ),
 							),
 							'style6' => array(
-								'sections' => array( 'header', 'programs_sec', 'program_opts', 'program_chrome', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'programs_sec', 'program_opts', 'program_chrome', 'spacing' ),
 							),
 						),
 					),
@@ -777,6 +777,12 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 	'style'   => array(
 		'title'    => __( 'Style', 'ds-toolkit' ),
 		'sections' => array(
+			'section_style' => array(
+				'title'  => __( 'Section', 'ds-toolkit' ),
+				'fields' => array(
+					'section_bg' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Section Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-light-background)', 'show_reset' => true ),
+				),
+			),
 			'grid' => array(
 				'title'  => __( 'Grid', 'ds-toolkit' ),
 				'fields' => array(
@@ -795,7 +801,6 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					'content_max_width' => array( 'type' => 'unit', 'label' => __( 'Max Width', 'ds-toolkit' ), 'default' => '1280', 'description' => 'px', 'slider' => array( 'min' => 480, 'max' => 1920, 'step' => 10 ) ),
 					'columns'    => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '4', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
 					'gap'        => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '20', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
-					'section_bg' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Section Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-light-background)', 'show_reset' => true ),
 				),
 			),
 			// --- Style 1 only: clip-card shape ---
