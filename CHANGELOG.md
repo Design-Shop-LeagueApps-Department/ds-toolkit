@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.99] - 2026-08-25
+### Changed
+- **CTA + Org Stats: the Header panel now sits last (GH #147, #149, #150).** Cards are configured before the optional header, which is the order people actually work in. In the CTA module the Header panel moved to the end, which gives Style 1 *CTA Style → Cards → Header* and Style 6 *CTA Style → Program Cards → Header* from a single ordering; Org Stats is now *Stats Style → Stats → Header*. Beaver Builder renders panels in array order and the per-style toggles only control visibility, so one order serves every style. Panel order is builder UI only: no field values, saved configurations or frontend output change, and the other CTA styles get the same Header-last treatment as a side effect of there being one array.
+
+### Fixed
+- **Program Cards: tablet and mobile column counts were hardcoded (GH #148).** The Columns control only ever changed the desktop row — the grid emitted a fixed 2 columns below 1024px and 1 below 600px regardless. **Columns** is now a responsive field, so tablet and mobile counts can be set from the same control, same unit and same validation. An unset breakpoint keeps the number that was hardcoded before (2 and 1), so **every existing layout renders exactly as it did**; values are clamped to 1–6. The 1024/600 breakpoints this grid has always used are unchanged — no new ones are introduced. Applies anywhere the shared Program Cards grid is used, not just CTA Style 6.
+
 ## [1.9.98] - 2026-08-25
 ### Changed
 - **Heading: the Style 2 end mark gets its own sizing section (GH #145).** The control shipped in 1.9.97 lived under Spacing, away from the image it sizes. It now sits in an **End Mark (Style 2)** section on the Style tab, revealed only when Style 2 is selected, and is labelled **Size**. It stays a single responsive field rather than a second parallel control — the issue's own implementation note asks not to introduce new units, breakpoints or image-sizing behaviour, and the responsive icon on this field already sets tablet and mobile from the same input, unit and validation. Blank still tracks the heading size, so existing modules are visually unchanged.

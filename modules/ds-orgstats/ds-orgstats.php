@@ -220,6 +220,25 @@ FLBuilder::register_module( 'DS_OrgStats_Module', array(
 					),
 				),
 			),
+			'stats' => array(
+				'title'       => __( 'Stats', 'ds-toolkit' ),
+				'description' => __( 'The figures shown in the grid. Plain whole numbers count up on scroll.', 'ds-toolkit' ),
+				'fields'      => array(
+					'stats' => array(
+						'type'         => 'form',
+						'label'        => __( 'Stat', 'ds-toolkit' ),
+						'form'         => 'ds_orgstats_stat_form',
+						'preview_text' => 'label',
+						'multiple'     => true,
+						'default'      => array(
+							array( 'number' => '3',  'label' => 'Lorem Ipsum' ),
+							array( 'number' => '49', 'label' => 'Dolor Sit Amet' ),
+							array( 'number' => '75', 'suffix' => '+', 'label' => 'Consectetur' ),
+							array( 'number' => '8',  'label' => 'Adipiscing Elit' ),
+						),
+					),
+				),
+			),
 			'header' => array(
 				'title'  => __( 'Header', 'ds-toolkit' ),
 				'fields' => array(
@@ -257,25 +276,6 @@ FLBuilder::register_module( 'DS_OrgStats_Module', array(
 						'default'     => 'Lorem {a}Ipsum{/a}',
 						'connections' => array( 'string' ),
 						'help'        => __( 'Line breaks kept. Wrap a word in {a}…{/a} to colour it with the accent. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
-					),
-				),
-			),
-			'stats' => array(
-				'title'       => __( 'Stats', 'ds-toolkit' ),
-				'description' => __( 'The figures shown in the grid. Plain whole numbers count up on scroll.', 'ds-toolkit' ),
-				'fields'      => array(
-					'stats' => array(
-						'type'         => 'form',
-						'label'        => __( 'Stat', 'ds-toolkit' ),
-						'form'         => 'ds_orgstats_stat_form',
-						'preview_text' => 'label',
-						'multiple'     => true,
-						'default'      => array(
-							array( 'number' => '3',  'label' => 'Lorem Ipsum' ),
-							array( 'number' => '49', 'label' => 'Dolor Sit Amet' ),
-							array( 'number' => '75', 'suffix' => '+', 'label' => 'Consectetur' ),
-							array( 'number' => '8',  'label' => 'Adipiscing Elit' ),
-						),
 					),
 				),
 			),
