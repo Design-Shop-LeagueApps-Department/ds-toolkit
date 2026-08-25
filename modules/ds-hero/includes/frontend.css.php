@@ -306,6 +306,37 @@ $oc_ov = DS_Module_UI::color( $settings->outline_color ?? '' );
 if ( '' !== $oc_ov ) { echo "$node { --ds-outline-c: {$oc_ov}; }\n"; }
 if ( isset( $settings->outline_width ) && '' !== $settings->outline_width ) { echo "$node { --ds-outline-w: " . max( 1, (int) $settings->outline_width ) . "px; }\n"; }
 
+/* ---- Style 1 background video framing (GH #163) ----
+   object-fit:cover crops the video to the hero, which can push the action out of
+   frame. These move the visible crop without resizing the video. Each axis falls
+   back to the desktop value before the 50% centre, so setting only Y at a
+   breakpoint cannot silently reset an X the editor chose for desktop. */
+if ( 'style1' === $style && 'video' === ( $settings->bg_type ?? 'image' ) ) {
+	$vpos = function( $suffix ) use ( $settings ) {
+		$axis = function( $key ) use ( $settings, $suffix ) {
+			foreach ( array( $key . $suffix, $key ) as $k ) {
+				$v = $settings->{$k} ?? '';
+				if ( '' !== $v && null !== $v ) { return max( 0, min( 100, (float) $v ) ); }
+			}
+			return null;
+		};
+		// Nothing set at this breakpoint and nothing on desktop: emit no rule at all.
+		$raw_x = $settings->{ 'video_pos_x' . $suffix } ?? '';
+		$raw_y = $settings->{ 'video_pos_y' . $suffix } ?? '';
+		if ( ( '' === $raw_x || null === $raw_x ) && ( '' === $raw_y || null === $raw_y ) ) { return ''; }
+		$x = $axis( 'video_pos_x' );
+		$y = $axis( 'video_pos_y' );
+		return 'object-position:' . ( null === $x ? 50 : $x ) . '% ' . ( null === $y ? 50 : $y ) . '%;';
+	};
+	$vsel = "$node .ds-hero .ds-hero-video";
+	$vb = $vpos( '' );
+	if ( '' !== $vb ) { echo "$vsel { $vb }\n"; }
+	$vm = $vpos( '_medium' );
+	if ( '' !== $vm ) { echo "@media (max-width:{$bpm}px){ $vsel { $vm } }\n"; }
+	$vr = $vpos( '_responsive' );
+	if ( '' !== $vr ) { echo "@media (max-width:{$bpr}px){ $vsel { $vr } }\n"; }
+}
+
 /* ---------------- Style 3 — Peek Slider (GH #160) ----------------
    Every dimension is written as a custom property on the .ds-peek root, so a
    breakpoint override is one re-declaration instead of a second copy of the
