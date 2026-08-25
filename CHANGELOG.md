@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.97] - 2026-08-25
+### Added
+- **Heading: Style 2 — heading, flexible rule, optional end mark (GH #143).** A new **Style** selector on the Content tab. Style 2 puts the heading on the left with a rule running through the remaining width and an optional logo at the far end. With no image no wrapper is rendered at all, so the rule simply runs to the end rather than stopping short of an empty box. The mark keeps its aspect ratio (height authored, width follows, `object-fit: contain`) and is capped by a responsive **End Mark Height** on the Style tab; blank tracks the heading size. The separator takes `flex: 1 1 0` so a wrapping heading can never push it into an overflow. Only the heading LINE changes — sub-heading, description, rules and every existing control behave exactly as in Style 1, and existing modules stay on Style 1 because that is the default.
+- **Heading: Sub-heading Tag (SEO).** Same options and allowlist as Heading Tag. It defaults to `span`, which is what the sub-heading has always rendered, so a module saved before the setting existed is untouched and no migration is needed. An unrecognised value falls back to `span`. Styling hangs off the `.ds-heading-sub` class rather than the element, and the static CSS zeroes the margin and pins the font-size a heading tag would otherwise bring, so switching to `h3` changes the markup and nothing visual.
+- **Heading: centred eyebrow gets a rule on BOTH sides.** Both rules are always in the markup and the trailing one is revealed by CSS only when the active alignment is centred — which keeps it correct per breakpoint, since Alignment is a responsive field and the dynamic CSS already emits per-breakpoint alignment. Left and right alignment keep the existing single rule. The rules use `flex: 0 1 auto` with `min-width: 0` so they shrink around the text instead of pushing it out of the container.
+
 ## [1.9.96] - 2026-08-24
 ### Changed
 - **Nested Pages Order is now OFF by default, not on.** 1.9.95 shipped it defaulting to `1`, and `maybe_set_defaults()` backfills any missing key on every load, so the first page view after updating would have switched it on for every existing partner site and changed the visible order of their live archives. Not every partner wants that, and it is their call to make. The default is now `0`, which also puts the feature back in line with the rule `get_defaults()` states for itself: on a fresh install only the core branding features are on and everything else is opt-in.

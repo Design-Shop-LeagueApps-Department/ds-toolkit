@@ -42,6 +42,29 @@ class DS_Heading_Module extends FLBuilderModule {
 		);
 	}
 
+	/** Registered presentations. Style 1 is the original layout. */
+	public static function styles() {
+		return array(
+			'style1' => __( 'Style 1 — Stacked (default)', 'ds-toolkit' ),
+			'style2' => __( 'Style 2 — Heading + separator rule', 'ds-toolkit' ),
+		);
+	}
+
+	/** Resolve a BB photo field (id, url, or {id,url}) to a URL. */
+	private function photo_url( $val, $size = 'medium' ) {
+		if ( is_array( $val ) )      { $val = $val['id'] ?? ( $val['url'] ?? '' ); }
+		elseif ( is_object( $val ) ) { $val = $val->id ?? ( $val->url ?? '' ); }
+		if ( is_numeric( $val ) )    { $u = wp_get_attachment_image_url( (int) $val, $size ); return $u ? $u : ''; }
+		return $val ? esc_url( (string) $val ) : '';
+	}
+
+	/** Alt text for the Style 2 mark: the attachment's own alt, else decorative. */
+	private function photo_alt( $val ) {
+		if ( is_array( $val ) )      { $val = $val['id'] ?? ''; }
+		elseif ( is_object( $val ) ) { $val = $val->id ?? ''; }
+		return is_numeric( $val ) ? trim( (string) get_post_meta( (int) $val, '_wp_attachment_image_alt', true ) ) : '';
+	}
+
 	/** Heading markup: escape, {a}..{/a} -> accent span, newlines -> <br>. */
 	private function heading_html( $raw ) {
 		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
@@ -51,17 +74,36 @@ class DS_Heading_Module extends FLBuilderModule {
 	}
 
 	/** The eyebrow/divider rule element. */
-	private function rule_html() {
-		return '<span class="ds-heading-rule" aria-hidden="true"><span class="ds-heading-rule-line"></span></span>';
+	private function rule_html( $side = '' ) {
+		$mod = ( '' !== $side ) ? ' ds-heading-rule--' . $side : '';
+		return '<span class="ds-heading-rule' . $mod . '" aria-hidden="true"><span class="ds-heading-rule-line"></span></span>';
 	}
 
-	/** Sub-heading element (always a <span>, optionally carrying an inline rule). */
+	/**
+	 * Sub-heading element.
+	 *
+	 * The tag is selectable for SEO (GH #143). It defaults to `span`, which is what
+	 * this element has always rendered, so a module saved before the setting existed
+	 * is untouched. All styling hangs off the .ds-heading-sub CLASS rather than the
+	 * element, so switching to h3 changes the markup and nothing else — the static
+	 * CSS zeroes the margin a heading tag would otherwise bring with it.
+	 *
+	 * With an inline rule, a rule is emitted on BOTH sides. The trailing one is
+	 * hidden by CSS unless the active alignment is centred, which keeps the
+	 * behaviour correct per breakpoint without the PHP needing to know the
+	 * breakpoint — alignment is a responsive field.
+	 */
 	private function subheading_html( $inline_rule ) {
+		$tag = $this->settings->subheading_tag ?? 'span';
+		if ( ! array_key_exists( $tag, self::tags() ) ) { $tag = 'span'; }
+
 		$txt = '<span class="ds-heading-sub-text">' . DS_Module_UI::inline( $this->settings->subheading ) . '</span>';
 		if ( $inline_rule ) {
-			return '<span class="ds-heading-sub ds-heading-sub--withrule">' . $this->rule_html() . $txt . '</span>';
+			return '<' . $tag . ' class="ds-heading-sub ds-heading-sub--withrule">'
+				. $this->rule_html( 'before' ) . $txt . $this->rule_html( 'after' )
+				. '</' . $tag . '>';
 		}
-		return '<span class="ds-heading-sub">' . $txt . '</span>';
+		return '<' . $tag . ' class="ds-heading-sub">' . $txt . '</' . $tag . '>';
 	}
 
 	/** Entry point called by includes/frontend.php. */
@@ -85,7 +127,9 @@ class DS_Heading_Module extends FLBuilderModule {
 		$inline_rule = $div_show && 'sub' === $div_pos && $sub_show;
 		if ( $div_show && 'sub' === $div_pos && ! $sub_show ) { $div_pos = 'above'; }
 
-		$mods  = 'ds-heading ds-heading--' . $align;
+		$hstyle = array_key_exists( (string) ( $s->heading_style ?? 'style1' ), self::styles() ) ? (string) $s->heading_style : 'style1';
+
+		$mods  = 'ds-heading ds-heading--' . $align . ' ds-heading--' . $hstyle;
 		$mods .= ' ds-heading--rule-' . ( $div_style ?: 'solid' );
 		if ( '' !== trim( (string) ( $s->heading ?? '' ) ) || $sub_show || $desc_show ) {
 			// renderable
@@ -104,9 +148,27 @@ class DS_Heading_Module extends FLBuilderModule {
 		// Standalone rule above the heading.
 		if ( $div_show && 'above' === $div_pos ) { echo $this->rule_html(); }
 
-		// Heading.
+		// Heading. Style 2 puts it in a row with a separator that takes the remaining
+		// width and an optional mark at the far end (GH #143). Only the heading LINE
+		// changes — sub-heading, description, rules and every existing control behave
+		// exactly as they do in Style 1.
 		if ( '' !== trim( (string) ( $s->heading ?? '' ) ) ) {
-			echo '<' . $tag . ' class="ds-heading-title">' . $this->heading_html( $s->heading ) . '</' . $tag . '>';
+			$title = '<' . $tag . ' class="ds-heading-title">' . $this->heading_html( $s->heading ) . '</' . $tag . '>';
+			if ( 'style2' === $hstyle ) {
+				$img = $this->photo_url( $s->style2_image ?? '' );
+				echo '<div class="ds-heading-row">';
+				echo $title;
+				echo '<span class="ds-heading-sep" aria-hidden="true"></span>';
+				// No image means no wrapper at all, so the separator simply runs to the
+				// end rather than stopping short of an empty box.
+				if ( '' !== $img ) {
+					$alt = $this->photo_alt( $s->style2_image ?? '' );
+					echo '<span class="ds-heading-mark"><img src="' . esc_url( $img ) . '" alt="' . esc_attr( $alt ) . '" loading="lazy" /></span>';
+				}
+				echo '</div>';
+			} else {
+				echo $title;
+			}
 		}
 
 		// Standalone rule below the heading.
@@ -137,6 +199,21 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 			'text' => array(
 				'title'  => __( 'Text', 'ds-toolkit' ),
 				'fields' => array(
+					'heading_style'       => array(
+						'type'    => 'select',
+						'label'   => __( 'Style', 'ds-toolkit' ),
+						'default' => 'style1',
+						'options' => DS_Heading_Module::styles(),
+						'toggle'  => array( 'style2' => array( 'fields' => array( 'style2_image' ) ) ),
+						'help'    => __( 'Style 2 puts the heading on the left with a rule running through the remaining space, and an optional mark at the end. Existing modules stay on Style 1.', 'ds-toolkit' ),
+					),
+					'style2_image'        => array(
+						'type'        => 'photo',
+						'label'       => __( 'End Mark (optional)', 'ds-toolkit' ),
+						'show_remove' => true,
+						'connections' => array( 'photo' ),
+						'help'        => __( 'Logo or graphic at the far end of the rule. Keeps its aspect ratio and is capped by the End Mark Height on the Style tab. Leave empty and the rule simply runs to the end.', 'ds-toolkit' ),
+					),
 					'subheading_show'     => array(
 						'type'    => 'select',
 						'label'   => __( 'Show Sub-heading', 'ds-toolkit' ),
@@ -166,6 +243,13 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'default' => 'h2',
 						'options' => DS_Heading_Module::tags(),
 						'help'    => __( 'Pick the semantic tag. Use one H1 per page; H2 is the safe default for a section title.', 'ds-toolkit' ),
+					),
+					'subheading_tag'      => array(
+						'type'    => 'select',
+						'label'   => __( 'Sub-heading Tag (SEO)', 'ds-toolkit' ),
+						'default' => 'span',
+						'options' => DS_Heading_Module::tags(),
+						'help'    => __( 'The element the sub-heading renders as. Defaults to Span, which is what it has always been — changing it alters the markup only, never the look.', 'ds-toolkit' ),
 					),
 					'alignment'           => array(
 						'type'       => 'select',
@@ -260,6 +344,15 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 				'title'  => __( 'Spacing', 'ds-toolkit' ),
 				'fields' => array(
 					'gap'       => array( 'type' => 'unit', 'label' => __( 'Element Gap', 'ds-toolkit' ), 'default' => '12', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ), 'help' => __( 'Vertical spacing between sub-heading, heading and description.', 'ds-toolkit' ) ),
+					'style2_mark_h'       => array(
+						'type'        => 'unit',
+						'label'       => __( 'End Mark Height', 'ds-toolkit' ),
+						'default'     => '',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 16, 'max' => 160, 'step' => 2 ),
+						'help'        => __( 'Style 2 only. Blank tracks the heading size. Width follows the aspect ratio.', 'ds-toolkit' ),
+					),
 					'max_width' => array( 'type' => 'unit', 'label' => __( 'Max Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 200, 'max' => 1200, 'step' => 10 ), 'help' => __( 'Constrain the block width (great for centred headings). Blank = full width.', 'ds-toolkit' ) ),
 					'padding'   => array( 'type' => 'dimension', 'label' => __( 'Padding', 'ds-toolkit' ), 'default' => '0', 'units' => array( 'px' ), 'slider' => true, 'responsive' => true ),
 					'margin'    => array( 'type' => 'dimension', 'label' => __( 'Margin', 'ds-toolkit' ), 'default' => '0', 'units' => array( 'px' ), 'slider' => true, 'responsive' => true ),

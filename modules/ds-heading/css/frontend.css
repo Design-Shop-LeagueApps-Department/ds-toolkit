@@ -29,3 +29,36 @@
 
 /* Inline (eyebrow) rule sits inside the sub-heading flex, so it shrinks to its line */
 .ds-heading-sub .ds-heading-rule{width:auto;}
+
+/* ---- Sub-heading tag (GH #143) ------------------------------------------------
+   The tag is selectable, so a heading element must not bring its own margin or
+   font-size with it. Everything visual stays on the class. */
+.ds-heading-sub{margin:0;font-size:.8rem;}
+
+/* ---- Centred eyebrow: a rule on BOTH sides (GH #143) --------------------------
+   Both rules are always in the markup; the trailing one only shows when the ACTIVE
+   alignment is centred. Doing it in CSS rather than PHP keeps it correct per
+   breakpoint, since alignment is a responsive field. min-width:0 lets the lines
+   shrink instead of pushing the text out of the container. */
+.ds-heading-sub--withrule{min-width:0;}
+.ds-heading-sub--withrule .ds-heading-rule{flex:0 1 auto;min-width:0;}
+.ds-heading-sub--withrule .ds-heading-rule--after{display:none;}
+.ds-heading--center .ds-heading-sub--withrule .ds-heading-rule--after{display:flex;}
+.ds-heading--center .ds-heading-sub--withrule{justify-content:center;}
+
+/* ---- Style 2: heading, flexible rule, optional end mark ---------------------- */
+.ds-heading--style2 .ds-heading-row{display:flex;align-items:center;gap:18px;width:100%;min-width:0;}
+.ds-heading--style2 .ds-heading-row .ds-heading-title{flex:0 1 auto;min-width:0;}
+/* The rule takes whatever is left. flex-basis:0 keeps it from forcing an overflow
+   when the heading wraps. */
+.ds-heading-sep{flex:1 1 0;min-width:24px;height:var(--ds-heading-sep-h,2px);background:var(--fl-global-accent,#0b782d);border-radius:2px;}
+/* Aspect ratio preserved: height is authored, width follows. flex:none stops the
+   rule squeezing the mark. */
+.ds-heading-mark{flex:none;display:flex;align-items:center;line-height:0;}
+.ds-heading-mark img{display:block;height:var(--ds-heading-mark-h,1.6em);width:auto;max-width:100%;object-fit:contain;}
+/* Right-aligned Style 2 reads better with the rule leading into the heading. */
+.ds-heading--right.ds-heading--style2 .ds-heading-row{flex-direction:row-reverse;}
+@media (max-width:768px){
+  .ds-heading--style2 .ds-heading-row{gap:12px;}
+  .ds-heading-sep{min-width:16px;}
+}
