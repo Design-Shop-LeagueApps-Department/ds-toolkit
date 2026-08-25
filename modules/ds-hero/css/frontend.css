@@ -129,3 +129,87 @@
 /* WYSIWYG subtext/subtitle paragraphs (rendered in a div wrapper). */
 .ds-hero-sub p{margin:0 0 .6em;}
 .ds-hero-sub p:last-child{margin-bottom:0;}
+
+/* ---------------- Style 3: peek slider ----------------
+   The viewport spans the module; slides are narrower and centred, so the previous
+   and next slide peek in at the edges. Every tunable is a custom property so the
+   dynamic CSS can re-declare it per breakpoint without repeating these rules. */
+.ds-hero--style3{position:relative;width:100%;}
+.ds-hero--style3{display:block;}
+/* .ds-hero is display:flex, which would size .ds-peek to the track's max-content width
+   (three slides wide) and leave the "centred" slide clipped with no peek showing. The
+   slider owns the full row, so pin it to the container and let it shrink below content. */
+.ds-hero--style3 .ds-peek{position:relative;width:100%;flex:1 1 100%;min-width:0;--ds-peek-h:640px;--ds-peek-w:93%;--ds-peek-gap:30px;--ds-peek-r:16px;--ds-peek-pad:48px;--ds-peek-cmw:640px;}
+.ds-hero--style3 .ds-peek-viewport{overflow:hidden;width:100%;}
+.ds-hero--style3 .ds-peek-track{display:flex;align-items:stretch;gap:var(--ds-peek-gap);will-change:transform;}
+/* pan-y lets the browser keep vertical scrolling while we take the horizontal drag. */
+.ds-hero--style3 .ds-peek--drag .ds-peek-viewport{touch-action:pan-y;cursor:grab;}
+.ds-hero--style3 .ds-peek--drag .ds-peek-track.is-dragging{cursor:grabbing;}
+.ds-hero--style3 .ds-peek-slide{position:relative;flex:0 0 var(--ds-peek-w);height:var(--ds-peek-h);border-radius:var(--ds-peek-r);overflow:hidden;isolation:isolate;}
+
+/* Background layer stack: base colour, image, pattern, overlay — all behind the content
+   and all clipped by the slide radius. None of them may swallow a drag or a click. */
+.ds-hero--style3 .ds-peek-bg{position:absolute;inset:0;z-index:0;pointer-events:none;background:var(--ds-peek-base,transparent);}
+.ds-hero--style3 .ds-peek-pic{position:absolute;inset:0;display:block;}
+.ds-hero--style3 .ds-peek-img{width:100%;height:100%;max-width:none;display:block;object-fit:cover;}
+.ds-hero--style3 .ds-peek-pattern,.ds-hero--style3 .ds-peek-overlay{position:absolute;inset:0;display:block;}
+.ds-hero--style3 .ds-peek-overlay{background:linear-gradient(to bottom,rgba(17,17,17,.2) 50%,rgba(17,17,17,.8));}
+
+/* Content. Default desktop layout: heading bottom-left, CTA bottom-right. */
+.ds-hero--style3 .ds-peek-content{position:relative;z-index:2;box-sizing:border-box;display:flex;gap:24px;height:100%;padding:var(--ds-peek-pad);}
+.ds-hero--style3 .ds-peek-title{margin:0;max-width:var(--ds-peek-cmw);color:var(--fl-global-white,#fff);}
+.ds-hero--style3 .ds-peek-cta{flex:0 0 auto;display:inline-flex;align-items:center;gap:.5em;text-decoration:none;}
+.ds-hero--style3 .ds-peek-cta svg{width:1em;height:1em;display:block;}
+
+.ds-hero--style3.ds-peek--v-top .ds-peek-content{align-items:flex-start;}
+.ds-hero--style3.ds-peek--v-center .ds-peek-content{align-items:center;}
+.ds-hero--style3.ds-peek--v-bottom .ds-peek-content{align-items:flex-end;}
+.ds-hero--style3.ds-peek--a-split .ds-peek-content{flex-direction:row;justify-content:space-between;}
+.ds-hero--style3.ds-peek--a-split .ds-peek-title{flex:1 1 auto;min-width:0;}
+.ds-hero--style3.ds-peek--a-left .ds-peek-content{flex-direction:column;align-items:flex-start;text-align:left;}
+.ds-hero--style3.ds-peek--a-center .ds-peek-content{flex-direction:column;align-items:center;text-align:center;}
+.ds-hero--style3.ds-peek--a-right .ds-peek-content{flex-direction:column;align-items:flex-end;text-align:right;}
+/* The vertical modifier sets cross-axis alignment; in a column layout that is the
+   horizontal edge, so the stack needs justify-content to honour top/centre/bottom. */
+.ds-hero--style3.ds-peek--v-top .ds-peek-content{justify-content:flex-start;}
+.ds-hero--style3.ds-peek--v-center.ds-peek--a-left .ds-peek-content,
+.ds-hero--style3.ds-peek--v-center.ds-peek--a-center .ds-peek-content,
+.ds-hero--style3.ds-peek--v-center.ds-peek--a-right .ds-peek-content{justify-content:center;}
+.ds-hero--style3.ds-peek--v-bottom.ds-peek--a-left .ds-peek-content,
+.ds-hero--style3.ds-peek--v-bottom.ds-peek--a-center .ds-peek-content,
+.ds-hero--style3.ds-peek--v-bottom.ds-peek--a-right .ds-peek-content{justify-content:flex-end;}
+
+/* Controls. Arrows sit inside the centred slide, not the full-bleed viewport. */
+.ds-hero--style3 .ds-peek-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:200;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:rgba(15,18,24,.5);color:var(--fl-global-white,#fff);cursor:pointer;transition:background .2s ease;}
+.ds-hero--style3 .ds-peek-nav:hover{background:rgba(15,18,24,.78);}
+.ds-hero--style3 .ds-peek-nav svg{width:20px;height:20px;display:block;}
+.ds-hero--style3 .ds-peek-nav--prev{left:calc((100% - var(--ds-peek-w)) / 2 + 14px);}
+.ds-hero--style3 .ds-peek-nav--next{right:calc((100% - var(--ds-peek-w)) / 2 + 14px);}
+.ds-hero--style3 .ds-peek-dots{display:flex;justify-content:center;align-items:center;gap:9px;margin-top:22px;}
+.ds-hero--style3 .ds-peek-dot{width:9px;height:9px;padding:0;border:0;border-radius:50%;cursor:pointer;background:rgba(20,20,20,.25);transition:background .2s ease,transform .2s ease;}
+.ds-hero--style3 .ds-peek-dot:hover{background:rgba(20,20,20,.5);}
+.ds-hero--style3 .ds-peek-dot.is-active{background:var(--fl-global-accent);transform:scale(1.3);}
+.ds-hero--style3 .ds-peek-play{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;margin-left:6px;padding:0;border:0;border-radius:50%;background:rgba(20,20,20,.25);color:var(--fl-global-white,#fff);cursor:pointer;}
+.ds-hero--style3 .ds-peek-play:hover{background:rgba(20,20,20,.5);}
+.ds-hero--style3 .ds-peek-play svg{width:12px;height:12px;display:block;}
+.ds-hero--style3 .ds-peek-play .ds-peek-ico-play{display:none;}
+.ds-hero--style3 .ds-peek-play.is-paused .ds-peek-ico-play{display:block;}
+.ds-hero--style3 .ds-peek-play.is-paused .ds-peek-ico-pause{display:none;}
+/* Visible focus for every control (spec: keyboard reachable with a visible state). */
+.ds-hero--style3 .ds-peek-nav:focus-visible,.ds-hero--style3 .ds-peek-dot:focus-visible,
+.ds-hero--style3 .ds-peek-play:focus-visible,.ds-hero--style3 .ds-peek-cta:focus-visible{outline:3px solid var(--fl-global-accent);outline-offset:3px;}
+.ds-hero--style3 .ds-peek-live{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+.ds-hero--style3 .ds-peek-empty{padding:40px;text-align:center;border:1px dashed rgba(20,20,20,.3);}
+
+@media (max-width:768px){
+  /* Arrows eat usable width on a phone; swipe and dots carry navigation there. */
+  .ds-hero--style3 .ds-peek-nav{display:none;}
+  .ds-hero--style3.ds-peek--a-split .ds-peek-content{flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:14px;}
+  /* flex:1 1 auto lets the heading take the leftover space in the desktop ROW. Left in
+     place once the container becomes a column it grows vertically instead, pinning the
+     heading to the top and the CTA to the bottom rather than stacking them together. */
+  .ds-hero--style3.ds-peek--a-split .ds-peek-title{max-width:100%;flex:0 0 auto;}
+}
+@media (prefers-reduced-motion:reduce){
+  .ds-hero--style3 .ds-peek-track{transition:none !important;}
+}

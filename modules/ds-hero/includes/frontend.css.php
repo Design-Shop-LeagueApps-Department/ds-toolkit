@@ -45,8 +45,9 @@ $mix = function( $color, $op ) use ( $col ) {
 $g   = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
 
-// ---- Min height (responsive) — Style 1 only; Style 2 banner uses adaptive heights ----
-if ( 'style2' !== $style ) {
+// ---- Min height (responsive) — Style 1 only; Style 2 banner uses adaptive heights and
+// Style 3 takes its height from the slide, so neither may inherit this. ----
+if ( 'style1' === $style ) {
 	$mh = $u( $settings->min_height ?? '', 92 );
 	echo "$node .ds-hero { min-height: {$mh}vh; }\n";
 	if ( '' !== ( $settings->min_height_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-hero { min-height: " . (int) $settings->min_height_medium . "vh; } }\n"; }
@@ -304,3 +305,194 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 $oc_ov = DS_Module_UI::color( $settings->outline_color ?? '' );
 if ( '' !== $oc_ov ) { echo "$node { --ds-outline-c: {$oc_ov}; }\n"; }
 if ( isset( $settings->outline_width ) && '' !== $settings->outline_width ) { echo "$node { --ds-outline-w: " . max( 1, (int) $settings->outline_width ) . "px; }\n"; }
+
+/* ---------------- Style 3 — Peek Slider (GH #160) ----------------
+   Every dimension is written as a custom property on the .ds-peek root, so a
+   breakpoint override is one re-declaration instead of a second copy of the
+   layout rules. Child selectors keep the three-class form documented at the top. */
+if ( 'style3' === $style ) {
+	list( $md, $sm ) = DS_Module_UI::breakpoints();
+	$peek = "$node .ds-hero--style3 .ds-peek";
+
+	// Responsive custom properties: desktop, then medium, then small.
+	//
+	// Each breakpoint carries its OWN fallback rather than inheriting the desktop value.
+	// A fixed 30px gap eats the free space at narrow widths — at 900px a 93% slide leaves
+	// only 1.5px of neighbour showing and at 390px none at all, which loses the one thing
+	// this style exists for. Narrower slides plus a tighter gap keep the peek visible all
+	// the way down. These fallbacks must be emitted here, not as static media queries:
+	// the dynamic rule is (0,3,0) and would outrank a (0,2,0) static @media whatever the
+	// load order.
+	$fallbacks = array(
+		//                        desktop, medium, small
+		'peek_height'        => array( 640, 520, 440 ),
+		'peek_width'         => array( 93, 92, 88 ),
+		'peek_gap'           => array( 30, 20, 12 ),
+		'peek_radius'        => array( 16, 14, 12 ),
+		'peek_pad'           => array( 48, 32, 22 ),
+		'peek_content_width' => array( 640, 520, 400 ),
+	);
+	$units = array(
+		'peek_height'        => array( '--ds-peek-h', 'px' ),
+		'peek_width'         => array( '--ds-peek-w', '%' ),
+		'peek_gap'           => array( '--ds-peek-gap', 'px' ),
+		'peek_radius'        => array( '--ds-peek-r', 'px' ),
+		'peek_pad'           => array( '--ds-peek-pad', 'px' ),
+		'peek_content_width' => array( '--ds-peek-cmw', 'px' ),
+	);
+	$vars = function( $suffix, $tier ) use ( $settings, $fallbacks, $units ) {
+		$out = '';
+		foreach ( $units as $key => $pair ) {
+			$v = $settings->{ $key . $suffix } ?? '';
+			if ( '' === $v || null === $v ) {
+				if ( 0 === $tier ) { continue; }
+				$base = (string) ( $settings->{$key} ?? '' );
+				// A desktop value the editor actually changed carries down, the way Beaver
+				// Builder responsive fields inherit. An untouched desktop value means they
+				// never had an opinion, so use the tier default and keep the peek visible.
+				$touched = ( '' !== $base && (float) $base !== (float) $fallbacks[ $key ][0] );
+				$v = $touched ? $base : $fallbacks[ $key ][ $tier ];
+			}
+			$out .= $pair[0] . ':' . ( (float) $v ) . $pair[1] . ';';
+		}
+		return $out;
+	};
+
+	$base = $vars( '', 0 );
+	if ( '' !== $base ) { echo "$peek { $base }\n"; }
+	$mid = $vars( '_medium', 1 );
+	if ( '' !== $mid ) { echo "@media (max-width:{$md}px){ $peek { $mid } }\n"; }
+	$small = $vars( '_responsive', 2 );
+	if ( '' !== $small ) { echo "@media (max-width:{$sm}px){ $peek { $small } }\n"; }
+
+	$pct = function( $v, $d ) {
+		$n = ( isset( $v ) && '' !== $v ) ? (float) $v : $d;
+		return max( 0, min( 100, $n ) ) / 100;
+	};
+	$blend = function( $v ) {
+		$v = preg_replace( '/[^a-z-]/', '', strtolower( (string) $v ) );
+		return in_array( $v, array( 'normal', 'multiply', 'overlay', 'screen', 'darken', 'lighten', 'soft-light' ), true ) ? $v : 'normal';
+	};
+
+	// ---- Base colour (behind the image) ----
+	$basec = DS_Module_UI::color( $settings->peek_base_color ?? '' );
+	if ( '' !== $basec ) { echo "$peek .ds-peek-bg { background: {$basec}; }\n"; }
+
+	// ---- Main image ----
+	$img_decl = '';
+	$isize = ( ( $settings->peek_img_size ?? 'cover' ) === 'contain' ) ? 'contain' : 'cover';
+	$img_decl .= "object-fit:{$isize};";
+	$iop = $pct( $settings->peek_img_opacity ?? '', 100 );
+	if ( $iop < 1 ) { $img_decl .= 'opacity:' . rtrim( rtrim( number_format( $iop, 3, '.', '' ), '0' ), '.' ) . ';'; }
+	$ibl = $blend( $settings->peek_img_blend ?? 'normal' );
+	if ( 'normal' !== $ibl ) { $img_decl .= "mix-blend-mode:{$ibl};"; }
+	if ( '' !== $img_decl ) { echo "$peek .ds-peek-img { $img_decl }\n"; }
+
+	// ---- Pattern / texture ----
+	$pat = '';
+	$praw = $settings->peek_pattern ?? '';
+	if ( is_array( $praw ) )      { $praw = $praw['id'] ?? ( $praw['url'] ?? '' ); }
+	elseif ( is_object( $praw ) ) { $praw = $praw->id ?? ( $praw->url ?? '' ); }
+	if ( ! empty( $praw ) ) {
+		$purl = is_numeric( $praw ) ? (string) wp_get_attachment_image_url( (int) $praw, 'full' ) : esc_url( (string) $praw );
+		if ( '' !== $purl ) {
+			$positions = array(
+				'left top', 'center top', 'right top',
+				'left center', 'center center', 'right center',
+				'left bottom', 'center bottom', 'right bottom',
+			);
+			$psize   = (string) ( $settings->peek_pattern_size ?? 'auto' );
+			if ( ! in_array( $psize, array( 'auto', 'cover', 'contain' ), true ) ) { $psize = 'auto'; }
+			$prepeat = (string) ( $settings->peek_pattern_repeat ?? 'repeat' );
+			if ( ! in_array( $prepeat, array( 'repeat', 'repeat-x', 'repeat-y', 'no-repeat' ), true ) ) { $prepeat = 'repeat'; }
+			$ppos    = (string) ( $settings->peek_pattern_pos ?? 'center center' );
+			if ( ! in_array( $ppos, $positions, true ) ) { $ppos = 'center center'; }
+			$pat    .= 'background-image:url(' . $purl . ');';
+			$pat    .= "background-size:{$psize};background-repeat:{$prepeat};background-position:{$ppos};";
+			$pop     = $pct( $settings->peek_pattern_opacity ?? '', 100 );
+			if ( $pop < 1 ) { $pat .= 'opacity:' . rtrim( rtrim( number_format( $pop, 3, '.', '' ), '0' ), '.' ) . ';'; }
+			$pbl = $blend( $settings->peek_pattern_blend ?? 'normal' );
+			if ( 'normal' !== $pbl ) { $pat .= "mix-blend-mode:{$pbl};"; }
+		}
+	}
+	if ( '' !== $pat ) { echo "$peek .ds-peek-pattern { $pat }\n"; }
+
+	// ---- Overlay ----
+	$otype = (string) ( $settings->peek_ov_type ?? 'gradient' );
+	if ( ! in_array( $otype, array( 'none', 'solid', 'gradient' ), true ) ) { $otype = 'gradient'; }
+	if ( 'none' === $otype ) {
+		echo "$peek .ds-peek-overlay { display:none; }\n";
+	} else {
+		$ov = '';
+		$c1 = DS_Module_UI::color( $settings->peek_ov_color ?? '' );
+		$c2 = DS_Module_UI::color( $settings->peek_ov_color2 ?? '' );
+		if ( 'solid' === $otype ) {
+			if ( '' !== $c1 ) { $ov .= "background:{$c1};"; }
+		} elseif ( '' !== $c1 || '' !== $c2 ) {
+			// One colour set = fade that colour to transparent, so a single pick still reads.
+			$g1  = '' !== $c1 ? $c1 : 'transparent';
+			$g2  = '' !== $c2 ? $c2 : 'transparent';
+			$dir = (string) ( $settings->peek_ov_dir ?? 'to bottom' );
+			$dir = in_array( $dir, array( 'to bottom', 'to top', 'to right', 'to left', 'to bottom right', 'to bottom left' ), true ) ? $dir : 'to bottom';
+			$ov .= "background:linear-gradient({$dir},{$g1},{$g2});";
+		}
+		$oop = $pct( $settings->peek_ov_opacity ?? '', 100 );
+		if ( $oop < 1 ) { $ov .= 'opacity:' . rtrim( rtrim( number_format( $oop, 3, '.', '' ), '0' ), '.' ) . ';'; }
+		$obl = $blend( $settings->peek_ov_blend ?? 'normal' );
+		if ( 'normal' !== $obl ) { $ov .= "mix-blend-mode:{$obl};"; }
+		if ( '' !== $ov ) { echo "$peek .ds-peek-overlay { $ov }\n"; }
+	}
+
+	// ---- Heading ----
+	$tc = DS_Module_UI::color( $settings->peek_title_color ?? '' );
+	if ( '' !== $tc ) { echo "$peek .ds-peek-title { color:{$tc}; }\n"; }
+
+	// ---- CTA button ----
+	$sizes = array(
+		'small'  => 'padding:9px 16px;font-size:14px;',
+		'medium' => 'padding:12px 22px;font-size:16px;',
+		'large'  => 'padding:16px 30px;font-size:18px;',
+	);
+	$bsize = $settings->peek_btn_size ?? 'medium';
+	echo "$peek .ds-peek-cta { " . ( $sizes[ $bsize ] ?? $sizes['medium'] ) . " }\n";
+
+	if ( ( $settings->peek_btn_global ?? 'yes' ) === 'yes' ) {
+		DS_Module_UI::global_button_css( "$peek .ds-peek-cta" );
+	} else {
+		$b = '';
+		$bbg = DS_Module_UI::color( $settings->peek_btn_bg ?? '' );
+		$bfg = DS_Module_UI::color( $settings->peek_btn_color ?? '' );
+		$bbd = DS_Module_UI::color( $settings->peek_btn_border ?? '' );
+		if ( '' !== $bbg ) { $b .= "background:{$bbg};"; }
+		if ( '' !== $bfg ) { $b .= "color:{$bfg};"; }
+		if ( '' !== $bbd ) { $b .= "border:2px solid {$bbd};"; }
+		if ( '' !== $b ) { echo "$peek .ds-peek-cta { $b }\n"; }
+
+		$h   = '';
+		$hbg = DS_Module_UI::color( $settings->peek_btn_hover_bg ?? '' );
+		$hfg = DS_Module_UI::color( $settings->peek_btn_hover_color ?? '' );
+		if ( '' !== $hbg ) { $h .= "background:{$hbg};"; }
+		if ( '' !== $hfg ) { $h .= "color:{$hfg};"; }
+		if ( '' !== $h ) { echo "$peek .ds-peek-cta:hover, $peek .ds-peek-cta:focus { $h }\n"; }
+	}
+	if ( isset( $settings->peek_btn_radius ) && '' !== $settings->peek_btn_radius ) {
+		echo "$peek .ds-peek-cta { border-radius:" . max( 0, (int) $settings->peek_btn_radius ) . "px; }\n";
+	}
+
+	// ---- Typography (deferred; flushed by FLBuilderCSS::render() after this file) ----
+	if ( class_exists( 'FLBuilderCSS' ) ) {
+		$ptypo = array(
+			'peek_title_typography' => '.ds-peek-title',
+			'peek_btn_typography'   => '.ds-peek-cta',
+		);
+		foreach ( $ptypo as $key => $sel ) {
+			if ( ! empty( $settings->{$key} ) ) {
+				FLBuilderCSS::typography_field_rule( array(
+					'settings'     => $settings,
+					'setting_name' => $key,
+					'selector'     => "$peek $sel",
+				) );
+			}
+		}
+	}
+}

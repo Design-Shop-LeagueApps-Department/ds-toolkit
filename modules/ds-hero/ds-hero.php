@@ -242,10 +242,24 @@ class DS_Hero_Module extends FLBuilderModule {
 	 *   4. Scope any style-specific CSS under `.ds-hero--<key>` (the modifier class
 	 *      is printed on the section automatically).
 	 */
+	/** Blend modes offered on the Style 3 background layers. */
+	public static function blend_modes() {
+		return array(
+			'normal'     => __( 'Normal', 'ds-toolkit' ),
+			'multiply'   => __( 'Multiply', 'ds-toolkit' ),
+			'overlay'    => __( 'Overlay', 'ds-toolkit' ),
+			'screen'     => __( 'Screen', 'ds-toolkit' ),
+			'darken'     => __( 'Darken', 'ds-toolkit' ),
+			'lighten'    => __( 'Lighten', 'ds-toolkit' ),
+			'soft-light' => __( 'Soft Light', 'ds-toolkit' ),
+		);
+	}
+
 	public static function styles() {
 		return array(
 			'style1' => __( 'Style 1 — Classic', 'ds-toolkit' ),
 			'style2' => __( 'Style 2 — Page Banner (auto)', 'ds-toolkit' ),
+			'style3' => __( 'Style 3 — Slider', 'ds-toolkit' ),
 		);
 	}
 
@@ -400,6 +414,194 @@ class DS_Hero_Module extends FLBuilderModule {
 		if ( '' !== $crumbs && 'below' === $crumb_pos ) { echo $crumbs; }
 		echo '</div></div></section>';
 	}
+	/* ------------------------------------------- Style 3 — Peek Slider (GH #160) */
+
+	/** The nine focal-point choices, as an object-position value. */
+	private static function focal_pos( $key ) {
+		$ok = array(
+			'left top', 'center top', 'right top',
+			'left center', 'center center', 'right center',
+			'left bottom', 'center bottom', 'right bottom',
+		);
+		$key = trim( (string) $key );
+		return in_array( $key, $ok, true ) ? $key : 'center center';
+	}
+
+	/**
+	 * Normalised Style 3 slides: [{image, mobile, alt, focal, head, tag, cta, link, target}].
+	 * A slide with no image and no heading is dropped, so the track, the dots and the
+	 * "n of N" labels always agree on how many slides there are.
+	 */
+	private function peek_slides() {
+		$out = array();
+		$raw = $this->settings->peek_slides ?? array();
+		if ( ! is_array( $raw ) ) { return $out; }
+
+		foreach ( $raw as $slide ) {
+			$slide = (object) $slide;
+			$img   = ! empty( $slide->image ) ? $this->photo_url( $slide->image, 'full' ) : '';
+			$mob   = ! empty( $slide->image_mobile ) ? $this->photo_url( $slide->image_mobile, 'full' ) : '';
+			$head  = trim( (string) ( $slide->heading ?? '' ) );
+			if ( '' === $img && '' === $mob && '' === $head ) { continue; }
+
+			$tag = preg_replace( '/[^a-z0-9]/', '', strtolower( (string) ( $slide->heading_tag ?? 'h2' ) ) );
+			if ( ! in_array( $tag, array( 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span' ), true ) ) { $tag = 'h2'; }
+
+			$out[] = array(
+				'image'  => '' !== $img ? $img : $mob,
+				'mobile' => '' !== $mob ? $mob : $img,
+				'alt'    => trim( (string) ( $slide->img_alt ?? '' ) ),
+				'focal'  => self::focal_pos( $slide->focal ?? 'center center' ),
+				'head'   => $head,
+				'tag'    => $tag,
+				'cta'    => trim( (string) ( $slide->cta_text ?? '' ) ),
+				'link'   => trim( (string) ( $slide->cta_link ?? '' ) ),
+				'target' => ( ( $slide->cta_target ?? '_self' ) === '_blank' ) ? '_blank' : '_self',
+			);
+		}
+		return $out;
+	}
+
+	/** One Style 3 slide. */
+	private function peek_slide( $sl, $i, $total, $sm ) {
+		printf(
+			'<div class="ds-peek-slide%s" role="group" aria-roledescription="%s" aria-label="%s">',
+			0 === $i ? ' is-active' : '',
+			esc_attr__( 'slide', 'ds-toolkit' ),
+			esc_attr( sprintf( __( '%1$d of %2$d', 'ds-toolkit' ), $i + 1, $total ) )
+		);
+
+		echo '<div class="ds-peek-bg">';
+		if ( '' !== $sl['image'] ) {
+			echo '<picture class="ds-peek-pic">';
+			if ( $sl['mobile'] !== $sl['image'] ) {
+				printf( '<source media="(max-width:%dpx)" srcset="%s">', (int) $sm, esc_url( $sl['mobile'] ) );
+			}
+			printf(
+				'<img class="ds-peek-img" src="%s" alt="%s" style="object-position:%s" loading="%s" decoding="async" draggable="false">',
+				esc_url( $sl['image'] ),
+				esc_attr( $sl['alt'] ),
+				esc_attr( $sl['focal'] ),
+				0 === $i ? 'eager' : 'lazy'
+			);
+			echo '</picture>';
+		}
+		echo '<span class="ds-peek-pattern" aria-hidden="true"></span><span class="ds-peek-overlay" aria-hidden="true"></span></div>';
+
+		if ( '' !== $sl['head'] || '' !== $sl['cta'] ) {
+			echo '<div class="ds-peek-content">';
+			if ( '' !== $sl['head'] ) {
+				printf( '<%1$s class="ds-peek-title">%2$s</%1$s>', $sl['tag'], DS_Module_UI::inline( $sl['head'] ) );
+			}
+			if ( '' !== $sl['cta'] ) {
+				printf(
+					'<a class="ds-peek-cta" href="%s"%s>%s<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>',
+					esc_url( '' !== $sl['link'] ? $sl['link'] : '#' ),
+					'_blank' === $sl['target'] ? ' target="_blank" rel="noopener noreferrer"' : '',
+					esc_html( $sl['cta'] )
+				);
+			}
+			echo '</div>';
+		}
+		echo '</div>';
+	}
+
+	/**
+	 * Style 3 — Peek Slider. A horizontal track whose active slide is centred and
+	 * narrower than the viewport, so the neighbouring slides peek in at the edges.
+	 * Behaviour lives in js/frontend.js; every dimension is a custom property the
+	 * dynamic CSS re-declares per breakpoint.
+	 */
+	public function render_style3() {
+		$s      = $this->settings;
+		$slides = $this->peek_slides();
+
+		if ( empty( $slides ) ) {
+			if ( class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active() ) {
+				echo '<section class="ds-hero ds-hero--style3"><div class="ds-peek-empty">'
+					. esc_html__( 'Peek Slider — add your slides under Content → Slides.', 'ds-toolkit' )
+					. '</div></section>';
+			}
+			return;
+		}
+
+		$total    = count( $slides );
+		$multi    = $total > 1;
+		$loop     = $multi && ( $s->peek_loop ?? 'yes' ) === 'yes';
+		$autoplay = $multi && ( $s->peek_autoplay ?? 'yes' ) === 'yes';
+		$drag     = $multi && ( $s->peek_drag ?? 'yes' ) === 'yes';
+		$arrows   = $multi && ( $s->peek_arrows ?? 'yes' ) === 'yes';
+		$dots     = $multi && ( $s->peek_dots ?? 'yes' ) === 'yes';
+		$playbtn  = $autoplay && ( $s->peek_playpause ?? 'yes' ) === 'yes';
+
+		$vpos  = (string) ( $s->peek_content_v ?? 'bottom' );
+		if ( ! in_array( $vpos, array( 'top', 'center', 'bottom' ), true ) ) { $vpos = 'bottom'; }
+		$align = (string) ( $s->peek_content_align ?? 'split' );
+		if ( ! in_array( $align, array( 'split', 'left', 'center', 'right' ), true ) ) { $align = 'split'; }
+
+		$label = trim( (string) ( $s->peek_label ?? '' ) );
+		if ( '' === $label ) { $label = __( 'Featured highlights', 'ds-toolkit' ); }
+
+		list( , $sm ) = DS_Module_UI::breakpoints();
+
+		printf(
+			'<section class="ds-hero ds-hero--style3 ds-peek--v-%s ds-peek--a-%s">',
+			esc_attr( $vpos ),
+			esc_attr( $align )
+		);
+		printf(
+			'<div class="ds-peek%s" role="region" aria-roledescription="%s" aria-label="%s">',
+			$drag ? ' ds-peek--drag' : '',
+			esc_attr__( 'carousel', 'ds-toolkit' ),
+			esc_attr( $label )
+		);
+
+		printf(
+			'<div class="ds-peek-viewport"><div class="ds-peek-track" data-loop="%s" data-autoplay="%s" data-interval="%s" data-pause="%s" data-resume="%s" data-drag="%s" data-speed="%d">',
+			$loop ? 'yes' : 'no',
+			$autoplay ? 'yes' : 'no',
+			esc_attr( (string) max( 2, (int) DS_Module_UI::u( $s->peek_interval ?? '', 7 ) ) ),
+			( $s->peek_pause_hover ?? 'yes' ) === 'yes' ? 'yes' : 'no',
+			( $s->peek_resume ?? 'yes' ) === 'yes' ? 'yes' : 'no',
+			$drag ? 'yes' : 'no',
+			max( 100, (int) DS_Module_UI::u( $s->peek_speed ?? '', 600 ) )
+		);
+		foreach ( $slides as $i => $sl ) { $this->peek_slide( $sl, $i, $total, $sm ); }
+		echo '</div></div>';
+
+		if ( $arrows ) {
+			echo '<button type="button" class="ds-peek-nav ds-peek-nav--prev" aria-label="' . esc_attr__( 'Previous slide', 'ds-toolkit' ) . '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>';
+			echo '<button type="button" class="ds-peek-nav ds-peek-nav--next" aria-label="' . esc_attr__( 'Next slide', 'ds-toolkit' ) . '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
+		}
+
+		if ( $dots || $playbtn ) {
+			echo '<div class="ds-peek-dots">';
+			if ( $dots ) {
+				for ( $d = 0; $d < $total; $d++ ) {
+					printf(
+						'<button type="button" class="ds-peek-dot%s" aria-current="%s" aria-label="%s"></button>',
+						0 === $d ? ' is-active' : '',
+						0 === $d ? 'true' : 'false',
+						esc_attr( sprintf( __( 'Go to slide %d', 'ds-toolkit' ), $d + 1 ) )
+					);
+				}
+			}
+			if ( $playbtn ) {
+				printf(
+					'<button type="button" class="ds-peek-play" data-play="%s" data-pause="%s" aria-label="%s"><svg class="ds-peek-ico-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg><svg class="ds-peek-ico-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4l13 8-13 8z"/></svg></button>',
+					esc_attr__( 'Play slideshow', 'ds-toolkit' ),
+					esc_attr__( 'Pause slideshow', 'ds-toolkit' ),
+					esc_attr__( 'Pause slideshow', 'ds-toolkit' )
+				);
+			}
+			echo '</div>';
+		}
+
+		// Announces the slide number on a manual move only — autoplay stays silent.
+		echo '<span class="ds-peek-live" aria-live="polite" aria-atomic="true"></span>';
+		echo '</div></section>';
+	}
+
 }
 
 /* ---------------------------------------------------- Mixed Media slide sub-form */
@@ -467,6 +669,106 @@ FLBuilder::register_settings_form( 'ds_hero_slide_form', array(
 	),
 ) );
 
+/* -------------------------------------------- Style 3 Peek Slider slide sub-form */
+
+FLBuilder::register_settings_form( 'ds_hero_peek_slide_form', array(
+	'title' => __( 'Slide', 'ds-toolkit' ),
+	'tabs'  => array(
+		'general' => array(
+			'title'    => __( 'Slide', 'ds-toolkit' ),
+			'sections' => array(
+				'image' => array(
+					'title'  => __( 'Image', 'ds-toolkit' ),
+					'fields' => array(
+						'image' => array(
+							'type'        => 'photo',
+							'label'       => __( 'Desktop Image', 'ds-toolkit' ),
+							'show_remove' => true,
+							'connections' => array( 'photo' ),
+						),
+						'image_mobile' => array(
+							'type'        => 'photo',
+							'label'       => __( 'Mobile Image', 'ds-toolkit' ),
+							'show_remove' => true,
+							'connections' => array( 'photo' ),
+							'help'        => __( 'Optional. Used below the small breakpoint — handy when the desktop crop loses its subject on a phone.', 'ds-toolkit' ),
+						),
+						'img_alt' => array(
+							'type'        => 'text',
+							'label'       => __( 'Image Alt Text', 'ds-toolkit' ),
+							'default'     => '',
+							'connections' => array( 'string' ),
+							'help'        => __( 'Describe the photo for screen readers. Leave blank if the image is purely decorative.', 'ds-toolkit' ),
+						),
+						'focal' => array(
+							'type'    => 'select',
+							'label'   => __( 'Image Focal Point', 'ds-toolkit' ),
+							'default' => 'center center',
+							'options' => array(
+								'left top'      => __( 'Top Left', 'ds-toolkit' ),
+								'center top'    => __( 'Top Centre', 'ds-toolkit' ),
+								'right top'     => __( 'Top Right', 'ds-toolkit' ),
+								'left center'   => __( 'Middle Left', 'ds-toolkit' ),
+								'center center' => __( 'Centre', 'ds-toolkit' ),
+								'right center'  => __( 'Middle Right', 'ds-toolkit' ),
+								'left bottom'   => __( 'Bottom Left', 'ds-toolkit' ),
+								'center bottom' => __( 'Bottom Centre', 'ds-toolkit' ),
+								'right bottom'  => __( 'Bottom Right', 'ds-toolkit' ),
+							),
+							'help'    => __( 'The part of the photo to keep in frame when it is cropped to the slide.', 'ds-toolkit' ),
+						),
+					),
+				),
+				'content' => array(
+					'title'  => __( 'Content', 'ds-toolkit' ),
+					'fields' => array(
+						'heading' => array(
+							'type'        => 'text',
+							'label'       => __( 'Heading', 'ds-toolkit' ),
+							'default'     => '',
+							'connections' => array( 'string' ),
+						),
+						'heading_tag' => array(
+							'type'    => 'select',
+							'label'   => __( 'Heading Tag', 'ds-toolkit' ),
+							'default' => 'h2',
+							'options' => array(
+								'h1' => 'H1', 'h2' => 'H2', 'h3' => 'H3',
+								'h4' => 'H4', 'h5' => 'H5', 'h6' => 'H6',
+								'p'  => __( 'Paragraph', 'ds-toolkit' ),
+								'div' => 'DIV',
+							),
+							'help'    => __( 'Use one H1 per page. On a page that already has an H1, H2 is the right choice here.', 'ds-toolkit' ),
+						),
+						'cta_text' => array(
+							'type'        => 'text',
+							'label'       => __( 'CTA Label', 'ds-toolkit' ),
+							'default'     => '',
+							'connections' => array( 'string' ),
+							'help'        => __( 'Leave blank for a slide with no button.', 'ds-toolkit' ),
+						),
+						'cta_link' => array(
+							'type'        => 'link',
+							'label'       => __( 'CTA Link', 'ds-toolkit' ),
+							'default'     => '',
+							'connections' => array( 'url' ),
+						),
+						'cta_target' => array(
+							'type'    => 'select',
+							'label'   => __( 'CTA Link Target', 'ds-toolkit' ),
+							'default' => '_self',
+							'options' => array(
+								'_self'  => __( 'Same Window', 'ds-toolkit' ),
+								'_blank' => __( 'New Window', 'ds-toolkit' ),
+							),
+						),
+					),
+				),
+			),
+		),
+	),
+) );
+
 FLBuilder::register_module( 'DS_Hero_Module', array(
 	'content' => array(
 		'title'    => __( 'Content', 'ds-toolkit' ),
@@ -487,6 +789,9 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 							),
 							'style2' => array(
 								'sections' => array( 'banner', 'banner_design', 'banner_height', 'banner_nobg', 'overlay', 'banner_scrim', 'typography', 'spacing' ),
+							),
+							'style3' => array(
+								'sections' => array( 'peek_slides_sec', 'peek_behavior', 'peek_layout', 'peek_bg', 'peek_text', 'peek_cta', 'spacing' ),
 							),
 						),
 					),
@@ -521,6 +826,101 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'toggle'  => array( 'yes' => array( 'fields' => array( 'breadcrumbs_position' ) ) ),
 					),
 					'breadcrumbs_position' => array( 'type' => 'select', 'label' => __( 'Breadcrumbs Position', 'ds-toolkit' ), 'default' => 'top', 'options' => array( 'top' => __( 'Top (above heading)', 'ds-toolkit' ), 'below' => __( 'Below (under description)', 'ds-toolkit' ) ) ),
+				),
+			),
+			'peek_slides_sec' => array(
+				'title'       => __( 'Slides', 'ds-toolkit' ),
+				'description' => __( 'Add, duplicate, remove and drag to reorder. The order here is the order on the page.', 'ds-toolkit' ),
+				'fields'      => array(
+					'peek_slides' => array(
+						'type'         => 'form',
+						'label'        => __( 'Slide', 'ds-toolkit' ),
+						'form'         => 'ds_hero_peek_slide_form',
+						'preview_text' => 'heading',
+						'multiple'     => true,
+					),
+					'peek_label' => array(
+						'type'    => 'text',
+						'label'   => __( 'Carousel Label', 'ds-toolkit' ),
+						'default' => '',
+						'help'    => __( 'Names the carousel for screen readers, e.g. "Featured programs". Blank uses a generic label.', 'ds-toolkit' ),
+					),
+				),
+			),
+			'peek_behavior' => array(
+				'title'  => __( 'Slider Behaviour', 'ds-toolkit' ),
+				'fields' => array(
+					'peek_autoplay' => array(
+						'type'    => 'select',
+						'label'   => __( 'Autoplay', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Enabled', 'ds-toolkit' ), 'no' => __( 'Disabled', 'ds-toolkit' ) ),
+						'help'    => __( 'Always off for visitors who ask for reduced motion.', 'ds-toolkit' ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'peek_interval', 'peek_pause_hover', 'peek_resume', 'peek_playpause' ) ) ),
+					),
+					'peek_interval' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Autoplay Speed', 'ds-toolkit' ),
+						'default'     => '7',
+						'description' => 's',
+						'slider'      => array( 'min' => 2, 'max' => 20, 'step' => 1 ),
+					),
+					'peek_pause_hover' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pause on Hover', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
+						'help'    => __( 'Keyboard focus inside the slider always pauses it, so a tabbing visitor is never moved mid-read.', 'ds-toolkit' ),
+					),
+					'peek_resume' => array(
+						'type'    => 'select',
+						'label'   => __( 'After a Manual Move', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array(
+							'yes' => __( 'Resume autoplay', 'ds-toolkit' ),
+							'no'  => __( 'Stop autoplay', 'ds-toolkit' ),
+						),
+					),
+					'peek_playpause' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pause / Play Button', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
+						'help'    => __( 'Recommended: an autoplaying carousel should give visitors a way to stop it.', 'ds-toolkit' ),
+					),
+					'peek_speed' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Transition Speed', 'ds-toolkit' ),
+						'default'     => '600',
+						'description' => 'ms',
+						'slider'      => array( 'min' => 150, 'max' => 1500, 'step' => 50 ),
+					),
+					'peek_loop' => array(
+						'type'    => 'select',
+						'label'   => __( 'Infinite Loop', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Enabled', 'ds-toolkit' ), 'no' => __( 'Disabled', 'ds-toolkit' ) ),
+					),
+					'peek_drag' => array(
+						'type'    => 'select',
+						'label'   => __( 'Drag / Swipe', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Enabled', 'ds-toolkit' ), 'no' => __( 'Disabled', 'ds-toolkit' ) ),
+						'help'    => __( 'Mouse dragging and touch swiping. Vertical swipes still scroll the page.', 'ds-toolkit' ),
+					),
+					'peek_arrows' => array(
+						'type'    => 'select',
+						'label'   => __( 'Navigation Arrows', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
+						'help'    => __( 'Hidden on phones either way — they cost more width than they earn.', 'ds-toolkit' ),
+					),
+					'peek_dots' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pagination Dots', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
+					),
 				),
 			),
 			'text' => array(
@@ -817,6 +1217,298 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'sub_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Subtext', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'stat_num_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Stat Number', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'stat_label_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Stat Label', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
+				),
+			),
+			'peek_layout' => array(
+				'title'  => __( 'Slide Layout', 'ds-toolkit' ),
+				'fields' => array(
+					'peek_height' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Slide Height', 'ds-toolkit' ),
+						'default'     => '640',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 240, 'max' => 900, 'step' => 10 ),
+					),
+					'peek_width' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Slide Width', 'ds-toolkit' ),
+						'default'     => '93',
+						'description' => '%',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 50, 'max' => 100, 'step' => 1 ),
+						'help'        => __( 'Under 100% is what makes the neighbouring slides peek in at the edges.', 'ds-toolkit' ),
+					),
+					'peek_gap' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Gap Between Slides', 'ds-toolkit' ),
+						'default'     => '30',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 0, 'max' => 80, 'step' => 2 ),
+					),
+					'peek_radius' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Border Radius', 'ds-toolkit' ),
+						'default'     => '16',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 0, 'max' => 60, 'step' => 1 ),
+					),
+					'peek_pad' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Content Padding', 'ds-toolkit' ),
+						'default'     => '48',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 8, 'max' => 120, 'step' => 2 ),
+					),
+					'peek_content_width' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Heading Maximum Width', 'ds-toolkit' ),
+						'default'     => '640',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 200, 'max' => 1200, 'step' => 10 ),
+					),
+					'peek_content_v' => array(
+						'type'    => 'select',
+						'label'   => __( 'Vertical Content Position', 'ds-toolkit' ),
+						'default' => 'bottom',
+						'options' => array(
+							'top'    => __( 'Top', 'ds-toolkit' ),
+							'center' => __( 'Middle', 'ds-toolkit' ),
+							'bottom' => __( 'Bottom', 'ds-toolkit' ),
+						),
+					),
+					'peek_content_align' => array(
+						'type'    => 'select',
+						'label'   => __( 'Heading & CTA Alignment', 'ds-toolkit' ),
+						'default' => 'split',
+						'options' => array(
+							'split'  => __( 'Split — heading left, CTA right', 'ds-toolkit' ),
+							'left'   => __( 'Stacked left', 'ds-toolkit' ),
+							'center' => __( 'Stacked centre', 'ds-toolkit' ),
+							'right'  => __( 'Stacked right', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Split stacks automatically on phones so nothing is squeezed.', 'ds-toolkit' ),
+					),
+				),
+			),
+			'peek_bg' => array(
+				'title'       => __( 'Slide Background Layers', 'ds-toolkit' ),
+				'description' => __( 'Stacked bottom to top: base colour, slide image, pattern, overlay, then the heading and CTA. Each slide sets its own image and focal point; these settings style every slide the same way.', 'ds-toolkit' ),
+				'fields'      => array(
+					'peek_base_color' => array(
+						'type'        => 'color',
+						'label'       => __( 'Base Background Colour', 'ds-toolkit' ),
+						'default'     => '',
+						'show_reset'  => true,
+						'show_alpha'  => true,
+						'connections' => array( 'color' ),
+						'help'        => __( 'Sits under the image — shows through a transparent PNG or a reduced image opacity.', 'ds-toolkit' ),
+					),
+					'peek_img_size' => array(
+						'type'    => 'select',
+						'label'   => __( 'Image Size', 'ds-toolkit' ),
+						'default' => 'cover',
+						'options' => array(
+							'cover'   => __( 'Cover (fill the slide)', 'ds-toolkit' ),
+							'contain' => __( 'Contain (fit inside)', 'ds-toolkit' ),
+						),
+					),
+					'peek_img_opacity' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Image Opacity', 'ds-toolkit' ),
+						'default'     => '100',
+						'description' => '%',
+						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
+					),
+					'peek_img_blend' => array(
+						'type'    => 'select',
+						'label'   => __( 'Image Blend Mode', 'ds-toolkit' ),
+						'default' => 'normal',
+						'options' => DS_Hero_Module::blend_modes(),
+					),
+					'peek_pattern' => array(
+						'type'        => 'photo',
+						'label'       => __( 'Pattern / Texture', 'ds-toolkit' ),
+						'show_remove' => true,
+						'connections' => array( 'photo' ),
+						'help'        => __( 'Optional tileable image laid over the photo.', 'ds-toolkit' ),
+					),
+					'peek_pattern_size' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pattern Size', 'ds-toolkit' ),
+						'default' => 'auto',
+						'options' => array(
+							'auto'    => __( 'Original', 'ds-toolkit' ),
+							'cover'   => __( 'Cover', 'ds-toolkit' ),
+							'contain' => __( 'Contain', 'ds-toolkit' ),
+						),
+					),
+					'peek_pattern_repeat' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pattern Repeat', 'ds-toolkit' ),
+						'default' => 'repeat',
+						'options' => array(
+							'repeat'    => __( 'Tile', 'ds-toolkit' ),
+							'repeat-x'  => __( 'Tile horizontally', 'ds-toolkit' ),
+							'repeat-y'  => __( 'Tile vertically', 'ds-toolkit' ),
+							'no-repeat' => __( 'No repeat', 'ds-toolkit' ),
+						),
+					),
+					'peek_pattern_pos' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pattern Position', 'ds-toolkit' ),
+						'default' => 'center center',
+						'options' => array(
+							'left top'      => __( 'Top Left', 'ds-toolkit' ),
+							'center top'    => __( 'Top Centre', 'ds-toolkit' ),
+							'right top'     => __( 'Top Right', 'ds-toolkit' ),
+							'left center'   => __( 'Middle Left', 'ds-toolkit' ),
+							'center center' => __( 'Centre', 'ds-toolkit' ),
+							'right center'  => __( 'Middle Right', 'ds-toolkit' ),
+							'left bottom'   => __( 'Bottom Left', 'ds-toolkit' ),
+							'center bottom' => __( 'Bottom Centre', 'ds-toolkit' ),
+							'right bottom'  => __( 'Bottom Right', 'ds-toolkit' ),
+						),
+					),
+					'peek_pattern_opacity' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Pattern Opacity', 'ds-toolkit' ),
+						'default'     => '100',
+						'description' => '%',
+						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
+					),
+					'peek_pattern_blend' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pattern Blend Mode', 'ds-toolkit' ),
+						'default' => 'normal',
+						'options' => DS_Hero_Module::blend_modes(),
+					),
+					'peek_ov_type' => array(
+						'type'    => 'select',
+						'label'   => __( 'Overlay Type', 'ds-toolkit' ),
+						'default' => 'gradient',
+						'options' => array(
+							'none'     => __( 'None', 'ds-toolkit' ),
+							'solid'    => __( 'Solid Colour', 'ds-toolkit' ),
+							'gradient' => __( 'Gradient', 'ds-toolkit' ),
+						),
+						'help'    => __( 'The default gradient is light at the top and dark near the bottom, so a heading placed low stays readable.', 'ds-toolkit' ),
+						'toggle'  => array(
+							'solid'    => array( 'fields' => array( 'peek_ov_color', 'peek_ov_opacity', 'peek_ov_blend' ) ),
+							'gradient' => array( 'fields' => array( 'peek_ov_color', 'peek_ov_color2', 'peek_ov_dir', 'peek_ov_opacity', 'peek_ov_blend' ) ),
+						),
+					),
+					'peek_ov_color' => array(
+						'type'        => 'color',
+						'label'       => __( 'Overlay Colour', 'ds-toolkit' ),
+						'default'     => '',
+						'show_reset'  => true,
+						'show_alpha'  => true,
+						'connections' => array( 'color' ),
+						'help'        => __( 'Gradient start. Blank keeps the designed default.', 'ds-toolkit' ),
+					),
+					'peek_ov_color2' => array(
+						'type'        => 'color',
+						'label'       => __( 'Overlay Colour 2', 'ds-toolkit' ),
+						'default'     => '',
+						'show_reset'  => true,
+						'show_alpha'  => true,
+						'connections' => array( 'color' ),
+						'help'        => __( 'Gradient end.', 'ds-toolkit' ),
+					),
+					'peek_ov_dir' => array(
+						'type'    => 'select',
+						'label'   => __( 'Gradient Direction', 'ds-toolkit' ),
+						'default' => 'to bottom',
+						'options' => array(
+							'to bottom'       => __( 'Top to bottom', 'ds-toolkit' ),
+							'to top'          => __( 'Bottom to top', 'ds-toolkit' ),
+							'to right'        => __( 'Left to right', 'ds-toolkit' ),
+							'to left'         => __( 'Right to left', 'ds-toolkit' ),
+							'to bottom right' => __( 'Diagonal ↘', 'ds-toolkit' ),
+							'to bottom left'  => __( 'Diagonal ↙', 'ds-toolkit' ),
+						),
+					),
+					'peek_ov_opacity' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Overlay Opacity', 'ds-toolkit' ),
+						'default'     => '100',
+						'description' => '%',
+						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
+					),
+					'peek_ov_blend' => array(
+						'type'    => 'select',
+						'label'   => __( 'Overlay Blend Mode', 'ds-toolkit' ),
+						'default' => 'normal',
+						'options' => DS_Hero_Module::blend_modes(),
+					),
+				),
+			),
+			'peek_text' => array(
+				'title'  => __( 'Slide Heading', 'ds-toolkit' ),
+				'fields' => array(
+					'peek_title_color' => array(
+						'type'        => 'color',
+						'label'       => __( 'Heading Colour', 'ds-toolkit' ),
+						'default'     => '',
+						'show_reset'  => true,
+						'show_alpha'  => true,
+						'connections' => array( 'color' ),
+						'help'        => __( 'Blank = white, which is what reads on a photo under the default overlay.', 'ds-toolkit' ),
+						'preview'     => array( 'type' => 'css', 'selector' => '.ds-peek-title', 'property' => 'color' ),
+					),
+					'peek_title_typography' => array(
+						'type'       => 'typography',
+						'label'      => __( 'Heading Typography', 'ds-toolkit' ),
+						'responsive' => true,
+						'preview'    => array( 'type' => 'css', 'selector' => '.ds-peek-title' ),
+						'help'       => __( 'Font, size, line height, letter spacing and text transform, per breakpoint.', 'ds-toolkit' ),
+					),
+				),
+			),
+			'peek_cta' => array(
+				'title'  => __( 'Slide CTA Button', 'ds-toolkit' ),
+				'fields' => array(
+					'peek_btn_global' => array(
+						'type'    => 'select',
+						'label'   => __( 'Button Style', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array(
+							'yes' => __( 'Match site Button (Theme Setting)', 'ds-toolkit' ),
+							'no'  => __( 'Custom (below)', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'no' => array( 'fields' => array( 'peek_btn_bg', 'peek_btn_color', 'peek_btn_border', 'peek_btn_hover_bg', 'peek_btn_hover_color' ) ),
+						),
+					),
+					'peek_btn_size' => array(
+						'type'    => 'select',
+						'label'   => __( 'Button Size', 'ds-toolkit' ),
+						'default' => 'medium',
+						'options' => array(
+							'small'  => __( 'Small', 'ds-toolkit' ),
+							'medium' => __( 'Medium', 'ds-toolkit' ),
+							'large'  => __( 'Large', 'ds-toolkit' ),
+						),
+					),
+					'peek_btn_radius' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Button Border Radius', 'ds-toolkit' ),
+						'default'     => '',
+						'description' => 'px',
+						'slider'      => array( 'min' => 0, 'max' => 60, 'step' => 1 ),
+						'help'        => __( 'Blank follows the site button.', 'ds-toolkit' ),
+					),
+					'peek_btn_bg'          => array( 'type' => 'color', 'label' => __( 'Background Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'connections' => array( 'color' ) ),
+					'peek_btn_color'       => array( 'type' => 'color', 'label' => __( 'Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ) ),
+					'peek_btn_border'      => array( 'type' => 'color', 'label' => __( 'Border Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ) ),
+					'peek_btn_hover_bg'    => array( 'type' => 'color', 'label' => __( 'Hover Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'connections' => array( 'color' ) ),
+					'peek_btn_hover_color' => array( 'type' => 'color', 'label' => __( 'Hover Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ) ),
+					'peek_btn_typography'  => array( 'type' => 'typography', 'label' => __( 'Button Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-peek-cta' ) ),
 				),
 			),
 			'typography' => array(
