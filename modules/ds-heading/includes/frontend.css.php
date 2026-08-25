@@ -156,6 +156,8 @@ if ( '' !== $dc ) { echo "$node .ds-heading-sep { background: {$dc}; }\n"; }
 foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 	$v = $settings->{'style2_mark_h' . $sfx} ?? '';
 	if ( '' === $v || null === $v ) { continue; }
-	$rule = "$node .ds-heading-mark img { height: " . (int) $v . "px; }";
+	// max-height, not height: paired with width:auto/max-width:100% the mark scales
+	// down against whichever limit binds and never loses its aspect ratio.
+	$rule = "$node .ds-heading-mark img { max-height: " . (int) $v . "px; }";
 	echo ( '' === $sfx ) ? "$rule\n" : "@media (max-width:{$bp}px){ $rule }\n";
 }
