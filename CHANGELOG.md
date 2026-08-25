@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.102] - 2026-08-26
+### Changed
+- **Heading: the Text panel is ordered content-first (GH #156).** Style, then the Sub-heading and Heading text, then the End Mark, with the structural controls (Show Sub-heading, Sub-heading Position, the two SEO tag pickers and Alignment) below them. Display order only — every field keeps its name, default, help text and conditional visibility, so saved values are untouched and nothing about the rendered output changes. Verified the form still carries the same 34 fields, that the End Mark still appears only on Style 2, that Show Sub-heading still reveals the sub-heading and its position, and that Alignment is still responsive.
+
 ## [1.9.101] - 2026-08-25
 ### Fixed
 - **CTA: Section Background is reachable from every card style (GH #154).** The control was defined inside the **Grid** panel, which Styles 5 and 6 do not show — so switching to Program Cards made it vanish even though the setting still applied. It now lives in its own **Section** panel, shown for Styles 1, 2, 3, 5 and 6. Style 4 keeps its own Hero Background controls and is deliberately left out. Nothing about the value or its output changed: it is the same `section_bg` field with the same default, still emitted by both the CTA stylesheet and the shared Program Cards chrome, so **existing modules of every style render exactly as before** — the control simply became visible where it was already working. Section Background and Card Background remain separate settings.
