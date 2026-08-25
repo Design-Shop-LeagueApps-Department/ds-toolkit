@@ -30,15 +30,36 @@
 		var active = 0, timer = null;
 		var sign = dir === 'left' ? -1 : 1;
 
+		// The deck fans the cards behind the front one sideways with transforms, but the
+		// slides are already the full width of the deck, so the fan always lands OUTSIDE
+		// the stage. A wide column absorbs it; on a phone the stage nearly fills the
+		// screen and the overhang drags the whole page sideways (GH #166). Clamp the step
+		// to the room that actually exists on the side we fan towards, so desktop keeps
+		// the designed offset and narrow screens tighten the fan instead of overflowing.
+		function stepX() {
+			if (dir === 'center' || visible < 1) return 0;
+			var r    = deck.getBoundingClientRect();
+			var vw   = document.documentElement.clientWidth || window.innerWidth;
+			var room = (dir === 'left' ? r.left : vw - r.right) - 4;  // 4px breathing gap
+			if (room >= offx * visible) return offx;
+			return Math.max(0, room / visible);
+		}
+
 		function layout() {
+			var stepx = stepX();
+			// How much of the designed offset survived the clamp. When space is tight the
+			// shrink and tilt have to come down with it: at a 8px step an 8% scale step
+			// pulls each card's edge further in than the offset pushes it out, so the deck
+			// would read as one flat card instead of a stack.
+			var k = (dir === 'center' || offx <= 0) ? 1 : Math.min(1, stepx / offx);
 			for (var i = 0; i < n; i++) {
 				var s   = slides[i];
 				var rel = (i - active + n) % n;       // 0 = front, 1.. = behind
 				var shown = rel <= visible;
-				var tx = (dir === 'center' ? 0 : sign * rel * offx);
-				var ty = rel * offy;
-				var sc = Math.max(0.4, 1 - rel * scale);
-				var rt = (dir === 'center' ? 0 : sign * rel * rot);
+				var tx = (dir === 'center' ? 0 : sign * rel * stepx);
+				var ty = rel * offy * k;
+				var sc = Math.max(0.4, 1 - rel * scale * k);
+				var rt = (dir === 'center' ? 0 : sign * rel * rot * k);
 				s.style.transform    = 'translateX(calc(-50% + ' + tx + 'px)) translateY(' + ty + 'px) scale(' + sc + ') rotate(' + rt + 'deg)';
 				s.style.opacity      = shown ? String(1 - rel * 0.18) : '0';
 				s.style.zIndex       = String(100 - rel);
@@ -89,6 +110,12 @@
 				start();
 			});
 		}
+
+		var rt = null;
+		window.addEventListener('resize', function () {
+			if (rt) clearTimeout(rt);
+			rt = setTimeout(layout, 150);
+		});
 
 		layout();
 		start();
