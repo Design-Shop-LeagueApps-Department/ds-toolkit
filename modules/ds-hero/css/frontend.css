@@ -195,6 +195,30 @@
 .ds-hero--style3 .ds-peek-play .ds-peek-ico-play{display:none;}
 .ds-hero--style3 .ds-peek-play.is-paused .ds-peek-ico-play{display:block;}
 .ds-hero--style3 .ds-peek-play.is-paused .ds-peek-ico-pause{display:none;}
+/* Beaver Builder ships global button styling that outranks these controls: its
+   `.fl-builder-content .fl-module-content:not(:has(.fl-inline-editor)) button:not(.fl-content-ui-button)`
+   is (0,4,1) and paints background-color, and a second (0,2,1) rule forces a 5px radius,
+   uppercase and letter-spacing on every button inside a layout. That turned the dots,
+   arrows and pause button into brand-coloured rounded squares and, worse, painted the
+   active dot the same colour as the idle ones so the position indicator disappeared.
+   Those BB rules are not !important, so declaring these few properties !important is
+   enough to win without needing to out-specify them. Same approach DS_Module_UI's
+   global_button_css() already uses for the reverse case. */
+.ds-hero--style3 .ds-peek button.ds-peek-dot,
+.ds-hero--style3 .ds-peek button.ds-peek-nav,
+.ds-hero--style3 .ds-peek button.ds-peek-play{
+  border:0 !important;box-shadow:none !important;text-shadow:none !important;
+  padding:0 !important;letter-spacing:normal !important;text-transform:none !important;
+  background-clip:border-box !important;
+}
+.ds-hero--style3 .ds-peek button.ds-peek-dot{background:rgba(20,20,20,.25) !important;border-radius:50% !important;}
+.ds-hero--style3 .ds-peek button.ds-peek-dot:hover{background:rgba(20,20,20,.5) !important;}
+.ds-hero--style3 .ds-peek button.ds-peek-dot.is-active{background:var(--fl-global-accent) !important;}
+.ds-hero--style3 .ds-peek button.ds-peek-nav{background:rgba(15,18,24,.5) !important;border-radius:50% !important;}
+.ds-hero--style3 .ds-peek button.ds-peek-nav:hover{background:rgba(15,18,24,.78) !important;}
+.ds-hero--style3 .ds-peek button.ds-peek-play{background:rgba(20,20,20,.25) !important;border-radius:50% !important;}
+.ds-hero--style3 .ds-peek button.ds-peek-play:hover{background:rgba(20,20,20,.5) !important;}
+
 /* Visible focus for every control (spec: keyboard reachable with a visible state). */
 .ds-hero--style3 .ds-peek-nav:focus-visible,.ds-hero--style3 .ds-peek-dot:focus-visible,
 .ds-hero--style3 .ds-peek-play:focus-visible,.ds-hero--style3 .ds-peek-cta:focus-visible{outline:3px solid var(--fl-global-accent);outline-offset:3px;}
