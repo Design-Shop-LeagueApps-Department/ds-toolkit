@@ -457,8 +457,15 @@ class DS_CTA_Module extends FLBuilderModule {
 		// Eyebrow / sub-heading.
 		if ( ( $s->hero_show_eyebrow ?? 'yes' ) === 'yes' && ! empty( $s->hero_eyebrow ) ) {
 			echo '<div class="ds-cta-hero-eyebrow">';
-			if ( ( $s->hero_eyebrow_line ?? 'yes' ) === 'yes' ) { echo '<span class="ds-cta-hero-eyebrow-line" aria-hidden="true"></span>'; }
-			echo '<span>' . DS_Module_UI::inline( $s->hero_eyebrow ) . '</span></div>';
+			// A rule on BOTH sides when centred (GH #158), matching the Heading module.
+			// Both are always emitted and the trailing one is hidden by CSS unless the
+			// active alignment is centred — same reason as there: it keeps the rule tied
+			// to whatever alignment is in force rather than to a PHP-time decision.
+			$eyeline = ( $s->hero_eyebrow_line ?? 'yes' ) === 'yes';
+			if ( $eyeline ) { echo '<span class="ds-cta-hero-eyebrow-line ds-cta-hero-eyebrow-line--before" aria-hidden="true"></span>'; }
+			echo '<span class="ds-cta-hero-eyebrow-text">' . DS_Module_UI::inline( $s->hero_eyebrow ) . '</span>';
+			if ( $eyeline ) { echo '<span class="ds-cta-hero-eyebrow-line ds-cta-hero-eyebrow-line--after" aria-hidden="true"></span>'; }
+			echo '</div>';
 		}
 
 		// Heading.

@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.103] - 2026-08-26
+### Added
+- **CTA Style 4: a centred sub-heading gets an eyebrow rule on both sides (GH #158).** Matching the Heading module, as asked. Both rules are always in the markup and the trailing one is revealed by CSS only when the active alignment is centred, so the behaviour stays tied to the alignment in force rather than to a decision made at render time. Left alignment keeps the single leading rule it has always had, and no new toggle is introduced. Both sides share one class, so colour, thickness and spacing stay identical without duplicating a setting. The rules are now `flex: 0 1 auto` with `min-width: 0` so they shrink evenly on a narrow screen instead of pushing the text out — measured at 300px with a long sub-heading, they came down to 23px each, still balanced, with no overflow.
+
 ## [1.9.102] - 2026-08-26
 ### Changed
 - **Heading: the Text panel is ordered content-first (GH #156).** Style, then the Sub-heading and Heading text, then the End Mark, with the structural controls (Show Sub-heading, Sub-heading Position, the two SEO tag pickers and Alignment) below them. Display order only — every field keeps its name, default, help text and conditional visibility, so saved values are untouched and nothing about the rendered output changes. Verified the form still carries the same 34 fields, that the End Mark still appears only on Style 2, that Show Sub-heading still reveals the sub-heading and its position, and that Alignment is still responsive.

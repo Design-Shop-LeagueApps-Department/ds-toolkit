@@ -134,7 +134,15 @@
 /* Sub-heading */
 .ds-cta--style4 .ds-cta-hero-eyebrow{display:flex;align-items:center;justify-content:center;gap:14px;font-weight:700;font-size:.8rem;letter-spacing:.22em;text-transform:uppercase;color:var(--fl-global-accent);margin:0 0 18px;}
 .ds-cta--style4-left .ds-cta-hero-eyebrow{justify-content:flex-start;}
-.ds-cta--style4 .ds-cta-hero-eyebrow-line{display:inline-block;width:34px;height:2px;background:currentColor;flex:none;}
+/* flex:0 1 auto + min-width:0 so the rules shrink on a narrow screen instead of
+   pushing the text out; both sides share this class, so colour, thickness and
+   spacing stay identical without duplicating any setting. */
+.ds-cta--style4 .ds-cta-hero-eyebrow-line{display:inline-block;width:34px;height:2px;background:currentColor;flex:0 1 auto;min-width:0;}
+.ds-cta--style4 .ds-cta-hero-eyebrow{min-width:0;}
+/* Trailing rule only when the active alignment is centred (GH #158). Left keeps the
+   single leading rule it has always had. */
+.ds-cta--style4 .ds-cta-hero-eyebrow-line--after{display:none;}
+.ds-cta--style4-center .ds-cta-hero-eyebrow-line--after{display:inline-block;}
 /* Heading */
 .ds-cta--style4 .ds-cta-hero-heading{font-size:clamp(2.2rem,5vw,3.5rem);line-height:.95;letter-spacing:-.01em;text-transform:uppercase;font-weight:900;color:var(--fl-global-white);margin:0 0 22px;}
 .ds-cta--style4 .ds-cta-hero-heading .ds-cta-accent{color:var(--fl-global-accent);}
