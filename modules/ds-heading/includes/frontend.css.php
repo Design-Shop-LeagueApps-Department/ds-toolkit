@@ -27,16 +27,20 @@ $align_css = static function ( $a ) {
 	$ml = ( 'center' === $a ) ? 'auto' : ( 'right' === $a ? 'auto' : '0' );
 	$mr = ( 'center' === $a ) ? 'auto' : ( 'right' === $a ? '0' : 'auto' );
 	$rule_justify = ( 'center' === $a ) ? 'center' : ( 'right' === $a ? 'flex-end' : 'flex-start' );
-	return "ALIGN_INNER{align-items:{$items};text-align:{$text};margin-left:{$ml};margin-right:{$mr};}ALIGN_RULE{justify-content:{$rule_justify};}";
+	// The centred eyebrow shows a rule on BOTH sides, so the trailing one has to
+	// follow the alignment that is active at THIS breakpoint (GH #143).
+	$after = ( 'center' === $a ) ? 'flex' : 'none';
+	return "ALIGN_INNER{align-items:{$items};text-align:{$text};margin-left:{$ml};margin-right:{$mr};}ALIGN_RULE{justify-content:{$rule_justify};}"
+		. "ALIGN_AFTER{display:{$after};}";
 };
 $am = in_array( $settings->alignment_medium ?? '', array( 'left', 'center', 'right' ), true ) ? $settings->alignment_medium : '';
 $ar = in_array( $settings->alignment_responsive ?? '', array( 'left', 'center', 'right' ), true ) ? $settings->alignment_responsive : '';
 if ( '' !== $am ) {
-	$css = str_replace( array( 'ALIGN_INNER', 'ALIGN_RULE' ), array( "$node .ds-heading-inner", "$node .ds-heading-rule" ), $align_css( $am ) );
+	$css = str_replace( array( 'ALIGN_INNER', 'ALIGN_RULE', 'ALIGN_AFTER' ), array( "$node .ds-heading-inner", "$node .ds-heading-rule", "$node .ds-heading-sub--withrule .ds-heading-rule--after" ), $align_css( $am ) );
 	echo "@media (max-width:{$bpm}px){ {$css} }\n";
 }
 if ( '' !== $ar ) {
-	$css = str_replace( array( 'ALIGN_INNER', 'ALIGN_RULE' ), array( "$node .ds-heading-inner", "$node .ds-heading-rule" ), $align_css( $ar ) );
+	$css = str_replace( array( 'ALIGN_INNER', 'ALIGN_RULE', 'ALIGN_AFTER' ), array( "$node .ds-heading-inner", "$node .ds-heading-rule", "$node .ds-heading-sub--withrule .ds-heading-rule--after" ), $align_css( $ar ) );
 	echo "@media (max-width:{$bpr}px){ {$css} }\n";
 }
 
@@ -143,3 +147,15 @@ if ( '' !== $sa ) { echo "@media (max-width:{$bpr}px){ $node .ds-heading-sub{ali
 $oc_ov = DS_Module_UI::color( $settings->outline_color ?? '' );
 if ( '' !== $oc_ov ) { echo "$node { --ds-outline-c: {$oc_ov}; }\n"; }
 if ( isset( $settings->outline_width ) && '' !== $settings->outline_width ) { echo "$node { --ds-outline-w: " . max( 1, (int) $settings->outline_width ) . "px; }\n"; }
+
+/* ---- Style 2 (GH #143) ---- */
+$sep_h = $u( $settings->divider_thickness ?? '', 2 );
+echo "$node .ds-heading-sep { --ds-heading-sep-h: {$sep_h}px; }\n";
+$dc = DS_Module_UI::color( $settings->divider_color ?? '' );
+if ( '' !== $dc ) { echo "$node .ds-heading-sep { background: {$dc}; }\n"; }
+foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+	$v = $settings->{'style2_mark_h' . $sfx} ?? '';
+	if ( '' === $v || null === $v ) { continue; }
+	$rule = "$node .ds-heading-mark img { height: " . (int) $v . "px; }";
+	echo ( '' === $sfx ) ? "$rule\n" : "@media (max-width:{$bp}px){ $rule }\n";
+}
