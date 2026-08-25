@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.98] - 2026-08-25
+### Changed
+- **Heading: the Style 2 end mark gets its own sizing section (GH #145).** The control shipped in 1.9.97 lived under Spacing, away from the image it sizes. It now sits in an **End Mark (Style 2)** section on the Style tab, revealed only when Style 2 is selected, and is labelled **Size**. It stays a single responsive field rather than a second parallel control — the issue's own implementation note asks not to introduce new units, breakpoints or image-sizing behaviour, and the responsive icon on this field already sets tablet and mobile from the same input, unit and validation. Blank still tracks the heading size, so existing modules are visually unchanged.
+
+### Fixed
+- **Heading: the Style 2 end mark could distort or overflow at large sizes.** Found while verifying the above. Size was applied as a fixed `height`, so a wide mark in a narrow container was squashed — measured, a 3:1 logo rendered at 1.01:1 — or, with the wrapper unable to shrink, pushed the row 720px wide inside a 380px container. Size is now a **max-height** paired with `width:auto` and `max-width:100%`, so the browser scales the mark down against whichever limit binds first and the aspect ratio is preserved either way; the wrapper is `flex: 0 1 auto` so it can actually shrink. A long heading also breaks rather than forcing the row wide. Verified at 3:1 across sizes 40 and 240 in both a 900px and a 380px container: ratio held at 3.00 in every case, the mark stayed inside the container, and the page never scrolled horizontally.
+
 ## [1.9.97] - 2026-08-25
 ### Added
 - **Heading: Style 2 — heading, flexible rule, optional end mark (GH #143).** A new **Style** selector on the Content tab. Style 2 puts the heading on the left with a rule running through the remaining width and an optional logo at the far end. With no image no wrapper is rendered at all, so the rule simply runs to the end rather than stopping short of an empty box. The mark keeps its aspect ratio (height authored, width follows, `object-fit: contain`) and is capped by a responsive **End Mark Height** on the Style tab; blank tracks the heading size. The separator takes `flex: 1 1 0` so a wrapping heading can never push it into an overflow. Only the heading LINE changes — sub-heading, description, rules and every existing control behave exactly as in Style 1, and existing modules stay on Style 1 because that is the default.

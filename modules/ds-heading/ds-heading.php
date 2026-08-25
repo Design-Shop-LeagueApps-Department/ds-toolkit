@@ -204,7 +204,7 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'label'   => __( 'Style', 'ds-toolkit' ),
 						'default' => 'style1',
 						'options' => DS_Heading_Module::styles(),
-						'toggle'  => array( 'style2' => array( 'fields' => array( 'style2_image' ) ) ),
+						'toggle'  => array( 'style2' => array( 'fields' => array( 'style2_image' ), 'sections' => array( 'endmark' ) ) ),
 						'help'    => __( 'Style 2 puts the heading on the left with a rule running through the remaining space, and an optional mark at the end. Existing modules stay on Style 1.', 'ds-toolkit' ),
 					),
 					'style2_image'        => array(
@@ -278,6 +278,20 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 	'style'   => array(
 		'title'    => __( 'Style', 'ds-toolkit' ),
 		'sections' => array(
+			'endmark' => array(
+				'title'  => __( 'End Mark (Style 2)', 'ds-toolkit' ),
+				'fields' => array(
+					'style2_mark_h'  => array(
+						'type'        => 'unit',
+						'label'       => __( 'Size', 'ds-toolkit' ),
+						'default'     => '',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 16, 'max' => 240, 'step' => 2 ),
+						'help'        => __( 'Height of the end mark; the width follows so the aspect ratio never changes. Use the responsive icon on this field for tablet and mobile sizes — leaving those blank keeps the desktop size. Blank everywhere tracks the heading size, which is what existing modules already do.', 'ds-toolkit' ),
+					),
+				),
+			),
 			'divider' => array(
 				'title'  => __( 'Divider / Eyebrow Rule', 'ds-toolkit' ),
 				'fields' => array(
@@ -344,15 +358,6 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 				'title'  => __( 'Spacing', 'ds-toolkit' ),
 				'fields' => array(
 					'gap'       => array( 'type' => 'unit', 'label' => __( 'Element Gap', 'ds-toolkit' ), 'default' => '12', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ), 'help' => __( 'Vertical spacing between sub-heading, heading and description.', 'ds-toolkit' ) ),
-					'style2_mark_h'       => array(
-						'type'        => 'unit',
-						'label'       => __( 'End Mark Height', 'ds-toolkit' ),
-						'default'     => '',
-						'description' => 'px',
-						'responsive'  => true,
-						'slider'      => array( 'min' => 16, 'max' => 160, 'step' => 2 ),
-						'help'        => __( 'Style 2 only. Blank tracks the heading size. Width follows the aspect ratio.', 'ds-toolkit' ),
-					),
 					'max_width' => array( 'type' => 'unit', 'label' => __( 'Max Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 200, 'max' => 1200, 'step' => 10 ), 'help' => __( 'Constrain the block width (great for centred headings). Blank = full width.', 'ds-toolkit' ) ),
 					'padding'   => array( 'type' => 'dimension', 'label' => __( 'Padding', 'ds-toolkit' ), 'default' => '0', 'units' => array( 'px' ), 'slider' => true, 'responsive' => true ),
 					'margin'    => array( 'type' => 'dimension', 'label' => __( 'Margin', 'ds-toolkit' ), 'default' => '0', 'units' => array( 'px' ), 'slider' => true, 'responsive' => true ),

@@ -48,14 +48,25 @@
 
 /* ---- Style 2: heading, flexible rule, optional end mark ---------------------- */
 .ds-heading--style2 .ds-heading-row{display:flex;align-items:center;gap:18px;width:100%;min-width:0;}
-.ds-heading--style2 .ds-heading-row .ds-heading-title{flex:0 1 auto;min-width:0;}
+/* break-word so a single long word wraps instead of forcing the row wide — the
+   heading, not the mark, was the last thing able to overflow a narrow container. */
+.ds-heading--style2 .ds-heading-row .ds-heading-title{flex:0 1 auto;min-width:0;overflow-wrap:break-word;}
 /* The rule takes whatever is left. flex-basis:0 keeps it from forcing an overflow
    when the heading wraps. */
 .ds-heading-sep{flex:1 1 0;min-width:24px;height:var(--ds-heading-sep-h,2px);background:var(--fl-global-accent,#0b782d);border-radius:2px;}
 /* Aspect ratio preserved: height is authored, width follows. flex:none stops the
    rule squeezing the mark. */
-.ds-heading-mark{flex:none;display:flex;align-items:center;line-height:0;}
-.ds-heading-mark img{display:block;height:var(--ds-heading-mark-h,1.6em);width:auto;max-width:100%;object-fit:contain;}
+/* flex:0 1 auto (not none) so a large Size can SHRINK when the container is narrow
+   rather than pushing the row into an overflow — max-width:100% on the img cannot
+   bind while the wrapper refuses to shrink. The separator keeps its own min-width,
+   so the mark still gets the remaining room first. */
+.ds-heading-mark{flex:0 1 auto;display:flex;align-items:center;line-height:0;}
+/* Size is a MAX-height, not a height. With both dimensions auto and a max on each
+   axis, the browser scales the mark down against whichever limit binds first and the
+   aspect ratio is preserved either way. A fixed height plus a width cap would squash
+   the box instead (measured: a 3:1 mark came out 1.01:1 in a narrow container). */
+.ds-heading-mark{min-width:0;}
+.ds-heading-mark img{display:block;height:auto;width:auto;max-height:var(--ds-heading-mark-h,1.6em);max-width:100%;}
 /* Right-aligned Style 2 reads better with the rule leading into the heading. */
 .ds-heading--right.ds-heading--style2 .ds-heading-row{flex-direction:row-reverse;}
 @media (max-width:768px){
