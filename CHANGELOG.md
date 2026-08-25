@@ -4,6 +4,11 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.100] - 2026-08-25
+### Changed
+- **CTA: Show Header is off for new modules (GH #147).** The Heading field's default is the placeholder `{a}Lorem{/a} Ipsum Dolor`, so with the header on by default every freshly dropped CTA rendered Lorem copy onto the page until someone edited it or unticked the box. Lorem reaching a live page is a worse outcome than a section without a heading, so the header is now opt-in: switch Show Header to Yes and the placeholder heading is waiting to be edited. **Existing modules are untouched** — they carry their own saved value — and the render paths still fall back to showing the header for any module whose settings predate the field.
+- This is deliberately the shared default rather than a Style-6-only one. The issue asked for it on Style 6 alone, but Beaver Builder resolves a module's field defaults when the module is *created*, at which point its style is Style 1 — there is no moment at which a "new Style 6 module" exists to give a different default to. A Style-6-only field was rejected for the opposite reason: BB merges defaults into saved settings at render, so it would have evaluated to "no" for Style 6 modules saved *before* the field existed and hidden headers that are live today. The shared flip is the only version of this that helps without breaking anything, and it applies the same benefit to Styles 1, 2, 3 and 5.
+
 ## [1.9.99] - 2026-08-25
 ### Changed
 - **CTA + Org Stats: the Header panel now sits last (GH #147, #149, #150).** Cards are configured before the optional header, which is the order people actually work in. In the CTA module the Header panel moved to the end, which gives Style 1 *CTA Style → Cards → Header* and Style 6 *CTA Style → Program Cards → Header* from a single ordering; Org Stats is now *Stats Style → Stats → Header*. Beaver Builder renders panels in array order and the per-style toggles only control visibility, so one order serves every style. Panel order is builder UI only: no field values, saved configurations or frontend output change, and the other CTA styles get the same Header-last treatment as a side effect of there being one array.
