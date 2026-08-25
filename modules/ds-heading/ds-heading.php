@@ -207,6 +207,15 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'toggle'  => array( 'style2' => array( 'fields' => array( 'style2_image' ), 'sections' => array( 'endmark' ) ) ),
 						'help'    => __( 'Style 2 puts the heading on the left with a rule running through the remaining space, and an optional mark at the end. Existing modules stay on Style 1.', 'ds-toolkit' ),
 					),
+					'subheading'          => array( 'type' => 'text', 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'default' => 'Sub Heading', 'connections' => array( 'string' ) ),
+					'heading'             => array(
+						'type'        => 'textarea',
+						'label'       => __( 'Heading', 'ds-toolkit' ),
+						'rows'        => 2,
+						'default'     => 'Section {a}Heading{/a}',
+						'connections' => array( 'string' ),
+						'help'        => __( 'Wrap a word in {a}…{/a} to colour it with the accent. Line breaks are kept. Use the connect (+) icon to pull a dynamic field (post title, ACF, etc.). {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
+					),
 					'style2_image'        => array(
 						'type'        => 'photo',
 						'label'       => __( 'End Mark (optional)', 'ds-toolkit' ),
@@ -222,20 +231,11 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'toggle'  => array( 'yes' => array( 'fields' => array( 'subheading', 'subheading_position' ) ) ),
 						'help'    => __( 'The sub-heading is always output as a <span> (never a heading tag), so it stays SEO-clean.', 'ds-toolkit' ),
 					),
-					'subheading'          => array( 'type' => 'text', 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'default' => 'Sub Heading', 'connections' => array( 'string' ) ),
 					'subheading_position' => array(
 						'type'    => 'select',
 						'label'   => __( 'Sub-heading Position', 'ds-toolkit' ),
 						'default' => 'above',
 						'options' => array( 'above' => __( 'Above heading', 'ds-toolkit' ), 'below' => __( 'Below heading', 'ds-toolkit' ) ),
-					),
-					'heading'             => array(
-						'type'        => 'textarea',
-						'label'       => __( 'Heading', 'ds-toolkit' ),
-						'rows'        => 2,
-						'default'     => 'Section {a}Heading{/a}',
-						'connections' => array( 'string' ),
-						'help'        => __( 'Wrap a word in {a}…{/a} to colour it with the accent. Line breaks are kept. Use the connect (+) icon to pull a dynamic field (post title, ACF, etc.). {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 					'heading_tag'         => array(
 						'type'    => 'select',
