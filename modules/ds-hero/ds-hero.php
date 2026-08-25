@@ -539,6 +539,9 @@ class DS_Hero_Module extends FLBuilderModule {
 		$align = (string) ( $s->peek_content_align ?? 'split' );
 		if ( ! in_array( $align, array( 'split', 'left', 'center', 'right' ), true ) ) { $align = 'split'; }
 
+		$ease = (string) ( $s->peek_ease ?? 'settle' );
+		if ( ! in_array( $ease, array( 'settle', 'snap', 'smooth' ), true ) ) { $ease = 'settle'; }
+
 		$label = trim( (string) ( $s->peek_label ?? '' ) );
 		if ( '' === $label ) { $label = __( 'Featured highlights', 'ds-toolkit' ); }
 
@@ -557,14 +560,15 @@ class DS_Hero_Module extends FLBuilderModule {
 		);
 
 		printf(
-			'<div class="ds-peek-viewport"><div class="ds-peek-track" data-loop="%s" data-autoplay="%s" data-interval="%s" data-pause="%s" data-resume="%s" data-drag="%s" data-speed="%d">',
+			'<div class="ds-peek-viewport"><div class="ds-peek-track" data-loop="%s" data-autoplay="%s" data-interval="%s" data-pause="%s" data-resume="%s" data-drag="%s" data-speed="%d" data-ease="%s">',
 			$loop ? 'yes' : 'no',
 			$autoplay ? 'yes' : 'no',
 			esc_attr( (string) max( 2, (int) DS_Module_UI::u( $s->peek_interval ?? '', 7 ) ) ),
 			( $s->peek_pause_hover ?? 'yes' ) === 'yes' ? 'yes' : 'no',
 			( $s->peek_resume ?? 'yes' ) === 'yes' ? 'yes' : 'no',
 			$drag ? 'yes' : 'no',
-			max( 100, (int) DS_Module_UI::u( $s->peek_speed ?? '', 600 ) )
+			max( 100, (int) DS_Module_UI::u( $s->peek_speed ?? '', 525 ) ),
+			esc_attr( $ease )
 		);
 		foreach ( $slides as $i => $sl ) { $this->peek_slide( $sl, $i, $total, $sm ); }
 		echo '</div></div>';
@@ -891,9 +895,20 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'peek_speed' => array(
 						'type'        => 'unit',
 						'label'       => __( 'Transition Speed', 'ds-toolkit' ),
-						'default'     => '600',
+						'default'     => '525',
 						'description' => 'ms',
-						'slider'      => array( 'min' => 150, 'max' => 1500, 'step' => 50 ),
+						'slider'      => array( 'min' => 150, 'max' => 1500, 'step' => 25 ),
+					),
+					'peek_ease' => array(
+						'type'    => 'select',
+						'label'   => __( 'Slide Motion', 'ds-toolkit' ),
+						'default' => 'settle',
+						'options' => array(
+							'settle' => __( 'Settle (recommended)', 'ds-toolkit' ),
+							'snap'   => __( 'Snap (faster, sharper)', 'ds-toolkit' ),
+							'smooth' => __( 'Smooth (even glide)', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Settle moves most of the way quickly then eases the last stretch in, so the photo appears to settle into place. Smooth glides at an even rate.', 'ds-toolkit' ),
 					),
 					'peek_loop' => array(
 						'type'    => 'select',

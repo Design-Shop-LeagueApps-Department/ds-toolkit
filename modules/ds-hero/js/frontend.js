@@ -176,8 +176,17 @@
 		var pause    = ds.pause === 'yes';
 		var resume   = ds.resume !== 'no';
 		var drag     = ds.drag !== 'no' && n > 1;
-		var speed    = Math.max(100, num(ds.speed, 600));
-		var ease     = 'cubic-bezier(.22,.61,.36,1)';
+		var speed    = Math.max(100, num(ds.speed, 525));
+		// Slide-change easing. "settle" is measured off the reference carousel: roughly 90%
+		// of the travel lands in the first third, then the last few percent drift in. That
+		// asymptotic tail is what reads as the image settling into place — the reference
+		// never transforms the image itself, the whole effect is in how the track decelerates.
+		var EASES    = {
+			settle: 'cubic-bezier(.3,1,.3,1)',
+			snap:   'cubic-bezier(.16,1,.3,1)',
+			smooth: 'cubic-bezier(.22,.61,.36,1)'
+		};
+		var ease     = EASES[ds.ease] || EASES.settle;
 
 		// Loop clones: the last slide before the first, the first after the last. They are
 		// decorative duplicates, so they leave the a11y tree and the tab order.
