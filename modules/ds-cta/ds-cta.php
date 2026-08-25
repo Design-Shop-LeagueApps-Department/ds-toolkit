@@ -747,9 +747,19 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					'show_header'  => array(
 						'type'    => 'select',
 						'label'   => __( 'Show Header', 'ds-toolkit' ),
-						'default' => 'yes',
+						// Off for NEW modules (GH #147). The Heading default is the
+						// placeholder "{a}Lorem{/a} Ipsum Dolor", so the old default meant
+						// every freshly dropped CTA rendered Lorem copy on the page until
+						// someone edited or unticked it — and Lorem reaching a live page is
+						// a worse outcome than a section without a heading. Turning it on is
+						// one click, and the heading placeholder is waiting when you do.
+						// Modules already saved are untouched: they carry their own value,
+						// and the render paths still fall back to 'yes' for any module whose
+						// settings predate this field entirely.
+						'default' => 'no',
 						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
 						'toggle'  => array( 'yes' => array( 'fields' => array( 'heading', 'header_label' ) ) ),
+						'help'    => __( 'Off by default so a new module never ships placeholder heading text. Switch to Yes to add a heading above the cards; existing modules keep whatever they were set to.', 'ds-toolkit' ),
 					),
 					'heading'      => array(
 						'type'    => 'textarea',
