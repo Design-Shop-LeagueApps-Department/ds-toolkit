@@ -57,6 +57,7 @@ class DS_User_Roles {
 		add_action( 'init', array( $this, 'sync_role' ), 5 );
 		// After Beaver Builder has registered its own settings.
 		add_action( 'init', array( $this, 'sync_builder_access' ), 20 );
+		add_filter( 'ninja_table_admin_role', array( $this, 'allow_ninja_tables' ) );
 		// Very late, after every plugin has registered its menus.
 		add_action( 'admin_menu', array( $this, 'hide_admin_menus' ), 999999 );
 	}
@@ -103,6 +104,36 @@ class DS_User_Roles {
 		if ( $changed ) {
 			update_option( '_fl_builder_user_access', $settings );
 		}
+	}
+
+	/**
+	 * Let the Partner role reach Ninja Tables.
+	 *
+	 * Same trap as Beaver Builder above: the plugin keeps its OWN role list rather
+	 * than checking a capability, and its default is `administrator` only. Worse,
+	 * ninja_table_admin_role() tests roles with current_user_can( 'administrator' ),
+	 * a role name used as a pseudo-capability — a Partner carries `partner` in its
+	 * capability array, never `administrator`, so the check fails however privileged
+	 * the role is. Verified on dslaunchpad6: a Partner has manage_options but
+	 * can( 'administrator' ) is false, so the helper returned false.
+	 *
+	 * That return value is not a soft "no" either. AdminMenuHandler::add() bails on
+	 * a falsey capability before calling add_menu_page(), so the whole Ninja Tables
+	 * menu was never registered, and UserPolicy gates the REST/AJAX endpoints on the
+	 * same helper. Partners maintain their own rosters and standings, which live in
+	 * Ninja Tables, so both halves need to work.
+	 *
+	 * Adding the slug is enough: the helper returns the first role the user matches
+	 * and hands that straight to add_menu_page() as the capability, and
+	 * current_user_can( 'partner' ) is true for a Partner. Administrators keep
+	 * matching first, and no other role gains anything.
+	 */
+	public function allow_ninja_tables( $roles ) {
+		$roles = is_array( $roles ) ? $roles : array( $roles );
+		if ( ! in_array( self::ROLE_SLUG, $roles, true ) ) {
+			$roles[] = self::ROLE_SLUG;
+		}
+		return $roles;
 	}
 
 	private function plugin_access_allowed() {
