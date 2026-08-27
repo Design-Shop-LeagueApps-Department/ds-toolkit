@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.112] - 2026-08-28
+### Fixed
+- **Origin Guard blocked visitors submitting a page password.** WordPress's password-protected page form posts to `wp-login.php?action=postpass` from the protected page itself and never sets the login test cookie, so the guard's cold-login-POST rule refused it and every visitor who typed the correct password got "Forbidden" (seen on mvvc's "Coach Portal"). The rule now exempts `action=postpass`; credential stuffing targets the login action and stays blocked. Payload bumped to **1.0.1**, which is what makes existing sites rewrite their guard file — the installer only touches the filesystem when the state fingerprint changes, so without the payload bump sites already carrying the broken file would have kept it indefinitely (and any hand-patched site would have been silently reverted on the next payload change).
+
 ## [1.9.103] - 2026-08-26
 ### Added
 - **CTA Style 4: a centred sub-heading gets an eyebrow rule on both sides (GH #158).** Matching the Heading module, as asked. Both rules are always in the markup and the trailing one is revealed by CSS only when the active alignment is centred, so the behaviour stays tied to the alignment in force rather than to a decision made at render time. Left alignment keeps the single leading rule it has always had, and no new toggle is introduced. Both sides share one class, so colour, thickness and spacing stay identical without duplicating a setting. The rules are now `flex: 0 1 auto` with `min-width: 0` so they shrink evenly on a narrow screen instead of pushing the text out — measured at 300px with a long sub-heading, they came down to 23px each, still balanced, with no overflow.

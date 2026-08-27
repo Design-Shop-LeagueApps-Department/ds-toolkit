@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_Origin_Guard_Installer {
 
 	/** Bump when the generated mu-plugin payload changes. Drives auto-refresh. */
-	const PAYLOAD_VERSION = '1.0.0';
+	const PAYLOAD_VERSION = '1.0.1';
 
 	const MU_FILENAME = 'ds-origin-guard.php';
 	const STATE_OPT   = 'ds_origin_guard_state';
@@ -160,8 +160,18 @@ class DS_Origin_Guard_Installer {
 		$login_rule = $block_login ? <<<'PHP'
 
 // 2) Cold login POSTs (no test cookie = the login form was never rendered).
+//
+// EXEMPT action=postpass. WordPress's page-password form posts to
+// wp-login.php?action=postpass from the protected page itself and never sets
+// the test cookie, so without this exemption every visitor submitting a correct
+// page password gets "Forbidden" (mvvc "Coach Portal", 2026-08-17). Credential
+// stuffing targets the login action, which stays guarded.
+$dsog_postpass = ( isset( $_GET['action'] ) && 'postpass' === $_GET['action'] )
+	|| false !== strpos( $dsog_uri, 'action=postpass' );
+
 if ( 'POST' === $dsog_method
 	&& false !== strpos( $dsog_uri, 'wp-login.php' )
+	&& ! $dsog_postpass
 	&& empty( $_COOKIE['wordpress_test_cookie'] ) ) {
 	$dsog_deny( 'cold-login-post' );
 }
@@ -218,7 +228,7 @@ if ( ! \$dsog_logged_in
 }
 {$login_rule}{$xmlrpc_rule}
 
-unset( \$dsog_uri, \$dsog_method, \$dsog_logged_in, \$dsog_k, \$dsog_deny );
+unset( \$dsog_uri, \$dsog_method, \$dsog_logged_in, \$dsog_k, \$dsog_deny, \$dsog_postpass );
 
 PHP;
 	}
