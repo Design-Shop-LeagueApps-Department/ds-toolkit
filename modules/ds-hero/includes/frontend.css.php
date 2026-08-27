@@ -242,13 +242,19 @@ if ( $btn_global && $gs ) {
 
 // ---- Alignment (responsive overrides; base set by the modifier class) ----
 $align_rules = function( $align ) use ( $node ) {
+	// The eyebrow's trailing rule (GH #170) is re-declared per breakpoint alongside the
+	// alignment it follows. The static sheet keys it off .ds-hero--center, which only
+	// describes the BASE alignment — without this a hero centred on desktop and left on
+	// mobile would keep both rules on mobile.
 	if ( 'center' === $align ) {
 		return "$node .ds-hero .ds-hero-inner{margin-left:auto;margin-right:auto;text-align:center;}"
 			. "$node .ds-hero .ds-hero-eyebrow,$node .ds-hero .ds-hero-cta,$node .ds-hero .ds-hero-proof{justify-content:center;}"
+			. "$node .ds-hero .ds-hero-eyebrow::after{display:inline-block;}"
 			. "$node .ds-hero .ds-hero-sub{margin-left:auto;margin-right:auto;}";
 	}
 	return "$node .ds-hero .ds-hero-inner{margin-left:0;margin-right:0;text-align:left;}"
 		. "$node .ds-hero .ds-hero-eyebrow,$node .ds-hero .ds-hero-cta,$node .ds-hero .ds-hero-proof{justify-content:flex-start;}"
+		. "$node .ds-hero .ds-hero-eyebrow::after{display:none;}"
 		. "$node .ds-hero .ds-hero-sub{margin-left:0;margin-right:0;}";
 };
 if ( '' !== ( $settings->align_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){" . $align_rules( $settings->align_medium ) . "}\n"; }
