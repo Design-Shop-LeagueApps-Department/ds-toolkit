@@ -88,6 +88,17 @@ if ( ( $settings->divider_show ?? 'yes' ) === 'yes' ) {
 		echo "$node .ds-heading-rule-line { height: {$dth}px; background: {$dcol}; border: 0; }\n";
 	}
 
+	// Image divider (GH #169): authored HEIGHT, width follows, per breakpoint. Same
+	// max-height approach as the Style 2 end mark so the aspect ratio is preserved.
+	if ( 'image' === ( $settings->divider_type ?? 'line' ) ) {
+		foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+			$v = $settings->{ 'divider_img_h' . $sfx } ?? '';
+			if ( '' === $v || null === $v ) { continue; }
+			$rule = "$node .ds-heading-rule-img { max-height: " . (int) $v . "px; }";
+			echo ( '' === $sfx ) ? "$rule\n" : "@media (max-width:{$bp}px){ $rule }\n";
+		}
+	}
+
 	// Gap between an inline (eyebrow) rule and the sub-heading text.
 	$dgap = $u( $settings->divider_gap ?? '', 14 );
 	echo "$node .ds-heading-sub--withrule { gap: {$dgap}px; }\n";
