@@ -73,10 +73,28 @@ class DS_Heading_Module extends FLBuilderModule {
 		return nl2br( $h );
 	}
 
-	/** The eyebrow/divider rule element. */
+	/**
+	 * The eyebrow/divider rule element.
+	 *
+	 * Normally a plain line. With Divider Type set to Image (GH #169) the line is
+	 * swapped for the chosen image, in the same slot and with the same spacing, so
+	 * alignment and the centred both-sides behaviour keep working untouched. The
+	 * wrapper already carries aria-hidden, and the img gets an empty alt on top of
+	 * it, because a divider is decoration either way. Falls back to the line if the
+	 * image is missing, so a half-configured module never renders an empty gap.
+	 */
 	private function rule_html( $side = '' ) {
-		$mod = ( '' !== $side ) ? ' ds-heading-rule--' . $side : '';
-		return '<span class="ds-heading-rule' . $mod . '" aria-hidden="true"><span class="ds-heading-rule-line"></span></span>';
+		$mod   = ( '' !== $side ) ? ' ds-heading-rule--' . $side : '';
+		$inner = '<span class="ds-heading-rule-line"></span>';
+
+		if ( 'image' === ( $this->settings->divider_type ?? 'line' ) ) {
+			$url = $this->photo_url( $this->settings->divider_image ?? '', 'medium' );
+			if ( '' !== $url ) {
+				$inner = '<img class="ds-heading-rule-img" src="' . esc_url( $url ) . '" alt="" loading="lazy" decoding="async" />';
+			}
+		}
+
+		return '<span class="ds-heading-rule' . $mod . '" aria-hidden="true">' . $inner . '</span>';
 	}
 
 	/**
@@ -300,7 +318,37 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'label'   => __( 'Show Divider', 'ds-toolkit' ),
 						'default' => 'yes',
 						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'divider_position', 'divider_style', 'divider_width', 'divider_width_unit', 'divider_thickness', 'divider_radius', 'divider_gap', 'divider_color' ) ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'divider_type', 'divider_position', 'divider_style', 'divider_width', 'divider_width_unit', 'divider_thickness', 'divider_radius', 'divider_gap', 'divider_color', 'divider_image', 'divider_img_h' ) ) ),
+					),
+					'divider_type'      => array(
+						'type'    => 'select',
+						'label'   => __( 'Eyebrow Divider Type', 'ds-toolkit' ),
+						'default' => 'line',
+						'options' => array(
+							'line'  => __( 'Line', 'ds-toolkit' ),
+							'image' => __( 'Image', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Swap the divider line for a decorative image or icon. It sits in the same place with the same spacing, and a centred sub-heading shows it on both sides.', 'ds-toolkit' ),
+						'toggle'  => array(
+							'line'  => array( 'fields' => array( 'divider_style', 'divider_width', 'divider_width_unit', 'divider_thickness', 'divider_radius', 'divider_color' ) ),
+							'image' => array( 'fields' => array( 'divider_image', 'divider_img_h' ) ),
+						),
+					),
+					'divider_image'     => array(
+						'type'        => 'photo',
+						'label'       => __( 'Divider Image', 'ds-toolkit' ),
+						'show_remove' => true,
+						'connections' => array( 'photo' ),
+						'help'        => __( 'Blank keeps the line, so the heading never renders an empty gap.', 'ds-toolkit' ),
+					),
+					'divider_img_h'     => array(
+						'type'        => 'unit',
+						'label'       => __( 'Image Size', 'ds-toolkit' ),
+						'default'     => '',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 8, 'max' => 160, 'step' => 1 ),
+						'help'        => __( 'Height of the divider image; the width follows so the aspect ratio never changes. Use the responsive icon for tablet and mobile sizes — leaving those blank keeps the desktop size. Blank everywhere tracks the sub-heading size.', 'ds-toolkit' ),
 					),
 					'divider_position'  => array(
 						'type'    => 'select',

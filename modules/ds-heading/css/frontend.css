@@ -26,6 +26,15 @@
 .ds-heading--center .ds-heading-rule{justify-content:center;}
 .ds-heading--right .ds-heading-rule{justify-content:flex-end;}
 .ds-heading-rule-line{display:block;width:48px;height:3px;background:var(--fl-global-accent);border-radius:2px;}
+/* ---- Image divider (GH #169) ---------------------------------------------------
+   Same slot as the line. height:auto + width:auto + max-height/max-width is the
+   end-mark recipe: the image scales down against whichever limit binds first and
+   never loses its aspect ratio, so it cannot stretch or overflow its container.
+   The trailing copy on a centred sub-heading is mirrored, so an asymmetric ornament
+   reads as a matched pair pointing inwards rather than two arrows facing the same
+   way. A symmetric divider is unaffected by the flip. */
+.ds-heading-rule-img{display:block;height:auto;width:auto;max-height:var(--ds-heading-rule-h,1.6em);max-width:100%;}
+.ds-heading-rule--after .ds-heading-rule-img{transform:scaleX(-1);}
 
 /* Inline (eyebrow) rule sits inside the sub-heading flex, so it shrinks to its line */
 .ds-heading-sub .ds-heading-rule{width:auto;}
