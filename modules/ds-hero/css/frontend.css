@@ -28,7 +28,17 @@
 .ds-hero-inner{max-width:760px;}
 
 .ds-hero-eyebrow{display:inline-flex;align-items:center;gap:12px;font-weight:700;font-size:.74rem;letter-spacing:.28em;text-transform:uppercase;color:var(--fl-global-primary,#7ee29a);}
-.ds-hero-eyebrow::before{content:"";width:34px;height:2px;background:currentColor;display:inline-block;}
+/* ---- Eyebrow rules (GH #170) --------------------------------------------------
+   Both rules always exist; the trailing one only shows when the ACTIVE alignment is
+   centred. Same approach as the Heading module's centred eyebrow: expressing it in
+   CSS rather than PHP keeps it right per breakpoint, because Alignment is a
+   responsive field and the per-breakpoint override is emitted by the dynamic CSS
+   (which re-declares the ::after there). min-width:0 plus flex:0 1 auto lets the
+   rules shrink rather than push the text out of the hero. */
+.ds-hero-eyebrow{min-width:0;}
+.ds-hero-eyebrow::before,.ds-hero-eyebrow::after{content:"";width:34px;height:2px;background:currentColor;display:inline-block;flex:0 1 auto;min-width:0;}
+.ds-hero-eyebrow::after{display:none;}
+.ds-hero--center .ds-hero-eyebrow::after{display:inline-block;}
 
 .ds-hero-title{font-size:clamp(3.4rem,10vw,8rem);line-height:.92;text-transform:uppercase;letter-spacing:.01em;font-weight:700;color:var(--fl-global-white,#fff);margin:20px 0 0;overflow-wrap:normal;word-break:keep-all;hyphens:none;}
 .ds-hero-accent{color:var(--fl-global-primary,#7ee29a);}
