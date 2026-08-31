@@ -124,6 +124,16 @@
 .ds-banner--has-bg .ds-hero-title{color:var(--fl-global-white,#fff);}
 .ds-banner--has-bg .ds-hero-sub{color:#e9eef0;}
 .ds-banner--no-bg{background:var(--fl-global-light-background,#f2f4f6);}
+/* ---- Style 2 vertical title placement (GH #176) --------------------------------
+   The banner is a flex box that centres its content, so Top/Bottom are one
+   cross-axis change on the section. Center adds no class and no rule — an
+   existing banner renders untouched. The 28px inset only exists on the two new
+   variants, so the title never sits hard against the banner edge; the Spacing
+   padding control still adds on top of it as it always has. */
+.ds-hero--banner.ds-banner--v-top{align-items:flex-start;}
+.ds-hero--banner.ds-banner--v-bottom{align-items:flex-end;}
+.ds-banner--v-top .ds-hero-wrap{padding-top:28px;}
+.ds-banner--v-bottom .ds-hero-wrap{padding-bottom:28px;}
 .ds-banner--no-bg .ds-hero-title{color:var(--fl-global-headings,#15171b);}
 .ds-banner--no-bg .ds-hero-sub{color:var(--fl-global-body,#5b6671);}
 
