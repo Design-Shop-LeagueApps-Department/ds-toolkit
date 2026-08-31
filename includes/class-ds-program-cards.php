@@ -181,6 +181,11 @@ class DS_Program_Cards {
 		// radius shows; blank keeps the theme shape (button follows the theme by default).
 		$btn_cls = 'ds-program-btn' . ( ( $s->pg_btn_style ?? 'theme' ) === 'custom' ? ' ds-no-clip' : '' );
 
+		// Layout (GH #174): 'columns' is the original card grid, verbatim. 'rows'
+		// renders one full-width row per program with the content flowing across.
+		// Carousel display keeps the grid form — its track must stay a flex row.
+		$rows = ( ( $s->pg_layout ?? 'columns' ) === 'rows' ) && ( ( $s->display ?? 'grid' ) !== 'carousel' );
+
 		echo '<section class="ds-news ds-programs"><div class="ds-news-wrap">';
 		self::head( $s );
 
@@ -195,7 +200,7 @@ class DS_Program_Cards {
 			return;
 		}
 
-		self::open( $s, 'ds-program-grid' );
+		self::open( $s, 'ds-program-grid' . ( $rows ? ' ds-program-grid--rows' : '' ) );
 
 		foreach ( $items as $it ) {
 			$it    = (object) $it;
@@ -394,40 +399,53 @@ class DS_Program_Cards {
 		$col = array( 'DS_Module_UI', 'color' );
 		$u   = array( 'DS_Module_UI', 'u' );
 
-		$pgc = max( 1, min( 6, (int) ( $settings->pg_cols ?? 3 ) ) );
+		// Rows layout (GH #174): the column counts, equal-height stretch, card
+		// alignment and image height are grid-shape settings — emitting them would
+		// fight the rows CSS at equal specificity and win on order (the node rules
+		// come after the stylesheet). Rows keeps gap, padding, colours, typography
+		// and the button styling below.
+		$rows = ( ( $settings->pg_layout ?? 'columns' ) === 'rows' ) && ( ( $settings->display ?? 'grid' ) !== 'carousel' );
+
 		$pgg = $u( $settings->pg_gap ?? '', 24 );
-		echo "$node .ds-program-grid{grid-template-columns:repeat({$pgc},1fr);gap:{$pgg}px;}\n";
-
-		// Tablet and mobile counts were hardcoded to 2 and 1, so the Columns control
-		// only ever changed the desktop row (GH #148). They are configurable now, and
-		// an unset value keeps the number that was hardcoded before — so every
-		// existing layout renders exactly as it did. The 1024/600 breakpoints are the
-		// ones this grid has always used; no new ones are introduced.
-		$cols_at = static function ( $val, $fallback ) {
-			if ( '' === $val || null === $val ) { return $fallback; }
-			return max( 1, min( 6, (int) $val ) );
-		};
-		$pgm = $cols_at( $settings->pg_cols_medium ?? '', 2 );
-		$pgr = $cols_at( $settings->pg_cols_responsive ?? '', 1 );
-		echo "@media(max-width:1024px){ $node .ds-program-grid{grid-template-columns:repeat({$pgm},1fr);} }\n";
-		echo "@media(max-width:600px){ $node .ds-program-grid{grid-template-columns:repeat({$pgr},1fr);} }\n";
-
-		if ( ( $settings->pg_same_height ?? 'yes' ) === 'yes' ) {
-			echo "$node .ds-program-grid{align-items:stretch;} $node .ds-program-card{height:100%;}\n";
+		if ( $rows ) {
+			echo "$node .ds-program-grid{gap:{$pgg}px;}\n";
 		} else {
-			echo "$node .ds-program-grid{align-items:start;} $node .ds-program-card{height:auto;}\n";
+			$pgc = max( 1, min( 6, (int) ( $settings->pg_cols ?? 3 ) ) );
+			echo "$node .ds-program-grid{grid-template-columns:repeat({$pgc},1fr);gap:{$pgg}px;}\n";
+
+			// Tablet and mobile counts were hardcoded to 2 and 1, so the Columns control
+			// only ever changed the desktop row (GH #148). They are configurable now, and
+			// an unset value keeps the number that was hardcoded before — so every
+			// existing layout renders exactly as it did. The 1024/600 breakpoints are the
+			// ones this grid has always used; no new ones are introduced.
+			$cols_at = static function ( $val, $fallback ) {
+				if ( '' === $val || null === $val ) { return $fallback; }
+				return max( 1, min( 6, (int) $val ) );
+			};
+			$pgm = $cols_at( $settings->pg_cols_medium ?? '', 2 );
+			$pgr = $cols_at( $settings->pg_cols_responsive ?? '', 1 );
+			echo "@media(max-width:1024px){ $node .ds-program-grid{grid-template-columns:repeat({$pgm},1fr);} }\n";
+			echo "@media(max-width:600px){ $node .ds-program-grid{grid-template-columns:repeat({$pgr},1fr);} }\n";
+
+			if ( ( $settings->pg_same_height ?? 'yes' ) === 'yes' ) {
+				echo "$node .ds-program-grid{align-items:stretch;} $node .ds-program-card{height:100%;}\n";
+			} else {
+				echo "$node .ds-program-grid{align-items:start;} $node .ds-program-card{height:auto;}\n";
+			}
 		}
 
 		$pgpad = $u( $settings->pg_pad ?? '', 28 );
 		$pgbg  = $col( $settings->pg_card_bg ?? '' );
 		echo "$node .ds-program-card{padding:{$pgpad}px;" . ( $pgbg ? "background:{$pgbg};" : '' ) . "}\n";
 
-		$pal = ( ( $settings->pg_align ?? 'left' ) === 'center' ) ? 'center' : 'left';
-		$pai = ( 'center' === $pal ) ? 'center' : 'flex-start';
-		echo "$node .ds-program-card{text-align:{$pal};align-items:{$pai};}\n";
+		if ( ! $rows ) {
+			$pal = ( ( $settings->pg_align ?? 'left' ) === 'center' ) ? 'center' : 'left';
+			$pai = ( 'center' === $pal ) ? 'center' : 'flex-start';
+			echo "$node .ds-program-card{text-align:{$pal};align-items:{$pai};}\n";
 
-		$pih = $u( $settings->pg_img_h ?? '', 180 );
-		echo "$node .ds-program-media{height:{$pih}px;}\n";
+			$pih = $u( $settings->pg_img_h ?? '', 180 );
+			echo "$node .ds-program-media{height:{$pih}px;}\n";
+		}
 
 		$pis = $u( $settings->pg_icon_size ?? '', 40 );
 		echo "$node .ds-program-ico{font-size:{$pis}px;line-height:1;}\n";

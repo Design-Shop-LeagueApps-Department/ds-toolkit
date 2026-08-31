@@ -1209,6 +1209,19 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 			'program_opts' => array(
 				'title'  => __( 'Program Cards', 'ds-toolkit' ),
 				'fields' => array(
+					'pg_layout'      => array(
+						'type'    => 'select',
+						'label'   => __( 'Layout', 'ds-toolkit' ),
+						'default' => 'columns',
+						'options' => array(
+							'columns' => __( 'Horizontal — cards side by side (default)', 'ds-toolkit' ),
+							'rows'    => __( 'Vertical — full-width rows', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Horizontal flows the cards left to right into the Columns count below. Vertical stacks one full-width row per program, with the date, text and button laid across the row; rows collapse back to stacked cards on phones. Fonts, colours and buttons stay exactly as styled below in both.', 'ds-toolkit' ),
+						'toggle'  => array(
+							'columns' => array( 'fields' => array( 'pg_cols', 'pg_same_height', 'pg_align', 'pg_img_h' ) ),
+						),
+					),
 					'pg_cols'        => array(
 						'type'       => 'unit',
 						'label'      => __( 'Columns', 'ds-toolkit' ),
