@@ -380,7 +380,13 @@ class DS_Hero_Module extends FLBuilderModule {
 		// Parallax: only for a photo banner (a fixed video can't parallax cleanly).
 		$parallax = ( ( $s->banner_parallax ?? 'no' ) === 'yes' ) && ( '' !== $img ) && ( '' === $video );
 
-		$mods = 'ds-hero ds-hero--style2 ds-hero--banner ds-banner--' . $align . ( $has_bg ? ' ds-banner--has-bg' : ' ds-banner--no-bg' ) . ( $parallax ? ' ds-banner--parallax' : '' );
+		// Vertical title placement (GH #176). Center is the default and adds no
+		// class, so an existing banner's markup does not change by a byte.
+		$valign = (string) ( $s->banner_valign ?? 'center' );
+		if ( ! in_array( $valign, array( 'top', 'center', 'bottom' ), true ) ) { $valign = 'center'; }
+		$vmod = ( 'center' === $valign ) ? '' : ' ds-banner--v-' . $valign;
+
+		$mods = 'ds-hero ds-hero--style2 ds-hero--banner ds-banner--' . $align . ( $has_bg ? ' ds-banner--has-bg' : ' ds-banner--no-bg' ) . ( $parallax ? ' ds-banner--parallax' : '' ) . $vmod;
 		echo '<section class="' . esc_attr( $mods ) . '"' . ( $parallax ? ' data-parallax="1"' : '' ) . '>';
 		if ( '' !== $video ) {
 			echo '<div class="ds-hero-bg"><video class="ds-hero-video" autoplay muted loop playsinline src="' . esc_url( $video ) . '"></video></div>';
@@ -1074,6 +1080,17 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 				'title'  => __( 'Banner', 'ds-toolkit' ),
 				'fields' => array(
 					'banner_align'       => array( 'type' => 'select', 'label' => __( 'Alignment', 'ds-toolkit' ), 'default' => 'center', 'responsive' => true, 'options' => array( 'left' => __( 'Left', 'ds-toolkit' ), 'center' => __( 'Center', 'ds-toolkit' ), 'right' => __( 'Right', 'ds-toolkit' ) ) ),
+					'banner_valign'      => array(
+						'type'    => 'select',
+						'label'   => __( 'Title Alignment', 'ds-toolkit' ),
+						'default' => 'center',
+						'options' => array(
+							'top'    => __( 'Top', 'ds-toolkit' ),
+							'center' => __( 'Center (default)', 'ds-toolkit' ),
+							'bottom' => __( 'Bottom', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Where the title block sits vertically inside the banner. Bottom keeps a photo\'s subject clear — faces in a team photo stay uncovered. Only the title placement moves; the photo, overlay and typography are untouched.', 'ds-toolkit' ),
+					),
 					'banner_parallax' => array(
 						'type'    => 'select',
 						'label'   => __( 'Parallax', 'ds-toolkit' ),
