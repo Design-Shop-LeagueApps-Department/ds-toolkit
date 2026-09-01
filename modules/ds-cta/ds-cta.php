@@ -788,11 +788,6 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 				'title'  => __( 'Section', 'ds-toolkit' ),
 				'fields' => array(
 					'section_bg' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Section Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-light-background)', 'show_reset' => true ),
-				),
-			),
-			'grid' => array(
-				'title'  => __( 'Grid', 'ds-toolkit' ),
-				'fields' => array(
 					'content_width'     => array(
 						'type'    => 'select',
 						'label'   => __( 'Content Width', 'ds-toolkit' ),
@@ -806,6 +801,11 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 						'help'    => __( 'Full width lets the CTA fill a full-width row/column. Use the row/column padding for side spacing.', 'ds-toolkit' ),
 					),
 					'content_max_width' => array( 'type' => 'unit', 'label' => __( 'Max Width', 'ds-toolkit' ), 'default' => '1280', 'description' => 'px', 'slider' => array( 'min' => 480, 'max' => 1920, 'step' => 10 ) ),
+				),
+			),
+			'grid' => array(
+				'title'  => __( 'Grid', 'ds-toolkit' ),
+				'fields' => array(
 					'columns'    => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '4', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
 					'gap'        => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '20', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 				),
