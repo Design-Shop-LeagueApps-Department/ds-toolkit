@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.123] - 2026-09-03
+### Changed
+- **Tripwire no longer carries the malware marker strings as literals.** Third-party scanners (Sucuri, Flywheel) matched the tripwire source file itself on the campaign signature; the markers are now assembled at runtime so the plugin file never contains them.
+
 ## [1.9.122] - 2026-09-03
 ### Fixed
 - **Post Loop, Tournament Cards: events with slash-date ranges now sort first-to-last and drop when past.** An Event Date like `09/19 - 09/20/2026` (or `Oct 31 - Nov 1, 2026`) failed to parse, so every event shared one "unknown date" key and the cards kept the query's newest-first order; past events also never dropped. The parser now keeps the start of a range and borrows the year from the end when the start has none. ISO `YYYY-MM-DD` values parse too. Reported on sportsatthebeach.com (Zendesk #456359).
