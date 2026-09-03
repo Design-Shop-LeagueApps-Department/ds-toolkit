@@ -4,6 +4,11 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.121] - 2026-09-03
+### Fixed
+- **Tripwire: one alert per new administrator, not two.** Creating an admin fires both `set_user_role` and `user_register`, so a single rogue account emailed twice; a per-request guard now dedupes.
+- **Tripwire: the daily check really runs at 03:10 site time.** The first-run scheduling used the timezone-shifted clock as if it were UTC, so the cron landed at 03:10 UTC instead of site-local; the offset is now converted back.
+
 ## [1.9.120] - 2026-09-03
 ### Changed
 - **Tripwire alerts route to the shared design@leagueapps.com inbox and address "the Design Shop point person for security" instead of a named individual.** Recipients stay overridable per site via `tripwire_alert_email` (comma-separated list) and the `ds_tripwire_alert_email` filter.
