@@ -112,11 +112,11 @@ class DS_Tripwire {
             $current[ $base ] = $size;
 
             if ( preg_match( '/^wdg-[0-9a-f]{8}\.php$/i', $base ) ) {
-                $out[] = "mu-plugins: WDG loader present: {$base} ({$size} bytes)";
+                $out[] = "A known malware loader file was found in mu-plugins: {$base} ({$size} bytes). This is the wdg backdoor from the recent attack.";
             } elseif ( in_array( $base, self::MU_BLOCKLIST, true ) ) {
-                $out[] = "mu-plugins: known camouflage file: {$base} ({$size} bytes)";
+                $out[] = "A file called {$base} was found in mu-plugins. Malware from the recent attack disguises itself with this exact name.";
             } elseif ( 'index.php' === $base && $size > self::MU_INDEX_MAX_BYTES ) {
-                $out[] = "mu-plugins: index.php is {$size} bytes — legit guard files are ~0 bytes, campaign loaders are 20KB+";
+                $out[] = "The mu-plugins/index.php file is unusually big ({$size} bytes). A normal one is empty; the malware version is a large hidden loader.";
             }
         }
 
@@ -124,7 +124,7 @@ class DS_Tripwire {
         if ( $seeded ) {
             foreach ( array_diff_key( $current, $baseline ) as $base => $size ) {
                 if ( 'ds-origin-guard.php' === $base ) continue; // toolkit-managed
-                $out[] = "mu-plugins: NEW php file since last run: {$base} ({$size} bytes)";
+                $out[] = "A new PHP file appeared in mu-plugins since yesterday: {$base} ({$size} bytes). Nobody should be adding files there.";
             }
         }
         $state['mu_baseline'] = $current;
@@ -137,7 +137,7 @@ class DS_Tripwire {
         foreach ( (array) glob( WP_CONTENT_DIR . '/plugins/*', GLOB_ONLYDIR ) as $d ) {
             $base = basename( $d );
             if ( preg_match( '/^(wdg-[0-9a-f]{8}|starter-[a-z]+-[a-z0-9]+)$/i', $base ) ) {
-                $out[] = "plugins: campaign-pattern folder present: {$base}";
+                $out[] = "A fake plugin folder that matches the attacker naming pattern was found: {$base}. Real plugins are never named like this.";
             }
         }
         return $out;
@@ -166,7 +166,7 @@ class DS_Tripwire {
             fclose( $fh );
             foreach ( self::MARKERS as $marker ) {
                 if ( false !== strpos( $tail, $marker ) ) {
-                    $out[] = 'infected file (marker "' . $marker . '"): ' . $file;
+                    $out[] = 'This file contains the malware signature and is infected: ' . $file;
                     break;
                 }
             }
@@ -178,7 +178,7 @@ class DS_Tripwire {
     private function check_webroot() {
         $f = ABSPATH . 'error.php';
         if ( file_exists( $f ) ) {
-            return array( 'web root: rogue error.php present (' . (int) @filesize( $f ) . ' bytes)' );
+            return array( 'An unexpected error.php file sits in the site root (' . (int) @filesize( $f ) . ' bytes). The recent attack dropped files with this name.' );
         }
         return array();
     }
@@ -193,7 +193,7 @@ class DS_Tripwire {
         $baseline = isset( $state['admin_baseline'] ) ? (array) $state['admin_baseline'] : array();
         if ( $seeded ) {
             foreach ( array_diff_key( $admins, $baseline ) as $id => $label ) {
-                $out[] = "NEW administrator since last run: #{$id} {$label}";
+                $out[] = "A new administrator account appeared since yesterday: {$label}. If nobody on the team created it, treat this as a break-in.";
             }
         }
         $state['admin_baseline'] = $admins;
@@ -236,9 +236,9 @@ class DS_Tripwire {
         $this->alert(
             'New administrator: ' . $user->user_login,
             array(
-                "Account {$user->user_login} <{$user->user_email}> {$how}.",
-                "Done by: {$actor}",
-                'If nobody on the team did this, treat the site as compromised: rotate credentials and run the incident checklist.',
+                "A new administrator just appeared on this site: {$user->user_login} <{$user->user_email}> ({$how}).",
+                "Created by: {$actor}.",
+                'If nobody on the team did this, the site may be compromised — in the recent attack a rogue admin account appeared two hours before the malware. Tell Ali right away.',
             )
         );
     }
@@ -246,20 +246,32 @@ class DS_Tripwire {
     /* -------------------------------------------------------------- output */
 
     private function alert( $subject, array $lines ) {
-        // Comma-separated list supported; invalid entries dropped, and the
-        // shared Design Shop inbox is the fallback if nothing valid remains.
+        // Comma-separated list supported; invalid entries are dropped. The
+        // fallback is Ali for now — switch to design@leagueapps.com once the
+        // wider team has been briefed on the response playbook.
         $raw = (string) ( $this->settings['tripwire_alert_email'] ?? '' );
         $to  = array_filter( array_map( 'trim', explode( ',', $raw ) ), 'is_email' );
         if ( ! $to ) {
-            $to = array( 'design@leagueapps.com' );
+            $to = array( 'agabriel@leagueapps.com' );
         }
         $to   = apply_filters( 'ds_tripwire_alert_email', $to );
         $site = home_url();
-        $body = "DS Tripwire alert for {$site}\n"
-              . 'Time: ' . gmdate( 'Y-m-d H:i:s' ) . " UTC\n\n"
-              . "- " . implode( "\n- ", $lines ) . "\n\n"
-              . "Playbook: fleet-audit/2026-09-02-malware-sweep/wpe-remediation/README.md (workspace)\n"
-              . "Verify cleans with a full-docroot grep for WDG-CORE-START / wdg_k — never by backup date.\n";
-        wp_mail( $to, '[DS Tripwire] ' . $subject . ' — ' . wp_parse_url( $site, PHP_URL_HOST ), $body );
+        $host = wp_parse_url( $site, PHP_URL_HOST );
+        $body = "Hi team,\n\n"
+              . "DS Tripwire is the small security watchdog that checks every Design Shop site once a day. "
+              . "It just noticed something on this site that looks like the recent malware attack:\n\n"
+              . "Site:    {$site}\n"
+              . 'Checked: ' . gmdate( 'Y-m-d H:i' ) . " UTC\n\n"
+              . "What it found:\n"
+              . "- " . implode( "\n\n- ", $lines ) . "\n\n"
+              . "What this means: it might be a false alarm, but with the current attack campaign it "
+              . "should be looked at today.\n\n"
+              . "What to do:\n"
+              . "1. Do not delete anything yourself — this malware repairs itself if only one copy is removed.\n"
+              . "2. Send this email to Ali (agabriel@leagueapps.com), who has the removal playbook.\n"
+              . "3. If the site looks fine to visitors, that is normal — this malware hides from people "
+              . "and only shows itself to search engines.\n\n"
+              . "— DS Tripwire (part of the DS Toolkit plugin)\n";
+        wp_mail( $to, '[DS Tripwire] Security alert — ' . $host, $body );
     }
 }

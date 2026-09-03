@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.119] - 2026-09-03
+### Changed
+- **Tripwire alerts rewritten in plain language.** Every finding now says what was found and why it matters in words a non-technical reader can act on, and the email walks through what to do (do not delete anything — the malware self-repairs; forward to Ali). The default recipient is agabriel@leagueapps.com for now; it moves to the shared design@ inbox once the team is briefed on the response playbook. Comma-separated recipient lists still supported via `tripwire_alert_email`.
+
 ## [1.9.118] - 2026-09-03
 ### Changed
 - **Tripwire alert address: defaults to the shared design@leagueapps.com inbox and accepts a comma-separated list.** `tripwire_alert_email` may now hold several recipients (invalid entries are dropped); if nothing valid remains the shared inbox is the fallback. The `ds_tripwire_alert_email` filter now receives (and should return) an array.
