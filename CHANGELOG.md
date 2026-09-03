@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.118] - 2026-09-03
+### Changed
+- **Tripwire alert address: defaults to the shared design@leagueapps.com inbox and accepts a comma-separated list.** `tripwire_alert_email` may now hold several recipients (invalid entries are dropped); if nothing valid remains the shared inbox is the fallback. The `ds_tripwire_alert_email` filter now receives (and should return) an array.
+
 ## [1.9.117] - 2026-09-03
 ### Added
 - **DS Tripwire: daily indicator-of-compromise check + instant new-administrator alerts.** Born from the Aug/Sep 2026 "WDG" fleet campaign (98 sites across both hosts; Defender was installed on nearly every victim and never alerted). A daily cron (03:10 site time) checks exactly the places the campaign lives: unexpected PHP files in mu-plugins (baseline drift plus a hard blocklist of the campaign's camouflage names and the `wdg-<8 hex>.php` loader pattern), fake `wdg-*`/`starter-*` plugin folders, the WDG-CORE self-heal marker in the tails of both theme functions.php, webroot index.php and wp-config.php, a rogue webroot error.php, an oversized mu-plugins/index.php, and administrator-roster drift. Independently of the cron, creating or promoting any administrator emails an alert immediately — on the campaign's patient zero the attacker's admin account existed two hours before the first malware file, so this alone collapses the response window from days to minutes. Cheap by design (two directory listings and four file tails once a day, zero frontend cost), clone-safe (first run seeds baselines silently, so a fresh blueprint clone never emails), and dependency-free (wp_mail, one option row of state; findings persist to the option even if mail fails). On fleet-wide by default; alert address defaults to agabriel@leagueapps.com and is overridable per site via `tripwire_alert_email` or the `ds_tripwire_alert_email` filter.

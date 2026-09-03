@@ -246,9 +246,12 @@ class DS_Tripwire {
     /* -------------------------------------------------------------- output */
 
     private function alert( $subject, array $lines ) {
-        $to = $this->settings['tripwire_alert_email'] ?? '';
-        if ( ! is_email( $to ) ) {
-            $to = 'agabriel@leagueapps.com';
+        // Comma-separated list supported; invalid entries dropped, and the
+        // shared Design Shop inbox is the fallback if nothing valid remains.
+        $raw = (string) ( $this->settings['tripwire_alert_email'] ?? '' );
+        $to  = array_filter( array_map( 'trim', explode( ',', $raw ) ), 'is_email' );
+        if ( ! $to ) {
+            $to = array( 'design@leagueapps.com' );
         }
         $to   = apply_filters( 'ds_tripwire_alert_email', $to );
         $site = home_url();
