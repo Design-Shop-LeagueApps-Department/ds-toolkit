@@ -262,6 +262,7 @@ class DS_Toolkit_Admin {
                 $child_pages_columns_tablet  = ! empty( $opts['child_pages_columns_tablet'] ) ? (int) $opts['child_pages_columns_tablet'] : 2;
                 $child_pages_columns_mobile  = ! empty( $opts['child_pages_columns_mobile'] ) ? (int) $opts['child_pages_columns_mobile'] : 1;
                 $uabb_post_loop_fix_enabled  = ! empty( $opts['uabb_post_loop_fix_enabled'] );
+                $defender_flywheel_reset_fix_enabled = ! empty( $opts['defender_flywheel_reset_fix_enabled'] );
                 // Blueprint-gated feature toggles — only surfaced on qualifying installs.
                 $blueprint_version        = DS_Toolkit::blueprint_version();
                 $disable_comments_enabled = ! empty( $opts['disable_comments_enabled'] );

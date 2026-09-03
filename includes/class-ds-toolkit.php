@@ -51,6 +51,12 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-uabb-post-loop-fix.php',
             'class' => 'DS_UABB_Post_Loop_Fix',
         ),
+        // Flywheel + Defender Mask Login: re-append Defender's wd-ml-token to the
+        // password-reset link that WordPress 7 formats in an order Defender misses.
+        'defender_flywheel_reset_fix_enabled' => array(
+            'file'  => 'features/class-ds-defender-flywheel-reset-fix.php',
+            'class' => 'DS_Defender_Flywheel_Reset_Fix',
+        ),
         'overlay_nav_enabled' => array(
             'file'  => 'features/class-ds-overlay-nav.php',
             'class' => 'DS_Overlay_Nav',
@@ -330,6 +336,9 @@ class DS_Toolkit {
             // Compat patch — only does anything when UABB Advanced Posts fires its
             // hooks, so it's safe to default on. Sites without UABB are unaffected.
             'uabb_post_loop_fix_enabled'         => 1,
+            // Compat patch — inert unless Defender Mask Login is on AND the host is
+            // Flywheel, so it's safe to default on across the fleet.
+            'defender_flywheel_reset_fix_enabled' => 1,
             // Partner-safe access control + the Design Academy dashboard panel:
             // on for the whole fleet regardless of blueprint generation.
             'user_roles_enabled'                 => 1,

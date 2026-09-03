@@ -25,7 +25,7 @@ if ( $dst_bp6 ) {
 $dst_grp_partner = array( $enabled, $design_academy_enabled );
 $dst_grp_site    = $dst_bp6 ? array( $theme_setting_enabled, $image_optimization_enabled ) : array();
 $dst_grp_site[]  = $nested_order_enabled;
-$dst_grp_dev     = array( $uabb_post_loop_fix_enabled, $acf_css_vars_enabled, $getsubmenu_enabled, $current_year_enabled, $overlay_nav_enabled, $forminator_email_partner_enabled, $child_pages_enabled );
+$dst_grp_dev     = array( $uabb_post_loop_fix_enabled, $defender_flywheel_reset_fix_enabled, $acf_css_vars_enabled, $getsubmenu_enabled, $current_year_enabled, $overlay_nav_enabled, $forminator_email_partner_enabled, $child_pages_enabled );
 
 $dst_count = function ( $arr ) {
 	return count( array_filter( $arr ) ) . ' of ' . count( $arr ) . ' on';
@@ -435,6 +435,22 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                 <input type="hidden" name="ds_toolkit_settings[uabb_post_loop_fix_enabled]" value="0">
                 <input type="checkbox" id="uabb_post_loop_fix_enabled" name="ds_toolkit_settings[uabb_post_loop_fix_enabled]" value="1" <?php checked( $uabb_post_loop_fix_enabled ); ?>>
                 <label for="uabb_post_loop_fix_enabled"></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Defender Mask Login + Flywheel: password-reset link token -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-shield-alt"></span></div>
+            <div class="dst-card-info">
+                <strong>Defender Mask Login on Flywheel — Password Reset Link Fix</strong>
+                <span>Flywheel strips the password-reset cookie on a masked login URL, so Defender swaps in a <code>wd-ml-token</code> parameter on the emailed link. Defender 6.2.x looks for the WordPress 6 link order and misses the WordPress 7 one, so the token is never added and every reset link says "appears to be invalid". This re-appends the token after Defender runs. Inert unless Defender's Mask Login is enabled AND the host is Flywheel.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[defender_flywheel_reset_fix_enabled]" value="0">
+                <input type="checkbox" id="defender_flywheel_reset_fix_enabled" name="ds_toolkit_settings[defender_flywheel_reset_fix_enabled]" value="1" <?php checked( $defender_flywheel_reset_fix_enabled ); ?>>
+                <label for="defender_flywheel_reset_fix_enabled"></label>
             </div>
         </div>
     </div>
