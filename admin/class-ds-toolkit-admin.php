@@ -33,10 +33,45 @@ class DS_Toolkit_Admin {
     }
 
     public function add_menu() {
+        // The University Logo Finder is a partner-facing tool (school crests for
+        // athlete commitment pages), so it gets its own entry under Media for
+        // anyone who can add to the library. Settings stays hidden from partners,
+        // and the DS Toolkit page below stays LeagueApps-only; this is the same
+        // finder reached from a menu they can actually see.
+        add_media_page(
+            'University Logo Finder',
+            'University Logo Finder',
+            'upload_files',
+            'ds-logo-finder',
+            array( $this, 'render_logo_finder_page' )
+        );
+
         if ( ! $this->is_leagueapps_user() ) {
             return;
         }
         add_options_page( 'DS Toolkit', 'DS Toolkit', 'manage_options', 'ds-toolkit', array( $this, 'render_page' ) );
+    }
+
+    /**
+     * Media -> University Logo Finder. Same view and import handler as the
+     * DS Toolkit tab, without the settings chrome around it.
+     */
+    public function render_logo_finder_page() {
+        if ( ! current_user_can( 'upload_files' ) ) {
+            return;
+        }
+        ?>
+        <div class="wrap dst-wrap">
+            <div class="dst-header">
+                <div class="dst-header-icon"><span class="dashicons dashicons-format-image"></span></div>
+                <div class="dst-header-text">
+                    <h1>University Logo Finder</h1>
+                    <p>Search a college or university and import its logo into the Media Library.</p>
+                </div>
+            </div>
+            <?php require DS_TOOLKIT_PATH . 'admin/views/page-logo-finder.php'; ?>
+        </div>
+        <?php
     }
 
     public function register_settings() {
@@ -69,6 +104,11 @@ class DS_Toolkit_Admin {
     }
 
     public function enqueue_scripts( $hook ) {
+        if ( $hook === 'media_page_ds-logo-finder' ) {
+            wp_enqueue_style( 'ds-toolkit-admin', DS_TOOLKIT_URL . 'assets/css/admin.css', array(), DS_TOOLKIT_VERSION );
+            $this->logo_finder->enqueue_assets();
+            return;
+        }
         if ( $hook !== 'settings_page_ds-toolkit' ) {
             return;
         }

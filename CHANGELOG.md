@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.116] - 2026-09-03
+### Fixed
+- **Info List: rows with no link no longer underline on hover.** The hover rule targeted every `.ds-info-item`, so a plain row (link type "No link", or a text field like a school name) underlined exactly like a real link and read as clickable. Reported on an athlete profile where Position and School looked like links that went nowhere. The underline is now scoped to `a.ds-info-item`, so linked rows keep their hover and plain rows stay static. Markup and settings are unchanged.
+
+### Added
+- **Media -> University Logo Finder for partners.** The finder lived only as a tab on the DS Toolkit settings page, which is registered for LeagueApps accounts alone, so a Partner could never reach it no matter which role toggles were set. It now also registers as its own page under Media for any user with `upload_files`, using the same view and import handler. Settings, Plugins and Tools stay hidden for partners as before; the DS Toolkit tab is unchanged for LeagueApps users. The import handler's capability check moved from `manage_options` to `upload_files` to match the page (importing into the library is an upload).
+
 ## [1.9.112] - 2026-08-28
 ### Fixed
 - **Origin Guard blocked visitors submitting a page password.** WordPress's password-protected page form posts to `wp-login.php?action=postpass` from the protected page itself and never sets the login test cookie, so the guard's cold-login-POST rule refused it and every visitor who typed the correct password got "Forbidden" (seen on mvvc's "Coach Portal"). The rule now exempts `action=postpass`; credential stuffing targets the login action and stays blocked. Payload bumped to **1.0.1**, which is what makes existing sites rewrite their guard file — the installer only touches the filesystem when the state fingerprint changes, so without the payload bump sites already carrying the broken file would have kept it indefinitely (and any hand-patched site would have been silently reverted on the next payload change).
