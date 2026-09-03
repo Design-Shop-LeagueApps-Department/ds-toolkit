@@ -214,6 +214,13 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-bot-shield.php',
             'class' => 'DS_Bot_Shield',
         ),
+        // Daily IOC tripwire + instant new-admin alerts (Aug/Sep 2026 WDG
+        // campaign; see the class docblock). Cheap by design: tails of four
+        // files and two directory listings, once a day.
+        'tripwire_enabled' => array(
+            'file'  => 'features/class-ds-tripwire.php',
+            'class' => 'DS_Tripwire',
+        ),
         'design_academy_enabled' => array(
             'file'  => 'features/class-ds-design-academy.php',
             'class' => 'DS_Design_Academy',
@@ -330,6 +337,10 @@ class DS_Toolkit {
             // human browsing a cached site rarely produces more than ~20 PHP
             // hits/min; 180/min per IP only catches scrapers and floods.
             'bot_shield_enabled'                 => 1,
+            // Tripwire: on fleet-wide. First run seeds baselines silently
+            // (clone-safe); it only ever emails on later drift or hard IOCs.
+            'tripwire_enabled'                   => 1,
+            'tripwire_alert_email'               => 'agabriel@leagueapps.com',
             // Ships in monitor mode: staged rollout. Every rule is safe on
             // its own — the pagination rule only refuses pages WordPress
             // confirms are empty, and reverse-DNS-verified search engines are
