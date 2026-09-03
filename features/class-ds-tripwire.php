@@ -65,8 +65,11 @@ class DS_Tripwire {
 
         if ( is_admin() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
             if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
-                // 03:10 site time: off-peak, and offset from the :00 herd.
-                $first = strtotime( 'tomorrow 03:10', current_time( 'timestamp' ) );
+                // 03:10 site-local time: off-peak, and offset from the :00 herd.
+                // strtotime against the tz-shifted clock gives a "local reading";
+                // subtract the offset to get the real UTC timestamp cron expects.
+                $local  = strtotime( 'tomorrow 03:10', current_time( 'timestamp' ) );
+                $first  = $local ? $local - (int) round( (float) get_option( 'gmt_offset', 0 ) * HOUR_IN_SECONDS ) : 0;
                 wp_schedule_event( $first ? $first : time() + DAY_IN_SECONDS, 'daily', self::CRON_HOOK );
             }
         }
@@ -224,6 +227,12 @@ class DS_Tripwire {
     }
 
     private function alert_new_admin( $user, $how ) {
+        static $alerted = array();
+        if ( isset( $alerted[ $user->ID ] ) ) {
+            return;
+        }
+        $alerted[ $user->ID ] = true;
+
         $actor = 'unknown actor';
         if ( function_exists( 'wp_get_current_user' ) ) {
             $current = wp_get_current_user();
