@@ -5,5 +5,5 @@
 .ds-info-ico i{font-size:16px;line-height:1;display:block;}
 /* explicit colour so the text isn't tinted by the theme's content-link rule */
 .ds-info-item .ds-info-text{color:var(--fl-global-body);line-height:1.3;word-break:break-word;}
-.ds-info-item:hover .ds-info-text{text-decoration:underline;}
+a.ds-info-item:hover .ds-info-text{text-decoration:underline;}
 .ds-info-item--plain{cursor:default;}

@@ -63,7 +63,7 @@ class DS_Logo_Finder {
     public function ajax_import_logo() {
         check_ajax_referer( 'ds_import_logo', 'nonce' );
 
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( 'upload_files' ) ) {
             wp_send_json_error( array( 'message' => 'Permission denied.' ) );
         }
 
