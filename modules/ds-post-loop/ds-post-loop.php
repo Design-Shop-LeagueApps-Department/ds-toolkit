@@ -1092,10 +1092,30 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	private function parse_event_date( $str ) {
 		$str = trim( (string) $str );
 		if ( '' === $str ) { return 0; }
+		// ISO "2026-09-19" (or an ISO range): those dashes are separators, not a day range.
+		if ( preg_match( '/^(\d{4}-\d{2}-\d{2})/', $str, $iso ) ) {
+			$ts = strtotime( $iso[1] );
+			return $ts ? (int) $ts : 0;
+		}
+		$dash = '[\x{2013}\x{2014}-]';
+		// Range whose END carries its own month or a slash date: "09/19 - 09/20/2026",
+		// "09/19/2026 - 09/20/2026", "Oct 31 - Nov 1, 2026". Keep the START and borrow
+		// the year from the end when the start has none. Before this, "09/19 - 09/20/2026"
+		// normalised to "09/19/20/2026", strtotime returned false, every event fell into
+		// the same "unknown date" bucket and the Tournament Cards kept the query's
+		// date-DESC order (sportsatthebeach, Zendesk #456359).
+		if ( preg_match( '/^(.*?)\s*' . $dash . '\s*((?:[A-Za-z]{3,9}\.?\s+\d{1,2}|\d{1,2}\/\d{1,2})(?:\/\d{2,4})?.*)$/u', $str, $m ) && '' !== trim( $m[1] ) ) {
+			$start = trim( $m[1] );
+			$end   = trim( $m[2] );
+			if ( ! preg_match( '/\b\d{4}\b/', $start ) && preg_match( '/\b(\d{4})\b/', $end, $y ) ) {
+				$start .= ( false !== strpos( $start, '/' ) ) ? '/' . $y[1] : ' ' . $y[1];
+			}
+			$str = $start;
+		}
 		// "18-20" / "18th-20th" -> "18". Ordinal suffixes must be part of the match:
 		// strtotime mis-parses an unnormalised "March 20th-21st, 2027" into MARCH 2026,
 		// which silently dropped future events as "past" (seen on the fleet blueprint).
-		$norm = preg_replace( '/(\d{1,2})(?:st|nd|rd|th)?\s*[\x{2013}\x{2014}-]\s*\d{1,2}(?:st|nd|rd|th)?/iu', '$1', $str );
+		$norm = preg_replace( '/(\d{1,2})(?:st|nd|rd|th)?\s*' . $dash . '\s*\d{1,2}(?:st|nd|rd|th)?/iu', '$1', $str );
 		$ts = strtotime( $norm );
 		return $ts ? (int) $ts : 0;
 	}
