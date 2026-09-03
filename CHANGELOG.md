@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.124] - 2026-09-04
+### Fixed
+- **Password reset links work again on Flywheel sites running Defender's Mask Login Area.** Flywheel strips the reset cookie on the masked login path, so Defender (Flywheel only) appends a `wd-ml-token` to the emailed link instead. Defender 6.2.x searches for the WordPress 6 link order (`action=rp&key=…&login=…`) and misses the WordPress 7 order (`login=…&key=…&action=rp`), so the token never landed and every link read "Your password reset link appears to be invalid." New compat feature `defender_flywheel_reset_fix_enabled` (default on, Features tab) re-appends the token after Defender runs. Inert on WP Engine and on sites without Defender or without Mask Login. Found on Lower Alabama Volleyball after the 2026-09-03 fleet admin password reset.
+
 ## [1.9.123] - 2026-09-03
 ### Changed
 - **Tripwire no longer carries the malware marker strings as literals.** Third-party scanners (Sucuri, Flywheel) matched the tripwire source file itself on the campaign signature; the markers are now assembled at runtime so the plugin file never contains them.
