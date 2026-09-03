@@ -340,7 +340,7 @@ class DS_Toolkit {
             // Tripwire: on fleet-wide. First run seeds baselines silently
             // (clone-safe); it only ever emails on later drift or hard IOCs.
             'tripwire_enabled'                   => 1,
-            'tripwire_alert_email'               => 'agabriel@leagueapps.com',
+            'tripwire_alert_email'               => 'design@leagueapps.com',
             // Ships in monitor mode: staged rollout. Every rule is safe on
             // its own — the pagination rule only refuses pages WordPress
             // confirms are empty, and reverse-DNS-verified search engines are

@@ -238,7 +238,7 @@ class DS_Tripwire {
             array(
                 "A new administrator just appeared on this site: {$user->user_login} <{$user->user_email}> ({$how}).",
                 "Created by: {$actor}.",
-                'If nobody on the team did this, the site may be compromised — in the recent attack a rogue admin account appeared two hours before the malware. Tell Ali right away.',
+                'If nobody on the team did this, the site may be compromised — in the recent attack a rogue admin account appeared two hours before the malware. Flag it to the Design Shop point person for security right away.',
             )
         );
     }
@@ -247,12 +247,12 @@ class DS_Tripwire {
 
     private function alert( $subject, array $lines ) {
         // Comma-separated list supported; invalid entries are dropped. The
-        // fallback is Ali for now — switch to design@leagueapps.com once the
-        // wider team has been briefed on the response playbook.
+        // fallback is the shared Design Shop inbox so alerts always reach a
+        // person who can route them.
         $raw = (string) ( $this->settings['tripwire_alert_email'] ?? '' );
         $to  = array_filter( array_map( 'trim', explode( ',', $raw ) ), 'is_email' );
         if ( ! $to ) {
-            $to = array( 'agabriel@leagueapps.com' );
+            $to = array( 'design@leagueapps.com' );
         }
         $to   = apply_filters( 'ds_tripwire_alert_email', $to );
         $site = home_url();
@@ -268,7 +268,7 @@ class DS_Tripwire {
               . "should be looked at today.\n\n"
               . "What to do:\n"
               . "1. Do not delete anything yourself — this malware repairs itself if only one copy is removed.\n"
-              . "2. Send this email to Ali (agabriel@leagueapps.com), who has the removal playbook.\n"
+              . "2. Forward this email to the Design Shop point person for security, who has the removal playbook, so it can be actioned right away.\n"
               . "3. If the site looks fine to visitors, that is normal — this malware hides from people "
               . "and only shows itself to search engines.\n\n"
               . "— DS Tripwire (part of the DS Toolkit plugin)\n";
