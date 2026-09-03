@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.117] - 2026-09-03
+### Added
+- **DS Tripwire: daily indicator-of-compromise check + instant new-administrator alerts.** Born from the Aug/Sep 2026 "WDG" fleet campaign (98 sites across both hosts; Defender was installed on nearly every victim and never alerted). A daily cron (03:10 site time) checks exactly the places the campaign lives: unexpected PHP files in mu-plugins (baseline drift plus a hard blocklist of the campaign's camouflage names and the `wdg-<8 hex>.php` loader pattern), fake `wdg-*`/`starter-*` plugin folders, the WDG-CORE self-heal marker in the tails of both theme functions.php, webroot index.php and wp-config.php, a rogue webroot error.php, an oversized mu-plugins/index.php, and administrator-roster drift. Independently of the cron, creating or promoting any administrator emails an alert immediately — on the campaign's patient zero the attacker's admin account existed two hours before the first malware file, so this alone collapses the response window from days to minutes. Cheap by design (two directory listings and four file tails once a day, zero frontend cost), clone-safe (first run seeds baselines silently, so a fresh blueprint clone never emails), and dependency-free (wp_mail, one option row of state; findings persist to the option even if mail fails). On fleet-wide by default; alert address defaults to agabriel@leagueapps.com and is overridable per site via `tripwire_alert_email` or the `ds_tripwire_alert_email` filter.
+
 ## [1.9.116] - 2026-09-03
 ### Fixed
 - **Info List: rows with no link no longer underline on hover.** The hover rule targeted every `.ds-info-item`, so a plain row (link type "No link", or a text field like a school name) underlined exactly like a real link and read as clickable. Reported on an athlete profile where Position and School looked like links that went nowhere. The underline is now scoped to `a.ds-info-item`, so linked rows keep their hover and plain rows stay static. Markup and settings are unchanged.
