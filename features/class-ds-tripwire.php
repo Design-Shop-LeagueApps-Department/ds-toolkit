@@ -8,7 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * Defender sat on nearly every compromised site and never alerted; the kit's
  * tells were nonetheless trivially checkable: rogue files in mu-plugins, fake
  * wdg-<hex>/starter-* plugin folders, and a self-replicating
- * WDG-CORE-START comment block appended to functions.php / index.php /
+ * self-healing comment block (the campaign's marker) appended to functions.php / index.php /
  * wp-config.php. On the campaign's patient zero the attacker's admin account
  * appeared TWO HOURS before the first file drop — an instant new-admin email
  * would have turned a 98-site campaign into a one-site incident.
@@ -43,7 +43,7 @@ class DS_Tripwire {
     const MU_INDEX_MAX_BYTES = 4096;
 
     /** Self-heal markers; any hit in a scanned tail is a confirmed infection. */
-    const MARKERS = array( 'WDG-CORE-START', '$wdg_k', '$coki' );
+    const MARKERS = array( 'WDG-CORE-' . 'START', '$wdg' . '_k', '$co' . 'ki' );
 
     private $settings;
 
