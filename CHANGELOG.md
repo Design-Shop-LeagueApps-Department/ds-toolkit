@@ -4,6 +4,11 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.125] - 2026-09-05
+### Fixed
+- **Tripwire stops crying wolf when the team adds an administrator.** Every new admin triggered a "you may be compromised" email regardless of who created it, so routine provisioning paged the whole team (found on accessplus1: a real partner user added by a Design Shop admin). Worse, the same event was reported **twice**, because the instant alert never wrote the account into the baseline the nightly roster check diffs against, so it came back that night as "appeared since yesterday". The instant alert now records the account either way (killing the duplicate) and only emails when the creation is **not** attributable to an established administrator. Unattributable self-registrations, throwaway/placeholder addresses (`example.*`, `*.invalid`, `tripledown.org`), grants made by an admin account less than a day old, and grants by a non-administrator all still email immediately, which is precisely the campaign's own signature. Routine additions are kept in a 20-entry `admin_log` audit trail in plugin state instead.
+- The nightly roster check now only fires for administrators that appeared **without** going through WordPress's roles API (a direct database write or a plugin bypassing it), which is a stronger signal than before, so its wording stays blunt.
+
 ## [1.9.124] - 2026-09-04
 ### Fixed
 - **Password reset links work again on Flywheel sites running Defender's Mask Login Area.** Flywheel strips the reset cookie on the masked login path, so Defender (Flywheel only) appends a `wd-ml-token` to the emailed link instead. Defender 6.2.x searches for the WordPress 6 link order (`action=rp&key=…&login=…`) and misses the WordPress 7 order (`login=…&key=…&action=rp`), so the token never landed and every link read "Your password reset link appears to be invalid." New compat feature `defender_flywheel_reset_fix_enabled` (default on, Features tab) re-appends the token after Defender runs. Inert on WP Engine and on sites without Defender or without Mask Login. Found on Lower Alabama Volleyball after the 2026-09-03 fleet admin password reset.
