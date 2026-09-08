@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_Origin_Guard_Installer {
 
 	/** Bump when the generated mu-plugin payload changes. Drives auto-refresh. */
-	const PAYLOAD_VERSION = '1.0.1';
+	const PAYLOAD_VERSION = '1.1.0';
 
 	const MU_FILENAME = 'ds-origin-guard.php';
 	const STATE_OPT   = 'ds_origin_guard_state';
@@ -227,6 +227,17 @@ if ( ! \$dsog_logged_in
 	\$dsog_deny( 'users-enum' );
 }
 {$login_rule}{$xmlrpc_rule}
+
+// 4) WDG doorway spam + kit shell paths (Sep 2026 fleet campaign). The botnet
+// re-installs its kit by requesting these; nothing legitimate ever does.
+// Signature-only on purpose: PHP sees the host's edge address, not the visitor,
+// so an IP rule here would lock out everyone.
+if ( preg_match( '#(^|[?&/])(sale/search/detail|sale%2Fsearch|ITMCODE=|ARRAY=|juejiang)#i', \$dsog_uri )
+	|| preg_match( '#^/(images/images|fonts/fonts|[0-9a-f]{5}/[0-9a-f]{5})(/|\?|\$)#i', \$dsog_uri )
+	|| preg_match( '#/(cache\\.php|filefuns\\.php)(\?|\$)#i', \$dsog_uri )
+	|| preg_match( '#/wp-content/plugins/starter-[a-z0-9-]+/#i', \$dsog_uri ) ) {
+	\$dsog_deny( 'doorway' );
+}
 
 unset( \$dsog_uri, \$dsog_method, \$dsog_logged_in, \$dsog_k, \$dsog_deny, \$dsog_postpass );
 

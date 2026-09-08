@@ -41,6 +41,10 @@ class DS_Tripwire {
 
     /** A legit mu-plugins/index.php is an empty guard file; loaders are 20KB+. */
     const MU_INDEX_MAX_BYTES = 4096;
+    /** mu-plugins files ds-toolkit itself writes; trusted only when small and clean (see check_mu_plugins). */
+    const MU_MANAGED = array( 'ds-origin-guard.php', 'ds-antibot-off.php', 'ds-doorway-block.php' );
+    const MU_MANAGED_MAX_BYTES = 4096;
+
 
     /** Self-heal markers; any hit in a scanned tail is a confirmed infection. */
     const MARKERS = array( 'WDG-CORE-' . 'START', '$wdg' . '_k', '$co' . 'ki' );
@@ -126,7 +130,14 @@ class DS_Tripwire {
         $baseline = isset( $state['mu_baseline'] ) ? (array) $state['mu_baseline'] : array();
         if ( $seeded ) {
             foreach ( array_diff_key( $current, $baseline ) as $base => $size ) {
-                if ( 'ds-origin-guard.php' === $base ) continue; // toolkit-managed
+                // Toolkit-managed helpers (Origin Guard, the incident-response AntiBot
+                // and doorway files) are exempt ONLY when they look like ours: tiny and
+                // free of obfuscation. The Sep 2026 attacker overwrote ds-origin-guard.php
+                // with an 8 KB loader, so a bare name is not trust.
+                if ( in_array( $base, self::MU_MANAGED, true ) && $size <= self::MU_MANAGED_MAX_BYTES
+                    && ! preg_match( '/eval\s*\(|base64_decode|gzinflate|gzuncompress|str_rot13|goto [A-Za-z_]/', (string) @file_get_contents( $dir . '/' . $base, false, null, 0, 8192 ) ) ) {
+                    continue;
+                }
                 $out[] = "A new PHP file appeared in mu-plugins since yesterday: {$base} ({$size} bytes). Nobody should be adding files there.";
             }
         }
@@ -204,6 +215,8 @@ class DS_Tripwire {
         $baseline = isset( $state['admin_baseline'] ) ? (array) $state['admin_baseline'] : array();
         if ( $seeded ) {
             foreach ( array_diff_key( $admins, $baseline ) as $id => $label ) {
+                // Design Shop staff adding their own access is routine, not a break-in.
+                if ( preg_match( '/<[^>]+@leagueapps\.com>$/i', $label ) ) continue;
                 $out[] = "A new administrator account appeared since yesterday: {$label}. If nobody on the team created it, treat this as a break-in.";
             }
         }
