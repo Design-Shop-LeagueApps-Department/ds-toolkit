@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.126] - 2026-09-08
+### Added
+- **Origin Guard blocks the WDG doorway (payload 1.1.0).** The Sep 2026 botnet re-installs its kit by requesting doorway query strings (`ITMCODE=`, `ARRAY=`, `sale/search/detail`, `juejiang`) and shell paths (`/images/images`, `/fonts/fonts`, hex web-root folders, `cache.php`, `filefuns.php`, `plugins/starter-*`). The generated mu-plugin now answers 403 to those before WordPress loads. Signature-only: no IP rules, because PHP sees the host's edge address. Every site rewrites its Origin Guard file on this update.
+### Fixed
+- **Tripwire no longer pages the team about the toolkit's own files.** `ds-antibot-off.php` and `ds-doorway-block.php` (incident-response helpers) join `ds-origin-guard.php` as managed names, but a managed name is trusted only when the file is under 4 KB and carries no eval/base64/goto obfuscation; an attacker's loader wearing one of those names still alerts (they overwrote `ds-origin-guard.php` once). 43 false alarms on 2026-09-08.
+- **Tripwire's nightly admin roster ignores Design Shop staff** (`@leagueapps.com`), matching the instant check's trust rule since 1.9.125.
+
 ## [1.9.125] - 2026-09-05
 ### Fixed
 - **Tripwire stops crying wolf when the team adds an administrator.** Every new admin triggered a "you may be compromised" email regardless of who created it, so routine provisioning paged the whole team (found on accessplus1: a real partner user added by a Design Shop admin). Worse, the same event was reported **twice**, because the instant alert never wrote the account into the baseline the nightly roster check diffs against, so it came back that night as "appeared since yesterday". The instant alert now records the account either way (killing the duplicate) and only emails when the creation is **not** attributable to an established administrator. Unattributable self-registrations, throwaway/placeholder addresses (`example.*`, `*.invalid`, `tripledown.org`), grants made by an admin account less than a day old, and grants by a non-administrator all still email immediately, which is precisely the campaign's own signature. Routine additions are kept in a 20-entry `admin_log` audit trail in plugin state instead.
