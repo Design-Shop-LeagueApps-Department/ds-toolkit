@@ -111,6 +111,18 @@ if ( 'style2' !== $style ) {
 	}
 }
 
+// ---- Eyebrow image height (GH #192): authored HEIGHT, width follows, per breakpoint.
+// Same max-height approach as the Heading module's divider image so the aspect
+// ratio is preserved. Dynamic (0,3,1) so it beats the static 72px default.
+if ( 'style1' === $style ) {
+	foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+		$v = $settings->{ 'eyebrow_img_h' . $sfx } ?? '';
+		if ( '' === $v || null === $v ) { continue; }
+		$rule = "$node .ds-hero .ds-hero-eyebrow-img img { max-height: " . (int) $v . "px; }";
+		echo ( '' === $sfx ) ? "$rule\n" : "@media (max-width:{$bp}px){ $rule }\n";
+	}
+}
+
 // ---- Style 2 (Page Banner): adaptive heights, no-image background, banner colours ----
 if ( 'style2' === $style ) {
 	$hbg = $u( $settings->banner_h_bg ?? '', 52 );

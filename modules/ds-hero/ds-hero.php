@@ -283,6 +283,16 @@ class DS_Hero_Module extends FLBuilderModule {
 		$this->render_bg();
 		echo '<div class="ds-hero-wrap"><div class="ds-hero-inner">';
 
+		// Eyebrow image (GH #192). Emitted only when a photo resolves, so an unset
+		// field leaves no empty markup or spacing. The block wrapper lets the hero's
+		// responsive text-align place it; the <img> inside is inline-block so it never
+		// stretches to the hero width. Above the fold, so it loads eagerly. The
+		// library alt text rides along when the attachment has one.
+		$eb_img = ! empty( $s->eyebrow_image ) ? $this->photo_url( $s->eyebrow_image, 'large' ) : '';
+		if ( '' !== $eb_img ) {
+			$eb_alt = is_numeric( $s->eyebrow_image ) ? (string) get_post_meta( (int) $s->eyebrow_image, '_wp_attachment_image_alt', true ) : '';
+			echo '<div class="ds-hero-eyebrow-img"><img src="' . esc_url( $eb_img ) . '" alt="' . esc_attr( $eb_alt ) . '" loading="eager" decoding="async" /></div>';
+		}
 		if ( ! empty( $s->eyebrow ) ) {
 			echo '<span class="ds-hero-eyebrow">' . esc_html( $s->eyebrow ) . '</span>';
 		}
@@ -947,6 +957,25 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 			'text' => array(
 				'title'  => __( 'Text', 'ds-toolkit' ),
 				'fields' => array(
+					// Optional mark above the eyebrow (GH #192): a crest, badge or logo. Same
+					// shape as the Heading module's divider image — the editor authors a
+					// HEIGHT and the width follows, so the aspect ratio is never touched.
+					'eyebrow_image' => array(
+						'type'        => 'photo',
+						'label'       => __( 'Eyebrow Image', 'ds-toolkit' ),
+						'show_remove' => true,
+						'connections' => array( 'photo' ),
+						'help'        => __( 'Optional image shown directly above the Eyebrow text (a crest, badge or logo). Blank renders nothing, not even a gap.', 'ds-toolkit' ),
+					),
+					'eyebrow_img_h' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Eyebrow Image Size', 'ds-toolkit' ),
+						'default'     => '',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 16, 'max' => 320, 'step' => 1 ),
+						'help'        => __( 'Height of the eyebrow image; the width follows so the aspect ratio never changes. Blank = 72px. Use the responsive icon for tablet and mobile sizes.', 'ds-toolkit' ),
+					),
 					'eyebrow' => array(
 						'type'    => 'text',
 						'label'   => __( 'Eyebrow', 'ds-toolkit' ),

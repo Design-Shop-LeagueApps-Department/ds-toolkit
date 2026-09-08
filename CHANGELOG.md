@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.127] - 2026-09-08
+### Added
+- **Hero Banner Style 1 gets an optional Eyebrow Image (GH #192).** A new photo field at the top of the Text section renders a crest, badge or logo directly above the Eyebrow text. Set nothing and nothing is output, not even a gap. The image keeps its aspect ratio, never stretches to the hero width, follows the hero's alignment at every breakpoint, and shrinks on narrow screens. An **Eyebrow Image Size** control authors the height (width follows), responsive per device; blank is 72px. The library alt text rides along when the attachment has one. Style 2 and Style 3 are untouched, and a hero saved before this release renders byte-for-byte as before.
+
 ## [1.9.126] - 2026-09-08
 ### Added
 - **Origin Guard blocks the WDG doorway (payload 1.1.0).** The Sep 2026 botnet re-installs its kit by requesting doorway query strings (`ITMCODE=`, `ARRAY=`, `sale/search/detail`, `juejiang`) and shell paths (`/images/images`, `/fonts/fonts`, hex web-root folders, `cache.php`, `filefuns.php`, `plugins/starter-*`). The generated mu-plugin now answers 403 to those before WordPress loads. Signature-only: no IP rules, because PHP sees the host's edge address. Every site rewrites its Origin Guard file on this update.

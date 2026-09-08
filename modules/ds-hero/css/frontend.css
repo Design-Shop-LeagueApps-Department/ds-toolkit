@@ -39,6 +39,14 @@
 .ds-hero-eyebrow::before,.ds-hero-eyebrow::after{content:"";width:34px;height:2px;background:currentColor;display:inline-block;flex:0 1 auto;min-width:0;}
 .ds-hero-eyebrow::after{display:none;}
 .ds-hero--center .ds-hero-eyebrow::after{display:inline-block;}
+/* ---- Eyebrow image (GH #192) --------------------------------------------------
+   Optional mark above the eyebrow. The wrapper is a block so the hero's text-align
+   (responsive, re-declared per breakpoint by the dynamic CSS) positions it; the img
+   is inline-block with auto width/height so it keeps its ratio, never stretches to
+   the hero width, and shrinks on narrow screens. Height is authored via the dynamic
+   sheet (max-height per breakpoint); 72px is the untouched default. */
+.ds-hero-eyebrow-img{display:block;margin:0 0 16px;line-height:0;}
+.ds-hero-eyebrow-img img{display:inline-block;width:auto;height:auto;max-width:100%;max-height:72px;vertical-align:bottom;}
 
 .ds-hero-title{font-size:clamp(3.4rem,10vw,8rem);line-height:.92;text-transform:uppercase;letter-spacing:.01em;font-weight:700;color:var(--fl-global-white,#fff);margin:20px 0 0;overflow-wrap:normal;word-break:keep-all;hyphens:none;}
 .ds-hero-accent{color:var(--fl-global-primary,#7ee29a);}
