@@ -105,10 +105,22 @@ class DS_Marquee_Module extends FLBuilderModule {
 				esc_attr( $target ),
 				$rel,
 				$img_html,
-				esc_html( $text )
+				$this->text_html( $text )
 			);
 		}
-		return '<span class="' . esc_attr( $cls ) . '">' . $img_html . ( '' !== $text ? DS_Module_UI::inline( $text ) : '' ) . '</span>';
+		return '<span class="' . esc_attr( $cls ) . '">' . $img_html . ( '' !== $text ? $this->text_html( $text ) : '' ) . '</span>';
+	}
+
+	/**
+	 * Item text: safe inline HTML plus the {outline}…{/outline} marker the Heading
+	 * and Hero modules already support (GH #194). Same class, same Theme Setting
+	 * stroke, same per-module override; nothing marquee-specific is invented.
+	 * Linked items previously ran through esc_html(), so they could not carry
+	 * markup at all; both branches now share this one path.
+	 */
+	private function text_html( $text ) {
+		$h = DS_Module_UI::inline( (string) $text );
+		return str_replace( array( '{outline}', '{/outline}' ), array( '<span class="ds-outline-text">', '</span>' ), $h );
 	}
 
 	/** Build one full group: every item followed by a separator glyph. */
@@ -206,6 +218,7 @@ FLBuilder::register_settings_form( 'ds_marquee_item_form', array(
 							'type'        => 'text',
 							'label'       => __( 'Text', 'ds-toolkit' ),
 							'connections' => array( 'string' ),
+							'help'        => __( '{outline}…{/outline} renders outlined (transparent, stroked) text, e.g. 2026 {outline}TRYOUTS{/outline} NOW OPEN. Stroke follows Theme Setting unless overridden in Style → Colours.', 'ds-toolkit' ),
 						),
 						'link' => array(
 							'type'        => 'link',
@@ -400,6 +413,8 @@ FLBuilder::register_module( 'DS_Marquee_Module', array(
 					'label_bg'         => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Label Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true, 'help' => __( 'Blank falls back to the global Accent colour.', 'ds-toolkit' ) ),
 					'label_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Label Text', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
 					'dot_color'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Status Dot', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
+					'outline_color'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
+					'outline_width'    => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
 					'img_grayscale'    => array(
 						'type'    => 'select',
 						'label'   => __( 'Grayscale Images', 'ds-toolkit' ),

@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.129] - 2026-09-15
+### Added
+- **Marquee items support `{outline}…{/outline}` (GH #194).** `2026 {outline}TRYOUTS{/outline} NOW OPEN` renders TRYOUTS with the same `.ds-outline-text` stroke the Heading and Hero modules use, following Theme Setting, with the same per-module **Outline Text Colour / Width** overrides added under Style → Colours. Linked items previously escaped all markup and now share the same safe inline path as plain items. Items without the marker render exactly as before.
+
 ## [1.9.128] - 2026-09-15
 ### Fixed
 - **A second copy of the plugin can no longer take the site down.** A GitHub "Download ZIP" install lands in `plugins/ds-toolkit-main/`, which sorts before `plugins/ds-toolkit/` in `active_plugins`. With both active, the old copy defined `DS_TOOLKIT_PATH` first and the new copy's includes resolved into the old tree, where `class-ds-module-ui.php` never existed, so every request fataled (leadingedgeelite.com for ten days from 2026-09-05; coquivolleyballclub.com the same). The bootstrap now returns early with an admin notice naming both folders when `DS_TOOLKIT_VERSION` is already defined, so the collision is a notice instead of an outage.

@@ -51,6 +51,11 @@ echo "$node .ds-marquee-label { padding: 0 {$lpad}px; background: " . $colf( $se
 echo "$node .ds-marquee-dot { background: " . $colf( $settings->dot_color ?? '', $colf( $settings->label_color ?? '', 'var(--fl-global-dark-background)' ) ) . "; }\n";
 
 /* ---- Items + separators ---- */
+/* ---- Outline text ({outline}...{/outline}) per-module override: blank = Theme Setting. ---- */
+$oc_ov = DS_Module_UI::color( $settings->outline_color ?? '' );
+if ( '' !== $oc_ov ) { echo "$node { --ds-outline-c: {$oc_ov}; }\n"; }
+if ( isset( $settings->outline_width ) && '' !== $settings->outline_width ) { echo "$node { --ds-outline-w: " . max( 1, (int) $settings->outline_width ) . "px; }\n"; }
+
 echo "$node .ds-marquee-item { color: " . $colf( $settings->item_color ?? '', 'var(--fl-global-body)' ) . "; }\n";
 $ih = $col( $settings->item_hover_color ?? '' );
 if ( '' !== $ih ) { echo "$node a.ds-marquee-item--link:hover { color: {$ih}; }\n"; }
