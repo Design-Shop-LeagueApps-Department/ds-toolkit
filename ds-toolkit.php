@@ -3,7 +3,7 @@
  * Plugin Name:       DS Toolkit
  * Plugin URI:        https://github.com/agabriel1590/ds-toolkit
  * Description:       Design Shop custom features and build toolkit.
- * Version:           1.9.127
+ * Version:           1.9.128
  * Author:            Alipio Gabriel
  * Author URI:        https://github.com/agabriel1590
  * Text Domain:       ds-toolkit
@@ -17,7 +17,21 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'DS_TOOLKIT_VERSION', '1.9.127' );
+// A second copy of this plugin is already loaded (a GitHub "Download ZIP" install lands in
+// plugins/ds-toolkit-main/ and sorts before this folder). Loading twice would inherit the
+// other copy's DS_TOOLKIT_PATH and require files through the wrong tree, which fataled
+// every request on leadingee for ten days (2026-09-05). Bail with a notice instead.
+if ( defined( 'DS_TOOLKIT_VERSION' ) ) {
+    add_action( 'admin_notices', function () {
+        if ( ! current_user_can( 'activate_plugins' ) ) { return; }
+        echo '<div class="notice notice-error"><p><strong>DS Toolkit:</strong> two copies are active ('
+            . esc_html( basename( rtrim( DS_TOOLKIT_PATH, '/\\' ) ) ) . ' and ' . esc_html( basename( __DIR__ ) )
+            . '). Only the first one is running. Deactivate and delete the stale copy.</p></div>';
+    } );
+    return;
+}
+
+define( 'DS_TOOLKIT_VERSION', '1.9.128' );
 define( 'DS_TOOLKIT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DS_TOOLKIT_URL', plugin_dir_url( __FILE__ ) );
 

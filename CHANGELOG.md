@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.128] - 2026-09-15
+### Fixed
+- **A second copy of the plugin can no longer take the site down.** A GitHub "Download ZIP" install lands in `plugins/ds-toolkit-main/`, which sorts before `plugins/ds-toolkit/` in `active_plugins`. With both active, the old copy defined `DS_TOOLKIT_PATH` first and the new copy's includes resolved into the old tree, where `class-ds-module-ui.php` never existed, so every request fataled (leadingedgeelite.com for ten days from 2026-09-05; coquivolleyballclub.com the same). The bootstrap now returns early with an admin notice naming both folders when `DS_TOOLKIT_VERSION` is already defined, so the collision is a notice instead of an outage.
+
 ## [1.9.127] - 2026-09-08
 ### Added
 - **Hero Banner Style 1 gets an optional Eyebrow Image (GH #192).** A new photo field at the top of the Text section renders a crest, badge or logo directly above the Eyebrow text. Set nothing and nothing is output, not even a gap. The image keeps its aspect ratio, never stretches to the hero width, follows the hero's alignment at every breakpoint, and shrinks on narrow screens. An **Eyebrow Image Size** control authors the height (width follows), responsive per device; blank is 72px. The library alt text rides along when the attachment has one. Style 2 and Style 3 are untouched, and a hero saved before this release renders byte-for-byte as before.
