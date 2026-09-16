@@ -208,7 +208,7 @@
 .ds-hero--style3.ds-peek--v-bottom.ds-peek--a-right .ds-peek-content{justify-content:flex-end;}
 
 /* Controls. Arrows sit inside the centred slide, not the full-bleed viewport. */
-.ds-hero--style3 .ds-peek-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:200;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:rgba(15,18,24,.5);color:var(--fl-global-white,#fff);cursor:pointer;transition:background .2s ease;}
+.ds-hero--style3 .ds-peek-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:200;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:rgba(15,18,24,.62);color:var(--fl-global-white,#fff);cursor:pointer;transition:background .2s ease;}
 .ds-hero--style3 .ds-peek-nav:hover{background:rgba(15,18,24,.78);}
 .ds-hero--style3 .ds-peek-nav svg{width:20px;height:20px;display:block;}
 .ds-hero--style3 .ds-peek-nav--prev{left:calc((100% - var(--ds-peek-w)) / 2 + 14px);}
@@ -239,10 +239,24 @@
   padding:0 !important;letter-spacing:normal !important;text-transform:none !important;
   background-clip:border-box !important;
 }
+/* The arrow and play glyphs are stroke/fill:currentColor, and the group above reset every
+   other property the global Button imposes but left `color` alone. BB Theme ships
+   `.fl-page .fl-builder-content button:not(.fl-content-ui-button)` at 0-3-1, which outranks
+   this module's 0-2-0 rule, so a dark Button text colour repainted the chevrons near-black
+   on their own dark scrim (inspireclvb 2026-09-17: computed rgb(17,17,17) on white).
+   That BB selector ALSO carries a `… *` arm that paints the <svg> directly, so pinning the
+   button alone leaves the glyph dark, so the descendant arm here is load-bearing. */
+.ds-hero--style3 .ds-peek button.ds-peek-dot,
+.ds-hero--style3 .ds-peek button.ds-peek-nav,
+.ds-hero--style3 .ds-peek button.ds-peek-play,
+.ds-hero--style3 .ds-peek button.ds-peek-nav *,
+.ds-hero--style3 .ds-peek button.ds-peek-play *{
+  color:var(--fl-global-white,#fff) !important;
+}
 .ds-hero--style3 .ds-peek button.ds-peek-dot{background:rgba(20,20,20,.25) !important;border-radius:50% !important;}
 .ds-hero--style3 .ds-peek button.ds-peek-dot:hover{background:rgba(20,20,20,.5) !important;}
 .ds-hero--style3 .ds-peek button.ds-peek-dot.is-active{background:var(--fl-global-accent) !important;}
-.ds-hero--style3 .ds-peek button.ds-peek-nav{background:rgba(15,18,24,.5) !important;border-radius:50% !important;}
+.ds-hero--style3 .ds-peek button.ds-peek-nav{background:rgba(15,18,24,.62) !important;border-radius:50% !important;}
 .ds-hero--style3 .ds-peek button.ds-peek-nav:hover{background:rgba(15,18,24,.78) !important;}
 .ds-hero--style3 .ds-peek button.ds-peek-play{background:rgba(20,20,20,.25) !important;border-radius:50% !important;}
 .ds-hero--style3 .ds-peek button.ds-peek-play:hover{background:rgba(20,20,20,.5) !important;}
