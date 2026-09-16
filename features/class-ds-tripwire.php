@@ -13,15 +13,42 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * appeared TWO HOURS before the first file drop — an instant new-admin email
  * would have turned a 98-site campaign into a one-site incident.
  *
+ * 1.9.130 (2026-09-16): the September wave got past everything above. On rattlers
+ * and eysoccer a `<hex>wp` shell was planted at the WEB ROOT (not wp-content), sat
+ * through two cleanups, and was used 10-14 days later to drop page-shadowing
+ * doorway folders that served gambling pages to Google and empty 500s to members
+ * (72 failed /register/ loads in one day). This class ran daily on both sites the
+ * whole time and found nothing, for two reasons: nothing looked at the web root,
+ * and the one "web root" check read ABSPATH, which on Flywheel resolves to the
+ * root-owned /wordpress/ platform dir, not /www where the attacker writes. So:
+ * - the web root is dirname(WP_CONTENT_DIR) on every host, never ABSPATH;
+ * - it is listed against an ALLOWLIST of what belongs, and everything else is a
+ *   finding (enumerating attacker names is a losing game: one regex missed the
+ *   entire <hex>wp family because 'w' and 'p' are not hex);
+ * - "executable" means a PHP extension OR a "<?php" header, because every 600 KB
+ *   doorway index.php was static HTML with no PHP tag and PHP ran it anyway, and
+ *   the hidden shells wore .php5/.phtml/.php7/.png/.mov;
+ * - findings carry a tier. CRITICAL and HIGH email; REVIEW is recorded in state
+ *   only, so the daily mail is never noise;
+ * - Design Shop staff (@leagueapps.com) adding their own access is recorded and
+ *   never emailed, from the instant hook too (it paged the team twice on Sep 15
+ *   about our own cleanup logins).
+ *
  * Design constraints:
- * - Cheap: no full-site scans. A daily cron reads one directory listing, a
- *   plugin-folder listing, and the tails of four files. Milliseconds.
+ * - Cheap: a web-root listing, a plugin-folder listing, the tails of four files,
+ *   and a name-only walk for fixed-name shells (plugins/themes 3 deep, uploads
+ *   and the web root 1-2 deep, 20k entries max). No file-content scans beyond
+ *   the first 4 KB of a bounded set. Measured 1-3 s once a day inside wp-cron,
+ *   never on a visitor's request.
  * - Zero frontend cost: scheduling and hooks are registered in admin/cron/CLI
  *   contexts; ordinary visits never pay for it.
  * - Clone-compatible / fail open: first run seeds baselines silently; a fresh
- *   clone of the blueprint never emails anyone. Hard IOC patterns (the wdg
- *   family) alert regardless of baseline.
+ *   clone of the blueprint never emails anyone. Hard IOC patterns alert
+ *   regardless of baseline.
  * - No dependencies: wp_mail only, one option row of state.
+ * - Testable without fixtures: DS_Tripwire::scan_root( $dir ) runs the exact
+ *   web-root classifier against any directory, e.g. a .quarantine-* folder that
+ *   still holds the real malware with its original names.
  */
 class DS_Tripwire {
 
@@ -45,9 +72,37 @@ class DS_Tripwire {
     const MU_MANAGED = array( 'ds-origin-guard.php', 'ds-antibot-off.php', 'ds-doorway-block.php' );
     const MU_MANAGED_MAX_BYTES = 4096;
 
-
     /** Self-heal markers; any hit in a scanned tail is a confirmed infection. */
     const MARKERS = array( 'WDG-CORE-' . 'START', '$wdg' . '_k', '$co' . 'ki' );
+
+    /**
+     * What a web root legitimately contains on Flywheel and WP Engine. Anything
+     * at depth 1 that does not match is a finding. Attacker names are NOT listed
+     * here on purpose: the allowlist is the rule, not the exception list.
+     */
+    const ROOT_ALLOW = '/^(wp-admin|wp-content|wp-includes|\.wordpress|flywheel-config|_wpeprivate|\.well-known|fw-scanner'
+        . '|index\.php|wp-activate\.php|wp-blog-header\.php|wp-comments-post\.php|wp-config\.php|wp-config-sample\.php|wp-cron\.php'
+        . '|wp-links-opml\.php|wp-load\.php|wp-login\.php|wp-mail\.php|wp-settings\.php|wp-signup\.php|wp-trackback\.php|xmlrpc\.php'
+        . '|\.htaccess|robots\.txt|license\.txt|readme\.html|favicon\.ico|apple-touch-icon[a-z-]*\.png|\.DS_Store'
+        . '|fw-flush-cache\.php|fw-status-check\.php|scan-manifest\..*\.json|(scan|malware|dbscan)-results-.*\.csv'
+        . '|\.user\.ini|php\.ini|\.ssh|\.wp-cli|\.bash.*|\.profile|\.cache|\.config|\.local'
+        . '|bv-preload\.php|bv_connector_[0-9a-f]+\.php|malcare-waf\.php'
+        . '|\.quarantine-[0-9]+[a-z]?|\.sucuriquarantine|\.ms_jp_quarantine)$/i';
+
+    /** The Play Store doorway kit's file set; three of these in one folder is the kit. */
+    const KIT_FILES = array( 'apps.php', 'link.php', 'template.html', 'url_list.txt', 'urlkey.txt', 'word.txt', 'sitemap_index.xml' );
+
+    /** Google Search Console verification tokens the attacker planted across 19 sites. */
+    const KNOWN_BAD_GSC = array(
+        '6313bd76ab531865', 'efa7380652dbb9c7', '423d49517cadfeab', '87c76e4ecadcf9a4',
+        '1c82f06233560100', 'a7f9083ec5e0ee0b', 'f31c338420ffa4f7', 'cb9f43e6aa7e3150',
+    );
+
+    /** Fixed filenames the campaign reuses for its shells (Wordfence: file manager / RCE). */
+    const SHELL_NAMES = '/^(Nx[0-9]{3}\.php|egl\.php|kir\.php|filefuns\.php)$/';
+
+    /** Bound on the name-only shell walk so a 50k-file site stays sub-second. */
+    const WALK_CAP = 20000;
 
     private $settings;
 
@@ -79,31 +134,62 @@ class DS_Tripwire {
         }
     }
 
+    /* ---------------------------------------------------------------- paths */
+
+    /**
+     * The directory the attacker can write to and nginx serves first. On Flywheel
+     * ABSPATH is /www/.wordpress/ -> /wordpress (root-owned, unwritable); the real
+     * web root is /www. On WP Engine ABSPATH and the web root coincide. The parent
+     * of wp-content is the web root on both, so that is the definition.
+     */
+    public static function web_root() {
+        $r = dirname( WP_CONTENT_DIR );
+        return is_dir( $r ) ? $r : untrailingslashit( ABSPATH );
+    }
+
     /* ---------------------------------------------------------------- cron */
 
     public function run_checks() {
-        $state    = get_option( self::STATE_OPT, array() );
-        $seeded   = ! empty( $state['seeded'] );
-        $findings = array();
+        $state  = get_option( self::STATE_OPT, array() );
+        if ( ! is_array( $state ) ) {
+            $state = array();
+        }
+        $seeded = ! empty( $state['seeded'] );
 
-        $findings = array_merge(
-            $findings,
-            $this->check_mu_plugins( $state, $seeded ),
-            $this->check_plugin_dirs(),
-            $this->check_marker_tails(),
-            $this->check_webroot(),
-            $this->check_admins( $state, $seeded )
-        );
+        // Every finding is [ tier, text ]. CRITICAL = a shell or re-infection
+        // source; HIGH = act today; REVIEW = a person should look, no email.
+        $f = array();
+        foreach ( $this->check_mu_plugins( $state, $seeded ) as $t ) { $f[] = array( 'CRITICAL', $t ); }
+        foreach ( $this->check_plugin_dirs() as $t )                { $f[] = array( 'CRITICAL', $t ); }
+        foreach ( $this->check_marker_tails() as $t )               { $f[] = array( 'CRITICAL', $t ); }
+        // Web root: CRITICAL always mails. HIGH/REVIEW entries mail ONCE, then are
+        // remembered; a site's own bespoke folder (brsoccer /classes/) or an old
+        // WordPress copy (georgiakings /gkb001/) must not page the team daily.
+        $seen  = isset( $state['root_seen'] ) ? (array) $state['root_seen'] : array();
+        $now   = array();
+        foreach ( self::scan_root( self::web_root() ) as $pair ) {
+            $now[ $pair[2] ] = true;
+            if ( 'CRITICAL' !== $pair[0] && isset( $seen[ $pair[2] ] ) ) {
+                $pair[0] = 'REVIEW';   // already reported once: keep in state, keep out of mail
+            }
+            $f[] = $pair;
+        }
+        $state['root_seen'] = $now;
+        foreach ( $this->check_named_shells() as $t )               { $f[] = array( 'CRITICAL', $t ); }
+        foreach ( $this->check_admins( $state, $seeded ) as $t )    { $f[] = array( 'HIGH', $t ); }
 
-        $state['seeded']   = 1;
-        $state['last_run'] = time();
-        $state['last_findings'] = $findings;
+        $state['seeded']        = 1;
+        $state['last_run']      = time();
+        $state['last_findings'] = array_map( function ( $p ) { return $p[0] . ': ' . $p[1]; }, $f );
         update_option( self::STATE_OPT, $state, false );
 
-        if ( $findings && $seeded ) {
-            $this->alert( "Daily tripwire found indicators of compromise", $findings );
+        $mail = array_filter( $f, function ( $p ) { return 'REVIEW' !== $p[0]; } );
+        if ( $mail && $seeded ) {
+            $worst = 'HIGH';
+            foreach ( $mail as $p ) { if ( 'CRITICAL' === $p[0] ) { $worst = 'CRITICAL'; break; } }
+            $this->alert( $worst, array_map( function ( $p ) { return '[' . $p[0] . '] ' . $p[1]; }, $mail ) );
         }
-        return $findings;
+        return $f;
     }
 
     /** New PHP files in mu-plugins vs baseline, plus hard IOC names. */
@@ -160,13 +246,14 @@ class DS_Tripwire {
     /** Marker scan of the four known self-heal injection targets (tails only). */
     private function check_marker_tails() {
         $out     = array();
+        $root    = self::web_root();
         $targets = array(
             get_stylesheet_directory() . '/functions.php',
             get_template_directory() . '/functions.php',
-            ABSPATH . 'index.php',
+            $root . '/index.php',
         );
-        // wp-config can live in ABSPATH or one level up.
-        foreach ( array( ABSPATH . 'wp-config.php', dirname( ABSPATH ) . '/wp-config.php' ) as $cfg ) {
+        // wp-config can live in the web root, ABSPATH, or one level up.
+        foreach ( array( $root . '/wp-config.php', ABSPATH . 'wp-config.php', dirname( ABSPATH ) . '/wp-config.php' ) as $cfg ) {
             if ( file_exists( $cfg ) ) { $targets[] = $cfg; break; }
         }
 
@@ -188,13 +275,147 @@ class DS_Tripwire {
         return $out;
     }
 
-    /** Rogue error.php dropped in the web root (campaign IOC). */
-    private function check_webroot() {
-        $f = ABSPATH . 'error.php';
-        if ( file_exists( $f ) ) {
-            return array( 'An unexpected error.php file sits in the site root (' . (int) @filesize( $f ) . ' bytes). The recent attack dropped files with this name.' );
+    /* ----------------------------------------------------------- web root */
+
+    /**
+     * True when a file would be executed by PHP: a PHP-family extension (PHP
+     * happily runs a .php that is pure HTML; every doorway index.php was exactly
+     * that), OR a "<?php" tag in the first 4 KB whatever the extension (.png,
+     * .mov, dotfile shells).
+     */
+    private static function is_executable_file( $path ) {
+        if ( preg_match( '/\.(php|phtml|php5|php7|phar)$/i', $path ) ) {
+            return true;
         }
-        return array();
+        $head = (string) @file_get_contents( $path, false, null, 0, 4096 );
+        return false !== strpos( $head, '<?php' );
+    }
+
+    /** Count executable files under $dir, capped so a 35k-file WordPress copy does not stall the cron. */
+    private static function exec_count( $dir, $cap = 300 ) {
+        $n = 0; $seen = 0;
+        try {
+            $it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::LEAVES_ONLY, RecursiveIteratorIterator::CATCH_GET_CHILD );
+            foreach ( $it as $file ) {
+                if ( ++$seen > $cap ) break;
+                if ( $file->isFile() && self::is_executable_file( $file->getPathname() ) ) $n++;
+            }
+        } catch ( Exception $e ) { /* unreadable: report what we have */ }
+        return $n;
+    }
+
+    /** Published page slugs, so a web-root folder named after a page is named as such and not guessed. */
+    private static function page_slugs() {
+        global $wpdb;
+        $slugs = $wpdb->get_col( "SELECT post_name FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish'" );
+        return array_fill_keys( array_map( 'strval', (array) $slugs ), true );
+    }
+
+    /**
+     * Classify everything at depth 1 of $root against the allowlist. Returns
+     * [ tier, text ] pairs. Public and static so it can be pointed at a
+     * .quarantine-* folder holding the real malware, as a test with no fixtures.
+     */
+    public static function scan_root( $root, $slugs = null ) {
+        $out = array();
+        if ( ! is_dir( $root ) ) return $out;
+        if ( null === $slugs ) $slugs = self::page_slugs();
+        $rel = function ( $p ) { return str_replace( dirname( WP_CONTENT_DIR ), '', $p ); };
+        // Every pair carries the entry name as [2] so run_checks() can remember
+        // non-critical entries and email them once, not daily.
+        $add = function ( $tier, $text ) use ( &$out, &$e ) { $out[] = array( $tier, $text, $e ); };
+
+        foreach ( (array) scandir( $root ) as $e ) {
+            if ( '.' === $e || '..' === $e || preg_match( self::ROOT_ALLOW, $e ) ) continue;
+            $p = $root . '/' . $e;
+
+            if ( is_dir( $p ) ) {
+                if ( preg_match( '/^[0-9a-f]{3,8}wp$/i', $e ) ) {
+                    $add( 'CRITICAL', "Attacker toolbox folder {$e}/ in the web root ({$rel($p)}). This is the web shell that re-infected rattlers and eysoccer after cleanup: quarantine it FIRST, then the doorways." );
+                    continue;
+                }
+                if ( isset( $slugs[ $e ] ) ) {
+                    $add( 'CRITICAL', "A folder named after this site's own page sits in the web root: {$e}/ ({$rel($p)}). The server serves it before WordPress, so visitors get the attacker's page (or a 500) instead of the real one. Page-shadowing doorway." );
+                    continue;
+                }
+                $kit = 0;
+                foreach ( self::KIT_FILES as $k ) { if ( file_exists( $p . '/' . $k ) ) $kit++; }
+                $sitemaps = count( (array) glob( $p . '/sitemap_*.xml' ) );
+                if ( $kit >= 3 || $sitemaps >= 3 ) {
+                    $add( 'CRITICAL', "The Play Store doorway kit sits in {$e}/ ({$kit}/7 kit files, {$sitemaps} bulk sitemaps). It serves fake app-store pages under this domain to Google." );
+                    continue;
+                }
+                foreach ( (array) glob( $p . '/google*.html' ) as $g ) {
+                    $add( 'CRITICAL', 'Fake Google Search Console verification file inside ' . $e . '/: ' . basename( $g ) . '. The attacker claims this domain in Search Console with it.' );
+                }
+                $x = self::exec_count( $p );
+                if ( $x > 0 ) {
+                    $add( 'HIGH', "Unexpected folder {$e}/ in the web root holds {$x} executable file(s) (PHP by extension or header). Nothing outside WordPress should be here; list it." );
+                } else {
+                    $add( 'REVIEW', "Unexpected folder {$e}/ in the web root, no executable content found. Probably an old backup or an asset dump; confirm and remove." );
+                }
+                continue;
+            }
+
+            // files
+            if ( preg_match( '/^google([0-9a-f]{16})\.html$/i', $e, $m ) ) {
+                if ( in_array( strtolower( $m[1] ), self::KNOWN_BAD_GSC, true ) ) {
+                    $add( 'CRITICAL', "Known attacker Google Search Console token in the web root: {$e}. Removing the file does not revoke the owner; the partner must remove it under Search Console > Settings > Users and permissions." );
+                } else {
+                    $add( 'REVIEW', "Google Search Console verification file in the web root: {$e}. Not a known attacker token; confirm the partner or their SEO vendor placed it." );
+                }
+                continue;
+            }
+            $size = (int) @filesize( $p );
+            if ( preg_match( '/^wp-.*\.php$/i', $e ) ) {
+                $add( 'HIGH', "{$e} in the web root is NOT a WordPress core file ({$size} bytes). Backdoors wear fake core names (wp-confih.php, wp-mails.php, wp-configs.php)." );
+            } elseif ( preg_match( '/^sitemap.*\.xml$/i', $e ) ) {
+                $add( 'REVIEW', "A physical sitemap file sits in the web root: {$e} ({$size} bytes). Yoast serves sitemaps virtually; a real file here is unusual." );
+            } elseif ( self::is_executable_file( $p ) ) {
+                $add( 'HIGH', "Unexpected executable file in the web root: {$e} ({$size} bytes)." );
+            } else {
+                $add( 'REVIEW', "Unexpected file in the web root: {$e} ({$size} bytes), not executable." );
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Fixed-name shells the campaign drops (Nx###.php was inside every one of 35
+     * fake plugins; egl.php / kir.php in the fake themes; kir.php twice in
+     * uploads) and the BypassServ self-resurrecting nest. Name-only walk, capped.
+     */
+    private function check_named_shells() {
+        $out  = array();
+        $root = self::web_root();
+        $seen = 0;
+        $walk = function ( $dir, $depth ) use ( &$out, &$seen, $root ) {
+            if ( ! is_dir( $dir ) ) return;
+            try {
+                $it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::SELF_FIRST, RecursiveIteratorIterator::CATCH_GET_CHILD );
+                $it->setMaxDepth( $depth );
+                foreach ( $it as $f ) {
+                    if ( ++$seen > self::WALK_CAP ) return;
+                    $name = $f->getFilename();
+                    $path = $f->getPathname();
+                    if ( false !== strpos( $path, '/.quarantine-' ) || false !== strpos( $path, '/.sucuriquarantine/' ) ) continue;
+                    if ( $f->isDir() && '.sys_cache_log' === $name ) {
+                        $out[] = 'Self-resurrecting BypassServ shell nest: ' . $path . '. It restores deleted copies from its other nests, so every nest must go in one pass.';
+                    } elseif ( $f->isFile() && preg_match( self::SHELL_NAMES, $name ) ) {
+                        $out[] = 'Fixed-name shell from this campaign: ' . $path . ' (' . (int) $f->getSize() . ' bytes).';
+                    }
+                }
+            } catch ( Exception $e ) { /* unreadable subtree: skip */ }
+        };
+        // Every fixed-name shell on record sat at depth <= 3 under plugins/themes
+        // (plugins/starter-x/Nx444.php, themes/starter-x/egl.php) and at depth 1
+        // in uploads (uploads/kir.php). Deeper walks cost seconds for nothing.
+        $walk( WP_CONTENT_DIR . '/plugins', 3 );
+        $walk( WP_CONTENT_DIR . '/themes', 3 );
+        $walk( WP_CONTENT_DIR . '/mu-plugins', 2 );
+        $walk( WP_CONTENT_DIR . '/uploads', 1 );
+        $walk( $root, 2 );
+        return array_values( array_unique( $out ) );
     }
 
     /**
@@ -268,6 +489,10 @@ class DS_Tripwire {
      * administrator, or our own WP-CLI tooling, is recorded silently; anything
      * unattributable, freshly escalated, or carrying a throwaway address still
      * emails immediately.
+     *
+     * 1.9.130: a Design Shop staff address (@leagueapps.com) is recorded and never
+     * emailed, whoever created it. Our own cleanup logins on 2026-09-15 arrived as
+     * "unknown actor" and paged the team twice about ourselves.
      */
     private function alert_new_admin( $user, $how ) {
         static $alerted = array();
@@ -282,12 +507,15 @@ class DS_Tripwire {
         // account a second time.
         $this->remember_admin( $user, $actor );
 
+        if ( preg_match( '/@leagueapps\.com$/i', (string) $user->user_email ) ) {
+            return;
+        }
         if ( $this->actor_is_established() && ! self::email_is_throwaway( $user->user_email ) ) {
             return;
         }
 
         $this->alert(
-            'New administrator: ' . $user->user_login,
+            'HIGH',
             array(
                 "A new administrator just appeared on this site: {$user->user_login} <{$user->user_email}> ({$how}).",
                 "Created by: {$actor}.",
@@ -386,7 +614,8 @@ class DS_Tripwire {
 
     /* -------------------------------------------------------------- output */
 
-    private function alert( $subject, array $lines ) {
+    /** $tier is CRITICAL or HIGH; it leads the subject so the inbox sorts itself. */
+    private function alert( $tier, array $lines ) {
         // Comma-separated list supported; invalid entries are dropped. The
         // fallback is the shared Design Shop inbox so alerts always reach a
         // person who can route them.
@@ -398,21 +627,24 @@ class DS_Tripwire {
         $to   = apply_filters( 'ds_tripwire_alert_email', $to );
         $site = home_url();
         $host = wp_parse_url( $site, PHP_URL_HOST );
+        $tier = ( 'CRITICAL' === $tier ) ? 'CRITICAL' : 'HIGH';
         $body = "Hi team,\n\n"
               . "DS Tripwire is the small security watchdog that checks every Design Shop site once a day. "
               . "It just noticed something on this site that looks like the recent malware attack:\n\n"
-              . "Site:    {$site}\n"
-              . 'Checked: ' . gmdate( 'Y-m-d H:i' ) . " UTC\n\n"
+              . "Site:     {$site}\n"
+              . "Severity: {$tier}\n"
+              . 'Checked:  ' . gmdate( 'Y-m-d H:i' ) . " UTC\n\n"
               . "What it found:\n"
               . "- " . implode( "\n\n- ", $lines ) . "\n\n"
-              . "What this means: it might be a false alarm, but with the current attack campaign it "
-              . "should be looked at today.\n\n"
+              . ( 'CRITICAL' === $tier
+                  ? "What this means: a web shell or an active doorway is on the site right now. This is the thing that re-infects a site after a cleanup, so it should be actioned today, not reviewed.\n\n"
+                  : "What this means: it might be a false alarm, but with the current attack campaign it should be looked at today.\n\n" )
               . "What to do:\n"
               . "1. Do not delete anything yourself — this malware repairs itself if only one copy is removed.\n"
               . "2. Forward this email to the Design Shop point person for security, who has the removal playbook, so it can be actioned right away.\n"
               . "3. If the site looks fine to visitors, that is normal — this malware hides from people "
               . "and only shows itself to search engines.\n\n"
               . "— DS Tripwire (part of the DS Toolkit plugin)\n";
-        wp_mail( $to, '[DS Tripwire] Security alert — ' . $host, $body );
+        wp_mail( $to, '[DS Tripwire] ' . $tier . ' — ' . $host, $body );
     }
 }
