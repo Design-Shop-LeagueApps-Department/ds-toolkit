@@ -111,6 +111,22 @@ if ( 'style2' !== $style ) {
 	}
 }
 
+// ---- Gradient headline text ({g}...{/g}, GH #200), both styles: two custom properties on the span.
+// A blank colour falls back to the Accent Word colour; when that is blank too the static rule's
+// var() fallback (global accent) applies. Emitted only when a gradient colour is set or the authored
+// headline uses the marker, so a module that never touches the feature produces byte-identical CSS.
+// (Style 2 can take its headline from the page title / ACF lead heading: set the gradient colours
+// on the module to style a {g} placed there.)
+$acc_fb = $col( $settings->accent_color ?? '' );
+$gs_raw = $col( $settings->gradient_start_color ?? '' );
+$ge_raw = $col( $settings->gradient_end_color ?? '' );
+$gs = $gs_raw ?: $acc_fb;
+$ge = $ge_raw ?: $acc_fb;
+if ( ( '' !== $gs || '' !== $ge ) && ( '' !== $gs_raw || '' !== $ge_raw || false !== strpos( (string) ( $settings->heading ?? '' ), '{g}' ) ) ) {
+	$gv = ( '' !== $gs ? "--ds-gradient-start: {$gs}; " : '' ) . ( '' !== $ge ? "--ds-gradient-end: {$ge}; " : '' );
+	echo "$node .ds-hero-title .ds-hero-gradient { " . trim( $gv ) . " }\n";
+}
+
 // ---- Eyebrow image height (GH #192): authored HEIGHT, width follows, per breakpoint.
 // Same max-height approach as the Heading module's divider image so the aspect
 // ratio is preserved. Dynamic (0,3,1) so it beats the static 72px default.
