@@ -222,7 +222,8 @@ class DS_Toolkit {
         ),
         // Daily IOC tripwire + instant new-admin alerts (Aug/Sep 2026 WDG
         // campaign; see the class docblock). Cheap by design: tails of four
-        // files and two directory listings, once a day.
+        // files and two directory listings, once a day. Since 1.9.132 also an
+        // hourly, time-boxed behaviour scan (includes/ds-scan-engine.php).
         'tripwire_enabled' => array(
             'file'  => 'features/class-ds-tripwire.php',
             'class' => 'DS_Tripwire',

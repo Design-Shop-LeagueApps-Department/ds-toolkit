@@ -49,6 +49,17 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * - Testable without fixtures: DS_Tripwire::scan_root( $dir ) runs the exact
  *   web-root classifier against any directory, e.g. a .quarantine-* folder that
  *   still holds the real malware with its original names.
+ *
+ * 1.9.132 (2026-09-17): everything above asks "does a NAME match?". dallaskicsfc showed
+ * the limit: of five malicious files in one fake plugin, four were caught only by the
+ * Nx###.php filename rule and the fifth (dsa.php, an eval(base64_decode(strrev(curl())))
+ * loader) by nothing, and w5x9k2m7q4.php spelled "e"."x"."e"."c" from fragments so that
+ * grep finds no "exec(". The hourly CONTENT scan (run_content_scan) hands every candidate
+ * file to includes/ds-scan-engine.php, which tokenises it and scores BEHAVIOUR: request
+ * input reaching a command sink, eval of a decoder, a call name assembled at runtime, a
+ * self-rewriting loader, the campaign's markers. 63/63 on the fleet malware corpus, 0
+ * CRITICAL on 10,893 clean blueprint files. Its resource contract is in the method's
+ * docblock and in fleet-audit/SCANNER-SPEC.md section 6c.
  */
 class DS_Tripwire {
 
@@ -104,6 +115,26 @@ class DS_Tripwire {
     /** Bound on the name-only shell walk so a 50k-file site stays sub-second. */
     const WALK_CAP = 20000;
 
+    /* ------------------------------------------ content engine (1.9.132) ------------------ */
+    /** Hourly behaviour-scan hook, separate from the daily IOC check so each cost is bounded alone. */
+    const CONTENT_HOOK = 'ds_tripwire_content';
+    /** Seconds of scanning per cron run; the file list resumes from a cursor next run. */
+    const CONTENT_BUDGET_S = 15;
+    /** Never token_get_all() a file above this. Measured 346 bytes of memory per source byte on a
+     *  token-dense file: 256 KB keeps the worst case under 100 MB inside a 256 MB request. Every
+     *  shell on record is under 30 KB; bigger files get the engine's regex fallback instead. */
+    const CONTENT_TOKCAP = 262144;
+    /** Directory entries visited per run before the listing stops (bounds the walk, not the scan). */
+    const CONTENT_WALK_CAP = 40000;
+    /** Files modified within this window are scanned FIRST every run, so a fresh drop is seen within
+     *  the hour on any site while the full sweep proceeds across runs in the background. */
+    const CONTENT_RECENT_S = 259200;
+    /** Newest-first cap on that priority set (a plugin update can touch thousands of files). */
+    const CONTENT_RECENT_MAX = 3000;
+    /** Extensions scanned anywhere. Any other extension is scanned only at the web root, in uploads
+     *  and in mu-plugins, which is where polyglots and dotfile shells hide. */
+    const CONTENT_EXT = '/\.(php|phtml|php[3-8]|phar|pht|inc|html?|module|install)$/i';
+
     private $settings;
 
     public function __construct( $settings = array() ) {
@@ -114,6 +145,7 @@ class DS_Tripwire {
         // The cron callback must be bound on every request type so a due event
         // can always fire; everything below it is admin/cron/CLI-only.
         add_action( self::CRON_HOOK, array( $this, 'run_checks' ) );
+        add_action( self::CONTENT_HOOK, array( $this, 'run_content_scan' ) );
 
         // Instant alert when an administrator appears. Registration and role
         // grants only ever happen in admin/AJAX/CLI flows, so these hooks are
@@ -130,6 +162,10 @@ class DS_Tripwire {
                 $local  = strtotime( 'tomorrow 03:10', current_time( 'timestamp' ) );
                 $first  = $local ? $local - (int) round( (float) get_option( 'gmt_offset', 0 ) * HOUR_IN_SECONDS ) : 0;
                 wp_schedule_event( $first ? $first : time() + DAY_IN_SECONDS, 'daily', self::CRON_HOOK );
+            }
+            if ( ! wp_next_scheduled( self::CONTENT_HOOK ) ) {
+                // Hourly. The first run is spread over the next hour so the fleet never starts together.
+                wp_schedule_event( time() + wp_rand( 300, 3600 ), 'hourly', self::CONTENT_HOOK );
             }
         }
     }
@@ -612,6 +648,261 @@ class DS_Tripwire {
         update_option( self::STATE_OPT, $state, false );
     }
 
+    /* ------------------------------------------------------ content engine */
+
+    /**
+     * Hourly behaviour scan. See the class docblock for why it exists. Resource contract
+     * (fleet-audit/SCANNER-SPEC.md section 6c, every number measured on a Flywheel container):
+     * - the engine is loaded HERE, inside try/catch, never at bootstrap, so a broken engine costs
+     *   one cron run and never a page view;
+     * - at most CONTENT_BUDGET_S seconds per run, resumed from a cursor; recently modified files
+     *   go first every run;
+     * - nothing above CONTENT_TOKCAP is tokenised, and the engine also refuses when the request
+     *   lacks memory headroom, so a huge file degrades to a regex check instead of a memory fatal;
+     * - only CRITICAL emails, once per file per day; HIGH is recorded in state for
+     *   fw-check-site-v2.sh to show. There is no fleet manifest here to clear dual-use vendor code,
+     *   and an alert that fires on clean sites is an alert nobody reads;
+     * - this file and the engine are exempt by exact PATH, never by content (an attacker can copy a
+     *   string), and the whole plugin directory is verified against the sha256 list the release
+     *   workflow ships as includes/release-hashes.txt;
+     * - a run that dies (memory, time) leaves in_progress set; the next run counts it, and after two
+     *   in a row skips 250 files past the cursor with a smaller tokenize cap, so a poison file
+     *   cannot kill every hour forever. A clean finish resets the counter.
+     */
+    public function run_content_scan( $budget = null ) {
+        // Kill switches, because there was no fast one for Bot Shield: a wp-config constant, a
+        // per-site setting (wp option patch update ds_toolkit_settings tripwire_content_enabled 0),
+        // or a filter. None of them touch the daily IOC check.
+        if ( defined( 'DS_TRIPWIRE_CONTENT_OFF' ) && DS_TRIPWIRE_CONTENT_OFF ) { return array(); }
+        if ( isset( $this->settings['tripwire_content_enabled'] ) && ! $this->settings['tripwire_content_enabled'] ) { return array(); }
+        if ( ! apply_filters( 'ds_tripwire_content_enabled', true ) ) { return array(); }
+
+        $budget = $budget ? (int) $budget : self::CONTENT_BUDGET_S;
+        $state  = get_option( self::STATE_OPT, array() );
+        if ( ! is_array( $state ) ) { $state = array(); }
+        $c = ( isset( $state['content'] ) && is_array( $state['content'] ) ) ? $state['content'] : array();
+        $c['last_run'] = time();
+        $c['error']    = '';
+
+        $engine = DS_TOOLKIT_PATH . 'includes/ds-scan-engine.php';
+        if ( PHP_VERSION_ID < 70400 || ! function_exists( 'token_get_all' ) || ! is_readable( $engine ) ) {
+            $c['error'] = 'engine unavailable: php ' . PHP_VERSION . ', tokenizer ' . ( function_exists( 'token_get_all' ) ? 'present' : 'missing' ) . ', file ' . ( is_readable( $engine ) ? 'present' : 'missing' );
+            $state['content'] = $c;
+            update_option( self::STATE_OPT, $state, false );
+            return array();
+        }
+        try {
+            require_once $engine;
+        } catch ( \Throwable $e ) {
+            $c['error'] = 'engine failed to load: ' . get_class( $e ) . ': ' . substr( $e->getMessage(), 0, 120 );
+            $state['content'] = $c;
+            update_option( self::STATE_OPT, $state, false );
+            return array();
+        }
+        if ( ! function_exists( 'dsscan_scan_list' ) || ! defined( 'DSSCAN_HIGH_SCORE' ) ) {
+            $c['error'] = 'engine loaded but its API is missing';
+            $state['content'] = $c;
+            update_option( self::STATE_OPT, $state, false );
+            return array();
+        }
+        $c['engine'] = defined( 'DSSCAN_VERSION' ) ? DSSCAN_VERSION : '?';
+
+        // poison-file protection: an unfinished previous run is counted before we start this one
+        $poison = ! empty( $c['in_progress'] );
+        $inc    = isset( $c['incomplete'] ) ? (int) $c['incomplete'] : 0;
+        if ( $poison ) { $inc++; }
+        $c['incomplete']  = $inc;
+        $c['in_progress'] = 1;
+        $state['content'] = $c;
+        update_option( self::STATE_OPT, $state, false );
+
+        list( $recent, $rest ) = self::content_candidates( self::web_root() );
+        $cursor = isset( $c['cursor'] ) ? (int) $c['cursor'] : 0;
+        $tokcap = self::CONTENT_TOKCAP;
+        if ( $inc >= 2 ) {
+            $recent  = array();
+            $cursor += 250;
+            $tokcap  = 65536;
+        }
+        if ( $cursor >= count( $rest ) ) { $cursor = 0; }
+        $n_recent = count( $recent );
+        $paths    = array_merge( $recent, array_slice( $rest, $cursor ) );
+
+        $self    = array_values( array_filter( array( realpath( __FILE__ ), realpath( $engine ) ) ) );
+        $found   = array();
+        $skipped = 0;
+        $opts    = array(
+            'min'          => DSSCAN_HIGH_SCORE,
+            'tokenize_cap' => $tokcap,
+            'deadline'     => time() + $budget,
+            'self_paths'   => $self,
+        );
+        try {
+            $stats = dsscan_scan_list( $paths, $opts, function ( $f ) use ( &$found, &$skipped ) {
+                if ( ! empty( $f['skipped'] ) ) { $skipped++; return; }
+                $found[] = $f;
+            } );
+        } catch ( \Throwable $e ) {
+            $stats      = array( 'scanned' => 0, 'stopped_at' => 0, 'elapsed' => 0, 'peak_mb' => 0 );
+            $c['error'] = 'scan aborted: ' . get_class( $e ) . ': ' . substr( $e->getMessage(), 0, 120 );
+        }
+
+        // where to resume next run: stopped_at indexes $paths (recent first, then rest from cursor)
+        if ( null === $stats['stopped_at'] ) {
+            $c['cursor']    = 0;
+            $c['last_full'] = time();
+        } else {
+            $stopped     = (int) $stats['stopped_at'];
+            $c['cursor'] = ( $stopped > $n_recent ) ? $cursor + ( $stopped - $n_recent ) : $cursor;
+        }
+
+        $integrity = self::check_toolkit_integrity();
+
+        // record everything at HIGH and above; email CRITICAL only, once per file per day
+        $alerted = isset( $c['alerted'] ) ? (array) $c['alerted'] : array();
+        $mail    = array();
+        $record  = array();
+        foreach ( $found as $f ) {
+            $line     = self::content_line( $f );
+            $record[] = $f['tier'] . ': ' . $line;
+            if ( 'CRIT' === $f['tier'] ) {
+                $key = md5( $f['path'] . '|' . $f['md5'] );
+                if ( empty( $alerted[ $key ] ) || ( time() - (int) $alerted[ $key ] ) > DAY_IN_SECONDS ) {
+                    $mail[]          = $line;
+                    $alerted[ $key ] = time();
+                }
+            }
+        }
+        foreach ( $integrity as $pair ) {
+            $record[] = 'CRIT: ' . $pair[1];
+            $key      = md5( $pair[1] );
+            if ( empty( $alerted[ $key ] ) || ( time() - (int) $alerted[ $key ] ) > DAY_IN_SECONDS ) {
+                $mail[]          = $pair[1];
+                $alerted[ $key ] = time();
+            }
+        }
+        arsort( $alerted );
+        $c['alerted']     = array_slice( $alerted, 0, 100, true );
+        $c['findings']    = array_slice( $record, 0, 50 );
+        $c['skipped']     = $skipped;
+        $c['stats']       = array(
+            'scanned' => (int) $stats['scanned'],
+            'elapsed' => $stats['elapsed'],
+            'peak_mb' => $stats['peak_mb'],
+            'recent'  => $n_recent,
+            'total'   => $n_recent + count( $rest ),
+            'budget'  => $budget,
+        );
+        $c['in_progress'] = 0;
+        $c['incomplete']  = ( '' === $c['error'] ) ? 0 : $inc + 1;
+        $state['content'] = $c;
+        update_option( self::STATE_OPT, $state, false );
+
+        if ( $mail ) {
+            $this->alert( 'CRITICAL', array_map( function ( $l ) { return '[CRITICAL] ' . $l; }, $mail ) );
+        }
+        return $found;
+    }
+
+    /** Manual entry point for a canary or a support session: wp eval 'DS_Tripwire::content_scan_now( 60 );' */
+    public static function content_scan_now( $budget = 60 ) {
+        $tw = new self( get_option( 'ds_toolkit_settings', array() ) );
+        return $tw->run_content_scan( (int) $budget );
+    }
+
+    /**
+     * Candidate files, split into [recent, rest]: files modified within CONTENT_RECENT_S (newest
+     * first, capped) and everything else sorted by path so a cursor into it is stable between runs.
+     * Scanned anywhere: PHP-family, .inc, .html. Scanned whatever the extension: web root depth 1,
+     * uploads (minus page-builder cache folders) and mu-plugins. Symlinked directories are not
+     * descended: on Flywheel wp-admin and wp-includes point at the root-owned platform core.
+     */
+    public static function content_candidates( $root ) {
+        $recent = array();
+        $rest   = array();
+        $seen   = 0;
+        $now    = time();
+        $root   = untrailingslashit( $root );
+        $up      = function_exists( 'wp_get_upload_dir' ) ? wp_get_upload_dir() : wp_upload_dir();
+        $uploads = isset( $up['basedir'] ) ? untrailingslashit( $up['basedir'] ) : WP_CONTENT_DIR . '/uploads';
+        $mu      = untrailingslashit( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' );
+        try {
+            $it = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ),
+                RecursiveIteratorIterator::LEAVES_ONLY,
+                RecursiveIteratorIterator::CATCH_GET_CHILD
+            );
+            foreach ( $it as $f ) {
+                if ( ++$seen > self::CONTENT_WALK_CAP ) { break; }
+                $p = $f->getPathname();
+                if ( false !== strpos( $p, '/.quarantine' ) || false !== strpos( $p, '/.sucuriquarantine/' ) || false !== strpos( $p, '/node_modules/' ) ) { continue; }
+                if ( ! $f->isFile() ) { continue; }
+                $depth1     = ( dirname( $p ) === $root );
+                $in_uploads = ( 0 === strpos( $p, $uploads . '/' ) );
+                $in_mu      = ( 0 === strpos( $p, $mu . '/' ) );
+                if ( ! preg_match( self::CONTENT_EXT, $p ) ) {
+                    if ( ! $depth1 && ! $in_uploads && ! $in_mu ) { continue; }
+                    if ( $in_uploads && false !== strpos( $p, '/cache/' ) ) { continue; }
+                }
+                $mt = (int) @filemtime( $p );
+                if ( $now - $mt < self::CONTENT_RECENT_S ) { $recent[ $p ] = $mt; } else { $rest[] = $p; }
+            }
+        } catch ( \Throwable $e ) { /* unreadable subtree: scan what we have */ }
+        arsort( $recent );
+        $recent = array_slice( array_keys( $recent ), 0, self::CONTENT_RECENT_MAX );
+        sort( $rest, SORT_STRING );
+        return array( $recent, $rest );
+    }
+
+    /**
+     * Our own plugin directory against the sha256 list the release workflow ships as
+     * includes/release-hashes.txt: a PHP file not in the list is a foreign file inside DS Toolkit
+     * (the akismet-husk trick aimed at us), and a listed file whose hash differs has been modified
+     * since release. This is also what backs the engine's path-based self-exemption. No list (a
+     * development checkout) means the check is skipped, never an alert.
+     */
+    public static function check_toolkit_integrity() {
+        $out  = array();
+        $list = DS_TOOLKIT_PATH . 'includes/release-hashes.txt';
+        if ( ! is_readable( $list ) ) { return $out; }
+        $want = array();
+        foreach ( (array) file( $list, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $line ) {
+            if ( preg_match( '/^([0-9a-f]{64})\s+\*?(?:\.\/)?(.+)$/', trim( (string) $line ), $m ) ) { $want[ $m[2] ] = $m[1]; }
+        }
+        if ( ! $want ) { return $out; }
+        $base = untrailingslashit( DS_TOOLKIT_PATH );
+        $seen = 0;
+        try {
+            $it = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator( $base, FilesystemIterator::SKIP_DOTS ),
+                RecursiveIteratorIterator::LEAVES_ONLY,
+                RecursiveIteratorIterator::CATCH_GET_CHILD
+            );
+            foreach ( $it as $f ) {
+                if ( ++$seen > 5000 ) { break; }
+                if ( ! $f->isFile() || ! preg_match( '/\.(php|phtml|php[3-8]|phar|pht|inc)$/i', $f->getFilename() ) ) { continue; }
+                $rel = ltrim( str_replace( '\\', '/', substr( $f->getPathname(), strlen( $base ) ) ), '/' );
+                if ( ! isset( $want[ $rel ] ) ) {
+                    $out[] = array( 'CRIT', "A PHP file that is not part of the DS Toolkit release sits inside the plugin folder: {$rel} (" . (int) $f->getSize() . ' bytes). Nothing adds files there except an update; treat it as planted.' );
+                    continue;
+                }
+                if ( @hash_file( 'sha256', $f->getPathname() ) !== $want[ $rel ] ) {
+                    $out[] = array( 'CRIT', "A DS Toolkit file has been MODIFIED since its release: {$rel}. Reinstall the toolkit from GitHub and find what wrote it." );
+                }
+            }
+        } catch ( \Throwable $e ) { /* unreadable: report what we have */ }
+        return $out;
+    }
+
+    /** One alert / state line for a content finding: path, size, hash, score, the top two reasons. */
+    private static function content_line( $f ) {
+        $size = (int) @filesize( $f['path'] );
+        $why  = isset( $f['reasons'] ) ? array_slice( (array) $f['reasons'], 0, 2 ) : array();
+        return 'Web shell by behaviour: ' . $f['path'] . ' (' . $size . ' bytes, md5 ' . substr( (string) $f['md5'], 0, 8 ) . ', score ' . (int) $f['score'] . '). '
+            . implode(' ', $why )
+            . ' Quarantine it (move, never delete), then check both theme functions.php files and mu-plugins for a loader that re-creates it.';
+    }
+
     /* -------------------------------------------------------------- output */
 
     /** $tier is CRITICAL or HIGH; it leads the subject so the inbox sorts itself. */
@@ -629,7 +920,7 @@ class DS_Tripwire {
         $host = wp_parse_url( $site, PHP_URL_HOST );
         $tier = ( 'CRITICAL' === $tier ) ? 'CRITICAL' : 'HIGH';
         $body = "Hi team,\n\n"
-              . "DS Tripwire is the small security watchdog that checks every Design Shop site once a day. "
+              . "DS Tripwire is the small security watchdog that keeps watch on every Design Shop site. "
               . "It just noticed something on this site that looks like the recent malware attack:\n\n"
               . "Site:     {$site}\n"
               . "Severity: {$tier}\n"
