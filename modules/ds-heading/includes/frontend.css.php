@@ -62,6 +62,18 @@ $hc = $col( $settings->heading_color ?? '' );
 if ( '' !== $hc ) { echo "$node .ds-heading-title { color: {$hc}; }\n"; }
 $ha = $col( $settings->heading_accent_color ?? '' );
 if ( '' !== $ha ) { echo "$node .ds-heading-title .ds-heading-accent { color: {$ha}; }\n"; }
+/* Gradient text ({g}...{/g}, GH #200): two custom properties on the span. A blank colour falls back
+ * to the accent above; when that is blank too the static rule's var() fallback (global accent) applies.
+ * Emitted only when a gradient colour is set or the heading uses the marker, so a module that never
+ * touches the feature produces byte-identical CSS to before. */
+$gs_raw = $col( $settings->gradient_start_color ?? '' );
+$ge_raw = $col( $settings->gradient_end_color ?? '' );
+$gs = $gs_raw ?: $ha;
+$ge = $ge_raw ?: $ha;
+if ( ( '' !== $gs || '' !== $ge ) && ( '' !== $gs_raw || '' !== $ge_raw || false !== strpos( (string) ( $settings->heading ?? '' ), '{g}' ) ) ) {
+	$gv = ( '' !== $gs ? "--ds-gradient-start: {$gs}; " : '' ) . ( '' !== $ge ? "--ds-gradient-end: {$ge}; " : '' );
+	echo "$node .ds-heading-title .ds-heading-gradient { " . trim( $gv ) . " }\n";
+}
 $dc = $col( $settings->description_color ?? '' );
 if ( '' !== $dc ) { echo "$node .ds-heading-desc, $node .ds-heading-desc p { color: {$dc}; }\n"; }
 

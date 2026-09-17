@@ -50,6 +50,7 @@
 
 .ds-hero-title{font-size:clamp(3.4rem,10vw,8rem);line-height:.92;text-transform:uppercase;letter-spacing:.01em;font-weight:700;color:var(--fl-global-white,#fff);margin:20px 0 0;overflow-wrap:normal;word-break:keep-all;hyphens:none;}
 .ds-hero-accent{color:var(--fl-global-primary,#7ee29a);}
+.ds-hero-gradient{background-image:linear-gradient(90deg,var(--ds-gradient-start,var(--fl-global-accent)),var(--ds-gradient-end,var(--fl-global-accent)));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
 
 .ds-hero-sub{font-size:clamp(1.05rem,1.7vw,1.3rem);margin:24px 0 0;color:#e8efe6;font-weight:400;line-height:1.55;}
 
