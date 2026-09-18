@@ -133,6 +133,8 @@ class DS_Tripwire {
     const CONTENT_RECENT_MAX = 3000;
     /** Extensions scanned anywhere. Any other extension is scanned only at the web root, in uploads
      *  and in mu-plugins, which is where polyglots and dotfile shells hide. */
+    /** A file this small has no room for code, so it cannot execute anything. See is_executable_file(). */
+    const EXEC_MIN_BYTES = 16;
     const CONTENT_EXT = '/\.(php|phtml|php[3-8]|phar|pht|inc|html?|module|install)$/i';
 
     private $settings;
@@ -320,6 +322,18 @@ class DS_Tripwire {
      * .mov, dotfile shells).
      */
     private static function is_executable_file( $path ) {
+        // A file with no room for code cannot execute anything, whatever its extension.
+        // skyy2win.com carried 47,082 identical 7-byte "<?php\n\n" directory-index guards
+        // (md5 3beefb00777a6bd04265b7d33c23efa9). Counting each as an executable produced
+        // 2,494 HIGH + 6,326 REVIEW findings and a 7.6 MB alert email that Gmail delivered as an
+        // attachment nobody could read - while 242 REAL payloads sat in the same tree unseen.
+        // The smallest useful shell, "<?php eval($_GET[0]);", is 21 bytes. A failed filesize()
+        // falls through rather than under-reporting. The NAME-based shell rules are deliberately
+        // not gated on this: somerssports.org's 0-byte filefuns.php must still be caught by name.
+        $sz = @filesize( $path );
+        if ( false !== $sz && $sz <= self::EXEC_MIN_BYTES ) {
+            return false;
+        }
         if ( preg_match( '/\.(php|phtml|php5|php7|phar)$/i', $path ) ) {
             return true;
         }
@@ -835,7 +849,15 @@ class DS_Tripwire {
             foreach ( $it as $f ) {
                 if ( ++$seen > self::CONTENT_WALK_CAP ) { break; }
                 $p = $f->getPathname();
-                if ( false !== strpos( $p, '/.quarantine' ) || false !== strpos( $p, '/.sucuriquarantine/' ) || false !== strpos( $p, '/node_modules/' ) ) { continue; }
+                // wp-content/upgrade-temp-backup/ is WordPress's own plugin-update ROLLBACK store and
+                // wp-content/upgrade/ its extract scratch: neither is ever executed by WordPress. They
+                // also hold a copy of THIS PLUGIN after every self-update, and because the engine's
+                // self-exemption is by absolute path, that copy was scored CRITICAL (915 on
+                // ds-scan-engine.php, 140 on class-ds-tripwire.php) for carrying the campaign markers
+                // it hunts for. Seen on somerssports.org 2026-09-17 17:15 and oklahomabasketballacademy.com
+                // 5 times in one evening; it would have fired on every fleet site after each update.
+                if ( false !== strpos( $p, '/.quarantine' ) || false !== strpos( $p, '/.sucuriquarantine/' ) || false !== strpos( $p, '/node_modules/' )
+                    || false !== strpos( $p, '/upgrade-temp-backup/' ) || false !== strpos( $p, '/wp-content/upgrade/' ) ) { continue; }
                 if ( ! $f->isFile() ) { continue; }
                 $depth1     = ( dirname( $p ) === $root );
                 $in_uploads = ( 0 === strpos( $p, $uploads . '/' ) );
