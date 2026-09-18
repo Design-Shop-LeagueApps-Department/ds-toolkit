@@ -425,7 +425,8 @@ function dsscan_scan_file($path, $opts = []) {
                     // array_map('trim',$_POST) is benign; array_map($_GET['f'],$x) is not.
                     $cbLiteral = dsscan_first_string($stream, $arg[0], $arg[1]);
                     $danglist = array_merge($EXEC_SINKS, $CODE_SINKS, ['eval','system','assert','call_user_func','call_user_func_array']);
-                    if ($cbLiteral !== null && in_array(strtolower(trim($cbLiteral)), $danglist, true)) {
+                    if ($cbLiteral !== null && in_array(strtolower(trim($cbLiteral)), $danglist, true)
+                        && ! dsscan_literal_in_array_callable($stream, $arg[0], $arg[1], trim($cbLiteral))) {
                         $add('smuggle:' . $callName, 110, "$callName() smuggles a call to '" . trim($cbLiteral) . "'");
                     } else {
                         // a callback taken DIRECTLY from request input, only where arg 1 IS the callback,
@@ -633,6 +634,37 @@ function dsscan_range_is_method_dispatch($stream, $a, $b) {
         if ($t === T_ARRAY || ($t === null && $x === '[')) return true;
         if ($t === T_DOUBLE_COLON || $x === '::' || $t === T_OBJECT_OPERATOR || $x === '->') return true;
         if ($t === T_CONSTANT_ENCAPSED_STRING && strpos($x, '::') !== false) return true;
+    }
+    return false;
+}
+// Is the dangerous callable literal the METHOD half of an array callable - array($obj,'eval') or
+// [$obj,'eval'] - rather than a bare callable string? A method named like a builtin is not the
+// builtin: the Redis client exposes an eval() METHOD (Redis runs Lua server-side), and WPMU DEV
+// Hummingbird's Redis object cache calls call_user_func_array( array( $this->redis, 'eval' ), $args )
+// on every cache read. Stock Hummingbird 3.21.2 scored CRITICAL on 1812sports.com 2026-09-17 and the
+// cleanup quarantined a vendor file. The ENCLOSING BRACKET is the only thing that separates the two
+// cases: usort($a,'system') and array($o,'system') are identical token shapes locally, so walk back to
+// the bracket that encloses the literal and ask whether it opened an array.
+function dsscan_literal_in_array_callable($stream, $a, $b, $needle) {
+    $cnt = count($stream); $needle = strtolower($needle);
+    for ($j = $a; $j <= $b && $j < $cnt; $j++) {
+        if ($stream[$j]['t'] !== T_CONSTANT_ENCAPSED_STRING) continue;
+        if (strtolower(dsscan_strip_quotes($stream[$j]['s'])) !== $needle) continue;
+        $depth = 0;
+        for ($k = $j - 1; $k >= $a; $k--) {
+            $x = $stream[$k]['s'];
+            if ($x === ')' || $x === ']') { $depth++; continue; }
+            if ($x === '(' || $x === '[') {
+                if ($depth > 0) { $depth--; continue; }
+                if ($x === '[') return true;
+                for ($m = $k - 1; $m >= $a; $m--) {
+                    if ($stream[$m]['t'] === T_WHITESPACE) continue;
+                    return $stream[$m]['t'] === T_ARRAY;
+                }
+                return false;
+            }
+        }
+        return false;
     }
     return false;
 }
