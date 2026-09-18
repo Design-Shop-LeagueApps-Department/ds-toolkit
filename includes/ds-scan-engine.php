@@ -85,6 +85,15 @@ function dsscan_vocab() {
             'ServiceC08B' => 'eysoccer class-wp-logo shell',
             'Nx-zD' => 'Nx### uploader/RCE banner',
             'S-RECOVERY: ACTIVE' => 'BypassServ recovery banner',
+            /* lxml.ahkj.lol remote-loader dropper, found 2026-09-18 byte-identical on plljuniors.com
+               and summitfieldhockey.com as a 567-byte /www/.gitignore POLYGLOT (md5
+               79880f0eb3d9cddb3198626bcbd6c081). It curls its payload from the C2 at runtime, so the
+               domain is NOT in plaintext - it is base64 inside base64_decode('aHR0cDovL2x4bWwu...').
+               The 24-char prefix below encodes "http://lxml.ahkj.l" and is stable whatever path
+               follows, because base64 encodes in fixed 3-byte groups. The plaintext form is listed
+               too, for a variant that does not bother encoding. */
+            'aHR0cDovL2x4bWwuYWhrai5s' => 'lxml.ahkj.lol remote-loader C2 (base64), gitignore-polyglot dropper',
+            'ahkj.lol' => 'lxml.ahkj.lol remote-loader C2 (plaintext)',
         ],
     ];
     return $v;
