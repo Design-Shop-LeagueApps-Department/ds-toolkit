@@ -107,6 +107,21 @@ class DS_Tripwire {
     const KNOWN_BAD_GSC = array(
         '6313bd76ab531865', 'efa7380652dbb9c7', '423d49517cadfeab', '87c76e4ecadcf9a4',
         '1c82f06233560100', 'a7f9083ec5e0ee0b', 'f31c338420ffa4f7', 'cb9f43e6aa7e3150',
+        // Added 2026-09-18. Each was found on a fleet site during the Sep 17-18 batch and scored
+        // only REVIEW because it was unknown. '517c3ca44ca38f1d' appeared on TWO unrelated sites
+        // (plljuniors.com, summitfieldhockey.com), which is the same many-sites-one-token pattern
+        // that identified f31c338420ffa4f7 (three sites) and cb9f43e6aa7e3150.
+        '517c3ca44ca38f1d', '48d14fbc900051df', '3222669cc1aaedd0',
+    );
+
+    /**
+     * OUR OWN Search Console tokens. A google<16hex>.html in a web root is indistinguishable from an
+     * attacker's by shape, so without this list the team's own verification files get reported as
+     * suspected attacker tokens - which is exactly what would have happened to the five uploaded on
+     * 2026-09-18. Add a token here only when we placed it.
+     */
+    const KNOWN_GOOD_GSC = array(
+        'b53305670f66d641',  // Design Shop, placed 2026-09-18 on pocono, plljuniors, summitfieldhockey, primetimelacrosse, somerssports
     );
 
     /** Fixed filenames the campaign reuses for its shells (Wordfence: file manager / RCE). */
@@ -341,6 +356,45 @@ class DS_Tripwire {
         return false !== strpos( $head, '<?php' );
     }
 
+    /**
+     * md5s of files already verified as known-good, loaded from includes/known-good.md5.
+     *
+     * This is the gate the engine's own header asks the caller to apply: "WHAT MAKES IT SAFE TO BE
+     * AGGRESSIVE: the CALLER suppresses findings whose md5 is known-good." fw-check-site-v2.sh has
+     * always done this with the fleet manifest and reported 3 findings on thepaohio.com; this plugin
+     * had no gate at all and alerted on 100 files there. Same engine, same rules - the list is the
+     * entire difference, and it is why stock Beaver Builder core (on every fleet site), Divi, Headway,
+     * Hummingbird and Wordfence were being reported as web shells.
+     *
+     * Suppression is by HASH, never by path or name: a file cannot be made to collide with a verified
+     * hash, and if it matches it IS that file. Missing or unreadable list = no suppression, so the
+     * failure mode is "keep scanning", never "go quiet". Regenerate with
+     * fleet-audit/bin/gen-known-good.sh on every release; a stale list only costs a false positive.
+     */
+    private static function known_good_md5() {
+        static $set = null;
+        if ( null !== $set ) {
+            return $set;
+        }
+        $set = array();
+        $file = DS_TOOLKIT_PATH . 'includes/known-good.md5';
+        if ( ! is_readable( $file ) ) {
+            return $set;
+        }
+        $fh = @fopen( $file, 'r' );
+        if ( ! $fh ) {
+            return $set;
+        }
+        while ( false !== ( $line = fgets( $fh ) ) ) {
+            $line = trim( $line );
+            if ( 32 === strlen( $line ) && ctype_xdigit( $line ) ) {
+                $set[ $line ] = true;
+            }
+        }
+        fclose( $fh );
+        return $set;
+    }
+
     /** Count executable files under $dir, capped so a 35k-file WordPress copy does not stall the cron. */
     private static function exec_count( $dir, $cap = 300 ) {
         $n = 0; $seen = 0;
@@ -419,6 +473,9 @@ class DS_Tripwire {
 
             // files
             if ( preg_match( '/^google([0-9a-f]{16})\.html$/i', $e, $m ) ) {
+                if ( in_array( strtolower( $m[1] ), self::KNOWN_GOOD_GSC, true ) ) {
+                    continue;   // our own verification file; not a finding at all
+                }
                 if ( in_array( strtolower( $m[1] ), self::KNOWN_BAD_GSC, true ) ) {
                     $add( 'CRITICAL', "Known attacker Google Search Console token in the web root: {$e}. Removing the file does not revoke the owner; the partner must remove it under Search Console > Settings > Users and permissions." );
                 } else {
@@ -762,8 +819,12 @@ class DS_Tripwire {
             'self_paths'   => $self,
         );
         try {
-            $stats = dsscan_scan_list( $paths, $opts, function ( $f ) use ( &$found, &$skipped ) {
+            $known   = self::known_good_md5();
+            $cleared = 0;
+            $stats   = dsscan_scan_list( $paths, $opts, function ( $f ) use ( &$found, &$skipped, &$cleared, $known ) {
                 if ( ! empty( $f['skipped'] ) ) { $skipped++; return; }
+                // known-good by HASH: verified vendor and blueprint code, never a path or name match
+                if ( ! empty( $f['md5'] ) && isset( $known[ $f['md5'] ] ) ) { $cleared++; return; }
                 $found[] = $f;
             } );
         } catch ( \Throwable $e ) {
@@ -809,6 +870,10 @@ class DS_Tripwire {
         $c['alerted']     = array_slice( $alerted, 0, 100, true );
         $c['findings']    = array_slice( $record, 0, 50 );
         $c['skipped']     = $skipped;
+        // How many findings the known-good hash gate suppressed. Recorded because a scanner that
+        // goes quiet has to be able to say why: "cleared=412" is auditable, silence is not.
+        $c['cleared']     = $cleared;
+        $c['known_good']  = count( $known );
         $c['stats']       = array(
             'scanned' => (int) $stats['scanned'],
             'elapsed' => $stats['elapsed'],

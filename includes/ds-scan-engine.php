@@ -417,7 +417,20 @@ function dsscan_scan_file($path, $opts = []) {
                 if ($callName === 'preg_replace') {
                     $pat = dsscan_first_string($stream, $arg[0], $arg[1]);
                     if ($pat !== null && preg_match('/^\s*(.)[\s\S]*\1[a-zA-Z]*e[a-zA-Z]*\s*$/', $pat)) {
-                        $add('prege', 120, "preg_replace() with /e modifier (executes the replacement as PHP)");
+                        /* The /e modifier was REMOVED in PHP 7: preg_replace() raises a warning and
+                           returns null, so the replacement is never executed. Scoring it as a live
+                           shell made stock Headway theme code CRITICAL 132 (120 here + 12 for
+                           "eval() present") on thepaohio.com, summitfieldhockey.com and
+                           texasstix.com - and the flagged line is the documented WordPress
+                           serialization-repair idiom, which the file's own comment says:
+                             $data = maybe_unserialize(preg_replace('!s:(\d+):"(.*?)";!e', ...));
+                           Keep the full weight where it CAN execute (PHP 5), and only note the
+                           legacy smell where it cannot. The fleet is 7.4/8.2/8.4 throughout. */
+                        if (PHP_VERSION_ID < 70000) {
+                            $add('prege', 120, "preg_replace() with /e modifier (executes the replacement as PHP)");
+                        } else {
+                            $add('prege', 15, "preg_replace() with /e modifier - INERT on PHP " . PHP_MAJOR_VERSION . " (removed in PHP 7), legacy code smell only");
+                        }
                     }
                 }
                 if ($isCb) {
@@ -435,7 +448,11 @@ function dsscan_scan_file($path, $opts = []) {
                         $cbFirst = in_array($callName, ['call_user_func','call_user_func_array','array_map','register_shutdown_function','register_tick_function','ob_start','forward_static_call','forward_static_call_array'], true);
                         if ($cbFirst && $firstArg !== null && dsscan_range_has_input($stream, $firstArg[0], $firstArg[1], $tainted)
                             && !dsscan_range_is_method_dispatch($stream, $firstArg[0], $firstArg[1]) && !$fileVerifies) {
-                            $add('cbinput:' . $callName, 60, "$callName() callback is a bare request value (dynamic call of an attacker-named function)");
+                            if (dsscan_range_has_literal_affix($stream, $firstArg[0], $firstArg[1])) {
+                                $add('cbaffix:' . $callName, 25, "$callName() callback name is request input joined to a literal (constrained family, not an arbitrary function)");
+                            } else {
+                                $add('cbinput:' . $callName, 60, "$callName() callback is a bare request value (dynamic call of an attacker-named function)");
+                            }
                         }
                     }
                 }
@@ -631,7 +648,23 @@ function dsscan_range_is_method_dispatch($stream, $a, $b) {
     $cnt = count($stream);
     for ($j = $a; $j <= $b && $j < $cnt; $j++) {
         $t = $stream[$j]['t']; $x = $stream[$j]['s'];
-        if ($t === T_ARRAY || ($t === null && $x === '[')) return true;
+        if ($t === T_ARRAY) return true;
+        if ($t === null && $x === '[') {
+            /* `[` is overloaded in PHP: `[$obj,'m']` is an array CALLABLE, but `$_POST['f']` is array
+               INDEXING. Treating both as method dispatch meant call_user_func($_POST['f'], $x) - the
+               textbook dynamic-call backdoor - scored NOTHING at all. An index always follows a
+               variable, a `]`, a `)`, a bare string or a quoted string; a callable literal does not. */
+            $prev = null;
+            for ($k = $j - 1; $k >= $a - 1 && $k >= 0; $k--) {
+                if ($stream[$k]['t'] === T_WHITESPACE) continue;
+                $prev = $stream[$k]; break;
+            }
+            if ($prev !== null && ($prev['t'] === T_VARIABLE || $prev['t'] === T_STRING
+                || $prev['t'] === T_CONSTANT_ENCAPSED_STRING || $prev['s'] === ']' || $prev['s'] === ')')) {
+                continue;
+            }
+            return true;
+        }
         if ($t === T_DOUBLE_COLON || $x === '::' || $t === T_OBJECT_OPERATOR || $x === '->') return true;
         if ($t === T_CONSTANT_ENCAPSED_STRING && strpos($x, '::') !== false) return true;
     }
@@ -667,6 +700,26 @@ function dsscan_literal_in_array_callable($stream, $a, $b, $needle) {
         return false;
     }
     return false;
+}
+// Is the callback name an AFFIXED concatenation - $x . '_value', 'fl_as_' . $x - rather than a bare
+// request value? A literal affix constrains the reachable function names enormously, which is the
+// difference between "attacker names the function" and "attacker picks from a fixed family".
+// Beaver Builder core (on every fleet site) does, in classes/class-fl-builder-auto-suggest.php:
+//     if ( str_starts_with( $action, 'fl_as_' ) && function_exists( $action . '_value' ) ) {
+//         $data = call_user_func_array( $action . '_value', array( $value, $data ) );
+//     }
+// so the callable space is exactly the fl_as_*_value functions that already exist. The cbinput rule
+// said "only when it is a bare value" in its comment but never tested for bareness, so it scored
+// that HIGH 60 on all ~1,200 sites. Requires a literal of 3+ chars, so `$_GET['f'] . ''` or a
+// one-character affix cannot be used to duck the rule.
+function dsscan_range_has_literal_affix($stream, $a, $b, $minlen = 3) {
+    $cnt = count($stream); $hasConcat = false; $hasLiteral = false;
+    for ($j = $a; $j <= $b && $j < $cnt; $j++) {
+        if (dsscan_is_punct($stream[$j], '.')) { $hasConcat = true; continue; }
+        if ($stream[$j]['t'] === T_CONSTANT_ENCAPSED_STRING
+            && strlen(dsscan_strip_quotes($stream[$j]['s'])) >= $minlen) { $hasLiteral = true; }
+    }
+    return $hasConcat && $hasLiteral;
 }
 function dsscan_range_has_input($stream, $a, $b, $tainted) {
     $cnt = count($stream);
