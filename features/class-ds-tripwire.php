@@ -124,6 +124,19 @@ class DS_Tripwire {
         'b53305670f66d641',  // Design Shop, placed 2026-09-18 on pocono, plljuniors, summitfieldhockey, primetimelacrosse, somerssports
     );
 
+    /**
+     * Malware we have identified by exact hash, so the alert NAMES it instead of describing it.
+     * The engine already catches these behaviourally; this only improves what the email says, which
+     * matters when someone is triaging twenty alerts at 3am. Hash, not filename: the dropper below
+     * wears a `.gitignore` name precisely because a filename is worthless as evidence.
+     */
+    const KNOWN_BAD_MD5 = array(
+        // 567-byte /www/.gitignore POLYGLOT, byte-identical on plljuniors.com and
+        // summitfieldhockey.com (2026-09-18). Opens with a PHP tag, builds its variable name with
+        // chr(0x78^0x1d), and curls its payload from http://lxml.ahkj.lol/gitignore.txt.
+        '79880f0eb3d9cddb3198626bcbd6c081' => 'lxml.ahkj.lol gitignore-polyglot remote loader',
+    );
+
     /** Fixed filenames the campaign reuses for its shells (Wordfence: file manager / RCE). */
     const SHELL_NAMES = '/^(Nx[0-9]{3}\.php|egl\.php|kir\.php|filefuns\.php)$/';
 
@@ -825,6 +838,13 @@ class DS_Tripwire {
                 if ( ! empty( $f['skipped'] ) ) { $skipped++; return; }
                 // known-good by HASH: verified vendor and blueprint code, never a path or name match
                 if ( ! empty( $f['md5'] ) && isset( $known[ $f['md5'] ] ) ) { $cleared++; return; }
+                // name it if we have identified this exact file before
+                if ( ! empty( $f['md5'] ) && isset( self::KNOWN_BAD_MD5[ $f['md5'] ] ) ) {
+                    $f['reasons'] = array_merge(
+                        array( 'KNOWN MALWARE: ' . self::KNOWN_BAD_MD5[ $f['md5'] ] ),
+                        isset( $f['reasons'] ) ? (array) $f['reasons'] : array()
+                    );
+                }
                 $found[] = $f;
             } );
         } catch ( \Throwable $e ) {
