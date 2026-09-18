@@ -377,6 +377,16 @@ class DS_Tripwire {
 
         foreach ( (array) scandir( $root ) as $e ) {
             if ( '.' === $e || '..' === $e || preg_match( self::ROOT_ALLOW, $e ) ) continue;
+            // A site's OWN bespoke web-root code is a documented false-positive class
+            // (SCANNER-SPEC section 4). brsoccer.org keeps a 2019 schedules app in /www/events/,
+            // /www/classes/ and /www/require/ that bb-theme-child/header.php requires on every
+            // page; quarantining it took that site down for ~25 minutes, and because /events
+            // is also a published page slug the page-shadow rule scores it CRITICAL, which by
+            // design never baselines - so it alerts every single day. Exact names only, never a
+            // regex, so a site cannot break the scan with a bad pattern, and the names come from
+            // an mu-plugin on that site rather than from this list.
+            $extra = apply_filters( 'ds_tripwire_root_extra_allow', array(), $root );
+            if ( is_array( $extra ) && in_array( $e, $extra, true ) ) continue;
             $p = $root . '/' . $e;
 
             if ( is_dir( $p ) ) {
