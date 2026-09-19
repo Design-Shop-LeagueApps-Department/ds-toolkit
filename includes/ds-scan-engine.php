@@ -231,8 +231,24 @@ function dsscan_scan_file($path, $opts = []) {
     if (!$php_ext && $has_open) {
         $head = substr($src, 0, 64);
         if (strpos($head, '<?php') !== false || strpos($head, '<?=') !== false) {
-            $score += 120;
-            $reasons[] = "polyglot: this .$ext file IS PHP (opens with a PHP tag) - extension is camouflage, stageable via include()";
+            /* .html/.htm is the ONE extension family real plugins do use for PHP partials: WPMU DEV
+               ships Forminator's CSS templates that way and include()s them from
+               assets/js/front/templates/**.html. Measured 2026-09-20: one WP Engine install emailed
+               242 CRITICAL findings, 242 of 242 from that plugin, and 420 of 464 fleet installs carry
+               it, so a flat CRIT here is ~101,000 false alarms fleet-wide - the "alert nobody reads"
+               failure this layer exists to avoid. No web server hands .html to PHP-FPM, so exactly as
+               with the mid-file .js case below it cannot execute on its own request: it needs an
+               include(). Report it and let a second signal convict. Every OTHER extension (image,
+               media, dotfile, none) is never a legitimate PHP template and keeps full weight, which
+               is what still convicts the akismet husk dropper (61 KB of pure PHP named logo-*.png)
+               and the selftest's shell.png. */
+            if ($ext === 'html' || $ext === 'htm') {
+                $score += 45;
+                $reasons[] = "polyglot: this .$ext file IS PHP (opens with a PHP tag); some plugins legitimately ship PHP-generated templates as .html, so this alone is not proof - stageable via include()";
+            } else {
+                $score += 120;
+                $reasons[] = "polyglot: this .$ext file IS PHP (opens with a PHP tag) - extension is camouflage, stageable via include()";
+            }
         } else {
             $score += 30;
             $reasons[] = "a PHP open tag appears inside a .$ext file (often a page-builder template leak into cached JS/CSS; confirm it is not a staged payload)";
