@@ -4,6 +4,21 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.140] - 2026-09-20
+> Ships as 1.9.140, not 1.9.139: v1.9.139 was published in parallel for the wp-console Symfony clearance (see below) while this work was in review, so the number was taken.
+### Fixed
+- **The five vendor files behind every remaining CRITICAL email after the 1.9.138 push are now cleared by hash.** Alipio asked for a per-site exclusion on the sites that kept paging; this does it by **md5 instead**, because all five are stock vendor code: a per-site rule would silence 5 sites and leave the other ~1,100 running the same plugins to keep emailing. Each hash was read off the live container, then the exact plugin version was downloaded from `downloads.wordpress.org` and md5'd locally, and every one matched byte-for-byte. These are free wordpress.org plugins, so this is a provable match rather than a judgement call:
+  - `google-language-translator` **6.0.20** `url_addon/gtranslate.php` (`7bc1ae79…`, 11,240 b) - fired "self-rewriting resurrection loader" on the addon's own `debug.txt` logging. **Version drift only**: 7.0.1's `39cae140` was already listed. Sites: fcwestchester.com, legacyvolleyballcenter.com, southlandsoccerleague.com.
+  - `duplicator` **1.5.17** `src/Libs/Snap/SnapUtil.php` (`0642862d…`, 34,521 b) - fired the `cbinput` rule twice (`call_user_func` + `array_map`), 60+60 straight past a CRIT threshold of 100. Site: fredericksocialsports.com.
+  - `pixelyoursite` **11.4.0** and **11.4.1** `includes/class-pys.php` (`9ac11229…` / `19c83b5f…`) - fired "search-engine cloaking" and "injects a Search Console verification meta AND touches user/admin state". That is precisely what a tracking-pixel plugin does. Sites: mason.m14hoops.com, brsoccer.org.
+  - `gtranslate` **5.0.1** `gtranslate.php` (`e5c8b1b1…`, 190,525 b) - a translation proxy that legitimately reads `php://input` and sniffs the user agent. Note this is a **different plugin** from `google-language-translator` above. Site: brsoccer.org.
+- **1.9.138 shipped an allowlist that was already 23 hashes out of date.** `includes/known-good.md5` had been regenerated in the working tree but never committed, so the release carried 16,148 hashes while the tree held 16,171. The missing 23 were the 20 files this plugin itself changed in 1.9.138 plus the three `wp-console` bundled `symfony/string` copies. That is why icelinequadrinks.com still emailed **after** getting 1.9.138: the fix was written but not shipped. The list now goes to **16,173** hashes. Regenerating is part of cutting a release, not an afterthought.
+- **Our own Search Console verification file no longer reads HIGH.** `KNOWN_GOOD_GSC` in `class-ds-tripwire.php` already clears our token for the web-root scanner, but the **content engine** has its own `google-site-verification` rule (+60) that never consulted that list, so `googleb53305670f66d641.html` scored HIGH on all six sites where we placed it deliberately. Its hash is now listed. This is a stopgap: making the engine consult `KNOWN_GOOD_GSC` is the real fix and is still open.
+
+### Method
+No rule was softened and no rule was changed at all in this release; it is purely gate data. The engine selftest still passes 41/41. Deliberate exclusions hold: `wp-file-manager` and `css-hero/image_upload.php` remain out, and no malware hash from this campaign is present (checked explicitly for the kit `.htaccess` `17390d4be…`, the fsafc `.mp4` polyglot `e8342b8a…` and the mightykicks `cache.php` `60a4ef31…`).
+
+
 ## [1.9.139] - 2026-09-20
 ### Fixed
 - **wp-console's vendored Symfony is no longer reported as a web shell.** DS Tripwire emailed **3 CRITICALs every night** on `icelinequadrinks.com` (install `icelinerinks`), one per bundled PHP-version lib: `wp-content/plugins/wp-console/lib/php-{7.4,8.0,8.4}/vendor/symfony/string/AbstractUnicodeString.php`, each scored **120** for "runtime-assembled call to a dangerous function: preg_replace() (name built from string fragments/variable to evade scanners)".
@@ -16,19 +31,6 @@ All notable changes to DS Toolkit are documented here.
 
 ### Not changed
 The engine. No rule was softened, no score lowered, no path exempted. A dual-use construct in vendor code is cleared by hash or not at all.
-
-## [1.9.139] - 2026-09-20
-### Fixed
-- **The five vendor files behind every remaining CRITICAL email after the 1.9.138 push are now cleared by hash.** Alipio asked for a per-site exclusion on the sites that kept paging; this does it by **md5 instead**, because all five are stock vendor code: a per-site rule would silence 5 sites and leave the other ~1,100 running the same plugins to keep emailing. Each hash was read off the live container, then the exact plugin version was downloaded from `downloads.wordpress.org` and md5'd locally, and every one matched byte-for-byte. These are free wordpress.org plugins, so this is a provable match rather than a judgement call:
-  - `google-language-translator` **6.0.20** `url_addon/gtranslate.php` (`7bc1ae79…`, 11,240 b) - fired "self-rewriting resurrection loader" on the addon's own `debug.txt` logging. **Version drift only**: 7.0.1's `39cae140` was already listed. Sites: fcwestchester.com, legacyvolleyballcenter.com, southlandsoccerleague.com.
-  - `duplicator` **1.5.17** `src/Libs/Snap/SnapUtil.php` (`0642862d…`, 34,521 b) - fired the `cbinput` rule twice (`call_user_func` + `array_map`), 60+60 straight past a CRIT threshold of 100. Site: fredericksocialsports.com.
-  - `pixelyoursite` **11.4.0** and **11.4.1** `includes/class-pys.php` (`9ac11229…` / `19c83b5f…`) - fired "search-engine cloaking" and "injects a Search Console verification meta AND touches user/admin state". That is precisely what a tracking-pixel plugin does. Sites: mason.m14hoops.com, brsoccer.org.
-  - `gtranslate` **5.0.1** `gtranslate.php` (`e5c8b1b1…`, 190,525 b) - a translation proxy that legitimately reads `php://input` and sniffs the user agent. Note this is a **different plugin** from `google-language-translator` above. Site: brsoccer.org.
-- **1.9.138 shipped an allowlist that was already 23 hashes out of date.** `includes/known-good.md5` had been regenerated in the working tree but never committed, so the release carried 16,148 hashes while the tree held 16,171. The missing 23 were the 20 files this plugin itself changed in 1.9.138 plus the three `wp-console` bundled `symfony/string` copies. That is why icelinequadrinks.com still emailed **after** getting 1.9.138: the fix was written but not shipped. The list now goes to **16,173** hashes. Regenerating is part of cutting a release, not an afterthought.
-- **Our own Search Console verification file no longer reads HIGH.** `KNOWN_GOOD_GSC` in `class-ds-tripwire.php` already clears our token for the web-root scanner, but the **content engine** has its own `google-site-verification` rule (+60) that never consulted that list, so `googleb53305670f66d641.html` scored HIGH on all six sites where we placed it deliberately. Its hash is now listed. This is a stopgap: making the engine consult `KNOWN_GOOD_GSC` is the real fix and is still open.
-
-### Method
-No rule was softened and no rule was changed at all in this release; it is purely gate data. The engine selftest still passes 41/41. Deliberate exclusions hold: `wp-file-manager` and `css-hero/image_upload.php` remain out, and no malware hash from this campaign is present (checked explicitly for the kit `.htaccess` `17390d4be…`, the fsafc `.mp4` polyglot `e8342b8a…` and the mightykicks `cache.php` `60a4ef31…`).
 
 ## [1.9.138] - 2026-09-20
 ### Fixed
