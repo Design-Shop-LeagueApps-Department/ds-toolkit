@@ -4,6 +4,19 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.139] - 2026-09-20
+### Fixed
+- **wp-console's vendored Symfony is no longer reported as a web shell.** DS Tripwire emailed **3 CRITICALs every night** on `icelinequadrinks.com` (install `icelinerinks`), one per bundled PHP-version lib: `wp-content/plugins/wp-console/lib/php-{7.4,8.0,8.4}/vendor/symfony/string/AbstractUnicodeString.php`, each scored **120** for "runtime-assembled call to a dangerous function: preg_replace() (name built from string fragments/variable to evade scanners)".
+- **The rule fired correctly on stock library code.** `AbstractUnicodeString::replaceMatches()` picks between two PCRE functions, stores the NAME IN A VARIABLE, then calls the variable: `$replace = 'preg_replace_callback';` in one branch, `$replace = 'preg_replace';` in the other, then `$replace($fromRegexp.'u', $to, $this->string)`. That is exactly the shape a shell uses to beat a grep for `preg_replace(`, which is why the rule exists and why it stays unchanged. This is the hash gate's job, not the engine's.
+- **Verified against upstream, not by inspection.** Each file was hashed against its exact Symfony tag at `raw.githubusercontent.com/symfony/symfony/<tag>/src/Symfony/Component/String/AbstractUnicodeString.php`, and **md5 AND byte size match on all three**: `05ee97f2…` = v5.4.31 (27,545 b), `077bb92f…` = v6.0.19 (27,130 b), `f6eccd56…` = v7.3.4 (28,516 b). wp-console ships one vendor tree per PHP target, which is why there are three hashes and not one; three different versions at three different sizes, all mtime 2025-12-05, is also the wrong shape for a planted payload, which drops one file.
+- **Blast radius is small but the noise was permanent.** wp-console appears on **1 of the ~120 tracked site folders** and is not in the dslaunchpad5 blueprint, so this was 3 emails a night from a single install, indefinitely, for code that provably matches upstream. Note that **deactivating the plugin would not have stopped it**: Tripwire scans files on disk, not the active-plugin list.
+
+### Also
+- `includes/known-good.md5` regenerated: **23 hashes added, now 16,167**. Three are the Symfony files above; the other **20 are catch-up** from variant rows accepted into `fleet-audit/manifests/README-variants.md` after the list was last built on 2026-09-18 16:08 - the WPMU DEV per-download watermark files on `wpmudev-updates` 5.0.2, `wp-defender` 6.2.4 and `forminator` 1.57.2, the `bb-theme-child` stock variants, the Flywheel `autoupdater` 6.1.8 build, `ds-origin-guard.php`, and our own 1.9.137/1.9.138 files. Every one was verified before it became a variant row; none is new trust.
+
+### Not changed
+The engine. No rule was softened, no score lowered, no path exempted. A dual-use construct in vendor code is cleared by hash or not at all.
+
 ## [1.9.138] - 2026-09-20
 ### Fixed
 - **A PHP-generated `.html` template is no longer reported as a web shell, which is what was standing between the fleet and a WP Engine rollout.** The polyglot rule added a flat **120** for any non-PHP-extension file that opens with a PHP tag, against a `DSSCAN_CRIT_SCORE` of **100**, so that one signal convicted on its own with no corroboration. WPMU DEV ships Forminator's CSS partials as `.html` full of PHP and `include()`s them from `assets/js/front/templates/**.html`, so every install carrying Forminator reported them as web shells. Measured on `absolutevbc.wpenginepowered.com` (already on 1.9.137): **242 CRITICAL findings in a single 110 KB email, 242 of 242 from that one plugin, zero real malware.** Forminator 1.57.3 ships 289 such files. Across WP Engine, **420 of the 464 installs still on 1.9.130 carry Forminator**, so switching the content scan on fleet-wide would have produced on the order of **101,000 false CRITICALs and ~46 MB of email** - precisely the "alert nobody reads" failure this layer exists to prevent, and 180x the ~550 emails that 1.9.137 was released to stop.
