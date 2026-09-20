@@ -1,7 +1,15 @@
 # Tripwire fleet lists
 
-Two files, fetched hourly by every site running DS Toolkit 1.9.141 or later. **A hash committed here is live
-on every site within one cron cycle. No release, no fleet push.**
+Two files, fetched hourly by every site running DS Toolkit 1.9.142 or later. **A hash committed here is live
+on every site within one cron cycle. No release, no fleet push.** One measured caveat: GitHub raw is served
+from a CDN whose nodes refresh independently, so for a few minutes after a commit some sites can fetch the
+previous copy and keep it for their cycle. Expect fleet-wide within one to two hours, not minutes. To force one
+site: `wp transient delete ds_tripwire_rl_allow` then `wp eval 'DS_Tripwire::content_scan_now(60);'`.
+
+Proven end to end 2026-09-20 on southlandsoccerleague.com: a one-line commit (`5db68bd`, Forminator 1.57.2
+`upload.php`) went from `fetched count=8` to `count=9`, the merged known-good set from 16,176 to 16,177, and a
+live HIGH 55 finding on that file stopped being reported, while `dsscan_scan_file()` on its own still scored
+it HIGH 55. The rule is untouched; only the gate changed.
 
 | File | What a line does | Safety property |
 |---|---|---|
