@@ -16,3 +16,4 @@ e5c8b1b1dd68b486705608c335d16da3  gtranslate 5.0.1 gtranslate.php - byte-identic
 c0428e76e9e5ec0071ced76f56821f5e  googleb53305670f66d641.html - OUR Design Shop Search Console token, 53 b
 289ae7f18bed29cd165934db0928a307  gravityforms 2.2.5 form_display.php - premium, hand-read: upload gated by is_user_logged_in + check_admin_referer (2026-09-20)
 0c718c42738f4b0d3a7248019e3987c5  everest-forms 3.6.0 includes/abstracts/class-evf-form-fields-upload.php - byte-identical to wordpress.org (2026-09-20)
+5f86c92a1a18d40f673be09d44a38062  forminator 1.57.2 library/fields/upload.php - 36248b, byte-identical to wordpress.org 1.57.2 (verified 2026-09-20). Fired HIGH 55 "move_uploaded_file fed by request input"; the upload is guarded by wp_generate_password+sanitize_file_name (403), wp_check_filetype (414), wp_unique_filename (476). Site: southlandsoccerleague.com
