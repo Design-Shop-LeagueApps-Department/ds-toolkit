@@ -389,23 +389,170 @@ class DS_Tripwire {
         if ( null !== $set ) {
             return $set;
         }
-        $set = array();
+        $set  = array();
         $file = DS_TOOLKIT_PATH . 'includes/known-good.md5';
-        if ( ! is_readable( $file ) ) {
-            return $set;
+        $fh   = is_readable( $file ) ? @fopen( $file, 'r' ) : false;
+        if ( $fh ) {
+            while ( false !== ( $line = fgets( $fh ) ) ) {
+                $line = trim( $line );
+                if ( 32 === strlen( $line ) && ctype_xdigit( $line ) ) {
+                    $set[ $line ] = true;
+                }
+            }
+            fclose( $fh );
         }
-        $fh = @fopen( $file, 'r' );
-        if ( ! $fh ) {
-            return $set;
+        // Remote additions (1.9.141), merged AFTER the bundle so the bundle stays authoritative and the
+        // remote copy can only ever ADD. Every fetch failure leaves $set exactly as the bundle built it,
+        // which is the behaviour every release before this one had.
+        foreach ( self::remote_list( 'allow' ) as $md5 => $v ) {
+            $set[ $md5 ] = true;
         }
-        while ( false !== ( $line = fgets( $fh ) ) ) {
+        return $set;
+    }
+
+    /* ------------------------------------------ remote lists (1.9.141) ------------------------ */
+
+    /**
+     * Where the fleet-wide lists live. Raw GitHub, main branch. PUBLIC on purpose: the lists hold
+     * md5s of files and nothing secret, and a private repo would put a read token on every one of
+     * ~1,100 sites, where the first compromised site leaks it. What protects the fleet is WRITE
+     * access to main, not read access to the file. A hash committed here is live on every site
+     * within one cron cycle, with no release and no fleet push.
+     */
+    const REMOTE_LIST_BASE = 'https://raw.githubusercontent.com/Design-Shop-LeagueApps-Department/ds-toolkit/main/lists/';
+    const REMOTE_TTL       = 3600;   // one cron cycle
+    const REMOTE_JITTER    = 900;    // per-site spread, so 1,100 sites do not hit GitHub in the same second
+    const REMOTE_MAX_BYTES = 524288; // 512 KB; the remote lists are deltas, the ~530 KB bundle stays bundled
+    const REMOTE_TIMEOUT   = 4;      // seconds; runs BEFORE the scan deadline is stamped, cached the other 59 min
+
+    /** Per-list fetch health for this run, recorded in state so silence is auditable. */
+    private static $remote_status = array();
+
+    /**
+     * Parse an md5 list body. PURE: no WordPress, no I/O, so the unit test can feed it garbage.
+     * A line counts only if its first 32 characters are hex and the 33rd is end-of-line or
+     * whitespace. Everything else is ignored: comments, an HTML error page, a rate-limit notice,
+     * a truncated line, a 31-character typo. For a named list the rest of the line is the label.
+     * Returns [md5 => true] or, when $named, [md5 => label].
+     */
+    private static function parse_md5_list( $body, $named = false ) {
+        $out = array();
+        if ( ! is_string( $body ) || '' === $body ) {
+            return $out;
+        }
+        foreach ( preg_split( '/\r\n|\r|\n/', $body ) as $line ) {
             $line = trim( $line );
-            if ( 32 === strlen( $line ) && ctype_xdigit( $line ) ) {
-                $set[ $line ] = true;
+            if ( '' === $line || '#' === $line[0] ) {
+                continue;
+            }
+            $md5  = strtolower( substr( $line, 0, 32 ) );
+            $tail = trim( (string) substr( $line, 32 ) );
+            if ( 32 !== strlen( $md5 ) || ! ctype_xdigit( $md5 ) ) {
+                continue;
+            }
+            if ( '' !== $tail && ! ctype_space( $line[32] ) ) {
+                continue; // 33+ hex chars run together: not a hash, do not guess
+            }
+            $out[ $md5 ] = $named ? ( '' !== $tail ? $tail : 'listed in the remote deny list' ) : true;
+        }
+        return $out;
+    }
+
+    /**
+     * Fetch one remote list, cached for a cron cycle. Built for a fleet of thousands where the worst
+     * bug is an email flood, so every failure path is conservative:
+     *   - not 200, not text, too large, transport error  -> failure
+     *   - a body with ZERO valid hashes                   -> failure (an error page, a rate-limit
+     *     notice and a truncated response all parse to zero; none may replace a good list)
+     *   - failure                                         -> the last GOOD copy if one exists, else
+     *     nothing, cached 15 min so a dead endpoint is retried, not hammered
+     *   - anything thrown                                 -> nothing
+     * "Nothing" means the bundled list runs alone, which is exactly the behaviour of every earlier
+     * release. This function can reduce suppression to what the bundle does; it can never widen a
+     * failure into silence, and it never throws.
+     */
+    private static function remote_list( $which ) {
+        $which = ( 'deny' === $which ) ? 'deny' : 'allow';
+        $named = ( 'deny' === $which );
+        $key   = 'ds_tripwire_rl_' . $which;
+        $good  = 'ds_tripwire_rlg_' . $which;
+        $day   = defined( 'DAY_IN_SECONDS' ) ? DAY_IN_SECONDS : 86400;
+        try {
+            if ( ! function_exists( 'get_transient' ) || ! function_exists( 'wp_remote_get' ) ) {
+                self::$remote_status[ $which ] = array( 'status' => 'unavailable', 'count' => 0 );
+                return array();
+            }
+            $cached = get_transient( $key );
+            if ( is_array( $cached ) ) {
+                self::$remote_status[ $which ] = array( 'status' => 'cached', 'count' => count( $cached ) );
+                return $cached;
+            }
+            $r    = wp_remote_get( self::REMOTE_LIST_BASE . 'tripwire-' . $which . '.md5', array(
+                'timeout'     => self::REMOTE_TIMEOUT,
+                'redirection' => 1,
+                'sslverify'   => true,
+                'headers'     => array( 'Accept' => 'text/plain' ),
+                'user-agent'  => 'DS-Tripwire/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '?' ),
+            ) );
+            $fail = '';
+            $list = array();
+            if ( is_wp_error( $r ) ) {
+                $fail = 'error: ' . substr( $r->get_error_message(), 0, 60 );
+            } else {
+                $code = (int) wp_remote_retrieve_response_code( $r );
+                $body = (string) wp_remote_retrieve_body( $r );
+                $ct   = (string) wp_remote_retrieve_header( $r, 'content-type' );
+                if ( 200 !== $code ) {
+                    $fail = 'http ' . $code;
+                } elseif ( strlen( $body ) > self::REMOTE_MAX_BYTES ) {
+                    $fail = 'too large';
+                } elseif ( '' !== $ct && 0 !== strpos( $ct, 'text/' ) ) {
+                    $fail = 'not text: ' . substr( $ct, 0, 40 );
+                } else {
+                    $list = self::parse_md5_list( $body, $named );
+                    if ( 0 === count( $list ) ) {
+                        $fail = 'no valid hashes';
+                    }
+                }
+            }
+            if ( '' === $fail ) {
+                $spread = function_exists( 'home_url' ) ? ( crc32( (string) home_url() ) % self::REMOTE_JITTER ) : 0;
+                set_transient( $key, $list, self::REMOTE_TTL + $spread );
+                set_transient( $good, $list, 30 * $day );
+                self::$remote_status[ $which ] = array( 'status' => 'fetched', 'count' => count( $list ) );
+                return $list;
+            }
+            $last = get_transient( $good );
+            $last = is_array( $last ) ? $last : array();
+            set_transient( $key, $last, 900 );
+            self::$remote_status[ $which ] = array(
+                'status' => 'fail (' . $fail . ')' . ( $last ? ', using last good' : ', bundle only' ),
+                'count'  => count( $last ),
+            );
+            return $last;
+        } catch ( \Throwable $e ) {
+            self::$remote_status[ $which ] = array( 'status' => 'exception: ' . substr( $e->getMessage(), 0, 60 ), 'count' => 0 );
+            return array();
+        }
+    }
+
+    /**
+     * Bundled KNOWN_BAD_MD5 plus the remote deny list, [md5 => name]. A deny entry only NAMES a
+     * finding the engine has already scored on behaviour; it never creates one. So a wrong deny hash
+     * costs a wrong label on a real finding, and can never manufacture an alert on a clean file.
+     */
+    private static function known_bad_md5() {
+        static $bad = null;
+        if ( null !== $bad ) {
+            return $bad;
+        }
+        $bad = self::KNOWN_BAD_MD5;
+        foreach ( self::remote_list( 'deny' ) as $md5 => $name ) {
+            if ( ! isset( $bad[ $md5 ] ) ) {
+                $bad[ $md5 ] = is_string( $name ) ? $name : 'listed in the remote deny list';
             }
         }
-        fclose( $fh );
-        return $set;
+        return $bad;
     }
 
     /** Count executable files under $dir, capped so a 35k-file WordPress copy does not stall the cron. */
@@ -825,6 +972,12 @@ class DS_Tripwire {
         $self    = array_values( array_filter( array( realpath( __FILE__ ), realpath( $engine ) ) ) );
         $found   = array();
         $skipped = 0;
+        // Lists BEFORE the deadline is stamped: a cold remote fetch (4 s cap, then cached for the
+        // cycle) must never eat the scan's own budget. Both loaders are exception-proof and fall back
+        // to bundled data, so the scan runs identically whether GitHub answered or not. The catches
+        // here are belt-and-braces: an empty allow set means "suppress nothing", the loud direction.
+        try { $known = self::known_good_md5(); } catch ( \Throwable $e ) { $known = array(); }
+        try { $bad   = self::known_bad_md5();  } catch ( \Throwable $e ) { $bad   = self::KNOWN_BAD_MD5; }
         $opts    = array(
             'min'          => DSSCAN_HIGH_SCORE,
             'tokenize_cap' => $tokcap,
@@ -832,16 +985,15 @@ class DS_Tripwire {
             'self_paths'   => $self,
         );
         try {
-            $known   = self::known_good_md5();
             $cleared = 0;
-            $stats   = dsscan_scan_list( $paths, $opts, function ( $f ) use ( &$found, &$skipped, &$cleared, $known ) {
+            $stats   = dsscan_scan_list( $paths, $opts, function ( $f ) use ( &$found, &$skipped, &$cleared, $known, $bad ) {
                 if ( ! empty( $f['skipped'] ) ) { $skipped++; return; }
                 // known-good by HASH: verified vendor and blueprint code, never a path or name match
                 if ( ! empty( $f['md5'] ) && isset( $known[ $f['md5'] ] ) ) { $cleared++; return; }
-                // name it if we have identified this exact file before
-                if ( ! empty( $f['md5'] ) && isset( self::KNOWN_BAD_MD5[ $f['md5'] ] ) ) {
+                // name it if we have identified this exact file before (bundled list + remote deny list)
+                if ( ! empty( $f['md5'] ) && isset( $bad[ $f['md5'] ] ) ) {
                     $f['reasons'] = array_merge(
-                        array( 'KNOWN MALWARE: ' . self::KNOWN_BAD_MD5[ $f['md5'] ] ),
+                        array( 'KNOWN MALWARE: ' . $bad[ $f['md5'] ] ),
                         isset( $f['reasons'] ) ? (array) $f['reasons'] : array()
                     );
                 }
@@ -894,6 +1046,10 @@ class DS_Tripwire {
         // goes quiet has to be able to say why: "cleared=412" is auditable, silence is not.
         $c['cleared']     = $cleared;
         $c['known_good']  = count( $known );
+        // Remote list health for this run. A scan that suppressed or named more than the bundle can
+        // say where that came from, and a dead endpoint shows up here instead of silently leaving the
+        // bundle in charge. Read it with: wp option get ds_tripwire_state --format=json (content.remote)
+        $c['remote']      = self::$remote_status;
         $c['stats']       = array(
             'scanned' => (int) $stats['scanned'],
             'elapsed' => $stats['elapsed'],

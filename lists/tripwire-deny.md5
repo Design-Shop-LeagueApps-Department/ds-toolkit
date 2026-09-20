@@ -1,0 +1,12 @@
+# DS Tripwire fleet DENY list - md5s of files identified as malware, one per line, with a NAME.
+# Fetched hourly by every site. A hash committed here NAMES the finding in the alert within one cron
+# cycle ("KNOWN MALWARE: <name>"), which is what matters when someone is triaging twenty alerts at 3am.
+#
+# SAFETY: a deny entry only labels a finding the behaviour engine has ALREADY scored. It never creates
+# a finding, so a wrong hash here costs a wrong label on a real finding and can never manufacture an
+# alert on a clean file. Only list hashes of files you have read.
+#
+# Format: <32 hex>  <name shown in the alert>
+60a4ef31372169f9f0366335d7408919  Sep-2026 kit payload cache.php (base64+gzip blob; mightykicks.net 2026-09-19)
+e8342b8a207bb71876bd42d65e0d2f72  Sep-2026 kit stager, PHP polyglot wearing .mp4 (goto + range() char table + md5(md5()) gate; fsafc.com 2026-09-20)
+8925814d1599dc276066e315ecd0255c  wp-content/db.php drop-in cloaker, 206 goto, reads ACCEPT_LANGUAGE (northshorestarsbasketball.com 2026-09-19)

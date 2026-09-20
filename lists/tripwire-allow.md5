@@ -1,0 +1,18 @@
+# DS Tripwire fleet ALLOW list - md5s of files verified as known-good, one per line.
+# Fetched hourly by every site (features/class-ds-tripwire.php, remote_list). A hash committed here
+# is live fleet-wide within one cron cycle: no release, no fleet push.
+#
+# RULES. Suppression is by HASH only, never by path or name. Never add a hash you have not read the
+# file for, or verified byte-identical against wordpress.org / the vendor. Record the evidence on the
+# line. This file can only ADD to the bundled includes/known-good.md5; it cannot remove.
+# A body with zero valid hashes is treated as a failed fetch, so never leave this file comment-only.
+#
+# Format: <32 hex>  <free-text evidence>. Anything after the hash is ignored by the parser.
+7bc1ae797f1af59d37e9a0818b636d83  google-language-translator 6.0.20 url_addon/gtranslate.php - byte-identical to wordpress.org (2026-09-20)
+0642862d046c676469600af4c9af59d6  duplicator 1.5.17 src/Libs/Snap/SnapUtil.php - byte-identical to wordpress.org (2026-09-20)
+9ac112295c1f26a3fdf6f85dc11474a3  pixelyoursite 11.4.0 includes/class-pys.php - byte-identical to wordpress.org (2026-09-20)
+19c83b5f6ecdf6586daedad26b2f73dc  pixelyoursite 11.4.1 includes/class-pys.php - byte-identical to wordpress.org (2026-09-20)
+e5c8b1b1dd68b486705608c335d16da3  gtranslate 5.0.1 gtranslate.php - byte-identical to wordpress.org (2026-09-20)
+c0428e76e9e5ec0071ced76f56821f5e  googleb53305670f66d641.html - OUR Design Shop Search Console token, 53 b
+289ae7f18bed29cd165934db0928a307  gravityforms 2.2.5 form_display.php - premium, hand-read: upload gated by is_user_logged_in + check_admin_referer (2026-09-20)
+0c718c42738f4b0d3a7248019e3987c5  everest-forms 3.6.0 includes/abstracts/class-evf-form-fields-upload.php - byte-identical to wordpress.org (2026-09-20)
