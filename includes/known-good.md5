@@ -1,4 +1,4 @@
-# ds-toolkit known-good md5 list. Generated 2026-09-20 03:37 UTC by fleet-audit/bin/gen-known-good.sh
+# ds-toolkit known-good md5 list. Generated 2026-09-20 03:40 UTC by fleet-audit/bin/gen-known-good.sh
 # Sources: latest.tsv + hand-verified premium vendor files. One md5 per line, comments start with #.
 # A finding whose file md5 appears here is SUPPRESSED by DS_Tripwire. Never add a hash you have not read the file for.
 00025f29317460fd61d7a3312303ddfe
@@ -16169,3 +16169,9 @@ a32339fceb404b155aaeb669899c97d3
 05ee97f266a7a8e62c4aa0c96f6385bb
 077bb92f15ce521e70be3290e1f2cd26
 f6eccd560421c717707afb5dfd5caf80
+7bc1ae797f1af59d37e9a0818b636d83
+0642862d046c676469600af4c9af59d6
+9ac112295c1f26a3fdf6f85dc11474a3
+19c83b5f6ecdf6586daedad26b2f73dc
+e5c8b1b1dd68b486705608c335d16da3
+c0428e76e9e5ec0071ced76f56821f5e
