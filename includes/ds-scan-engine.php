@@ -472,7 +472,8 @@ function dsscan_scan_file($path, $opts = []) {
                         // Beaver Builder/ACF/Forminator route AJAX behind a nonce)
                         $cbFirst = in_array($callName, ['call_user_func','call_user_func_array','array_map','register_shutdown_function','register_tick_function','ob_start','forward_static_call','forward_static_call_array'], true);
                         if ($cbFirst && $firstArg !== null && dsscan_range_has_input($stream, $firstArg[0], $firstArg[1], $tainted)
-                            && !dsscan_range_is_method_dispatch($stream, $firstArg[0], $firstArg[1]) && !$fileVerifies) {
+                            && !dsscan_range_is_method_dispatch($stream, $firstArg[0], $firstArg[1])
+                            && !dsscan_range_is_closure_literal($stream, $firstArg[0], $firstArg[1]) && !$fileVerifies) {
                             if (dsscan_range_has_literal_affix($stream, $firstArg[0], $firstArg[1])) {
                                 $add('cbaffix:' . $callName, 25, "$callName() callback name is request input joined to a literal (constrained family, not an arbitrary function)");
                             } else {
@@ -745,6 +746,25 @@ function dsscan_range_has_literal_affix($stream, $a, $b, $minlen = 3) {
             && strlen(dsscan_strip_quotes($stream[$j]['s'])) >= $minlen) { $hasLiteral = true; }
     }
     return $hasConcat && $hasLiteral;
+}
+function dsscan_range_is_closure_literal($stream, $a, $b) {
+    /* `array_map(function($file){...}, $data)` is NOT a dynamic call: the callback is a literal
+       declared inline, fixed at compile time, and no request value can redirect it. The taint set
+       is keyed by variable NAME for the whole file, so a closure PARAMETER that happens to reuse a
+       name tainted in an unrelated method (Everest Forms 3.6.0: `$file` from $_POST at line 136,
+       reused as a closure param at line 1408) made stock wordpress.org-verified vendor code score
+       CRIT 125 and email the fleet. Only the START of the range counts, so array_map($_GET['f'],$x)
+       still fires. */
+    $cnt = count($stream);
+    for ($j = $a; $j <= $b && $j < $cnt; $j++) {
+        $t = $stream[$j]['t'];
+        if ($t === T_WHITESPACE || $t === T_COMMENT || $t === T_DOC_COMMENT) continue;
+        if ($t === T_STATIC) continue;                 // static function () use (...) {}
+        if ($t === T_FUNCTION) return true;            // function () {}
+        if (defined('T_FN') && $t === T_FN) return true; // fn () => ...
+        return false;                                   // anything else: not a closure literal
+    }
+    return false;
 }
 function dsscan_range_has_input($stream, $a, $b, $tainted) {
     $cnt = count($stream);
