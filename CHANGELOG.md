@@ -4,6 +4,18 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.144] - 2026-09-22
+### Added
+- **LeagueApps Programs: column sorting, keyword search and pagination** (the V1 beta list from Zay, 2026-09-22).
+  - **Sort by column.** Every heading except Register is a button: ascending, descending, then back to the default order, with `aria-sort` kept in step. Dates, prices, spots, ages, months and days sort as numbers (so `$1,395` outranks `$995` and `U9` precedes `U10`), text columns alphabetically. On phones, where the headings are hidden in the card view, a "Sort by" dropdown appears in the bar with the same choices. Off switch under Filters > Sorting.
+  - **Keyword search.** A search box in the bar matches every word typed against every visible column (program, age group, location, sponsor, level…), combines with the dropdown filters, and "Clear filters" clears it too. Label, placeholder and width are editable; it shares the dropdowns' fill, text and border colours.
+  - **Pagination.** Rows per page under Filters > Pagination (blank = everything on one page, so existing tables are unchanged). Previous / Next, a windowed page list (1 2 … 7), a "26–50 / 169" range label, and the page resets to 1 whenever a filter, search or sort changes; the pager hides itself when a filter leaves a single page. Colours and corner radius under Style > Pagination & sort arrows.
+  - **Which programs are listed is now written in the builder** (Programs > What to show): everything LeagueApps marks Public and not deleted whose season is upcoming or in progress, one row per age group with the parent tournament never repeated, sold-out and closed-registration programs included unless hidden. Registration status is derived where LeagueApps leaves it blank. If LeagueApps does not answer, the last good copy (up to 7 days old) is served silently to visitors and a note is shown to editors only.
+- Rows now carry a lowercase search haystack and a numeric sort key per column; a table with sorting and search switched off carries neither.
+### Fixed
+- **Phones ignored the filters (and would have ignored paging).** 1.9.143 moved the card layout into node-scoped CSS so the breakpoint could follow Beaver Builder, which made the card `tr { display:flex }` rule out-specify the static `.is-hidden` rule; a filtered-out row stayed visible below the site's small-screen breakpoint. Caught by the phone screenshot in this release's audit (160 cards where 25 were expected). The hide rule is now emitted node-scoped inside the same breakpoint block, and the browser test asserts computed visibility at 390px rather than class names.
+- Verified in a real browser against the reference site's 169-tournament feed: 25-per-page paging with correct window and range, price / age / date sorting in both directions with the third click restoring the default, two-word search, search plus filter plus sort together, the phone Sort-by dropdown, and no sideways scroll at 390px.
+
 ## [1.9.143] - 2026-09-22
 ### Added
 - **LeagueApps Programs: a Beaver Builder module that lists a partner's live LeagueApps tournaments, leagues, camps and clinics as a filterable table.** Replaces the hosted `la-listing-widget` iframe. Born as a site-scoped mu-plugin on saltcitysports (2026-09-20, Zendesk #456367, ClickUp 868m3dg4z / 868m3q8p3) and generalised here so any partner can use it. Opt-in under Features > LeagueApps Modules; it renders nothing for visitors until a site is configured.

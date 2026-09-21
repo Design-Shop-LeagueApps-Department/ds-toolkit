@@ -367,8 +367,9 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 				),
 			),
 			'scope' => array(
-				'title'  => __( 'What to show', 'ds-toolkit' ),
-				'fields' => array(
+				'title'       => __( 'What to show', 'ds-toolkit' ),
+				'description' => __( 'Listed: every program LeagueApps marks Public and not deleted, whose season is upcoming or in progress (past seasons are never listed). A tournament shows one row per age group; the parent row is not repeated. Sold-out and closed-registration programs are listed unless hidden below.', 'ds-toolkit' ),
+				'fields'      => array(
 					'program_type' => array(
 						'type'    => 'select',
 						'label'   => __( 'Program type', 'ds-toolkit' ),
@@ -484,6 +485,28 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					'clear_text'     => array( 'type' => 'text', 'label' => __( 'Clear text', 'ds-toolkit' ), 'default' => __( 'Clear filters', 'ds-toolkit' ) ),
 				),
 			),
+			'search_sec' => array(
+				'title'  => __( 'Keyword search', 'ds-toolkit' ),
+				'fields' => array(
+					'show_search'        => array( 'type' => 'select', 'label' => __( 'Show a search box', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'search_label', 'search_placeholder' ) ) ), 'help' => __( 'Matches any word against every visible column (program, age group, location, sponsor…). Combines with the filters.', 'ds-toolkit' ) ),
+					'search_label'       => array( 'type' => 'text', 'label' => __( 'Label', 'ds-toolkit' ), 'default' => __( 'Search', 'ds-toolkit' ) ),
+					'search_placeholder' => array( 'type' => 'text', 'label' => __( 'Placeholder', 'ds-toolkit' ), 'default' => __( 'Search programs', 'ds-toolkit' ) ),
+				),
+			),
+			'sort_sec' => array(
+				'title'  => __( 'Sorting', 'ds-toolkit' ),
+				'fields' => array(
+					'sortable' => array( 'type' => 'select', 'label' => __( 'Let visitors sort by column', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'help' => __( 'Click a column heading: ascending, descending, then back to the default order. On phones, where the headings are hidden, a "Sort by" dropdown appears in the bar instead. Dates, prices, spots, ages and months sort as numbers.', 'ds-toolkit' ) ),
+				),
+			),
+			'pager_sec' => array(
+				'title'  => __( 'Pagination', 'ds-toolkit' ),
+				'fields' => array(
+					'page_size'  => array( 'type' => 'unit', 'label' => __( 'Rows per page', 'ds-toolkit' ), 'default' => '', 'placeholder' => __( 'all', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 5 ), 'help' => __( 'Blank or 0 shows every row on one page. Filters and search apply across all pages.', 'ds-toolkit' ) ),
+					'pager_prev' => array( 'type' => 'text', 'label' => __( 'Previous label', 'ds-toolkit' ), 'default' => __( 'Previous', 'ds-toolkit' ), 'size' => 12 ),
+					'pager_next' => array( 'type' => 'text', 'label' => __( 'Next label', 'ds-toolkit' ), 'default' => __( 'Next', 'ds-toolkit' ), 'size' => 12 ),
+				),
+			),
 		),
 	),
 
@@ -553,6 +576,18 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					'select_width'  => $ds_prg_unit( __( 'Dropdown width', 'ds-toolkit' ), 100, 400, array( 'help' => __( 'Blank = fluid, up to 230px each.', 'ds-toolkit' ) ) ),
 					'bar_gap'       => $ds_prg_unit( __( 'Gap between dropdowns', 'ds-toolkit' ), 0, 40 ),
 					'bar_space'     => $ds_prg_unit( __( 'Space below the bar', 'ds-toolkit' ), 0, 80, array( 'responsive' => true ) ),
+					'search_width'  => $ds_prg_unit( __( 'Search box width', 'ds-toolkit' ), 120, 600, array( 'help' => __( 'Blank = same as a dropdown.', 'ds-toolkit' ) ) ),
+				),
+			),
+			'pager_style' => array(
+				'title'  => __( 'Pagination & sort arrows', 'ds-toolkit' ),
+				'fields' => array(
+					'pager_color'        => $ds_prg_colour( __( 'Page button text', 'ds-toolkit' ) ),
+					'pager_border'       => $ds_prg_colour( __( 'Page button border', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
+					'pager_active_bg'    => $ds_prg_colour( __( 'Current page background', 'ds-toolkit' ) ),
+					'pager_active_color' => $ds_prg_colour( __( 'Current page text', 'ds-toolkit' ) ),
+					'pager_radius'       => $ds_prg_unit( __( 'Page button corner radius', 'ds-toolkit' ), 0, 30 ),
+					'sort_icon_color'    => $ds_prg_colour( __( 'Active sort arrow', 'ds-toolkit' ), array( 'help' => __( 'Blank = the header text colour.', 'ds-toolkit' ) ) ),
 				),
 			),
 			'btn_sec' => array(
