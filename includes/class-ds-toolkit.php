@@ -183,6 +183,14 @@ class DS_Toolkit {
             'class'         => 'DS_Content_Router',
             'min_blueprint' => 6,
         ),
+        // Live LeagueApps listings table. Opt-in on every blueprint (a data
+        // integration, not a design block); credentials live on the LeagueApps
+        // settings tab, never in a page layout.
+        'ds_programs_module_enabled' => array(
+            'file'          => 'features/class-ds-programs.php',
+            'class'         => 'DS_Programs',
+            'min_blueprint' => 6,
+        ),
         'ds_info_list_module_enabled' => array(
             'file'          => 'features/class-ds-info-list.php',
             'class'         => 'DS_Info_List',
@@ -290,6 +298,7 @@ class DS_Toolkit {
             'ds_team_detail_module_enabled'    => array( 'label' => 'Team Detail',     'desc' => 'A single-team layout: roster, schedule, and coaches.' ),
             'ds_content_router_module_enabled' => array( 'label' => 'Content Router',  'desc' => 'Renders the right body layout for each page type (single vs. archive) from one Themer template.' ),
             'ds_social_module_enabled'         => array( 'label' => 'Partner Social',  'desc' => "A row of the partner's social-media links." ),
+            'ds_programs_module_enabled'       => array( 'label' => 'LeagueApps Programs', 'desc' => 'Live tournament, league, camp and clinic listings from LeagueApps as a filterable table. Needs a site ID and API key on the LeagueApps tab.' ),
         );
     }
 

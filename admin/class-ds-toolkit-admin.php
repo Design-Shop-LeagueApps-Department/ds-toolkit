@@ -100,6 +100,25 @@ class DS_Toolkit_Admin {
         if ( ! is_array( $new ) ) {
             return $existing;
         }
+        if ( array_key_exists( 'leagueapps_sites', $new ) ) {
+            // Site rows from the LeagueApps tab: digits for the id, the public
+            // widget key as-is minus anything that is not a key character, a
+            // plain-text label. Blank rows are dropped, duplicates collapse.
+            $rows = array();
+            foreach ( (array) $new['leagueapps_sites'] as $row ) {
+                $row = (array) $row;
+                $id  = preg_replace( '/\D+/', '', (string) ( $row['site_id'] ?? '' ) );
+                $key = preg_replace( '/[^A-Za-z0-9_\-]/', '', (string) ( $row['api_key'] ?? '' ) );
+                if ( '' === $id || '' === $key ) { continue; }
+                $rows[ $id ] = array( 'site_id' => $id, 'api_key' => $key, 'label' => sanitize_text_field( (string) ( $row['label'] ?? '' ) ) );
+            }
+            $new['leagueapps_sites'] = array_values( $rows );
+            // Credentials changed: the next render must refetch, not serve a cache keyed on the old set.
+            if ( class_exists( 'DS_Programs_Data' ) || file_exists( DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php' ) ) {
+                require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
+                DS_Programs_Data::flush();
+            }
+        }
         return array_merge( $existing, $new );
     }
 
@@ -197,6 +216,9 @@ class DS_Toolkit_Admin {
                 <a href="<?php echo esc_url( $base_url . '&tab=mcp' ); ?>" class="dst-tab<?php echo $active_tab === 'mcp' ? ' is-active' : ''; ?>">
                     MCP
                 </a>
+                <a href="<?php echo esc_url( $base_url . '&tab=leagueapps' ); ?>" class="dst-tab<?php echo $active_tab === 'leagueapps' ? ' is-active' : ''; ?>">
+                    LeagueApps
+                </a>
             </div>
 
             <?php
@@ -209,6 +231,13 @@ class DS_Toolkit_Admin {
 
             } elseif ( $active_tab === 'logos' ) {
                 require DS_TOOLKIT_PATH . 'admin/views/page-logo-finder.php';
+
+            } elseif ( $active_tab === 'leagueapps' ) {
+                require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
+                $leagueapps_sites   = DS_Programs_Data::configured_sites();
+                $programs_module_on = ! empty( $opts['ds_programs_module_enabled'] );
+                $la_sports          = DS_Programs_Data::known_sports();
+                require DS_TOOLKIT_PATH . 'admin/views/page-leagueapps.php';
 
             } elseif ( $active_tab === 'global-css' ) {
                 $global_css_enabled   = ! empty( $opts['global_css_enabled'] );
