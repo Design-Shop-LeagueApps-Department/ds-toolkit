@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.145] - 2026-09-22
+### Fixed
+- **Programs module: the Register button rendered as plain text on sites whose Beaver Builder Global Styles button fields are empty** (saltcitysports, and every site whose button colour comes from the bb-theme Customizer accent instead). The shared `DS_Module_UI::global_button_css()` helper reports success whenever Global Styles exist, even when it emits nothing, so the module's Customizer fallback never ran. The branch is now chosen on the actual global button background value: empty means the button takes `fl-button-background` / `fl-accent`, its text and hover mods, and the theme button radius, with Global Styles typography still applied. Seen on the Salt City test page after the 1.9.144 swap; the site-scoped mu-plugin had handled this case.
+
 ## [1.9.144] - 2026-09-22
 ### Added
 - **LeagueApps Programs: column sorting, keyword search and pagination** (the V1 beta list from Zay, 2026-09-22).
