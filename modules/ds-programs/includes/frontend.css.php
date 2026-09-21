@@ -125,13 +125,27 @@ $v = $sc( 'empty_color' ); if ( $v ) { echo "$node .ds-programs-empty,$node .ds-
 $btn = "$node .ds-programs-btn";
 if ( 'custom' !== ( $settings->btn_global ?? 'global' ) ) {
 	// House rule: an in-house filled button matches the site's global Button by default.
-	$emitted = DS_Module_UI::global_button_css( $btn, "$node a.ds-programs-btn:hover, $node a.ds-programs-btn:focus" );
-	if ( ! $emitted ) {
-		// Older Launchpad without Global Styles: the bb-theme accent is where the visible button colour comes from.
+	$gs = class_exists( 'FLBuilderGlobalStyles' ) ? FLBuilderGlobalStyles::get_settings( false ) : null;
+	$has_global_bg = $gs && '' !== trim( (string) ( $gs->button_background ?? '' ) );
+	if ( $has_global_bg ) {
+		DS_Module_UI::global_button_css( $btn, "$node a.ds-programs-btn:hover, $node a.ds-programs-btn:focus" );
+	} else {
+		// Global Styles' button fields are frequently EMPTY (saltcitysports among
+		// others): the visible site button colour then comes from the bb-theme
+		// Customizer, the button-specific mods if set and otherwise the theme
+		// ACCENT. The shared helper reports success even when it emits nothing,
+		// so this branch is chosen on the actual value, not on the return.
 		$acc = call_user_func( $col, get_theme_mod( 'fl-button-background', '' ) ?: get_theme_mod( 'fl-accent', '' ) );
+		$fg  = call_user_func( $col, get_theme_mod( 'fl-button-text', '' ) ) ?: '#ffffff';
 		$ach = call_user_func( $col, get_theme_mod( 'fl-button-background-hover', '' ) ?: get_theme_mod( 'fl-accent-hover', '' ) );
-		if ( $acc ) { echo "$btn{background-color:$acc !important;color:#fff !important;}\n"; }
-		if ( $ach ) { echo "$node a.ds-programs-btn:hover,$node a.ds-programs-btn:focus{background-color:$ach !important;}\n"; }
+		$fgh = call_user_func( $col, get_theme_mod( 'fl-button-text-hover', '' ) ) ?: $fg;
+		if ( $acc ) { echo "$btn{background-color:$acc !important;color:$fg !important;}\n"; }
+		if ( $ach ) { echo "$node a.ds-programs-btn:hover,$node a.ds-programs-btn:focus{background-color:$ach !important;color:$fgh !important;}\n"; }
+		$rad = get_theme_mod( 'fl-button-radius', '' );
+		if ( '' !== $rad && is_numeric( $rad ) ) { echo "$btn{border-radius:" . (int) $rad . "px;}\n"; }
+		if ( $gs && ! empty( $gs->button_typography ) && class_exists( 'FLBuilderCSS' ) ) {
+			FLBuilderCSS::typography_field_rule( array( 'settings' => (object) array( 'gbtypo' => $gs->button_typography, 'gbtypo_large' => $gs->button_typography_large ?? '', 'gbtypo_medium' => $gs->button_typography_medium ?? '', 'gbtypo_responsive' => $gs->button_typography_responsive ?? '' ), 'setting_name' => 'gbtypo', 'selector' => $btn ) );
+		}
 	}
 } else {
 	$bp = array();
