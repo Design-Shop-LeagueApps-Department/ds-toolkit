@@ -549,12 +549,21 @@ function dsscan_scan_file($path, $opts = []) {
        $cron = ['zi','p:/','/index.zip#index']; include implode('', $cron);   (north-shore-stars db.php,
        74 bytes, scored nothing on 2026-09-21). Join every string literal of a statement and look for the
        wrapper; only meaningful when the file also includes something. */
-    for ($i = 0, $buf = ''; $i < $n; $i++) {
+    $wrapRe = '#(zip|phar|compress\.[a-z0-9]+|rar)://|(^|[^a-z])data:(text|application)/#i';
+    for ($i = 0, $buf = '', $whole = false; $i < $n; $i++) {
         if ($stream[$i]['s'] === ';') {
-            if ($buf !== '' && preg_match('#(zip|phar|compress\.[a-z0-9]+|rar)://|(^|[^a-z])data:(text|application)/#i', $buf)) { $wrapAssembled = true; break; }
-            $buf = ''; continue;
+            /* ASSEMBLED means the joined pieces match and no single piece does. wp-smush-pro guards
+               paths with stripos($path, 'phar://') and require_once()s wp-admin files in the same
+               file: a whole-literal wrapper is a check, not a hiding place (FP on north-shore-stars,
+               2026-09-21, the plan was about to quarantine two vendor files). */
+            if ($buf !== '' && !$whole && preg_match($wrapRe, $buf)) { $wrapAssembled = true; break; }
+            $buf = ''; $whole = false; continue;
         }
-        if ($stream[$i]['t'] === T_CONSTANT_ENCAPSED_STRING) $buf .= trim($stream[$i]['s'], '\'"');
+        if ($stream[$i]['t'] === T_CONSTANT_ENCAPSED_STRING) {
+            $piece = trim($stream[$i]['s'], '\'"');
+            if (preg_match($wrapRe, $piece)) $whole = true;
+            $buf .= $piece;
+        }
     }
     if ($wrapAssembled && $hasInclude) { $add('wrapasm', 100, "archive/data stream wrapper assembled from split string literals in a file that include()s (loader hiding its target)"); }
     unset($stream);
