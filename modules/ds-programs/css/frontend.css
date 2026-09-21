@@ -52,6 +52,72 @@
 	color: inherit;
 }
 
+.ds-programs-input {
+	width: 100%;
+	max-width: 100%;
+	padding: 9px 11px;
+	border: 1px solid currentColor;
+	border-radius: 4px;
+	background-color: transparent;
+	font: inherit;
+	line-height: 1.3;
+	color: inherit;
+	-webkit-appearance: none;
+	appearance: none;
+}
+.ds-programs-input::-webkit-search-decoration { -webkit-appearance: none; }
+
+/* The phone "Sort by" dropdown: column headings are hidden there, so the
+   sort lives in the bar. Desktop sorts from the headings. */
+.ds-programs-field--sort { display: none; }
+
+.ds-programs-sortbtn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: inherit;
+	text-align: inherit;
+	cursor: pointer;
+	white-space: nowrap;
+}
+.ds-programs-sorticon { display: inline-block; width: 10px; font-size: 10px; line-height: 1; opacity: .4; }
+.ds-programs-sorticon::before { content: "\2195"; }
+.ds-programs-sortbtn.is-asc .ds-programs-sorticon,
+.ds-programs-sortbtn.is-desc .ds-programs-sorticon { opacity: 1; }
+.ds-programs-sortbtn.is-asc .ds-programs-sorticon::before { content: "\25B2"; }
+.ds-programs-sortbtn.is-desc .ds-programs-sorticon::before { content: "\25BC"; }
+.ds-programs-th--price .ds-programs-sortbtn,
+.ds-programs-th[style*="right"] .ds-programs-sortbtn { flex-direction: row-reverse; }
+
+.ds-programs-pager {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin: 18px 0 0;
+}
+.ds-programs-page {
+	min-width: 38px;
+	padding: 7px 11px;
+	border: 1px solid currentColor;
+	border-radius: 4px;
+	background: none;
+	font: inherit;
+	font-size: 14px;
+	line-height: 1.2;
+	color: inherit;
+	cursor: pointer;
+}
+.ds-programs-page:disabled { opacity: .4; cursor: default; }
+.ds-programs-page.is-current { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.ds-programs-page-gap { padding: 0 2px; opacity: .6; }
+.ds-programs-page-range { margin-left: auto; font-size: 14px; opacity: .8; }
+
 .ds-programs-count { margin: 0; font-size: 14px; align-self: center; }
 
 .ds-programs-clear {
@@ -113,7 +179,8 @@
 	font-size: 13px;
 }
 
-.ds-programs-row.is-hidden { display: none; }
+.ds-programs-row.is-hidden,
+.ds-programs-row.is-paged { display: none; }
 
 .ds-programs-dash { opacity: .45; }
 

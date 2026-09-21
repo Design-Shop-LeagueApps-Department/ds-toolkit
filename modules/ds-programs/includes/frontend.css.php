@@ -86,8 +86,21 @@ $v = $sc( 'select_bg' );     if ( $v ) { $sp[] = "background-color:$v"; }
 $v = $sc( 'select_color' );  if ( $v ) { $sp[] = "color:$v"; }
 $v = $sc( 'select_border' ); if ( $v ) { $sp[] = "border-color:$v"; }
 $v = $px( 'select_radius' ); if ( $v ) { $sp[] = "border-radius:$v"; }
-if ( $sp ) { echo "$node .ds-programs-select{" . implode( ';', $sp ) . ";}\n"; }
+if ( $sp ) { echo "$node .ds-programs-select,$node .ds-programs-input{" . implode( ';', $sp ) . ";}\n"; }
 $v = $px( 'select_width' );  if ( $v ) { echo "$node .ds-programs-field{flex:0 0 $v;max-width:$v;}\n"; }
+$v = $px( 'search_width' );  if ( $v ) { echo "$node .ds-programs-field--search{flex:0 0 $v;max-width:$v;}\n"; }
+/* pager + sort arrows */
+$pp = array();
+$v = $sc( 'pager_color' );  if ( $v ) { $pp[] = "color:$v"; }
+$v = $sc( 'pager_border' ); if ( $v ) { $pp[] = "border-color:$v"; }
+$v = $px( 'pager_radius' ); if ( $v ) { $pp[] = "border-radius:$v"; }
+if ( $pp ) { echo "$node .ds-programs-page{" . implode( ';', $pp ) . ";}\n"; }
+$v = $sc( 'pager_color' );  if ( $v ) { echo "$node .ds-programs-page-range,$node .ds-programs-page-gap{color:$v;}\n"; }
+$ap = array();
+$v = $sc( 'pager_active_bg' );    if ( $v ) { $ap[] = "background-color:$v"; $ap[] = "border-color:$v"; }
+$v = $sc( 'pager_active_color' ); if ( $v ) { $ap[] = "color:$v"; }
+if ( $ap ) { echo "$node .ds-programs-page.is-current{" . implode( ';', $ap ) . ";}\n"; }
+$v = $sc( 'sort_icon_color' ); if ( $v ) { echo "$node .ds-programs-sortbtn.is-asc .ds-programs-sorticon,$node .ds-programs-sortbtn.is-desc .ds-programs-sorticon{color:$v;}\n"; }
 $v = $px( 'bar_gap' );       if ( $v ) { echo "$node .ds-programs-bar{gap:$v;}\n"; }
 $v = $px( 'bar_space' );     if ( $v ) { echo "$node .ds-programs-bar{margin-bottom:$v;}\n"; }
 foreach ( array( 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
@@ -151,6 +164,7 @@ if ( 'colors' === $fm ) {
 /* ---------- phone cards (breakpoint follows Beaver Builder) ---------- */
 $m = array();
 $m[] = ".ds-programs-field{max-width:none;flex-basis:100%;}";
+$m[] = ".ds-programs-field--sort{display:flex;}";
 $m[] = ".ds-programs-scroll{overflow-x:visible;border:0;box-shadow:none;background:none;border-radius:0;}";
 $m[] = ".ds-programs-table,.ds-programs-table tbody{display:block;width:auto;}";
 $m[] = ".ds-programs-table tr{display:flex;flex-direction:column;width:auto;}";
@@ -177,6 +191,9 @@ $m[] = ".ds-programs-table .ds-programs-td--register{display:block;padding-top:1
 $m[] = ".ds-programs-td--register::before{display:none;}";
 $m[] = ".ds-programs-btn{display:block;width:100%;padding:13px 16px;}";
 $m[] = ".ds-programs-table .ds-programs-td--spots:has(.ds-programs-dash){display:none;}";
+// Node-scoped so it out-specifies the `tr{display:flex}` card rule above (the static
+// .is-hidden rule loses to it); without this, phones ignore filters and paging.
+$m[] = ".ds-programs-table tr.ds-programs-row.is-hidden,$node .ds-programs-table tr.ds-programs-row.is-paged{display:none;}";
 echo "@media(max-width:{$bp_sm}px){\n";
 foreach ( $m as $rule ) { echo "$node $rule\n"; }
 echo "}\n";
