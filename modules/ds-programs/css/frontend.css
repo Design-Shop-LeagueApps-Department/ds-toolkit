@@ -1,0 +1,131 @@
+/**
+ * LeagueApps Programs, static structure only.
+ * Colours, dimensions and the phone card layout are emitted node-scoped from
+ * includes/frontend.css.php so the builder's Style tab drives all of it.
+ */
+
+.ds-programs,
+.ds-programs *,
+.ds-programs *::before,
+.ds-programs *::after { box-sizing: border-box; }
+
+.ds-programs-bar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 12px 16px;
+	margin-bottom: 18px;
+}
+
+.ds-programs-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+	flex: 1 1 150px;
+	max-width: 230px;
+}
+
+.ds-programs-label {
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: .02em;
+	line-height: 1.2;
+}
+
+/* The arrow is drawn with currentColor so a dark-theme text colour recolours it. */
+.ds-programs-select {
+	width: 100%;
+	max-width: 100%;
+	padding: 9px 30px 9px 11px;
+	border: 1px solid currentColor;
+	border-radius: 4px;
+	background-color: transparent;
+	background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23888' d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 8px center;
+	background-size: 16px 16px;
+	-webkit-appearance: none;
+	appearance: none;
+	font: inherit;
+	line-height: 1.3;
+	color: inherit;
+}
+
+.ds-programs-count { margin: 0; font-size: 14px; align-self: center; }
+
+.ds-programs-clear {
+	align-self: center;
+	border: 0;
+	background: none;
+	padding: 6px 2px;
+	font: inherit;
+	font-size: 14px;
+	text-decoration: underline;
+	cursor: pointer;
+	color: inherit;
+}
+
+/* The table may be wider than the page; it scrolls in its own box so the
+   page body never scrolls sideways. */
+.ds-programs-scroll {
+	width: 100%;
+	max-width: 100%;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.ds-programs-table { width: 100%; border-collapse: collapse; margin: 0; }
+
+.ds-programs-th,
+.ds-programs-td { text-align: left; vertical-align: middle; padding: 12px; }
+
+.ds-programs-th { white-space: nowrap; font-weight: 700; }
+
+.ds-programs-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+.ds-programs-btn {
+	display: inline-block;
+	padding: 8px 16px;
+	border-radius: 4px;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.2;
+	text-align: center;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: background-color .18s ease, color .18s ease;
+}
+
+.ds-programs-btn--full { opacity: .55; cursor: default; }
+.ds-programs-full { font-weight: 700; opacity: .7; white-space: nowrap; }
+
+.ds-programs-empty,
+.ds-programs-none { margin: 16px 0; font-style: italic; }
+
+/* Editors-only notice: deliberately loud and deliberately not themeable. */
+.ds-programs-note {
+	margin: 12px 0 0;
+	padding: 8px 12px;
+	border-left: 3px solid #e0a800;
+	background: #fff8e5;
+	color: #6b5200;
+	font-size: 13px;
+}
+
+.ds-programs-row.is-hidden { display: none; }
+
+.ds-programs-dash { opacity: .45; }
+
+/* Visually hidden, still read by screen readers (the Register column heading). */
+.ds-programs-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
