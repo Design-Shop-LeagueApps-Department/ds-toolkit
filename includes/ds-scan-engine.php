@@ -94,6 +94,19 @@ function dsscan_vocab() {
                too, for a variant that does not bother encoding. */
             'aHR0cDovL2x4bWwuYWhrai5s' => 'lxml.ahkj.lol remote-loader C2 (base64), gitignore-polyglot dropper',
             'ahkj.lol' => 'lxml.ahkj.lol remote-loader C2 (plaintext)',
+            /* ZISI polymorphic backdoor: fake "Thumbnail Pipeline by Automattic" plugin, INACTIVE but
+               reachable by direct URL. Sat in plugins/nowa-signature-chip/ on north-shore-stars through
+               three cleanups (2026-09-03, 09-19, 09-21) and re-dropped the payload each time; the engine
+               had no rule for it. Markers are the banner and the decoder-proxy class; the folder and
+               plugin names vary per site (zisi-polymorphic-backdoor-ioc). */
+            'ZISI v1' => 'ZISI polymorphic backdoor banner',
+            'CDC Polymorphic' => 'ZISI polymorphic backdoor mode banner',
+            'Cdc_V_Graph' => 'ZISI decoder-proxy class (__call maps fake names to base64_decode/gzuncompress)',
+            /* index.zip cloaking proxy (north-shore-stars 2026-09-21): a 74-byte wp-content/db.php
+               drop-in include()s zip://index.zip#index; the member beacons ip/lang/uri/referer/ua to a
+               C2 and serves its answer. These two probe handlers are its health-check endpoints. */
+            'strrev(md5($_SERVER[\'SERVER_NAME\']))' => 'cloaking-proxy /R-<md5> health probe (index.zip doorway family)',
+            'index.php/jk' => 'cloaking-proxy index.php/jk health probe (index.zip doorway family)',
         ],
     ];
     return $v;
@@ -356,6 +369,7 @@ function dsscan_scan_file($path, $opts = []) {
     $hasEvalDecode = false; $hasExecInput = false;
     $hasSelfRewrite = false; $hasAuthCookie = false; $hasInsertUser = false; $hasAdminLookup = false;
     $hasNonceOrCap = false; $hasMoveUpload = false; $hasMailLoop = false; $gotoCount = 0;
+    $wrapInc = false; $hasInclude = false; $wrapAssembled = false;
     $hasNestedHash = false; $backtickInput = false; $writesPhp = false;
 
     for ($i = 0; $i < $n; $i++) {
@@ -520,10 +534,29 @@ function dsscan_scan_file($path, $opts = []) {
                 if ($stream[$j]['t'] === T_VARIABLE && in_array($stream[$j]['s'], $REQ_SUPER, true)) $rem = true;
                 if ($stream[$j]['t'] === T_CONSTANT_ENCAPSED_STRING && preg_match('#^[\'"]?(https?|ftp|php)://#i', $stream[$j]['s'])) $rem = true;
                 if ($stream[$j]['t'] === T_STRING && stripos($stream[$j]['s'], 'php://input') !== false) $rem = true;
+                /* include of an archive / data stream wrapper: code hidden inside a .zip, a phar or a
+                   data: URI so that no *.php file on disk carries it (index.zip, north-shore-stars). */
+                if ($stream[$j]['t'] === T_CONSTANT_ENCAPSED_STRING && preg_match('#^[\'"]?(zip|phar|compress\.[a-z0-9]+|rar|glob|expect)://|^[\'"]?data:#i', $stream[$j]['s'])) $wrapInc = true;
+                /* include of a decoder's return value: the path itself is hidden until runtime. */
+                if ($stream[$j]['t'] === T_STRING && isset($stream[$j+1]) && $stream[$j+1]['s'] === '(' && in_array(strtolower($stream[$j]['s']), $DECODERS, true)) $wrapInc = true;
             }
             if ($rem) { $add('rfi', 90, "include/require of a remote URL or request input (remote file inclusion)"); }
+            if ($wrapInc) { $add('wrapinc', 100, "include/require of an archive/data stream wrapper or of a decoder's output (code hidden outside any .php file)"); $wrapInc = false; }
+            $hasInclude = true;
         }
     }
+    /* archive/data stream wrapper assembled from string pieces in ONE statement, e.g.
+       $cron = ['zi','p:/','/index.zip#index']; include implode('', $cron);   (north-shore-stars db.php,
+       74 bytes, scored nothing on 2026-09-21). Join every string literal of a statement and look for the
+       wrapper; only meaningful when the file also includes something. */
+    for ($i = 0, $buf = ''; $i < $n; $i++) {
+        if ($stream[$i]['s'] === ';') {
+            if ($buf !== '' && preg_match('#(zip|phar|compress\.[a-z0-9]+|rar)://|(^|[^a-z])data:(text|application)/#i', $buf)) { $wrapAssembled = true; break; }
+            $buf = ''; continue;
+        }
+        if ($stream[$i]['t'] === T_CONSTANT_ENCAPSED_STRING) $buf .= trim($stream[$i]['s'], '\'"');
+    }
+    if ($wrapAssembled && $hasInclude) { $add('wrapasm', 100, "archive/data stream wrapper assembled from split string literals in a file that include()s (loader hiding its target)"); }
     unset($stream);
 
     /* ---------- combine the behavioural verdicts into score ---------- */
