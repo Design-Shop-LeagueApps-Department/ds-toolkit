@@ -1247,6 +1247,14 @@ class DS_Tripwire {
         if ( '' === $to || '' === $tok || ! is_email( $to ) ) {
             return;
         }
+        // Claim the token atomically. WordPress cron has a race: two concurrent cron processes can
+        // both pick up the same event before either unschedules it, so the probe sent twice within
+        // two seconds on 495lacrosse.com and 4leaflax.org. add_option() fails if the row exists
+        // (option_name is UNIQUE), so exactly one process proceeds. A result-existence check cannot
+        // close this, because in a real race neither process has written a result yet.
+        if ( ! add_option( 'ds_mailcheck_claim_' . $tok, time(), '', false ) ) {
+            return;
+        }
         $err = '';
         $cap = function ( $e ) use ( &$err ) {
             if ( is_wp_error( $e ) ) { $err = $e->get_error_message(); }

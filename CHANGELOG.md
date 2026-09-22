@@ -4,6 +4,16 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.148] - 2026-09-22
+
+### Fixed
+- **The mail probe could send twice.** WordPress cron has a race: two concurrent cron processes can
+  both pick up the same event before either unschedules it. Observed on 495lacrosse.com (two sends
+  two seconds apart) and 4leaflax.org (two in the same second), same token both times.
+  `run_mailcheck()` now claims the token with `add_option()`, which fails if the row already exists
+  because `option_name` is UNIQUE, so exactly one process proceeds. A result-existence check cannot
+  close this: in a real race neither process has written a result yet.
+
 ## [1.9.147] - 2026-09-22
 
 ### Added
