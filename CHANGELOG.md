@@ -4,6 +4,27 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.149] - 2026-09-23
+
+### Fixed
+- **Origin Guard's cold-login rule locked real people out of wp-login.php.** It refuses a POST
+  that arrives without `wordpress_test_cookie`, on the reasoning that the form was never
+  rendered so the caller is a bot. People reach that state in ordinary ways: a login tab
+  restored from a previous browser session (the form survives, the session cookie does not), a
+  password manager posting straight to wp-login.php, an email client's in-app browser opening a
+  reset link, or cookies cleared mid-session. They got a bare "Forbidden." with nothing to act
+  on, and since the rule keys on a cookie and not an IP, resetting the password changed nothing
+  and there was no block anywhere to clear. Found on tetonlax with the site administrator locked
+  out about 24 hours; `action=lostpassword`, `action=resetpass` and `action=register` were caught
+  too, so a partner following a reset link could burn a one-time key on a dead end. A browser
+  navigation is now bounced back to the form with a 303 (query preserved) so it picks up the
+  cookie and retries. The request still exits before plugins load, so a flood costs the same
+  ~20ms it did as a hard 403, and anything not asking for HTML is still refused outright. The
+  bounce target is same-origin by construction. Payload v1.2.0, so sites refresh the mu-plugin
+  on their next admin, cron or CLI request.
+- **403 bodies name the rule that fired** (`Forbidden. (DS Origin Guard: <reason>)`), so the next
+  lockout is diagnosable from the response instead of by reading the mu-plugin off the server.
+
 ## [1.9.148] - 2026-09-22
 
 ### Fixed
