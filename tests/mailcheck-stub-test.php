@@ -4,6 +4,7 @@ define('HOUR_IN_SECONDS',3600); define('DAY_IN_SECONDS',86400);
 $GLOBALS['opts']=array(); $GLOBALS['mailed']=array(); $GLOBALS['acts']=array(); $GLOBALS['fail']=false;
 function get_option($k,$d=''){ return array_key_exists($k,$GLOBALS['opts'])?$GLOBALS['opts'][$k]:$d; }
 function update_option($k,$v,$a=true){ $GLOBALS['opts'][$k]=$v; return true; }
+function add_option($k,$v,$d='',$a=true){ if(array_key_exists($k,$GLOBALS['opts'])) return false; $GLOBALS['opts'][$k]=$v; return true; }
 function is_email($e){ return (bool)filter_var($e,FILTER_VALIDATE_EMAIL); }
 function home_url($p=''){ return 'https://example.org'.$p; }
 function wp_parse_url($u,$c=-1){ return $c===-1?parse_url($u):parse_url($u,$c); }
@@ -57,3 +58,12 @@ $r=$GLOBALS['opts']['ds_mailcheck_result'];
 chk('failure -> accepted=false', $r['accepted'], false);
 chk('failure -> reason captured', $r['error'], 'Could not instantiate mail function.');
 chk('hook constant', DS_Tripwire::MAILCHECK_HOOK, 'ds_tripwire_mailcheck');
+
+// the cron race: a second run with the same token must send nothing
+$GLOBALS['fail']=false; $GLOBALS['mailed']=array();
+$GLOBALS['opts']=array('ds_mailcheck_to'=>'x@y.com','ds_mailcheck_token'=>'MT77');
+$t->run_mailcheck();
+$first=count($GLOBALS['mailed']);
+$t->run_mailcheck();
+chk('same token twice -> only one send', count($GLOBALS['mailed']), $first);
+chk('first run did send', $first, 1);
