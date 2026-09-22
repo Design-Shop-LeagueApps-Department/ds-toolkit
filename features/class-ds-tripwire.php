@@ -146,6 +146,7 @@ class DS_Tripwire {
     /* ------------------------------------------ content engine (1.9.132) ------------------ */
     /** Hourly behaviour-scan hook, separate from the daily IOC check so each cost is bounded alone. */
     const CONTENT_HOOK = 'ds_tripwire_content';
+    const MAILCHECK_HOOK = 'ds_tripwire_mailcheck';
     /** Seconds of scanning per cron run; the file list resumes from a cursor next run. */
     const CONTENT_BUDGET_S = 15;
     /** Never token_get_all() a file above this. Measured 346 bytes of memory per source byte on a
@@ -176,6 +177,11 @@ class DS_Tripwire {
         // can always fire; everything below it is admin/cron/CLI-only.
         add_action( self::CRON_HOOK, array( $this, 'run_checks' ) );
         add_action( self::CONTENT_HOOK, array( $this, 'run_content_scan' ) );
+        // Mail reachability probe. Bound on every request type because it MUST run in the web
+        // context: wp_mail() can never succeed from WP-CLI on either platform (WP Engine has no
+        // /usr/sbin/sendmail at all; Flywheel's is a setuid shim whose config is unreadable
+        // outside a web request), so a CLI test reports a false negative on every site.
+        add_action( self::MAILCHECK_HOOK, array( $this, 'run_mailcheck' ) );
 
         // Instant alert when an administrator appears. Registration and role
         // grants only ever happen in admin/AJAX/CLI flows, so these hooks are
@@ -1209,6 +1215,57 @@ class DS_Tripwire {
               . "3. If the site looks fine to visitors, that is normal — this malware hides from people "
               . "and only shows itself to search engines.\n\n"
               . "— DS Tripwire (part of the DS Toolkit plugin)\n";
-        wp_mail( $to, '[DS Tripwire] ' . $tier . ' — ' . $host, $body );
+        $sent = wp_mail( $to, '[DS Tripwire] ' . $tier . ' — ' . $host, $body );
+        // Record what the handoff did. Until now the return was discarded, so no site knew whether
+        // its own alert ever left, and "found something but the mail failed" was unobservable.
+        // NOTE: true only means PHPMailer accepted it, never that it was delivered.
+        update_option( 'ds_tripwire_last_notify', array(
+            'time'      => gmdate( 'c' ),
+            'tier'      => $tier,
+            'to'        => implode( ',', (array) $to ),
+            'accepted'  => (bool) $sent,
+        ), false );
+    }
+
+    /**
+     * Send one token email so the fleet can be mapped for mail reachability, and record the
+     * outcome locally so a read-only collector can pair "what wp_mail said" with "what arrived".
+     *
+     * Driven by two options so nothing is hardcoded and the hook is inert until asked:
+     *   ds_mailcheck_to     recipient (must pass is_email)
+     *   ds_mailcheck_token  unique per site, so an arrival maps back to its sender
+     *
+     * Fire it in the web context:
+     *   wp option update ds_mailcheck_to "you@example.com"
+     *   wp option update ds_mailcheck_token "MT<unique>"
+     *   wp cron event schedule ds_tripwire_mailcheck now
+     *   curl -s "https://<domain>/wp-cron.php?doing_wp_cron"
+     */
+    public function run_mailcheck() {
+        $to  = (string) get_option( 'ds_mailcheck_to', '' );
+        $tok = (string) get_option( 'ds_mailcheck_token', '' );
+        if ( '' === $to || '' === $tok || ! is_email( $to ) ) {
+            return;
+        }
+        $err = '';
+        $cap = function ( $e ) use ( &$err ) {
+            if ( is_wp_error( $e ) ) { $err = $e->get_error_message(); }
+        };
+        add_action( 'wp_mail_failed', $cap );
+        $host = wp_parse_url( home_url(), PHP_URL_HOST );
+        $ok   = wp_mail(
+            $to,
+            '[DS MAILTEST] ' . $host . ' ' . $tok,
+            "site: " . home_url() . "\ntoken: " . $tok . "\nsent_at: " . gmdate( 'c' ) . "\n"
+        );
+        remove_action( 'wp_mail_failed', $cap );
+        update_option( 'ds_mailcheck_result', array(
+            'token'    => $tok,
+            'to'       => $to,
+            'accepted' => (bool) $ok,
+            'error'    => $err,
+            'time'     => gmdate( 'c' ),
+            'context'  => ( defined( 'WP_CLI' ) && WP_CLI ) ? 'cli' : ( wp_doing_cron() ? 'cron' : 'web' ),
+        ), false );
     }
 }
