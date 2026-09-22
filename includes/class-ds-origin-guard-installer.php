@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_Origin_Guard_Installer {
 
 	/** Bump when the generated mu-plugin payload changes. Drives auto-refresh. */
-	const PAYLOAD_VERSION = '1.1.0';
+	const PAYLOAD_VERSION = '1.2.0';
 
 	const MU_FILENAME = 'ds-origin-guard.php';
 	const STATE_OPT   = 'ds_origin_guard_state';
@@ -169,10 +169,49 @@ class DS_Origin_Guard_Installer {
 $dsog_postpass = ( isset( $_GET['action'] ) && 'postpass' === $_GET['action'] )
 	|| false !== strpos( $dsog_uri, 'action=postpass' );
 
+// Send a browser back to the form instead of refusing it outright. A person
+// reaches here with no test cookie in perfectly ordinary ways: a login tab
+// restored from a previous browser session (the form survives, the session
+// cookie does not), a password manager posting straight to wp-login.php, an
+// email client's in-app browser opening a reset link, or cookies cleared
+// mid-session. They used to get a bare "Forbidden." with nothing to act on
+// (tetonlax, partner locked out ~24h, 2026-09-22), and on action=resetpass
+// that also burned a one-time reset key.
+//
+// This still exits before plugins load, so a flood costs the same ~20ms it
+// did as a hard 403. Only a browser navigation is bounced; anything not
+// asking for HTML is refused as before, which is where flood traffic sits.
+$dsog_bounce = function ( $reason ) use ( $dsog_uri ) {
+	$dsog_parts = explode( '?', (string) $dsog_uri, 2 );
+	// Same-origin by construction: keep the path, drop every character that
+	// could make it absolute, protocol-relative or inject a header, then
+	// force exactly ONE leading slash so '//host' collapses to '/host'.
+	$dsog_path = preg_replace( '#[^A-Za-z0-9/._~%-]#', '', $dsog_parts[0] );
+	$dsog_path = '/' . ltrim( (string) $dsog_path, '/' );
+	if ( false === strpos( $dsog_path, 'wp-login.php' ) ) {
+		$dsog_path = '/wp-login.php';
+	}
+	// Keep the query so ?action=lostpassword and ?action=rp land back on
+	// their own form rather than the plain login screen. The authority is
+	// already fixed by the path above, so this cannot change origin, and
+	// WordPress validates redirect_to itself.
+	$dsog_query = isset( $dsog_parts[1] )
+		? preg_replace( '#[^A-Za-z0-9_.~%=&+-]#', '', $dsog_parts[1] )
+		: '';
+	header( 'X-DS-Origin-Guard: ' . $reason );
+	header( 'Cache-Control: no-store' );
+	header( 'Location: ' . $dsog_path . ( '' === $dsog_query ? '' : '?' . $dsog_query ), true, 303 );
+	exit;
+};
+
 if ( 'POST' === $dsog_method
 	&& false !== strpos( $dsog_uri, 'wp-login.php' )
 	&& ! $dsog_postpass
 	&& empty( $_COOKIE['wordpress_test_cookie'] ) ) {
+	$dsog_accept = isset( $_SERVER['HTTP_ACCEPT'] ) ? $_SERVER['HTTP_ACCEPT'] : '';
+	if ( false !== stripos( $dsog_accept, 'text/html' ) ) {
+		$dsog_bounce( 'cold-login-post' );
+	}
 	$dsog_deny( 'cold-login-post' );
 }
 PHP : '';
@@ -216,7 +255,7 @@ foreach ( array_keys( \$_COOKIE ) as \$dsog_k ) {
 	header( 'X-DS-Origin-Guard: ' . \$reason );
 	header( 'Cache-Control: no-store' );
 	http_response_code( 403 );
-	echo 'Forbidden.';
+	echo 'Forbidden. (DS Origin Guard: ' . \$reason . ')';
 	exit;
 };
 
@@ -239,7 +278,7 @@ if ( preg_match( '#(^|[?&/])(sale/search/detail|sale%2Fsearch|ITMCODE=|ARRAY=|ju
 	\$dsog_deny( 'doorway' );
 }
 
-unset( \$dsog_uri, \$dsog_method, \$dsog_logged_in, \$dsog_k, \$dsog_deny, \$dsog_postpass );
+unset( \$dsog_uri, \$dsog_method, \$dsog_logged_in, \$dsog_k, \$dsog_deny, \$dsog_postpass, \$dsog_bounce, \$dsog_accept );
 
 PHP;
 	}
