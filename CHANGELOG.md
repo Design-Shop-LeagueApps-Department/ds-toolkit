@@ -4,6 +4,30 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.147] - 2026-09-22
+
+### Added
+- **Mail reachability probe (`ds_tripwire_mailcheck`).** Sends one token email and records
+  `{token, to, accepted, error, time, context}` in `ds_mailcheck_result`, so a read-only collector
+  can pair "what wp_mail() said" against "what actually arrived" and map the fleet for mail
+  delivery. Inert until both `ds_mailcheck_to` (must pass `is_email`) and `ds_mailcheck_token` are
+  set; sends nothing and writes nothing otherwise.
+
+  It is bound on every request type because **it has to run in the web context**: `wp_mail()` can
+  never succeed from WP-CLI on either platform. WP Engine has no `/usr/sbin/sendmail` at all, and
+  Flywheel's is a setuid shim (`gogo_sendmail`) whose config is unreadable outside a web request,
+  so a CLI test reports a false negative on every site. Trigger with
+  `wp cron event schedule ds_tripwire_mailcheck now` then a request to `wp-cron.php`.
+
+- **The real alert now records its own send result** in `ds_tripwire_last_notify`
+  (`time`, `tier`, `to`, `accepted`). The `wp_mail()` return was previously discarded, so no site
+  knew whether its own alert ever left and "found something but the mail failed" was unobservable.
+  `accepted` means PHPMailer took it, never that it was delivered.
+
+- `tests/mailcheck-stub-test.php` — 12 assertions over the real class with WordPress stubbed,
+  covering the inert-without-options guard, an invalid recipient, the subject shape, and the
+  failure path capturing PHPMailer's reason.
+
 ## [1.9.145] - 2026-09-22
 ### Fixed
 - **Programs module: the Register button rendered as plain text on sites whose Beaver Builder Global Styles button fields are empty** (saltcitysports, and every site whose button colour comes from the bb-theme Customizer accent instead). The shared `DS_Module_UI::global_button_css()` helper reports success whenever Global Styles exist, even when it emits nothing, so the module's Customizer fallback never ran. The branch is now chosen on the actual global button background value: empty means the button takes `fl-button-background` / `fl-accent`, its text and hover mods, and the theme button radius, with Global Styles typography still applied. Seen on the Salt City test page after the 1.9.144 swap; the site-scoped mu-plugin had handled this case.
