@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.153] - 2026-09-24
+### Added
+- **Heading module, Style 2: Separator Style, Single Line or Double Line (GH #224).** Double Line stacks two rules of the authored thickness and colour in the separator's place, with a Space Between Lines control (default 4px), following the existing alignment (left, centre, right with the rule leading in), the end mark, and the responsive gap. Default is Single Line and existing modules render byte-for-byte as before; the double-line CSS is only emitted when chosen.
+
 ## [1.9.152] - 2026-09-24
 ### Added
 - **LeagueApps Programs: a Cards layout.** Style > Layout switches the same listing between the table and a responsive card grid (3 / 2 / 1 per row by default, editable per breakpoint). Each card uses the columns the editor chose: the program name is the title, the age group a badge, price and the register button sit in the footer, everything else is a labelled line. Filters, keyword search, sorting (the Sort-by dropdown shows at every width, since cards have no headings) and pagination work identically. Title area as a coloured band, an underline or plain; the band and underline take the table's Header row colour when one was set, otherwise the site accent, never the preset's faint header tint. Card background, border, radius, shadow (including a lift on hover), padding, badge colours, title / label / value / price typography and colours are all in the Style tab. A long age-group badge wraps under the title on narrow cards instead of squeezing it.

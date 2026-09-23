@@ -185,7 +185,8 @@ class DS_Heading_Module extends FLBuilderModule {
 				$img = $this->photo_url( $s->style2_image ?? '' );
 				echo '<div class="ds-heading-row">';
 				echo $title;
-				echo '<span class="ds-heading-sep" aria-hidden="true"></span>';
+				$sep_cls = ( 'double' === ( $s->style2_sep_style ?? 'single' ) ) ? ' ds-heading-sep--double' : '';
+				echo '<span class="ds-heading-sep' . $sep_cls . '" aria-hidden="true"></span>';
 				// No image means no wrapper at all, so the separator simply runs to the
 				// end rather than stopping short of an empty box.
 				if ( '' !== $img ) {
@@ -231,7 +232,7 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'label'   => __( 'Style', 'ds-toolkit' ),
 						'default' => 'style1',
 						'options' => DS_Heading_Module::styles(),
-						'toggle'  => array( 'style2' => array( 'fields' => array( 'style2_image' ), 'sections' => array( 'endmark' ) ) ),
+						'toggle'  => array( 'style2' => array( 'fields' => array( 'style2_sep_style', 'style2_sep_gap', 'style2_image' ), 'sections' => array( 'endmark' ) ) ),
 						'help'    => __( 'Style 2 puts the heading on the left with a rule running through the remaining space, and an optional mark at the end. Existing modules stay on Style 1.', 'ds-toolkit' ),
 					),
 					'subheading'          => array( 'type' => 'text', 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'default' => 'Sub Heading', 'connections' => array( 'string' ) ),
@@ -242,6 +243,21 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'default'     => 'Section {a}Heading{/a}',
 						'connections' => array( 'string' ),
 						'help'        => __( 'Wrap a word in {a}…{/a} to colour it with the accent, or in {g}…{/g} for a two-colour gradient (Colours section). Line breaks are kept. Use the connect (+) icon to pull a dynamic field (post title, ACF, etc.). {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting. Markers cannot be nested; wrap separate ranges.', 'ds-toolkit' ),
+					),
+					'style2_sep_style' => array(
+						'type'    => 'select',
+						'label'   => __( 'Separator Style', 'ds-toolkit' ),
+						'default' => 'single',
+						'options' => array( 'single' => __( 'Single Line', 'ds-toolkit' ), 'double' => __( 'Double Line', 'ds-toolkit' ) ),
+						'toggle'  => array( 'double' => array( 'fields' => array( 'style2_sep_gap' ) ) ),
+						'help'    => __( 'Double Line stacks two rules of the same thickness and colour in the separator\'s place. Existing modules stay on Single Line.', 'ds-toolkit' ),
+					),
+					'style2_sep_gap' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Space Between Lines', 'ds-toolkit' ),
+						'default'     => '4',
+						'description' => 'px',
+						'slider'      => array( 'min' => 1, 'max' => 24, 'step' => 1 ),
 					),
 					'style2_image'        => array(
 						'type'        => 'photo',
