@@ -223,6 +223,10 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 		$v = $sc( 'card_title_color' ); if ( $v ) { echo "$node .ds-programs-card-title,$node .ds-programs-card-title a{color:$v;}\n"; }
 		echo "$node .ds-programs-card-badge{background-color:" . ( $sc( 'card_badge_bg' ) ?: DS_Module_UI::mix( $band_bg, 14 ) ) . ";color:" . ( $sc( 'card_badge_color' ) ?: $band_bg ) . ";}\n";
 	}
+	// A site's own global CSS may underline .ds-programs-link with a 3-class selector; in the
+	// card head the title is the link, so out-specify that here rather than in the static file.
+	echo "$node .ds-programs-card .ds-programs-card-title .ds-programs-link{text-decoration:none;}\n";
+	echo "$node .ds-programs-card .ds-programs-card-title .ds-programs-link:hover{text-decoration:underline;text-underline-offset:3px;}\n";
 	if ( ! empty( $settings->card_title_typo ) ) { FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'card_title_typo', 'selector' => "$node .ds-programs-card-title" ) ); }
 
 	$lp = array();
