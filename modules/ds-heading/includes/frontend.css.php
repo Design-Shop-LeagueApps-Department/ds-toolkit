@@ -176,6 +176,15 @@ $sep_h = $u( $settings->divider_thickness ?? '', 2 );
 echo "$node .ds-heading-sep { --ds-heading-sep-h: {$sep_h}px; }\n";
 $dc = DS_Module_UI::color( $settings->divider_color ?? '' );
 if ( '' !== $dc ) { echo "$node .ds-heading-sep { background: {$dc}; }\n"; }
+// Double Line (GH #224): the span becomes a column of two pseudo-element rules, each at the
+// authored thickness and colour, with an authored gap. Node-scoped so it out-specifies the
+// single-line background rule above; nothing here is emitted for Single Line.
+if ( 'double' === ( $settings->style2_sep_style ?? 'single' ) ) {
+	$sep_gap = max( 1, $u( $settings->style2_sep_gap ?? '', 4 ) );
+	$sep_bg  = ( '' !== $dc ) ? $dc : 'var(--fl-global-accent,#0b782d)';
+	echo "$node .ds-heading-sep--double { background: transparent; height: auto; display: flex; flex-direction: column; gap: {$sep_gap}px; }\n";
+	echo "$node .ds-heading-sep--double::before, $node .ds-heading-sep--double::after { content: ''; display: block; height: {$sep_h}px; background: {$sep_bg}; border-radius: 2px; }\n";
+}
 foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 	$v = $settings->{'style2_mark_h' . $sfx} ?? '';
 	if ( '' === $v || null === $v ) { continue; }
