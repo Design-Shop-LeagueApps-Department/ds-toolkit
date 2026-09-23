@@ -34,7 +34,12 @@ class DS_Programs {
 	public function flush() {
 		if ( ! current_user_can( 'edit_posts' ) ) { wp_die( 'Not allowed.' ); }
 		check_admin_referer( 'ds_programs_flush' );
-		DS_Programs_Data::flush();
+		// One manual refresh a minute, site-wide. The link is nonce-gated and shown
+		// to editors only, but each click permits one full refetch from LeagueApps.
+		if ( false === get_transient( 'ds_programs_flush_throttle' ) ) {
+			set_transient( 'ds_programs_flush_throttle', time(), MINUTE_IN_SECONDS );
+			DS_Programs_Data::flush();
+		}
 		wp_safe_redirect( wp_get_referer() ?: admin_url() );
 		exit;
 	}

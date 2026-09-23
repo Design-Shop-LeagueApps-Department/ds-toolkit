@@ -41,7 +41,8 @@ $none_txt  = trim( (string) ( $s->none_text ?? '' ) ) ?: __( 'No programs match 
 /** Cell content for one column. Everything is escaped here. */
 $cell = function ( $key, $r ) use ( $btn_text, $btn_full, $full_mode ) {
 	if ( 'register' === $key ) {
-		$url = (string) $r['registerUrl'];
+		// The program's LeagueApps page, not the checkout form. See DS_Programs_Data::button_url().
+		$url = DS_Programs_Data::button_url( $r );
 		if ( ! empty( $r['soldOut'] ) ) {
 			$cls = ( 'text' === $full_mode ) ? 'ds-programs-full' : 'ds-programs-btn ds-programs-btn--full';
 			return '<span class="' . $cls . '">' . esc_html( $btn_full ) . '</span>';

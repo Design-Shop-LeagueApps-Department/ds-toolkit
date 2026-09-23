@@ -40,6 +40,25 @@ class DS_Programs_Data {
 	/** Stale fallback lifetime: what is served when the API is unreachable. */
 	const STALE_TTL = 7 * DAY_IN_SECONDS;
 
+	/**
+	 * How long one request may hold the refetch lock. Long enough for a slow
+	 * fetch of several sites, short enough that a request that dies mid-fetch
+	 * cannot block refreshes for long.
+	 */
+	const LOCK_TTL = 30;
+
+	/**
+	 * After a fetch fails outright, how long to serve the stale copy before
+	 * trying LeagueApps again. Raised to a 429's Retry-After when one is sent,
+	 * capped at FAIL_TTL_MAX. Without this every page view during an outage
+	 * is a fresh round of requests against an API that is already struggling.
+	 */
+	const FAIL_TTL     = 2 * MINUTE_IN_SECONDS;
+	const FAIL_TTL_MAX = 10 * MINUTE_IN_SECONDS;
+
+	/** Per-request HTTP timeout. */
+	const TIMEOUT = 8;
+
 	const API_BASE = 'https://public.leagueapps.io/v1/sites/';
 
 	/* ------------------------------------------------------------------
@@ -187,20 +206,58 @@ class DS_Programs_Data {
 	private static function raw_feed( array $sites ) {
 		$key       = 'ds_programs_' . md5( wp_json_encode( wp_list_pluck( $sites, 'site_id' ) ) );
 		$stale_key = $key . '_stale';
+		$lock_key  = $key . '_lock';
 
 		$hit = get_transient( $key );
 		if ( is_array( $hit ) && isset( $hit['rows'] ) ) {
-			return array( 'rows' => $hit['rows'], 'stale' => false, 'errors' => array(), 'fetched' => (int) ( $hit['fetched'] ?? 0 ) );
+			if ( empty( $hit['failed'] ) ) {
+				return array( 'rows' => $hit['rows'], 'stale' => false, 'errors' => array(), 'fetched' => (int) ( $hit['fetched'] ?? 0 ) );
+			}
+			// The last fetch failed outright and its back-off has not expired.
+			// Serve the stale copy and do not touch the API.
+			return self::serve_stale( $stale_key, (array) ( $hit['errors'] ?? array() ) );
 		}
 
-		$rows   = array();
-		$errors = array();
+		// Cache miss. Exactly one request refetches; every other request that
+		// lands in the same moment serves the stale copy instead of also calling
+		// LeagueApps. Without this, a burst of traffic at the instant the cache
+		// expires (a bot, a newsletter, a share) becomes that many identical
+		// requests to their API.
+		if ( ! self::lock( $lock_key ) ) {
+			// Another request is fetching. If a stale copy exists, serve it NOW: a
+			// request that sleeps here holds a PHP worker, and a burst at the moment
+			// the cache expires would exhaust the worker pool while LeagueApps was
+			// being protected. Only a first-ever load with nothing cached waits.
+			$stale = get_transient( $stale_key );
+			if ( is_array( $stale ) && ! empty( $stale['rows'] ) ) {
+				return self::serve_stale( $stale_key, array() );
+			}
+			for ( $i = 0; $i < 6; $i++ ) {
+				usleep( 250000 );
+				$hit = get_transient( $key );
+				if ( is_array( $hit ) && isset( $hit['rows'] ) && empty( $hit['failed'] ) ) {
+					return array( 'rows' => $hit['rows'], 'stale' => false, 'errors' => array(), 'fetched' => (int) ( $hit['fetched'] ?? 0 ) );
+				}
+			}
+			return self::serve_stale( $stale_key, array( __( 'feed refresh in progress', 'ds-toolkit' ) ) );
+		}
+
+		$rows        = array();
+		$errors      = array();
+		$retry_after = 0;
 
 		foreach ( $sites as $site ) {
+			// Re-arm per site: one site's worst case (3 attempts x TIMEOUT + back-off)
+			// fits inside LOCK_TTL; several sites in a row would not.
+			set_transient( $lock_key, time(), self::LOCK_TTL );
 			$res = self::fetch_site( $site['site_id'], $site['api_key'] );
 			if ( is_wp_error( $res ) ) {
 				// One site failing must not take the others down with it.
 				$errors[] = sprintf( 'site %s: %s', $site['site_id'], $res->get_error_message() );
+				$data     = $res->get_error_data();
+				if ( is_array( $data ) && ! empty( $data['retry_after'] ) ) {
+					$retry_after = max( $retry_after, (int) $data['retry_after'] );
+				}
 				continue;
 			}
 			foreach ( $res as $row ) {
@@ -213,11 +270,17 @@ class DS_Programs_Data {
 		}
 
 		if ( empty( $rows ) ) {
-			$stale = get_transient( $stale_key );
-			if ( is_array( $stale ) && ! empty( $stale['rows'] ) ) {
-				return array( 'rows' => $stale['rows'], 'stale' => true, 'errors' => $errors, 'fetched' => (int) ( $stale['fetched'] ?? 0 ) );
+			// Total failure. Remember it, so the next page view serves the stale
+			// copy instead of retrying LeagueApps, which is exactly when it can
+			// least afford the traffic. A 429's Retry-After lengthens the wait.
+			$backoff = self::FAIL_TTL;
+			if ( $retry_after > 0 ) {
+				$backoff = min( max( $retry_after, self::FAIL_TTL ), self::FAIL_TTL_MAX );
 			}
-			return array( 'rows' => array(), 'stale' => false, 'errors' => $errors, 'fetched' => 0 );
+			set_transient( $key, array( 'rows' => array(), 'fetched' => 0, 'failed' => true, 'errors' => $errors ), $backoff );
+			self::remember_key( $key );
+			delete_transient( $lock_key );
+			return self::serve_stale( $stale_key, $errors );
 		}
 
 		$pack = array( 'rows' => $rows, 'fetched' => time() );
@@ -225,24 +288,55 @@ class DS_Programs_Data {
 		// so the next request retries the site that failed.
 		set_transient( $key, $pack, $errors ? MINUTE_IN_SECONDS : self::TTL );
 		set_transient( $stale_key, $pack, self::STALE_TTL );
+		self::remember_key( $key );
 		self::remember_sports( $rows );
+		delete_transient( $lock_key );
 
 		return array( 'rows' => $rows, 'stale' => false, 'errors' => $errors, 'fetched' => $pack['fetched'] );
 	}
 
-	/** One site, with retries. Only `/programs/current` exists; the API has no server-side filtering. */
+	/** The 7-day fallback, or an empty result carrying the errors. */
+	private static function serve_stale( $stale_key, array $errors ) {
+		$stale = get_transient( $stale_key );
+		if ( is_array( $stale ) && ! empty( $stale['rows'] ) ) {
+			return array( 'rows' => $stale['rows'], 'stale' => true, 'errors' => $errors, 'fetched' => (int) ( $stale['fetched'] ?? 0 ) );
+		}
+		return array( 'rows' => array(), 'stale' => false, 'errors' => $errors, 'fetched' => 0 );
+	}
+
+	/**
+	 * Best-effort mutex around a refetch. A transient, not an option, so it
+	 * expires on its own if the fetching request dies. Not perfectly atomic on
+	 * a database-backed cache, so two requests in the same millisecond can both
+	 * refetch; that bounds a burst to a couple of API calls instead of one per
+	 * visitor, which is the point.
+	 */
+	private static function lock( $lock_key ) {
+		if ( false !== get_transient( $lock_key ) ) { return false; }
+		set_transient( $lock_key, time(), self::LOCK_TTL );
+		return true;
+	}
+
+	/**
+	 * One site. Only `/programs/current` exists; the API has no server-side
+	 * filtering. Retries are for connection-level failures and a garbled body
+	 * only. Any HTTP error is returned at once: a 429 or a 5xx means LeagueApps
+	 * is struggling, and retrying into that is the one thing a well-behaved
+	 * client must not do.
+	 */
 	private static function fetch_site( $site_id, $api_key ) {
 		$url  = self::API_BASE . rawurlencode( $site_id ) . '/programs/current?x-api-key=' . rawurlencode( $api_key );
 		$last = null;
 
 		for ( $attempt = 1; $attempt <= 3; $attempt++ ) {
 			$res = wp_remote_get( $url, array(
-				'timeout'    => 12,
+				'timeout'    => self::TIMEOUT,
 				'user-agent' => 'ds-toolkit-programs/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '0' ) . ' (+' . home_url( '/' ) . ')',
 				'headers'    => array( 'Accept' => 'application/json' ),
 			) );
 
 			if ( is_wp_error( $res ) ) {
+				// DNS, TLS, timeout: a blip on our side, worth one more try.
 				$last = $res;
 			} else {
 				$code = (int) wp_remote_retrieve_response_code( $res );
@@ -255,8 +349,12 @@ class DS_Programs_Data {
 					return new WP_Error( 'ds_programs_key', __( 'LeagueApps rejected the API key (403)', 'ds-toolkit' ) );
 				} elseif ( 404 === $code ) {
 					return new WP_Error( 'ds_programs_site', __( 'site not found for this key (404)', 'ds-toolkit' ) );
+				} elseif ( 429 === $code ) {
+					// Throttled. Stop now and pass Retry-After up so the back-off honours it.
+					$ra = (int) wp_remote_retrieve_header( $res, 'retry-after' );
+					return new WP_Error( 'ds_programs_throttled', __( 'LeagueApps is rate limiting requests (429)', 'ds-toolkit' ), array( 'retry_after' => $ra ) );
 				} else {
-					$last = new WP_Error( 'ds_programs_http', 'HTTP ' . $code );
+					return new WP_Error( 'ds_programs_http', 'HTTP ' . $code );
 				}
 			}
 			if ( $attempt < 3 ) { usleep( 300000 * $attempt ); }
@@ -402,6 +500,23 @@ class DS_Programs_Data {
 		return esc_url_raw( $u );
 	}
 
+	/**
+	 * Where the Register button sends people: the program's LeagueApps page,
+	 * not the registration form.
+	 *
+	 * LeagueApps fills registerUrlHtml only for club teams, and there it is
+	 * `/registration/init?bid=…`, which drops the visitor straight into
+	 * checkout past the page that explains the program. Every other type
+	 * leaves it blank and the button already fell through to the program page,
+	 * so this makes the two behave the same. The program page carries its own
+	 * Register button, so nothing is lost. Falls back to the registration link
+	 * for a program that has no page URL at all.
+	 */
+	public static function button_url( array $row ) {
+		$u = (string) ( $row['programUrl'] ?? '' );
+		return '' !== $u ? $u : (string) ( $row['registerUrl'] ?? '' );
+	}
+
 	private static function price( $row, $master ) {
 		foreach ( array( 'teamFee', 'freeAgentFee', 'teamIndividualFee', 'individualFee', 'fee' ) as $f ) {
 			$v = $row[ $f ] ?? ( $master[ $f ] ?? null );
@@ -510,12 +625,34 @@ class DS_Programs_Data {
 	 */
 	public static function flush() {
 		global $wpdb;
+		// delete_transient() reaches the object cache as well as the database,
+		// so the fresh copy and any refetch lock go wherever they live. The
+		// old version called wp_cache_flush(), which emptied the whole site's
+		// object cache for a Contributor-level button press.
+		foreach ( self::known_keys() as $k ) {
+			delete_transient( $k );
+			delete_transient( $k . '_lock' );
+		}
+		// Belt and braces for database-backed rows written before the registry existed.
 		$wpdb->query(
 			"DELETE FROM {$wpdb->options}
 			  WHERE ( option_name LIKE '_transient_ds_programs_%' OR option_name LIKE '_transient_timeout_ds_programs_%' )
 			    AND option_name NOT LIKE '%\_stale'"
 		);
-		wp_cache_flush();
+	}
+
+	/** Every raw-feed cache key this class has written, so flush() can find them in an object cache. */
+	private static function known_keys() {
+		$k = get_transient( 'ds_programs_keys' );
+		return is_array( $k ) ? $k : array();
+	}
+
+	private static function remember_key( $key ) {
+		$keys = self::known_keys();
+		if ( ! in_array( $key, $keys, true ) ) {
+			$keys[] = $key;
+			set_transient( 'ds_programs_keys', $keys, self::STALE_TTL );
+		}
 	}
 
 	/**
