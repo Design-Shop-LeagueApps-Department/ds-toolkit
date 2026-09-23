@@ -201,7 +201,13 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 	// site keeps one look across both layouts; the site accent is the last fallback.
 	// Only a header colour the editor SET counts as a fallback; the presets' faint
 	// header tint (rgba(0,0,0,.06)) must never become a band with white text on it.
-	$accent   = call_user_func( $col, get_theme_mod( 'fl-accent', '' ) ) ?: 'var(--fl-global-accent, #1a1a1a)';
+	// Fallback order after an explicit header colour: whatever the site's BUTTONS are
+	// painted with (Global Styles, then the bb-theme button mod), so the band matches
+	// the register button on the same card, and only then the theme accent.
+	$gs_btn   = class_exists( 'FLBuilderGlobalStyles' ) ? FLBuilderGlobalStyles::get_settings( false ) : null;
+	$accent   = call_user_func( $col, $gs_btn->button_background ?? '' )
+		?: ( call_user_func( $col, get_theme_mod( 'fl-button-background', '' ) )
+		?: ( call_user_func( $col, get_theme_mod( 'fl-accent', '' ) ) ?: 'var(--fl-global-accent, #1a1a1a)' ) );
 	$set_hbg  = call_user_func( $col, $settings->head_bg ?? '' );
 	$set_hfg  = call_user_func( $col, $settings->head_color ?? '' );
 	$band_bg  = $sc( 'card_head_bg' ) ?: ( $set_hbg ?: $accent );
@@ -210,7 +216,7 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 	if ( 'band' === $head ) {
 		echo "$node .ds-programs-card-head{margin:-$cpad -$cpad 14px;padding:14px $cpad;background-color:$band_bg;color:$band_fg;}\n";
 		echo "$node .ds-programs-card-title,$node .ds-programs-card-title a{color:$band_fg;}\n";
-		echo "$node .ds-programs-card-badge{background-color:" . ( $sc( 'card_badge_bg' ) ?: 'rgba(255,255,255,.22)' ) . ";color:" . ( $sc( 'card_badge_color' ) ?: $band_fg ) . ";}\n";
+		echo "$node .ds-programs-card-badge{background-color:" . ( $sc( 'card_badge_bg' ) ?: 'rgba(0,0,0,.28)' ) . ";color:" . ( $sc( 'card_badge_color' ) ?: $band_fg ) . ";}\n";
 	} else {
 		if ( 'rule' === $head ) { echo "$node .ds-programs-card-head{padding-bottom:10px;margin-bottom:12px;border-bottom:3px solid $band_bg;}\n"; }
 		else { echo "$node .ds-programs-card-head{margin-bottom:12px;}\n"; }
