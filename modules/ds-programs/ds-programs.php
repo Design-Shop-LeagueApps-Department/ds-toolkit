@@ -106,7 +106,7 @@ class DS_Programs_Module extends FLBuilderModule {
 		$this->feed_stale  = ! empty( $feed['stale'] );
 		$this->feed_errors = $feed['errors'];
 
-		$type  = strtoupper( (string) ( $s->program_type ?? '' ) );
+		$types = self::type_list( $s->program_type ?? array() );
 		$mode  = strtoupper( (string) ( $s->program_mode ?? '' ) );
 		$state = strtoupper( (string) ( $s->state_filter ?? '' ) );
 		$sport = trim( (string) ( $s->sport_filter ?? '' ) );
@@ -114,8 +114,8 @@ class DS_Programs_Module extends FLBuilderModule {
 		$hide_sold   = 'yes' === ( $s->hide_sold_out ?? 'no' );
 		$hide_closed = 'yes' === ( $s->hide_closed ?? 'no' );
 
-		$rows = array_values( array_filter( $rows, function ( $r ) use ( $type, $mode, $state, $sport, $hide_sold, $hide_closed ) {
-			if ( $type && $r['typeRaw'] !== $type ) { return false; }
+		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $state, $sport, $hide_sold, $hide_closed ) {
+			if ( $types && ! in_array( $r['typeRaw'], $types, true ) ) { return false; }
 			if ( $mode && $r['modeRaw'] !== $mode ) { return false; }
 			if ( $state && $r['stateRaw'] !== $state ) { return false; }
 			if ( '' !== $sport && 0 !== strcasecmp( $r['sport'], $sport ) ) { return false; }
@@ -171,6 +171,21 @@ class DS_Programs_Module extends FLBuilderModule {
 			$out[ $k ] = array( 'label' => $cat[ $k ]['label'], 'align' => $cat[ $k ]['align'] ?? 'left', 'width' => '', 'nowrap' => ! empty( $cat[ $k ]['nowrap'] ) );
 		}
 		return $out;
+	}
+
+	/**
+	 * Program types to keep, upper-cased, from either shape the field has had:
+	 * a string ('TOURNAMENT' or '' = all, saved before 1.9.150) or an array of
+	 * ticked types (button-group multi-select; empty = all).
+	 */
+	public static function type_list( $v ) {
+		if ( is_string( $v ) ) { $v = ( '' === trim( $v ) ) ? array() : array( $v ); }
+		$out = array();
+		foreach ( (array) $v as $t ) {
+			$t = strtoupper( trim( (string) $t ) );
+			if ( '' !== $t ) { $out[ $t ] = $t; }
+		}
+		return array_values( $out );
 	}
 
 	/** "120", "120px", "20%" -> a safe CSS length, else ''. */
@@ -371,10 +386,12 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 				'description' => __( 'Listed: every program LeagueApps marks Public and not deleted, whose season is upcoming or in progress (past seasons are never listed). A tournament shows one row per age group; the parent row is not repeated. Sold-out and closed-registration programs are listed unless hidden below.', 'ds-toolkit' ),
 				'fields'      => array(
 					'program_type' => array(
-						'type'    => 'select',
-						'label'   => __( 'Program type', 'ds-toolkit' ),
-						'default' => '',
-						'options' => array( '' => __( 'Everything', 'ds-toolkit' ), 'TOURNAMENT' => __( 'Tournaments', 'ds-toolkit' ), 'LEAGUE' => __( 'Leagues', 'ds-toolkit' ), 'CAMP' => __( 'Camps', 'ds-toolkit' ), 'CLINIC' => __( 'Clinics', 'ds-toolkit' ), 'CLASS' => __( 'Classes', 'ds-toolkit' ), 'EVENT' => __( 'Events', 'ds-toolkit' ), 'CLUBTEAM' => __( 'Club teams', 'ds-toolkit' ) ),
+						'type'         => 'button-group',
+						'label'        => __( 'Program types', 'ds-toolkit' ),
+						'multi-select' => true,
+						'default'      => array(),
+						'options'      => array( 'TOURNAMENT' => __( 'Tournaments', 'ds-toolkit' ), 'LEAGUE' => __( 'Leagues', 'ds-toolkit' ), 'CAMP' => __( 'Camps', 'ds-toolkit' ), 'CLINIC' => __( 'Clinics', 'ds-toolkit' ), 'CLASS' => __( 'Classes', 'ds-toolkit' ), 'EVENT' => __( 'Events', 'ds-toolkit' ), 'CLUBTEAM' => __( 'Club teams', 'ds-toolkit' ) ),
+						'help'         => __( 'Tick one or more. Nothing ticked shows every type.', 'ds-toolkit' ),
 					),
 					'program_mode' => array(
 						'type'    => 'select',
