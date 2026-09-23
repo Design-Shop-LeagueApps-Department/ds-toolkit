@@ -174,12 +174,14 @@ class DS_Programs_Module extends FLBuilderModule {
 	}
 
 	/**
-	 * Program types to keep, upper-cased, from either shape the field has had:
-	 * a string ('TOURNAMENT' or '' = all, saved before 1.9.150) or an array of
-	 * ticked types (button-group multi-select; empty = all).
+	 * Program types to keep, upper-cased, from every shape the field has had:
+	 * the pre-1.9.150 single string ('TOURNAMENT', or '' = all), an array, or
+	 * what Beaver Builder's multi-select button group actually saves, which is
+	 * one COMMA-JOINED string ('TOURNAMENT,LEAGUE'; its JS does val.join(',')).
+	 * Empty = every type.
 	 */
 	public static function type_list( $v ) {
-		if ( is_string( $v ) ) { $v = ( '' === trim( $v ) ) ? array() : array( $v ); }
+		if ( is_string( $v ) ) { $v = preg_split( '/\s*,\s*/', trim( $v ) ); }
 		$out = array();
 		foreach ( (array) $v as $t ) {
 			$t = strtoupper( trim( (string) $t ) );

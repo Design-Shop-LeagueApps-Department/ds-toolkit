@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.151] - 2026-09-23
+### Fixed
+- **Programs module: ticking two or more program types showed an empty table.** Beaver Builder's multi-select button group saves its value as one comma-joined string (`TOURNAMENT,LEAGUE`), not an array; 1.9.150 read that as a single unknown type and matched nothing. The type list now splits on commas as well as accepting arrays and the old single value. Found by reading the field's JavaScript (`val.join(',')`) before any partner had saved a multi-type module.
+
 ## [1.9.150] - 2026-09-23
 ### Changed
 - **LeagueApps Programs: "Program type" is now a set of tick buttons, not a single dropdown** (Zay, 2026-09-23). A partner ticks any combination of Tournaments, Leagues, Camps, Clinics, Classes, Events and Club teams on one module; nothing ticked shows every type. Modules saved before this release keep working unchanged: the old single value is read as a one-item list.
