@@ -181,9 +181,11 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 	$cols_md   = ( '' !== ( $settings->card_cols_medium ?? '' ) ) ? max( 1, min( 4, (int) $settings->card_cols_medium ) ) : min( 2, $cols_base );
 	$cols_sm   = ( '' !== ( $settings->card_cols_responsive ?? '' ) ) ? max( 1, min( 4, (int) $settings->card_cols_responsive ) ) : 1;
 	$gap       = $px( 'card_gap' ) ?: '20px';
+	$gap_md    = ( '' !== ( $settings->card_gap_medium ?? '' ) && is_numeric( $settings->card_gap_medium ) ) ? (int) $settings->card_gap_medium . 'px' : '';
+	$gap_sm    = ( '' !== ( $settings->card_gap_responsive ?? '' ) && is_numeric( $settings->card_gap_responsive ) ) ? (int) $settings->card_gap_responsive . 'px' : '';
 	echo "$node .ds-programs-grid{--ds-card-cols:$cols_base;--ds-card-gap:$gap;}\n";
-	echo "@media(max-width:{$bp_md}px){{$node} .ds-programs-grid{--ds-card-cols:$cols_md;}}\n";
-	echo "@media(max-width:{$bp_sm}px){{$node} .ds-programs-grid{--ds-card-cols:$cols_sm;}}\n";
+	echo "@media(max-width:{$bp_md}px){{$node} .ds-programs-grid{--ds-card-cols:$cols_md;" . ( $gap_md ? "--ds-card-gap:$gap_md;" : '' ) . "}}\n";
+	echo "@media(max-width:{$bp_sm}px){{$node} .ds-programs-grid{--ds-card-cols:$cols_sm;" . ( $gap_sm ? "--ds-card-gap:$gap_sm;" : '' ) . "}}\n";
 
 	$cpad   = $px( 'card_pad' ) ?: '18px';
 	$cp     = array( "padding:$cpad" );
@@ -227,6 +229,14 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 	// card head the title is the link, so out-specify that here rather than in the static file.
 	echo "$node .ds-programs-card .ds-programs-card-title .ds-programs-link{text-decoration:none;}\n";
 	echo "$node .ds-programs-card .ds-programs-card-title .ds-programs-link:hover{text-decoration:underline;text-underline-offset:3px;}\n";
+	// Responsive padding: the band's negative margins must track the padding at each breakpoint
+	// or it stops being edge to edge on tablets and phones.
+	foreach ( array( 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
+		$pv = $settings->{"card_pad_$suffix"} ?? '';
+		if ( '' === $pv || ! is_numeric( $pv ) ) { continue; }
+		$pv = (int) $pv . 'px';
+		echo "@media(max-width:{$bp}px){{$node} .ds-programs-card{padding:$pv;}" . ( 'band' === $head ? "{$node} .ds-programs-card-head{margin:-$pv -$pv 14px;padding:14px $pv;}" : '' ) . "}\n";
+	}
 	if ( ! empty( $settings->card_title_typo ) ) { FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'card_title_typo', 'selector' => "$node .ds-programs-card-title" ) ); }
 
 	$lp = array();
