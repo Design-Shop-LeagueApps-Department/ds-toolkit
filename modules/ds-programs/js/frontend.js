@@ -23,7 +23,7 @@
 			var search   = wrap.querySelector('[data-ds-programs-search]');
 			var sortSel  = wrap.querySelector('[data-ds-programs-sortsel]');
 			var sortBtns = wrap.querySelectorAll('.ds-programs-sortbtn');
-			var tbody    = wrap.querySelector('.ds-programs-table tbody');
+			var tbody    = wrap.querySelector('[data-ds-programs-list]') || wrap.querySelector('.ds-programs-table tbody');
 			var rows     = Array.prototype.slice.call(wrap.querySelectorAll('.ds-programs-row'));
 			var countEl  = wrap.querySelector('[data-ds-programs-count]');
 			var noneEl   = wrap.querySelector('[data-ds-programs-none]');

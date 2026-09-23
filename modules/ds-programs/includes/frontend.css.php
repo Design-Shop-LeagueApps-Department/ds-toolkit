@@ -175,6 +175,63 @@ if ( 'colors' === $fm ) {
 	$v = $sc( 'btn_full_color' ); if ( $v ) { echo "$node .ds-programs-full{color:$v;}\n"; }
 }
 
+/* ---------- card layout ---------- */
+if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
+	$cols_base = max( 1, min( 4, (int) ( $st( 'card_cols', 3 ) ?: 3 ) ) );
+	$cols_md   = ( '' !== ( $settings->card_cols_medium ?? '' ) ) ? max( 1, min( 4, (int) $settings->card_cols_medium ) ) : min( 2, $cols_base );
+	$cols_sm   = ( '' !== ( $settings->card_cols_responsive ?? '' ) ) ? max( 1, min( 4, (int) $settings->card_cols_responsive ) ) : 1;
+	$gap       = $px( 'card_gap' ) ?: '20px';
+	echo "$node .ds-programs-grid{--ds-card-cols:$cols_base;--ds-card-gap:$gap;}\n";
+	echo "@media(max-width:{$bp_md}px){{$node} .ds-programs-grid{--ds-card-cols:$cols_md;}}\n";
+	echo "@media(max-width:{$bp_sm}px){{$node} .ds-programs-grid{--ds-card-cols:$cols_sm;}}\n";
+
+	$cpad   = $px( 'card_pad' ) ?: '18px';
+	$cp     = array( "padding:$cpad" );
+	$cp[]   = 'background-color:' . ( $sc( 'card_bg' ) ?: '#ffffff' );
+	$cb     = $sc( 'card_border' ); $cp[] = 'border:1px solid ' . ( $cb ?: 'rgba(0,0,0,.08)' );
+	$cp[]   = 'border-radius:' . ( $px( 'card_radius' ) ?: '14px' );
+	$shadow = (string) $st( 'card_shadow', 'soft' );
+	if ( 'soft' === $shadow || 'lift' === $shadow ) { $cp[] = 'box-shadow:0 2px 10px rgba(0,0,0,.06)'; }
+	if ( 'medium' === $shadow ) { $cp[] = 'box-shadow:0 8px 28px rgba(0,0,0,.12)'; }
+	echo "$node .ds-programs-card{" . implode( ';', $cp ) . ";}\n";
+	if ( 'lift' === $shadow ) { echo "$node .ds-programs-card:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.14);}\n"; }
+	$v = $sc( 'card_value_color' ); if ( $v ) { echo "$node .ds-programs-card{color:$v;}\n"; }
+
+	// Title area: the band and underline borrow the table's Header row colours so one
+	// site keeps one look across both layouts; the site accent is the last fallback.
+	// Only a header colour the editor SET counts as a fallback; the presets' faint
+	// header tint (rgba(0,0,0,.06)) must never become a band with white text on it.
+	$accent   = call_user_func( $col, get_theme_mod( 'fl-accent', '' ) ) ?: 'var(--fl-global-accent, #1a1a1a)';
+	$set_hbg  = call_user_func( $col, $settings->head_bg ?? '' );
+	$set_hfg  = call_user_func( $col, $settings->head_color ?? '' );
+	$band_bg  = $sc( 'card_head_bg' ) ?: ( $set_hbg ?: $accent );
+	$band_fg  = $sc( 'card_head_color' ) ?: ( $set_hfg ?: '#ffffff' );
+	$head    = (string) $st( 'card_head', 'band' );
+	if ( 'band' === $head ) {
+		echo "$node .ds-programs-card-head{margin:-$cpad -$cpad 14px;padding:14px $cpad;background-color:$band_bg;color:$band_fg;}\n";
+		echo "$node .ds-programs-card-title,$node .ds-programs-card-title a{color:$band_fg;}\n";
+		echo "$node .ds-programs-card-badge{background-color:" . ( $sc( 'card_badge_bg' ) ?: 'rgba(255,255,255,.22)' ) . ";color:" . ( $sc( 'card_badge_color' ) ?: $band_fg ) . ";}\n";
+	} else {
+		if ( 'rule' === $head ) { echo "$node .ds-programs-card-head{padding-bottom:10px;margin-bottom:12px;border-bottom:3px solid $band_bg;}\n"; }
+		else { echo "$node .ds-programs-card-head{margin-bottom:12px;}\n"; }
+		$v = $sc( 'card_title_color' ); if ( $v ) { echo "$node .ds-programs-card-title,$node .ds-programs-card-title a{color:$v;}\n"; }
+		echo "$node .ds-programs-card-badge{background-color:" . ( $sc( 'card_badge_bg' ) ?: DS_Module_UI::mix( $band_bg, 14 ) ) . ";color:" . ( $sc( 'card_badge_color' ) ?: $band_bg ) . ";}\n";
+	}
+	if ( ! empty( $settings->card_title_typo ) ) { FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'card_title_typo', 'selector' => "$node .ds-programs-card-title" ) ); }
+
+	$lp = array();
+	$v = $sc( 'card_label_color' ); if ( $v ) { $lp[] = "color:$v"; $lp[] = 'opacity:1'; }
+	$v = $px( 'card_label_size' );  if ( $v ) { $lp[] = "font-size:$v"; }
+	if ( $lp ) { echo "$node .ds-programs-card-field dt{" . implode( ';', $lp ) . ";}\n"; }
+	if ( ! empty( $settings->card_value_typo ) ) { FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'card_value_typo', 'selector' => "$node .ds-programs-card-body dd" ) ); }
+	$v = $sc( 'card_border' ); echo "$node .ds-programs-card-field + .ds-programs-card-field{border-top:1px solid " . ( $v ?: 'rgba(0,0,0,.06)' ) . ";}\n";
+	echo "$node .ds-programs-card-foot{margin-top:14px;padding-top:14px;border-top:1px solid " . ( $v ?: 'rgba(0,0,0,.08)' ) . ";}\n";
+	$pp = array();
+	$v = $px( 'card_price_size' );  if ( $v ) { $pp[] = "font-size:$v"; }
+	$v = $sc( 'card_price_color' ); if ( $v ) { $pp[] = "color:$v"; }
+	if ( $pp ) { echo "$node .ds-programs-card-price{" . implode( ';', $pp ) . ";}\n"; }
+}
+
 /* ---------- phone cards (breakpoint follows Beaver Builder) ---------- */
 $m = array();
 $m[] = ".ds-programs-field{max-width:none;flex-basis:100%;}";

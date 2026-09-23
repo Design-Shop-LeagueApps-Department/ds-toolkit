@@ -1,11 +1,13 @@
 <?php
 /**
- * LeagueApps Programs, table markup.
+ * LeagueApps Programs, markup for both layouts: the table and the card grid.
  *
  * Rendered fully server-side so the listing is in the HTML (indexable, and
  * it survives a visitor on flaky mobile data). Filtering, keyword search,
  * column sorting and pagination are progressive enhancement: every row is
- * already there, the JS only hides, shows and reorders them.
+ * already there, the JS only hides, shows and reorders them. Both layouts
+ * share the same row element class, data attributes and list container, so
+ * the JS does not know or care which one is rendered.
  *
  * In scope: $this (the module).
  */
@@ -16,6 +18,7 @@ $rows    = $this->rows();
 $cols    = $this->chosen_columns();
 $filters = $this->chosen_filters();
 $node    = $this->node;
+$layout  = ( 'cards' === ( $s->layout ?? 'table' ) ) ? 'cards' : 'table';
 
 $btn_text  = trim( (string) ( $s->btn_text ?? '' ) ) ?: __( 'Register', 'ds-toolkit' );
 $btn_full  = trim( (string) ( $s->btn_full_text ?? '' ) ) ?: __( 'Sold Out', 'ds-toolkit' );
@@ -78,8 +81,20 @@ $sort_val = function ( $key, $r ) {
 };
 $col_types = array();
 foreach ( $cols as $ckey => $c ) { $col_types[ $ckey ] = $sort_val( $ckey, array( 'startTs' => 0, 'endTs' => 0, 'month' => '', 'ageGroup' => '', 'days' => '', 'price' => '', 'spots' => '', 'soldOut' => false ) )[1]; }
+
+/** The attributes every row element carries, in either layout. */
+$row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val ) {
+	$search = array();
+	foreach ( $cols as $ckey => $c ) { if ( 'register' !== $ckey ) { $search[] = (string) ( $r[ $ckey ] ?? '' ); } }
+	$a  = ' data-i="' . (int) $i . '" data-search="' . esc_attr( strtolower( implode( ' ', array_filter( $search ) ) ) ) . '"';
+	foreach ( $filters as $fkey => $f ) { $a .= ' data-f-' . esc_attr( strtolower( $fkey ) ) . '="' . esc_attr( trim( (string) ( $r[ $fkey ] ?? '' ) ) ) . '"'; }
+	if ( $sortable ) {
+		foreach ( $cols as $ckey => $c ) { if ( 'register' !== $ckey ) { $a .= ' data-s-' . esc_attr( strtolower( $ckey ) ) . '="' . esc_attr( $sort_val( $ckey, $r )[0] ) . '"'; } }
+	}
+	return $a;
+};
 ?>
-<div class="ds-programs" id="ds-programs-<?php echo esc_attr( $node ); ?>" data-ds-programs
+<div class="ds-programs ds-programs--<?php echo esc_attr( $layout ); ?>" id="ds-programs-<?php echo esc_attr( $node ); ?>" data-ds-programs
 	data-one="<?php echo esc_attr( $cnt_one ); ?>" data-many="<?php echo esc_attr( $cnt_many ); ?>"
 	data-page-size="<?php echo (int) $page_size; ?>" data-prev="<?php echo esc_attr( $prev_txt ); ?>" data-next="<?php echo esc_attr( $next_txt ); ?>">
 
@@ -133,6 +148,53 @@ foreach ( $cols as $ckey => $c ) { $col_types[ $ckey ] = $sort_val( $ckey, array
 
 	<?php if ( empty( $rows ) ) : ?>
 		<p class="ds-programs-empty"><?php echo esc_html( $empty_txt ); ?></p>
+	<?php elseif ( 'cards' === $layout ) :
+		// Card roles: the program name is the title, the age group a badge, price and
+		// the register button sit in the footer, everything else the editor chose is a
+		// labelled line in the body, in the editor's order.
+		$body_keys = array();
+		foreach ( $cols as $ckey => $c ) { if ( ! in_array( $ckey, array( 'program', 'ageGroup', 'price', 'register' ), true ) ) { $body_keys[] = $ckey; } }
+		$has_badge = isset( $cols['ageGroup'] );
+		$has_price = isset( $cols['price'] );
+		$has_btn   = isset( $cols['register'] );
+		$head_tag  = in_array( $s->card_title_tag ?? 'h3', array( 'h2', 'h3', 'h4', 'p' ), true ) ? $s->card_title_tag : 'h3';
+		?>
+	<div class="ds-programs-grid" data-ds-programs-list>
+		<?php foreach ( $rows as $i => $r ) : ?>
+			<article class="ds-programs-row ds-programs-card<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
+				<div class="ds-programs-card-head">
+					<<?php echo $head_tag; ?> class="ds-programs-card-title"><?php echo $cell( 'program', $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell ?></<?php echo $head_tag; ?>>
+					<?php if ( $has_badge && '' !== trim( (string) $r['ageGroup'] ) ) : ?>
+						<span class="ds-programs-card-badge"><?php echo esc_html( $r['ageGroup'] ); ?></span>
+					<?php endif; ?>
+				</div>
+				<?php if ( $body_keys ) : ?>
+				<dl class="ds-programs-card-body">
+					<?php foreach ( $body_keys as $ckey ) :
+						$v = $cell( $ckey, $r );
+						if ( '' === $v ) { continue; } ?>
+						<div class="ds-programs-card-field ds-programs-card-field--<?php echo esc_attr( $ckey ); ?>">
+							<dt><?php echo esc_html( $cols[ $ckey ]['label'] ); ?></dt>
+							<dd><?php echo $v; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell ?></dd>
+						</div>
+					<?php endforeach; ?>
+				</dl>
+				<?php endif; ?>
+				<?php if ( $has_price || $has_btn ) : ?>
+				<div class="ds-programs-card-foot">
+					<?php if ( $has_price ) : ?><span class="ds-programs-card-price"><?php echo esc_html( $r['price'] ); ?></span><?php endif; ?>
+					<?php if ( $has_btn ) : ?><span class="ds-programs-card-action"><?php echo $cell( 'register', $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell ?></span><?php endif; ?>
+				</div>
+				<?php endif; ?>
+			</article>
+		<?php endforeach; ?>
+	</div>
+
+	<p class="ds-programs-none" data-ds-programs-none hidden><?php echo esc_html( $none_txt ); ?></p>
+	<?php if ( $page_size > 0 ) : ?>
+		<nav class="ds-programs-pager" data-ds-programs-pager aria-label="<?php esc_attr_e( 'Pagination', 'ds-toolkit' ); ?>" hidden></nav>
+	<?php endif; ?>
+
 	<?php else : ?>
 
 	<div class="ds-programs-scroll">
@@ -154,23 +216,9 @@ foreach ( $cols as $ckey => $c ) { $col_types[ $ckey ] = $sort_val( $ckey, array
 					<?php endforeach; ?>
 				</tr>
 			</thead>
-			<tbody>
-				<?php foreach ( $rows as $i => $r ) :
-					$search = array();
-					foreach ( $cols as $ckey => $c ) { if ( 'register' !== $ckey ) { $search[] = (string) ( $r[ $ckey ] ?? '' ); } }
-					?>
-					<tr class="ds-programs-row<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; ?>" data-i="<?php echo (int) $i; ?>"
-						data-search="<?php echo esc_attr( strtolower( implode( ' ', array_filter( $search ) ) ) ); ?>"<?php
-						foreach ( $filters as $fkey => $f ) {
-							echo ' data-f-' . esc_attr( strtolower( $fkey ) ) . '="' . esc_attr( trim( (string) ( $r[ $fkey ] ?? '' ) ) ) . '"';
-						}
-						if ( $sortable ) {
-							foreach ( $cols as $ckey => $c ) {
-								if ( 'register' === $ckey ) { continue; }
-								echo ' data-s-' . esc_attr( strtolower( $ckey ) ) . '="' . esc_attr( $sort_val( $ckey, $r )[0] ) . '"';
-							}
-						}
-					?>>
+			<tbody data-ds-programs-list>
+				<?php foreach ( $rows as $i => $r ) : ?>
+					<tr class="ds-programs-row<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
 						<?php foreach ( $cols as $ckey => $c ) : ?>
 							<td class="ds-programs-td ds-programs-td--<?php echo esc_attr( $ckey ); ?>" data-label="<?php echo esc_attr( 'register' === $ckey ? '' : $c['label'] ); ?>"><?php
 								echo $cell( $ckey, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell
@@ -183,7 +231,6 @@ foreach ( $cols as $ckey => $c ) { $col_types[ $ckey ] = $sort_val( $ckey, array
 	</div>
 
 	<p class="ds-programs-none" data-ds-programs-none hidden><?php echo esc_html( $none_txt ); ?></p>
-
 	<?php if ( $page_size > 0 ) : ?>
 		<nav class="ds-programs-pager" data-ds-programs-pager aria-label="<?php esc_attr_e( 'Pagination', 'ds-toolkit' ); ?>" hidden></nav>
 	<?php endif; ?>

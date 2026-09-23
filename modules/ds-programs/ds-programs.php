@@ -532,6 +532,53 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 	'style' => array(
 		'title'    => __( 'Style', 'ds-toolkit' ),
 		'sections' => array(
+			'layout_sec' => array(
+				'title'  => __( 'Layout', 'ds-toolkit' ),
+				'fields' => array(
+					'layout' => array(
+						'type'    => 'select',
+						'label'   => __( 'Show programs as', 'ds-toolkit' ),
+						'default' => 'table',
+						'options' => array( 'table' => __( 'Table (one row per program)', 'ds-toolkit' ), 'cards' => __( 'Cards (a grid, one card per program)', 'ds-toolkit' ) ),
+						'toggle'  => array(
+							'table' => array( 'sections' => array( 'preset_sec', 'table_sec', 'head_sec', 'row_sec' ) ),
+							'cards' => array( 'sections' => array( 'card_sec', 'card_text_sec' ) ),
+						),
+						'help'    => __( 'Same programs, filters, search, sort and paging either way. Cards use the columns you chose: the program name is the title, the age group a badge, price and the button sit at the bottom, the rest are labelled lines.', 'ds-toolkit' ),
+					),
+				),
+			),
+			'card_sec' => array(
+				'title'  => __( 'Cards', 'ds-toolkit' ),
+				'fields' => array(
+					'card_cols'     => $ds_prg_unit( __( 'Cards per row', 'ds-toolkit' ), 1, 4, array( 'default' => '3', 'description' => '', 'responsive' => true, 'help' => __( 'Phones fall to one per row unless you set the small-screen value.', 'ds-toolkit' ) ) ),
+					'card_gap'      => $ds_prg_unit( __( 'Gap between cards', 'ds-toolkit' ), 0, 60 ),
+					'card_bg'       => $ds_prg_colour( __( 'Card background', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
+					'card_border'   => $ds_prg_colour( __( 'Card border', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
+					'card_radius'   => $ds_prg_unit( __( 'Corner radius', 'ds-toolkit' ), 0, 40 ),
+					'card_shadow'   => array( 'type' => 'select', 'label' => __( 'Shadow', 'ds-toolkit' ), 'default' => 'soft', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'soft' => __( 'Soft', 'ds-toolkit' ), 'medium' => __( 'Medium', 'ds-toolkit' ), 'lift' => __( 'Soft, lifts on hover', 'ds-toolkit' ) ) ),
+					'card_pad'      => $ds_prg_unit( __( 'Card padding', 'ds-toolkit' ), 8, 48 ),
+					'card_head'     => array( 'type' => 'select', 'label' => __( 'Title area', 'ds-toolkit' ), 'default' => 'band', 'options' => array( 'plain' => __( 'Plain', 'ds-toolkit' ), 'band' => __( 'Coloured band', 'ds-toolkit' ), 'rule' => __( 'Underline', 'ds-toolkit' ) ), 'help' => __( 'The band and underline use the Header row colours from the table style, so a site keeps one look across both layouts.', 'ds-toolkit' ) ),
+					'card_head_bg'  => $ds_prg_colour( __( 'Band background', 'ds-toolkit' ), array( 'show_alpha' => true, 'help' => __( 'Blank = the table Header row background, then the site accent.', 'ds-toolkit' ) ) ),
+					'card_head_color' => $ds_prg_colour( __( 'Band text', 'ds-toolkit' ) ),
+					'card_badge_bg' => $ds_prg_colour( __( 'Age badge background', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
+					'card_badge_color' => $ds_prg_colour( __( 'Age badge text', 'ds-toolkit' ) ),
+				),
+			),
+			'card_text_sec' => array(
+				'title'  => __( 'Card text', 'ds-toolkit' ),
+				'fields' => array(
+					'card_title_tag'   => array( 'type' => 'select', 'label' => __( 'Title tag', 'ds-toolkit' ), 'default' => 'h3', 'options' => array( 'h2' => 'h2', 'h3' => 'h3', 'h4' => 'h4', 'p' => 'p' ) ),
+					'card_title_typo'  => array( 'type' => 'typography', 'label' => __( 'Title typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-programs-card-title' ) ),
+					'card_title_color' => $ds_prg_colour( __( 'Title colour', 'ds-toolkit' ), array( 'help' => __( 'Only used with a Plain or Underline title area; the band uses Band text.', 'ds-toolkit' ) ) ),
+					'card_label_color' => $ds_prg_colour( __( 'Field label colour', 'ds-toolkit' ) ),
+					'card_label_size'  => $ds_prg_unit( __( 'Field label size', 'ds-toolkit' ), 9, 16 ),
+					'card_value_color' => $ds_prg_colour( __( 'Field value colour', 'ds-toolkit' ) ),
+					'card_value_typo'  => array( 'type' => 'typography', 'label' => __( 'Field value typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-programs-card-body dd' ) ),
+					'card_price_size'  => $ds_prg_unit( __( 'Price size', 'ds-toolkit' ), 12, 40 ),
+					'card_price_color' => $ds_prg_colour( __( 'Price colour', 'ds-toolkit' ) ),
+				),
+			),
 			'preset_sec' => array(
 				'title'  => __( 'Preset', 'ds-toolkit' ),
 				'fields' => array(
