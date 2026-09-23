@@ -285,6 +285,11 @@ $m[] = ".ds-programs-table .ds-programs-td--spots:has(.ds-programs-dash){display
 // Node-scoped so it out-specifies the `tr{display:flex}` card rule above (the static
 // .is-hidden rule loses to it); without this, phones ignore filters and paging.
 $m[] = ".ds-programs-table tr.ds-programs-row.is-hidden,$node .ds-programs-table tr.ds-programs-row.is-paged{display:none;}";
+// The bar rules apply to both layouts; everything else here turns TABLE rows into
+// stacked cards and must not touch the Cards layout, whose grid shares the row class.
 echo "@media(max-width:{$bp_sm}px){\n";
-foreach ( $m as $rule ) { echo "$node $rule\n"; }
+foreach ( $m as $rule ) {
+	$scope = ( 0 === strpos( $rule, '.ds-programs-field' ) ) ? '' : ' .ds-programs--table';
+	echo "$node$scope $rule\n";
+}
 echo "}\n";
