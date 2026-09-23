@@ -182,6 +182,73 @@
 .ds-programs-row.is-hidden,
 .ds-programs-row.is-paged { display: none; }
 
+/* ---- Card layout: structure only, colours and sizes come from css.php ---- */
+.ds-programs-grid {
+	display: grid;
+	grid-template-columns: repeat(var(--ds-card-cols, 3), minmax(0, 1fr));
+	gap: var(--ds-card-gap, 20px);
+	align-items: stretch;
+}
+.ds-programs-card {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	overflow: hidden;
+	transition: transform .18s ease, box-shadow .18s ease;
+}
+.ds-programs-card-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px 10px;
+}
+.ds-programs-card-title { flex: 1 1 60%; }
+.ds-programs-card-title { margin: 0; font-size: 18px; line-height: 1.25; font-weight: 700; overflow-wrap: anywhere; }
+.ds-programs-card-title a { color: inherit; text-decoration: none; }
+.ds-programs-card-title a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ds-programs-card-badge {
+	flex: 0 0 auto;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: .03em;
+	line-height: 1.3;
+	max-width: 100%;
+	text-align: center;
+}
+.ds-programs-card-body { margin: 0; flex: 1 1 auto; }
+.ds-programs-card-field {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 14px;
+	padding: 6px 0;
+}
+.ds-programs-card-field dt {
+	flex: 0 0 auto;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	opacity: .65;
+}
+.ds-programs-card-field dd { margin: 0; text-align: right; min-width: 0; }
+.ds-programs-card-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: auto;
+}
+.ds-programs-card-price { font-size: 20px; font-weight: 800; line-height: 1; }
+.ds-programs-card-action { margin-left: auto; }
+.ds-programs-card .ds-programs-btn { display: inline-block; }
+.ds-programs-card.is-soldout .ds-programs-card-price { opacity: .6; }
+/* cards have no column headings, so the Sort-by dropdown is always in the bar */
+.ds-programs--cards .ds-programs-field--sort { display: flex; }
+
 .ds-programs-dash { opacity: .45; }
 
 /* Visually hidden, still read by screen readers (the Register column heading). */
