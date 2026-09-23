@@ -139,6 +139,17 @@ delete_transient($key); $GLOBALS['http']=array(array('code'=>400,'body'=>'','hea
 DS_Programs_Data::get(array($site));
 chk('one call, no retry into a deterministic 4xx', $GLOBALS['calls'], 1);
 
+
+echo "refetch lock held AND a stale copy exists (no sleep, no HTTP)\n";
+$GLOBALS['tr']=array(); $GLOBALS['calls']=0;
+$k='ds_programs_'.md5(json_encode(array('46287')));
+set_transient($k.'_stale', array('rows'=>array(array('programId'=>1,'name'=>'X','type'=>'LEAGUE','visibility'=>'Public','startTime'=>1700000000000,'endTime'=>1700000000000)),'fetched'=>1), 999);
+set_transient($k.'_lock', time(), 30);
+$t0=microtime(true); $r=DS_Programs_Data::get(array($site));
+chk('zero HTTP calls', $GLOBALS['calls'], 0);
+chk('stale copy served', $r['stale'], true);
+chk('returned immediately, no 1.5s wait', microtime(true)-$t0 < 0.5, true);
+
 echo "refetch lock held by another request (waits ~1.5s)\n";
 delete_transient($key); set_transient($key.'_lock', time(), 30); $GLOBALS['http']=array($ok200); $GLOBALS['calls']=0;
 $r = DS_Programs_Data::get(array($site));

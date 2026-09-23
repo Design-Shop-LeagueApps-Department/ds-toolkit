@@ -224,7 +224,14 @@ class DS_Programs_Data {
 		// expires (a bot, a newsletter, a share) becomes that many identical
 		// requests to their API.
 		if ( ! self::lock( $lock_key ) ) {
-			// Another request is fetching. Wait briefly for it to cache, then use that.
+			// Another request is fetching. If a stale copy exists, serve it NOW: a
+			// request that sleeps here holds a PHP worker, and a burst at the moment
+			// the cache expires would exhaust the worker pool while LeagueApps was
+			// being protected. Only a first-ever load with nothing cached waits.
+			$stale = get_transient( $stale_key );
+			if ( is_array( $stale ) && ! empty( $stale['rows'] ) ) {
+				return self::serve_stale( $stale_key, array() );
+			}
 			for ( $i = 0; $i < 6; $i++ ) {
 				usleep( 250000 );
 				$hit = get_transient( $key );
@@ -240,6 +247,9 @@ class DS_Programs_Data {
 		$retry_after = 0;
 
 		foreach ( $sites as $site ) {
+			// Re-arm per site: one site's worst case (3 attempts x TIMEOUT + back-off)
+			// fits inside LOCK_TTL; several sites in a row would not.
+			set_transient( $lock_key, time(), self::LOCK_TTL );
 			$res = self::fetch_site( $site['site_id'], $site['api_key'] );
 			if ( is_wp_error( $res ) ) {
 				// One site failing must not take the others down with it.
