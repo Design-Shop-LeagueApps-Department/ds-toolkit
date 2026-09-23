@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.154] - 2026-09-24
+### Changed
+- **LeagueApps Programs: the Register button now opens the program's LeagueApps page, not the registration form** (Alipio, 2026-09-24). LeagueApps only supplies a registration link for club teams, and there it is `/registration/init?bid=…`, which drops a visitor straight into checkout past the page that explains the program; every other program type already fell through to the program page. The button now goes to the program page for all types, which carries its own Register button, and falls back to the registration link only for a program with no page URL. Seen live on lamorindarugby (club teams went to checkout) against dsstormbball (camps went to the page).
+
+### Fixed
+- **LeagueApps Programs: the feed fetch can no longer be turned into a flood of requests against the LeagueApps platform** (Zay, 2026-09-24). The module was already server-side only with a 10-minute cache and the widget key never reaches the browser, but three paths could multiply requests exactly when the platform could least afford them. (1) When the cache expired, every concurrent page view refetched at once; a refetch lock now lets one request fetch while the rest serve the 7-day stale copy. (2) A fetch that failed outright was not cached at all, so every page view during a LeagueApps outage made a fresh round of up to three attempts; a failure is now remembered for two minutes (longer when a 429 sends Retry-After, capped at ten) and the stale copy is served meanwhile. (3) A 429 or 5xx was retried like a dropped connection; any HTTP error now returns at once and only connection-level failures retry. Per-request timeout 12s to 8s. `flush()` no longer empties the site's entire object cache on a Contributor-level button press; it deletes the keys it wrote. `tests/programs-feed-test.php` covers all of it with a stubbed HTTP layer, counting every request LeagueApps would have received.
+
 ## [1.9.153] - 2026-09-24
 ### Added
 - **Heading module, Style 2: Separator Style, Single Line or Double Line (GH #224).** Double Line stacks two rules of the authored thickness and colour in the separator's place, with a Space Between Lines control (default 4px), following the existing alignment (left, centre, right with the rule leading in), the end mark, and the responsive gap. Default is Single Line and existing modules render byte-for-byte as before; the double-line CSS is only emitted when chosen.
