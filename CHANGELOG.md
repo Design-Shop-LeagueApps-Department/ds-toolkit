@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.150] - 2026-09-23
+### Changed
+- **LeagueApps Programs: "Program type" is now a set of tick buttons, not a single dropdown** (Zay, 2026-09-23). A partner ticks any combination of Tournaments, Leagues, Camps, Clinics, Classes, Events and Club teams on one module; nothing ticked shows every type. Modules saved before this release keep working unchanged: the old single value is read as a one-item list.
+
 ## [1.9.149] - 2026-09-23
 
 ### Fixed
