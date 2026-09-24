@@ -88,13 +88,14 @@ foreach ( $module->chosen_columns() as $ckey => $c ) {
 }
 
 /* ---------- filter bar ---------- */
-$v = $sc( 'filter_color' ); if ( $v ) { echo "$node .ds-programs-label,$node .ds-programs-count,$node .ds-programs-clear{color:$v;}\n"; }
+$v = $sc( 'filter_color' ); if ( $v ) { echo "$node .ds-programs-label,$node .ds-programs-count{color:$v;}\n$node .ds-programs-bar .ds-programs-clear{color:$v;}\n"; }
 $sp = array();
 $v = $sc( 'select_bg' );     if ( $v ) { $sp[] = "background-color:$v"; }
 $v = $sc( 'select_color' );  if ( $v ) { $sp[] = "color:$v"; }
 $v = $sc( 'select_border' ); if ( $v ) { $sp[] = "border-color:$v"; }
 $v = $px( 'select_radius' ); if ( $v ) { $sp[] = "border-radius:$v"; }
-if ( $sp ) { echo "$node .ds-programs-select,$node .ds-programs-input{" . implode( ';', $sp ) . ";}\n"; }
+// Three classes, matching the theme-proof reset in css/frontend.css so these still win.
+if ( $sp ) { echo "$node .ds-programs-field .ds-programs-select,$node .ds-programs-field .ds-programs-input{" . implode( ';', $sp ) . ";}\n"; }
 $v = $px( 'select_width' );  if ( $v ) { echo "$node .ds-programs-field{flex:0 0 $v;max-width:$v;}\n"; }
 $v = $px( 'search_width' );  if ( $v ) { echo "$node .ds-programs-field--search{flex:0 0 $v;max-width:$v;}\n"; }
 /* pager + sort arrows */
@@ -102,12 +103,12 @@ $pp = array();
 $v = $sc( 'pager_color' );  if ( $v ) { $pp[] = "color:$v"; }
 $v = $sc( 'pager_border' ); if ( $v ) { $pp[] = "border-color:$v"; }
 $v = $px( 'pager_radius' ); if ( $v ) { $pp[] = "border-radius:$v"; }
-if ( $pp ) { echo "$node .ds-programs-page{" . implode( ';', $pp ) . ";}\n"; }
+if ( $pp ) { echo "$node .ds-programs-pager .ds-programs-page{" . implode( ';', $pp ) . ";}\n"; }
 $v = $sc( 'pager_color' );  if ( $v ) { echo "$node .ds-programs-page-range,$node .ds-programs-page-gap{color:$v;}\n"; }
 $ap = array();
 $v = $sc( 'pager_active_bg' );    if ( $v ) { $ap[] = "background-color:$v"; $ap[] = "border-color:$v"; }
 $v = $sc( 'pager_active_color' ); if ( $v ) { $ap[] = "color:$v"; }
-if ( $ap ) { echo "$node .ds-programs-page.is-current{" . implode( ';', $ap ) . ";}\n"; }
+if ( $ap ) { echo "$node .ds-programs-pager .ds-programs-page.is-current{" . implode( ';', $ap ) . ";}\n"; }
 $v = $sc( 'sort_icon_color' ); if ( $v ) { echo "$node .ds-programs-sortbtn.is-asc .ds-programs-sorticon,$node .ds-programs-sortbtn.is-desc .ds-programs-sorticon{color:$v;}\n"; }
 $v = $px( 'bar_gap' );       if ( $v ) { echo "$node .ds-programs-bar{gap:$v;}\n"; }
 $v = $px( 'bar_space' );     if ( $v ) { echo "$node .ds-programs-bar{margin-bottom:$v;}\n"; }

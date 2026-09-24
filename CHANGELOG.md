@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.157] - 2026-09-25
+### Fixed
+- **LeagueApps Programs: the site's button styling bled into every control in the module.** On a site whose theme paints buttons (a rule like `.fl-page button`, one class plus one element, which out-specifies a single class), each sortable column heading rendered as a solid brand-coloured pill around the label, and the filter dropdowns, the Clear link and the pager buttons took theme chrome as well. Alipio: "theres still weird background color in table header title". Every control reset now carries two classes, enough to beat a theme's class-plus-element rule, with `!important` on the properties no Style field owns so a theme that uses `!important` on buttons loses too. The Style tab still wins everywhere it applies, because its per-node rules are emitted after this file at the same specificity. The header sort control is now the column label with a sort arrow and no box, whatever the theme does.
+
 ## [1.9.156] - 2026-09-25
 ### Fixed
 - **LeagueApps Programs: the table header's grey tint could not be removed.** Every preset except None tints the header (`rgba(0,0,0,.06)`, translucent black, so it reads as a grey smear on any page that is not pure white), and clearing the Background colour did nothing: a blank field means "unset" and falls straight back to the preset. Header row now has a **Background** control with From the preset (unchanged, what every existing module renders), **None (transparent)**, and Pick a colour. Nothing else about the header, the presets or any saved module changes.
