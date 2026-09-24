@@ -263,3 +263,87 @@
 	white-space: nowrap;
 	border: 0;
 }
+
+/* ---- Theme-proofing the controls -------------------------------------------
+ * Partner themes paint every <button>, <select> and <input>, and they do it with
+ * selectors that beat a single class: `.fl-page button` is a class plus an
+ * element, and `.fl-page input[type=search]` is a class plus an attribute plus an
+ * element. So every control in this module inherited the site's solid brand
+ * button: the sortable column headings rendered as coloured pills around each
+ * label, and the filter dropdowns, Clear and the pager took theme chrome too.
+ *
+ * Each reset below is THREE classes, which outranks both of those shapes, and
+ * each one nests the way the markup already nests, so nothing here is a
+ * specificity hack. The Style tab's per-node rules are emitted after this file
+ * at the same three-class weight, so they still win where they apply.
+ * !important covers only properties no Style field owns, which is what makes a
+ * theme that uses !important on its buttons lose as well. */
+.ds-programs .ds-programs-th .ds-programs-sortbtn,
+.ds-programs .ds-programs-bar .ds-programs-clear,
+.ds-programs .ds-programs-pager .ds-programs-page,
+.ds-programs .ds-programs-field .ds-programs-select,
+.ds-programs .ds-programs-field .ds-programs-input {
+	background-image: none !important;
+	box-shadow: none !important;
+	text-shadow: none !important;
+	text-transform: none !important;
+	letter-spacing: inherit !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	height: auto !important;
+	width: auto;
+	font: inherit !important;
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+/* A header sort control is the column label, not a button. */
+.ds-programs .ds-programs-th .ds-programs-sortbtn {
+	background: none !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	color: inherit !important;
+	text-decoration: none !important;
+	line-height: inherit !important;
+}
+
+/* A text link, not a button. Colour stays free for the Filter bar field. */
+.ds-programs .ds-programs-bar .ds-programs-clear {
+	background: none !important;
+	border: 0 !important;
+	border-radius: 0 !important;
+	padding: 6px 2px !important;
+	margin: 0 !important;
+	font-size: 14px !important;
+	color: inherit;
+	text-decoration: underline;
+}
+
+/* Real buttons, but ours: outlined by default, colours from the Style tab. */
+.ds-programs .ds-programs-pager .ds-programs-page {
+	background-color: transparent;
+	border: 1px solid currentColor;
+	border-radius: 4px;
+	padding: 7px 11px !important;
+	margin: 0 !important;
+	font-size: 14px !important;
+	line-height: 1.2 !important;
+	min-width: 38px !important;
+	color: inherit;
+}
+
+.ds-programs .ds-programs-field .ds-programs-select,
+.ds-programs .ds-programs-field .ds-programs-input {
+	width: 100% !important;
+	max-width: 100% !important;
+	margin: 0 !important;
+	background-color: transparent;
+	border: 1px solid currentColor;
+	border-radius: 4px;
+	color: inherit;
+	line-height: 1.3 !important;
+}
+.ds-programs .ds-programs-field .ds-programs-select { padding: 9px 30px 9px 11px !important; }
+.ds-programs .ds-programs-field .ds-programs-input  { padding: 9px 11px !important; }
