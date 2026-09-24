@@ -54,3 +54,8 @@ d0c0d4a6aa278af710ed1b71a8689f44  kadence-blocks 3.7.11.1 vendor/vendor-prefixed
 # It is Sucuri remediation tooling (see the sucuri-remediation-tooling-is-expected note) and it had
 # already self-deleted by the time we looked, which is what that tool does after 12 h. We WANT this
 # to keep alerting, because it tells us another vendor is working on a site.
+# --- 2026-09-25: our own incident pages on dscommand. The scanner is right that these files carry
+# --- BypassServ and datakeystone fingerprints; they carry them because they REPORT on the campaign.
+ab2b5a765850f1dd56170878f648356b  dscommand incidents/2026-09-02-malware-sweep/rollout/index.php - 23047b, OUR OWN private rollout status page (2026-09-10), login-gated through WordPress to agabriel@leagueapps.com only. Flagged because it names the campaign IOCs it reports on
+d822a3b8bb3ad096e4c23fcde828d800  dscommand incidents/2026-09-02-malware-sweep/rollout/rollout-data.php - 307828b, our own rollout data file, guarded with a leading <?php exit; so it is never served raw
+04b8747eaee4e8abb927d39aed4dbf48  dscommand incidents/2026-09-02-malware-sweep/rollout/rollout-log.php - 271844b, our own rollout log, same <?php exit; guard
