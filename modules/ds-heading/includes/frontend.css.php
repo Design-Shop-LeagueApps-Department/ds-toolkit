@@ -183,7 +183,17 @@ if ( 'double' === ( $settings->style2_sep_style ?? 'single' ) ) {
 	$sep_gap = max( 1, $u( $settings->style2_sep_gap ?? '', 4 ) );
 	$sep_bg  = ( '' !== $dc ) ? $dc : 'var(--fl-global-accent,#0b782d)';
 	echo "$node .ds-heading-sep--double { background: transparent; height: auto; display: flex; flex-direction: column; gap: {$sep_gap}px; }\n";
-	echo "$node .ds-heading-sep--double::before, $node .ds-heading-sep--double::after { content: ''; display: block; height: {$sep_h}px; background: {$sep_bg}; border-radius: 2px; }\n";
+	// GH #227: each line takes its own colour; blank falls back to the divider colour so
+	// a module saved before the fields existed renders exactly as it did.
+	$sep_c1 = DS_Module_UI::color( $settings->style2_sep_color1 ?? '' ) ?: $sep_bg;
+	$sep_c2 = DS_Module_UI::color( $settings->style2_sep_color2 ?? '' ) ?: $sep_bg;
+	if ( $sep_c1 === $sep_c2 ) {
+		echo "$node .ds-heading-sep--double::before, $node .ds-heading-sep--double::after { content: ''; display: block; height: {$sep_h}px; background: {$sep_c1}; border-radius: 2px; }\n";
+	} else {
+		echo "$node .ds-heading-sep--double::before, $node .ds-heading-sep--double::after { content: ''; display: block; height: {$sep_h}px; border-radius: 2px; }\n";
+		echo "$node .ds-heading-sep--double::before { background: {$sep_c1}; }\n";
+		echo "$node .ds-heading-sep--double::after { background: {$sep_c2}; }\n";
+	}
 }
 foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 	$v = $settings->{'style2_mark_h' . $sfx} ?? '';

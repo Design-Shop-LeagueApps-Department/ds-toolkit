@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.155] - 2026-09-24
+### Added
+- **Heading module, Style 2 Double Line: independent colours for the two lines (GH #227).** Separator Line 1 Color and Separator Line 2 Color, Beaver Builder colour pickers with global-colour connections, shown when Double Line is selected. Blank falls back to the divider colour (then the site accent), so every existing Double Line module renders byte-for-byte as before until a colour is chosen; Single Line, thickness, spacing, alignment, end mark and responsive behaviour are untouched.
+
 ## [1.9.154] - 2026-09-24
 ### Changed
 - **LeagueApps Programs: the Register button now opens the program's LeagueApps page, not the registration form** (Alipio, 2026-09-24). When LeagueApps supplies a registration link it is `/registration/init?bid=…`, which drops a visitor straight into checkout past the page that explains the program, and it supplies one for most programs (174 of 184 on saltcitysports, tournaments included). The hosted LeagueApps widget every partner had before this module is configured `signUpAction: viaLeagueApps` on all 13 Salt City widgets, and its click handler opens the program page in that mode; the module had been diverging from that since the mu-plugin. The button now goes to the program page for every type, which carries its own Register button, and falls back to the registration link only for a program with no page URL.
