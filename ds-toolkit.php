@@ -3,7 +3,7 @@
  * Plugin Name:       DS Toolkit
  * Plugin URI:        https://github.com/agabriel1590/ds-toolkit
  * Description:       Design Shop custom features and build toolkit.
- * Version:           1.9.154
+ * Version:           1.9.155
  * Author:            Alipio Gabriel
  * Author URI:        https://github.com/agabriel1590
  * Text Domain:       ds-toolkit
@@ -31,7 +31,7 @@ if ( defined( 'DS_TOOLKIT_VERSION' ) ) {
     return;
 }
 
-define( 'DS_TOOLKIT_VERSION', '1.9.154' );
+define( 'DS_TOOLKIT_VERSION', '1.9.155' );
 define( 'DS_TOOLKIT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DS_TOOLKIT_URL', plugin_dir_url( __FILE__ ) );
 
