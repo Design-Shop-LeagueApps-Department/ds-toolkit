@@ -590,10 +590,10 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 							'striped'  => __( 'Striped rows', 'ds-toolkit' ),
 							'bordered' => __( 'Bordered grid', 'ds-toolkit' ),
 							'minimal'  => __( 'Minimal lines', 'ds-toolkit' ),
-							'cards'    => __( 'Card (rounded, shadow)', 'ds-toolkit' ),
+							'cards'    => __( 'Framed (rounded, shadow)', 'ds-toolkit' ),
 							'custom'   => __( 'None (only what I set below)', 'ds-toolkit' ),
 						),
-						'help'    => __( 'A palette-neutral base. Any field you set below overrides the preset; blank fields take the preset\'s value.', 'ds-toolkit' ),
+						'help'    => __( 'A palette-neutral base for the TABLE (separate from Layout above). Any field you set below overrides it; a blank field takes the preset\'s value, so use Background > None to remove the header tint entirely.', 'ds-toolkit' ),
 					),
 				),
 			),
@@ -611,7 +611,19 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 			'head_sec' => array(
 				'title'  => __( 'Header row', 'ds-toolkit' ),
 				'fields' => array(
-					'head_bg'           => $ds_prg_colour( __( 'Background', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
+					'head_bg_style'     => array(
+						'type'    => 'select',
+						'label'   => __( 'Background', 'ds-toolkit' ),
+						'default' => 'preset',
+						'options' => array(
+							'preset' => __( 'From the preset', 'ds-toolkit' ),
+							'none'   => __( 'None (transparent)', 'ds-toolkit' ),
+							'custom' => __( 'Pick a colour', 'ds-toolkit' ),
+						),
+						'toggle'  => array( 'custom' => array( 'fields' => array( 'head_bg' ) ) ),
+						'help'    => __( 'The presets tint the header a faint grey. Choose None for no background at all, which clearing the colour alone cannot do.', 'ds-toolkit' ),
+					),
+					'head_bg'           => $ds_prg_colour( __( 'Header colour', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
 					'head_color'        => $ds_prg_colour( __( 'Text colour', 'ds-toolkit' ) ),
 					'head_typo'         => array( 'type' => 'typography', 'label' => __( 'Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-programs-th' ) ),
 					'head_border_width' => $ds_prg_unit( __( 'Line under header', 'ds-toolkit' ), 0, 6 ),
