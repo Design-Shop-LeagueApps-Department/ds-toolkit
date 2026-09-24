@@ -44,7 +44,15 @@ if ( 'grid' === $bmode ) {
 
 /* ---------- header row ---------- */
 $hp = array();
-$v = $sc( 'head_bg' );    if ( $v ) { $hp[] = "background-color:$v"; }
+/* Header background. 'preset' is the historic behaviour (the editor's colour if set, else the
+ * preset's faint tint) and is what every module saved before this control renders, whether the
+ * key is absent or defaulted in. 'none' is the escape a blank colour field could never give:
+ * clearing a colour means "unset", which falls straight back to the preset. */
+$hmode = (string) ( $settings->head_bg_style ?? 'preset' );
+if ( 'none' === $hmode )        { $v = ''; }
+elseif ( 'custom' === $hmode )  { $v = call_user_func( $col, $settings->head_bg ?? '' ); }
+else                            { $v = $sc( 'head_bg' ); }
+if ( $v ) { $hp[] = "background-color:$v"; }
 $v = $sc( 'head_color' ); if ( $v ) { $hp[] = "color:$v"; }
 $hbw = $px( 'head_border_width' );
 if ( $hbw ) { $hp[] = "border-bottom:$hbw solid " . ( $sc( 'head_border_color' ) ?: $bc ); }

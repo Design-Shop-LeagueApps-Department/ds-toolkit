@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.156] - 2026-09-25
+### Fixed
+- **LeagueApps Programs: the table header's grey tint could not be removed.** Every preset except None tints the header (`rgba(0,0,0,.06)`, translucent black, so it reads as a grey smear on any page that is not pure white), and clearing the Background colour did nothing: a blank field means "unset" and falls straight back to the preset. Header row now has a **Background** control with From the preset (unchanged, what every existing module renders), **None (transparent)**, and Pick a colour. Nothing else about the header, the presets or any saved module changes.
+### Changed
+- The table preset formerly called "Card (rounded, shadow)" is now **"Framed (rounded, shadow)"**, and the preset's help names the table, because "Card" collided with the Cards **layout** added in 1.9.152 and made the tint look like a side effect of it. Label only; the stored value and the rendering are untouched.
+
 ## [1.9.155] - 2026-09-24
 ### Added
 - **Heading module, Style 2 Double Line: independent colours for the two lines (GH #227).** Separator Line 1 Color and Separator Line 2 Color, Beaver Builder colour pickers with global-colour connections, shown when Double Line is selected. Blank falls back to the divider colour (then the site accent), so every existing Double Line module renders byte-for-byte as before until a colour is chosen; Single Line, thickness, spacing, alignment, end mark and responsive behaviour are untouched.
