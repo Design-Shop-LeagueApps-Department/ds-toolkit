@@ -46,3 +46,11 @@ d0c0d4a6aa278af710ed1b71a8689f44  kadence-blocks 3.7.11.1 vendor/vendor-prefixed
 641bf8ea3e1d4766969f8af7b6ee7dbf  ds-la-programs.php.off - 2626b, OUR OWN mu-plugin, deliberately renamed .off to disable it on 2026-09-20. Flagged only because .off is an unknown extension on a file that opens with <?php. Site: saltcitysports.com
 35a096a429ccfbfbc7e21f0022d215be  .maintenance - 33b, WordPress core's own updater marker, body is exactly "<?php $upgrading = 1790016513; ?>". Left behind by an update that did not finish cleanly on 2026-09-21. Site: olneyelitebb.wpenginepowered.com
 63b67c932647e4198d1688cea5e85e32  .maintenance - 33b, same WordPress core updater marker, "<?php $upgrading = 1790054930; ?>", 2026-09-22. Site: thebridgesportsplex.com. NOTE these two hashes only cover these two files: the body carries a timestamp, so every future leftover .maintenance has a new md5. The durable fix is an engine rule for a .maintenance whose entire body is the $upgrading marker.
+# --- 2026-09-25, second batch: four more sites alerted between 18:06 and 20:15 UTC on 24 Sep,
+# --- after the first sweep. Two were vendor code.
+87d9ed35f06fd30816f369a8b645f385  BLOGVAULT bv_connector_<hash>.php - 19052b (a different build from the 19005b one above), vendor connector, hand-read 2026-09-25: header identifies BlogVault/MalCare/WP Remote and the request path is HMAC or public-key verified. Site: ohiohockeyproject.com
+0deab916b9d8f240357e64b7f71eb7bb  wp-crontrol 1.19.1 src/bootstrap.php - 93119b, byte-identical to wordpress.org (verified 2026-09-25). Running PHP cron events is the plugin purpose. Site: monsterelitelax.com
+# NOT allowlisted on purpose, 2026-09-25: /www/sucuri-filemanager.php on marylandlacrosseshowcase.com.
+# It is Sucuri remediation tooling (see the sucuri-remediation-tooling-is-expected note) and it had
+# already self-deleted by the time we looked, which is what that tool does after 12 h. We WANT this
+# to keep alerting, because it tells us another vendor is working on a site.
