@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [Unreleased]
+### Fixed
+- **Pages with a photo strip scrolled sideways on phones. Not released yet: on branch `fix/carousel-phone-overflow`, tested on ds-launchpad-7.** The UABB Image Carousel pulls itself out by half its photo spacing (`margin: -10px` for the blueprint's 20px) so the slide gutters line up with the column, and in a full-width row that pushes the empty gutter past the edge of the screen: on ds-launchpad-7 the home page and all five program pages (Tryouts, Camps, Private Lessons, Clinics, Tournaments) were 8 to 10px wider than an iPhone. The global CSS now clips that gutter on carousels without arrows (arrows placed outside sit in the same margin, so those are left alone). After: 0px of sideways scroll on all six pages at phone and desktop widths, and the strip itself is pixel-identical before and after (0 changed pixels at both widths, autoplay paused on the first slide).
+
 ## [1.9.161] - 2026-09-26
 ### Fixed
 - **Menu: the mega menu column heading had no padding inside its hover highlight.** With a dropdown hover background set, hovering a column heading (a "U16" above its teams) painted the accent box flush against the text, because the heading and its links sit at the column edge by default (`padding: 4px 0`). The links looked fine only when a Mega sub-item indent was set, and that indent never reached the heading. When a dropdown hover background is set, the heading and its links now get an 8px side inset, and the links keep the sub-item indent on top of it, so they still read as children of the heading. Menus without a hover background, and the mobile overlay (whose own padding rule outranks these), render exactly as before. Reported on ds-launchpad-7 (Alipio, 2026-09-26).

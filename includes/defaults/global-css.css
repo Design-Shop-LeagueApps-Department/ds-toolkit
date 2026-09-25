@@ -659,3 +659,14 @@ button.forminator-button.forminator-button-submit {
     background-color: var(--fl-global-primary);
     font-weight: 700 !important;
 }
+
+/*─────────────────────────────────────────────────────────────────────────────
+  UABB Image Carousel (photo strips)
+─────────────────────────────────────────────────────────────────────────────*/
+/* The carousel pulls itself out by half its photo spacing (margin: -10px for 20px)
+   so the slide gutters line up with the column. In a full-width row that pushes the
+   empty gutter past the screen edge, and phones scroll sideways by 8-10px. Clip it.
+   Carousels with arrows are left alone: arrows set outside sit in that margin. */
+.fl-module-uabb-image-carousel > .fl-module-content:not(:has(.slick-arrow)) {
+    overflow-x: clip;
+}
