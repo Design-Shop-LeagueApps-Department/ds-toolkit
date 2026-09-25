@@ -59,6 +59,22 @@ class DS_Programs_Data {
 	/** Per-request HTTP timeout. */
 	const TIMEOUT = 8;
 
+	/**
+	 * Fetch ledger. A meter, not a throttle: the cache above is what bounds
+	 * the traffic, this records what the site actually sent so the number
+	 * per site can be read off the settings tab instead of assumed. One
+	 * non-autoloaded option holding the last LEDGER_MAX fetches (newest
+	 * first) plus per-hour counters for a rolling day. Not a file: a file in
+	 * the plugin folder is flagged by the fleet integrity scanner, wiped by a
+	 * plugin update, and unreadable from wp-admin.
+	 */
+	const LEDGER_OPTION = 'ds_programs_ledger';
+	const LEDGER_MAX    = 50;
+
+	/** Attempt count and last HTTP status of the most recent fetch_site() call, for the ledger. */
+	private static $last_tries = 0;
+	private static $last_code  = 0;
+
 	const API_BASE = 'https://public.leagueapps.io/v1/sites/';
 
 	/* ------------------------------------------------------------------
@@ -245,13 +261,17 @@ class DS_Programs_Data {
 		$rows        = array();
 		$errors      = array();
 		$retry_after = 0;
+		$why         = self::fetch_reason( $stale_key );
 
 		foreach ( $sites as $site ) {
 			// Re-arm per site: one site's worst case (3 attempts x TIMEOUT + back-off)
 			// fits inside LOCK_TTL; several sites in a row would not.
 			set_transient( $lock_key, time(), self::LOCK_TTL );
+			$t0  = microtime( true );
 			$res = self::fetch_site( $site['site_id'], $site['api_key'] );
+			$ms  = (int) round( ( microtime( true ) - $t0 ) * 1000 );
 			if ( is_wp_error( $res ) ) {
+				self::record( array( 'site' => $site['site_id'], 'ok' => false, 'code' => self::$last_code, 'tries' => self::$last_tries, 'ms' => $ms, 'rows' => 0, 'err' => $res->get_error_message(), 'why' => $why ) );
 				// One site failing must not take the others down with it.
 				$errors[] = sprintf( 'site %s: %s', $site['site_id'], $res->get_error_message() );
 				$data     = $res->get_error_data();
@@ -260,6 +280,7 @@ class DS_Programs_Data {
 				}
 				continue;
 			}
+			self::record( array( 'site' => $site['site_id'], 'ok' => true, 'code' => 200, 'tries' => self::$last_tries, 'ms' => $ms, 'rows' => count( $res ), 'err' => '', 'why' => $why ) );
 			foreach ( $res as $row ) {
 				if ( is_array( $row ) ) {
 					$row['_site']  = $site['site_id'];
@@ -327,8 +348,11 @@ class DS_Programs_Data {
 	private static function fetch_site( $site_id, $api_key ) {
 		$url  = self::API_BASE . rawurlencode( $site_id ) . '/programs/current?x-api-key=' . rawurlencode( $api_key );
 		$last = null;
+		self::$last_tries = 0;
+		self::$last_code  = 0;
 
 		for ( $attempt = 1; $attempt <= 3; $attempt++ ) {
+			self::$last_tries = $attempt;
 			$res = wp_remote_get( $url, array(
 				'timeout'    => self::TIMEOUT,
 				'user-agent' => 'ds-toolkit-programs/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '0' ) . ' (+' . home_url( '/' ) . ')',
@@ -341,6 +365,7 @@ class DS_Programs_Data {
 			} else {
 				$code = (int) wp_remote_retrieve_response_code( $res );
 				$body = wp_remote_retrieve_body( $res );
+				self::$last_code = $code;
 				if ( 200 === $code ) {
 					$json = json_decode( $body, true );
 					if ( is_array( $json ) ) { return $json; }
@@ -625,6 +650,8 @@ class DS_Programs_Data {
 	 */
 	public static function flush() {
 		global $wpdb;
+		// So the ledger can tell a manual refresh from a cache expiry.
+		set_transient( 'ds_programs_flushed', time(), MINUTE_IN_SECONDS );
 		// delete_transient() reaches the object cache as well as the database,
 		// so the fresh copy and any refetch lock go wherever they live. The
 		// old version called wp_cache_flush(), which emptied the whole site's
@@ -638,6 +665,93 @@ class DS_Programs_Data {
 			"DELETE FROM {$wpdb->options}
 			  WHERE ( option_name LIKE '_transient_ds_programs_%' OR option_name LIKE '_transient_timeout_ds_programs_%' )
 			    AND option_name NOT LIKE '%\_stale'"
+		);
+	}
+
+	/* ------------------------------------------------------------------
+	 * Fetch ledger
+	 * ---------------------------------------------------------------- */
+
+	/** Why this refetch is happening: first load, cache expiry, or a manual refresh / settings save. */
+	private static function fetch_reason( $stale_key ) {
+		if ( false !== get_transient( 'ds_programs_flushed' ) ) {
+			delete_transient( 'ds_programs_flushed' );
+			return 'flush';
+		}
+		$stale = get_transient( $stale_key );
+		return ( is_array( $stale ) && ! empty( $stale['rows'] ) ) ? 'expired' : 'first';
+	}
+
+	/**
+	 * Append one fetch to the ledger and bump the hour's counters. Fires
+	 * `ds_programs_fetch` with the entry, for a site that wants its own log.
+	 *
+	 * Entry: t, site, ok, code, tries (HTTP requests this fetch made,
+	 * retries included), ms, rows, err, why (first | expired | flush).
+	 */
+	private static function record( array $e ) {
+		$e['t'] = time();
+		$book   = get_option( self::LEDGER_OPTION, array() );
+		if ( ! is_array( $book ) ) { $book = array(); }
+		$recent = ( isset( $book['recent'] ) && is_array( $book['recent'] ) ) ? $book['recent'] : array();
+		$hours  = ( isset( $book['hours'] ) && is_array( $book['hours'] ) ) ? $book['hours'] : array();
+
+		array_unshift( $recent, $e );
+		$recent = array_slice( $recent, 0, self::LEDGER_MAX );
+
+		// Per-hour counters (fetches, HTTP requests, failures) so the daily
+		// totals stay exact however busy the site is, while the detail list
+		// above stays short. Keys sort as strings, so pruning is a compare.
+		$h = gmdate( 'YmdH', $e['t'] );
+		if ( ! isset( $hours[ $h ] ) || ! is_array( $hours[ $h ] ) ) { $hours[ $h ] = array( 0, 0, 0 ); }
+		$hours[ $h ][0]++;
+		$hours[ $h ][1] += max( 1, (int) $e['tries'] );
+		if ( empty( $e['ok'] ) ) { $hours[ $h ][2]++; }
+		$cut = gmdate( 'YmdH', $e['t'] - DAY_IN_SECONDS );
+		foreach ( array_keys( $hours ) as $k ) {
+			if ( (string) $k < $cut ) { unset( $hours[ $k ] ); }
+		}
+		ksort( $hours );
+
+		update_option( self::LEDGER_OPTION, array( 'recent' => $recent, 'hours' => $hours ), false );
+		do_action( 'ds_programs_fetch', $e );
+	}
+
+	/** The most recent fetches, newest first. */
+	public static function ledger() {
+		$book = get_option( self::LEDGER_OPTION, array() );
+		return ( is_array( $book ) && isset( $book['recent'] ) && is_array( $book['recent'] ) ) ? $book['recent'] : array();
+	}
+
+	/**
+	 * Rolling 24-hour totals against what the cache should allow. `budget`
+	 * is one fetch per TTL per configured site (144 a day per site at ten
+	 * minutes), the most a site with constant traffic can send; a count well
+	 * above it means the host's object cache is dropping the feed between
+	 * visits. `over` is that comparison, with a quarter of headroom for
+	 * manual refreshes and the one-minute partial-result retry.
+	 */
+	public static function ledger_summary() {
+		$book  = get_option( self::LEDGER_OPTION, array() );
+		$hours = ( is_array( $book ) && isset( $book['hours'] ) && is_array( $book['hours'] ) ) ? $book['hours'] : array();
+		$cut   = gmdate( 'YmdH', time() - DAY_IN_SECONDS );
+		$f = $r = $x = 0;
+		foreach ( $hours as $k => $c ) {
+			if ( (string) $k < $cut || ! is_array( $c ) ) { continue; }
+			$f += (int) ( $c[0] ?? 0 );
+			$r += (int) ( $c[1] ?? 0 );
+			$x += (int) ( $c[2] ?? 0 );
+		}
+		$sites  = max( 1, count( self::configured_sites() ) );
+		$budget = (int) floor( DAY_IN_SECONDS / self::TTL ) * $sites;
+		$recent = self::ledger();
+		return array(
+			'fetches'  => $f,
+			'requests' => $r,
+			'failures' => $x,
+			'budget'   => $budget,
+			'over'     => $f > (int) ceil( $budget * 1.25 ),
+			'last'     => $recent[0] ?? null,
 		);
 	}
 
