@@ -59,3 +59,8 @@ d0c0d4a6aa278af710ed1b71a8689f44  kadence-blocks 3.7.11.1 vendor/vendor-prefixed
 ab2b5a765850f1dd56170878f648356b  dscommand incidents/2026-09-02-malware-sweep/rollout/index.php - 23047b, OUR OWN private rollout status page (2026-09-10), login-gated through WordPress to agabriel@leagueapps.com only. Flagged because it names the campaign IOCs it reports on
 d822a3b8bb3ad096e4c23fcde828d800  dscommand incidents/2026-09-02-malware-sweep/rollout/rollout-data.php - 307828b, our own rollout data file, guarded with a leading <?php exit; so it is never served raw
 04b8747eaee4e8abb927d39aed4dbf48  dscommand incidents/2026-09-02-malware-sweep/rollout/rollout-log.php - 271844b, our own rollout log, same <?php exit; guard
+# --- 2026-09-25 batch 2: the 03:10-05:18 UTC wave. Three of ours, one vendor.
+8f4069e6f08b1cc7564c949709c87ee1  marylandjr mu-plugins/ds-home-feed-tabs.php - 6933b, OURS. "DS Home Feed Tabs (Maryland Juniors)", written 2026-09-24 09:56, zero eval/base64/upload/request markers. Fired the "new PHP file in mu-plugins since yesterday" rule, which is correct: it IS new, and it is ours
+1ee3afbd27ee97ef2ae75f6fc7cdb131  absolutevbc mu-plugins/avc-mobile-register-bar.php - 7788b, OURS. "AVC Mobile Register Bar", author LeagueApps Design Shop, written 2026-09-24 15:34, zero dangerous markers
+c35e92d047750d42056de9bd3371c665  tier1elite mu-plugins/t1ehl-roster-links.php - 2639b, OURS. "T1EHL Roster Links", cites ClickUp 868m8k58g, written 2026-09-24 13:01, zero dangerous markers
+bdd44b6e44fb6b7db6f02a39ba71fb0f  wp-slimstat 5.5.0 src/Dependencies/Symfony/Component/String/AbstractUnicodeString.php - 25977b, byte-identical to wordpress.org (2026-09-25). Fifth plugin found vendoring this same Symfony file. Site: skyy2win.com
