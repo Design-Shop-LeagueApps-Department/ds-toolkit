@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [Unreleased]
+### Fixed
+- **Bold text in the site's body font was faked by the browser. Not released yet: on branch `fix/text-font-bold-weight`, tested on ds-launchpad-7.** Beaver Builder requests only the weight set on the Global Styles text font (on ds-launchpad-7, `family=Barlow:400`), so every bold run in that font was drawn by thickening the regular face: `<strong>` in page copy and the eyebrows, dates, roles, buttons and table headings of the LeagueApps modules, 64 elements on the ds-launchpad-7 home page alone plus the heading eyebrow on every sub page. The Global Heading Font feature, which already requests the Global Styles fonts Beaver Builder leaves out, now also requests the body font's 700 face when the family has one (`family=Barlow:400,700`, one 15.7 KB file). Weights 600 and 800 in the same font now use that real bold face too. After: no faked bold on the ds-launchpad-7 pages checked; of 236 bold elements measured before and after at desktop and phone widths, none wrapped to a new line or clipped. `tests/global-font-bold-test.php` (7 assertions, `wp eval-file`; the previous build fails 3).
+
 ## [1.9.161] - 2026-09-26
 ### Fixed
 - **Menu: the mega menu column heading had no padding inside its hover highlight.** With a dropdown hover background set, hovering a column heading (a "U16" above its teams) painted the accent box flush against the text, because the heading and its links sit at the column edge by default (`padding: 4px 0`). The links looked fine only when a Mega sub-item indent was set, and that indent never reached the heading. When a dropdown hover background is set, the heading and its links now get an 8px side inset, and the links keep the sub-item indent on top of it, so they still read as children of the heading. Menus without a hover background, and the mobile overlay (whose own padding rule outranks these), render exactly as before. Reported on ds-launchpad-7 (Alipio, 2026-09-26).
