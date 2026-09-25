@@ -1,0 +1,93 @@
+/**
+ * LeagueApps Table: static structure. Colours, spacing, the preset layer and the
+ * phone card layout are emitted node-scoped from includes/frontend.css.php.
+ *
+ * Every form control carries a three-class reset (.ds-table .x .y): a theme rule
+ * like `.fl-page button` (one class + one element) or `.fl-page input[type=search]`
+ * (the attribute counts as a class) out-ranks anything lighter, and Beaver Builder's
+ * global Button style paints every <button> as a filled pill.
+ */
+
+.ds-table, .ds-table *, .ds-table *::before, .ds-table *::after { box-sizing: border-box; }
+
+/* Toolbar */
+.ds-table-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 16px; }
+.ds-table-field { display: flex; min-width: 0; }
+.ds-table-field--search { flex: 1 1 220px; max-width: 320px; }
+.ds-table-field--sort { display: none; }
+.ds-table-count { margin: 0 0 0 auto; font-size: 14px; opacity: .8; }
+
+.ds-table .ds-table-field .ds-table-input,
+.ds-table .ds-table-field .ds-table-select {
+	width: 100%; max-width: 100%; height: auto !important; min-height: 0 !important; margin: 0;
+	padding: 10px 12px; border: 1px solid rgba(0,0,0,.2); border-radius: 6px; background-color: #fff;
+	color: inherit; font: inherit; font-size: 15px; line-height: 1.3; box-shadow: none !important; text-transform: none !important; letter-spacing: normal !important;
+	-webkit-appearance: none; appearance: none;
+}
+.ds-table .ds-table-field .ds-table-input {
+	padding-left: 36px; background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='%23888' d='M8.5 3a5.5 5.5 0 014.38 8.82l3.65 3.65-1.06 1.06-3.65-3.65A5.5 5.5 0 118.5 3zm0 1.5a4 4 0 100 8 4 4 0 000-8z'/%3E%3C/svg%3E") !important;
+	background-repeat: no-repeat !important; background-position: 11px center !important; background-size: 17px 17px !important;
+}
+.ds-table .ds-table-field .ds-table-select {
+	padding-right: 34px; background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23888' d='M4 6l4 4 4-4z'/%3E%3C/svg%3E") !important;
+	background-repeat: no-repeat !important; background-position: right 10px center !important; background-size: 16px 16px !important;
+}
+.ds-table .ds-table-field .ds-table-input:focus,
+.ds-table .ds-table-field .ds-table-select:focus { outline: 2px solid currentColor; outline-offset: 1px; }
+.ds-table-input::-webkit-search-decoration { -webkit-appearance: none; }
+
+/* The table scrolls inside its own box, never the page. */
+.ds-table-scroll { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ds-table-scroll:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.ds-table .ds-table-t { width: 100%; margin: 0; border: 0; border-collapse: collapse; border-spacing: 0; table-layout: auto; background: none; }
+.ds-table .ds-table-t .ds-table-th,
+.ds-table .ds-table-t .ds-table-td { padding: 12px 14px; border: 0; text-align: left; vertical-align: top; background: none; }
+.ds-table .ds-table-t .ds-table-th { font-weight: 700; white-space: nowrap; vertical-align: bottom; color: var(--fl-global-headings, currentColor); }
+.ds-table .ds-table-t .ds-table-td { color: var(--fl-global-body, currentColor); }
+.ds-table .ds-table-t th.ds-table-td { font-weight: 700; }
+.ds-table-row.is-hidden, .ds-table-row.is-paged { display: none; }
+.ds-table-link { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Sortable headings: a plain label with an arrow, whatever the theme does to buttons. */
+.ds-table .ds-table-th .ds-table-sortbtn,
+.ds-table .ds-table-th .ds-table-sortbtn:hover,
+.ds-table .ds-table-th .ds-table-sortbtn:focus,
+.ds-table .ds-table-th .ds-table-sortbtn:active {
+	display: inline-flex !important; align-items: center; gap: 7px; width: auto !important; min-width: 0 !important; height: auto !important; min-height: 0 !important;
+	margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important;
+	color: inherit !important; font: inherit !important; text-align: inherit; text-transform: inherit !important; letter-spacing: inherit !important; text-shadow: none !important;
+	line-height: inherit !important; cursor: pointer; white-space: nowrap; -webkit-clip-path: none !important; clip-path: none !important; transform: none !important;
+}
+.ds-table .ds-table-th .ds-table-sortbtn:focus-visible { outline: 2px solid currentColor !important; outline-offset: 3px; }
+.ds-table-sorticon { position: relative; display: inline-block; width: 8px; height: 12px; opacity: .45; flex: 0 0 auto; }
+.ds-table-sorticon::before, .ds-table-sorticon::after { content: ''; position: absolute; left: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; }
+.ds-table-sorticon::before { top: 0; border-bottom: 5px solid currentColor; }
+.ds-table-sorticon::after { bottom: 0; border-top: 5px solid currentColor; }
+.ds-table-sortbtn.is-asc .ds-table-sorticon, .ds-table-sortbtn.is-desc .ds-table-sorticon { opacity: 1; }
+.ds-table-sortbtn.is-asc .ds-table-sorticon::after { display: none; }
+.ds-table-sortbtn.is-desc .ds-table-sorticon::before { display: none; }
+.ds-table-th[style*="right"] .ds-table-sortbtn { flex-direction: row-reverse; }
+
+/* Pagination */
+.ds-table-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 18px 0 0; }
+.ds-table .ds-table-pager .ds-table-page,
+.ds-table .ds-table-pager .ds-table-page:hover,
+.ds-table .ds-table-pager .ds-table-page:focus {
+	min-width: 38px; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 7px 11px !important;
+	border: 1px solid rgba(0,0,0,.2) !important; border-radius: 6px; background-color: transparent !important; background-image: none !important; box-shadow: none !important;
+	color: inherit !important; font: inherit !important; font-size: 14px !important; line-height: 1.2 !important; text-transform: none !important; letter-spacing: normal !important;
+	cursor: pointer; -webkit-clip-path: none !important; clip-path: none !important;
+}
+.ds-table .ds-table-pager .ds-table-page:hover:not(:disabled) { border-color: currentColor !important; }
+.ds-table .ds-table-pager .ds-table-page:disabled { opacity: .4; cursor: default; }
+.ds-table .ds-table-pager .ds-table-page.is-current { font-weight: 700 !important; border-color: currentColor !important; }
+.ds-table-page-gap { padding: 0 2px; opacity: .6; }
+.ds-table-page-range { margin-left: auto; font-size: 14px; opacity: .8; }
+
+.ds-table-none { margin: 16px 0 0; font-style: italic; }
+
+/* Editors-only notices: deliberately loud and not themeable. */
+.ds-table-note { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid #e0a800; background: #fff8e5; color: #6b5200; font-size: 13px; line-height: 1.4; }
+.ds-table-note--sync { margin: 12px 0 0; border-left-color: #2271b1; background: #f0f6fc; color: #1d4a72; }
+
+@media (prefers-reduced-motion: reduce) { .ds-table-scroll { scroll-behavior: auto; } }

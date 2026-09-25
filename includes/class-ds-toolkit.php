@@ -191,6 +191,11 @@ class DS_Toolkit {
             'class'         => 'DS_Programs',
             'min_blueprint' => 6,
         ),
+        'ds_table_module_enabled' => array(
+            'file'          => 'features/class-ds-table.php',
+            'class'         => 'DS_Table',
+            'min_blueprint' => 6,
+        ),
         'ds_info_list_module_enabled' => array(
             'file'          => 'features/class-ds-info-list.php',
             'class'         => 'DS_Info_List',
@@ -298,6 +303,7 @@ class DS_Toolkit {
             'ds_team_detail_module_enabled'    => array( 'label' => 'Team Detail',     'desc' => 'A single-team layout: roster, schedule, and coaches.' ),
             'ds_content_router_module_enabled' => array( 'label' => 'Content Router',  'desc' => 'Renders the right body layout for each page type (single vs. archive) from one Themer template.' ),
             'ds_social_module_enabled'         => array( 'label' => 'Partner Social',  'desc' => "A row of the partner's social-media links." ),
+            'ds_table_module_enabled'          => array( 'label' => 'Table',           'desc' => 'A sortable, searchable table typed in the builder, uploaded as a CSV, or kept in sync with a CSV file or a Google Sheet.' ),
             'ds_programs_module_enabled'       => array( 'label' => 'LeagueApps Programs', 'desc' => 'Live tournament, league, camp and clinic listings from LeagueApps as a filterable table. Needs a site ID and API key on the LeagueApps tab.' ),
         );
     }
@@ -445,6 +451,7 @@ class DS_Toolkit {
             $defaults['ds_content_router_module_enabled'] = 1;
             $defaults['ds_info_list_module_enabled']  = 1;
             $defaults['ds_page_cards_module_enabled'] = 1;
+            $defaults['ds_table_module_enabled']      = 1;
             $defaults['ds_team_detail_module_enabled'] = 1;
             $defaults['ds_builder_defaults_enabled']   = 1;
             $defaults['ds_admin_bar_links_enabled']    = 1;
