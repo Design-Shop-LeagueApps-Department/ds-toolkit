@@ -253,10 +253,20 @@ if ( in_array( $mh_div, array( 'solid', 'dashed', 'dotted' ), true ) ) {
 }
 
 /* Mega sub-item indent: left padding for the links listed under a column heading
-   (e.g. teams under a "U16" heading). 3-class selector beats the ".ds-mega a" rule. */
-$mh_ind = ( isset( $settings->mega_sub_indent ) && '' !== $settings->mega_sub_indent ) ? (int) $settings->mega_sub_indent : null;
-if ( null !== $mh_ind ) {
-	echo "$node .ds-mega-col .ds-submenu a { padding-left: {$mh_ind}px; }\n";
+   (e.g. teams under a "U16" heading). 3-class selector beats the ".ds-mega a" rule.
+   With a dropdown hover background, the column heading and its links also get a side inset:
+   both sit flush at the column edge by default (padding 4px 0), so the hover fill painted the
+   text against its left edge ("U16" had no padding in its green box). The links keep the
+   indent on top of the inset, so they still read as children of the heading. */
+$mh_ind   = ( isset( $settings->mega_sub_indent ) && '' !== $settings->mega_sub_indent ) ? (int) $settings->mega_sub_indent : null;
+$mh_inset = $dhbg ? 8 : 0;
+if ( $mh_inset ) {
+	echo "$mhSel { padding-left: {$mh_inset}px; padding-right: {$mh_inset}px; }\n";
+}
+if ( null !== $mh_ind || $mh_inset ) {
+	$mh_pl = $mh_inset + (int) $mh_ind;
+	$mh_pr = $mh_inset ? " padding-right: {$mh_inset}px;" : '';
+	echo "$node .ds-mega-col .ds-submenu a { padding-left: {$mh_pl}px;{$mh_pr} }\n";
 }
 ?>
 
