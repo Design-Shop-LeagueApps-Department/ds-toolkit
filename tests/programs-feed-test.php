@@ -24,6 +24,8 @@ function set_transient($k,$v,$ttl=0){ $GLOBALS['tr'][$k]=array($v,$ttl); return 
 function delete_transient($k){ unset($GLOBALS['tr'][$k]); return true; }
 function ttl_of($k){ return $GLOBALS['tr'][$k][1] ?? null; }
 function get_option($k,$d=''){ return array_key_exists($k,$GLOBALS['opts'])?$GLOBALS['opts'][$k]:$d; }
+function update_option($k,$v,$autoload=null){ $GLOBALS['opts'][$k]=$v; $GLOBALS['autoload'][$k]=$autoload; return true; }
+function do_action($h,$a=null){ $GLOBALS['actions'][$h][]=$a; }
 function wp_cache_flush(){ $GLOBALS['cache_flushed']++; }
 function is_wp_error($e){ return $e instanceof WP_Error; }
 class WP_Error {
@@ -33,7 +35,7 @@ class WP_Error {
   function get_error_data(){ return $this->d; }
 }
 function wp_remote_get($url,$args=array()){
-  $GLOBALS['calls']++; $GLOBALS['last_args']=$args;
+  $GLOBALS['calls']++; $GLOBALS['calls_total']=($GLOBALS['calls_total']??0)+1; $GLOBALS['last_args']=$args;
   $q=&$GLOBALS['http'];
   $r = count($q)>1 ? array_shift($q) : ($q[0] ?? array('code'=>200,'body'=>'[]','headers'=>array()));
   return $r;
@@ -85,6 +87,21 @@ chk('stale copy written with 7-day TTL', ttl_of($key.'_stale'), 7*86400);
 chk('refetch lock released', get_transient($key.'_lock'), false);
 chk('key registered for flush()', in_array($key, get_transient('ds_programs_keys') ?: array(), true), true);
 
+echo "fetch ledger (a meter, not a throttle)\n";
+$led = DS_Programs_Data::ledger();
+chk('one ledger entry after one fetch', count($led), 1);
+chk('entry: site id', $led[0]['site'], '46287');
+chk('entry: ok', $led[0]['ok'], true);
+chk('entry: one HTTP request', $led[0]['tries'], 1);
+chk('entry: raw row count', $led[0]['rows'], 2);
+chk('entry: reason is first load (no stale copy existed)', $led[0]['why'], 'first');
+chk('ledger option is NOT autoloaded', $GLOBALS['autoload']['ds_programs_ledger'] ?? null, false);
+chk('ds_programs_fetch action fired with the entry', ($GLOBALS['actions']['ds_programs_fetch'][0]['site'] ?? null), '46287');
+$sum = DS_Programs_Data::ledger_summary();
+chk('summary: 1 fetch, 1 request, 0 failures', array($sum['fetches'],$sum['requests'],$sum['failures']), array(1,1,0));
+chk('summary: budget is 144 a day for one site', $sum['budget'], 144);
+chk('summary: not over budget', $sum['over'], false);
+
 echo "register button URL\n";
 $club = $r['programs'][0]; $camp = $r['programs'][1];
 chk('club team: data layer keeps the checkout link as registerUrl', $club['registerUrl'], 'https://lamorugby.leagueapps.com/registration/init?bid=1');
@@ -133,6 +150,9 @@ $r = DS_Programs_Data::get(array($site));
 chk('three attempts on a connection-level failure', $GLOBALS['calls'], 3);
 chk('then backs off like any other failure', ttl_of($key), 120);
 chk('and serves stale', $r['stale'], true);
+$led = DS_Programs_Data::ledger();
+chk('ledger: failed entry records all 3 requests', array($led[0]['ok'],$led[0]['tries'],$led[0]['code']), array(false,3,0));
+chk('ledger: reason is cache expired (stale copy existed)', $led[0]['why'], 'expired');
 
 echo "other 4xx\n";
 delete_transient($key); $GLOBALS['http']=array(array('code'=>400,'body'=>'','headers'=>array())); $GLOBALS['calls']=0;
@@ -167,6 +187,21 @@ chk('refetch lock gone', get_transient($key.'_lock'), false);
 chk('stale copy KEPT so a flush during an outage cannot blank the page', get_transient($key.'_stale') !== false, true);
 chk('does NOT empty the whole object cache', $GLOBALS['cache_flushed'], 0);
 chk('still runs the legacy row delete', count($wpdb->queries), 1);
+$GLOBALS['http']=array($ok200); DS_Programs_Data::get(array($site));
+chk('fetch after flush() is logged as a manual refresh', DS_Programs_Data::ledger()[0]['why'], 'flush');
+$GLOBALS['http']=array($ok200); delete_transient($key); DS_Programs_Data::get(array($site));
+chk('a plain expiry after that is logged as expired again', DS_Programs_Data::ledger()[0]['why'], 'expired');
+
+echo "ledger bounds\n";
+for ($i=0;$i<70;$i++){ delete_transient($key); DS_Programs_Data::get(array($site)); }
+chk('recent list capped at 50 entries', count(DS_Programs_Data::ledger()), 50);
+$sum = DS_Programs_Data::ledger_summary();
+chk('daily counters are exact past the cap (requests == every HTTP call made)', $sum['requests'], $GLOBALS['calls_total']);
+chk('failures counted', $sum['failures'] >= 4, true);
+chk('over budget flagged when fetches exceed 1.25 x 144', $sum['over'], $sum['fetches'] > 180);
+chk('two configured sites double the budget', (function() use ($site){ $GLOBALS['opts']['ds_toolkit_settings']=array('leagueapps_sites'=>array($site,array('site_id'=>'1','api_key'=>'k','label'=>''))); $b=DS_Programs_Data::ledger_summary()['budget']; $GLOBALS['opts']['ds_toolkit_settings']=array('leagueapps_sites'=>array($site)); return $b; })(), 288);
+$book = get_option('ds_programs_ledger');
+chk('hour buckets pruned to a day', max(array_keys($book['hours'])) >= gmdate('YmdH', time()-86400), true);
 
 echo "\n" . ($fails ? "$fails FAILED" : "all passed") . "\n";
 exit($fails ? 1 : 0);

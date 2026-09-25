@@ -2,7 +2,8 @@
 /**
  * LeagueApps tab: the site IDs and public API keys the Programs module reads.
  * Rendered inside the shared wrap + header + tabs in DS_Toolkit_Admin::render_page().
- * Variables available: $leagueapps_sites, $programs_module_on, $la_sports
+ * Variables available: $leagueapps_sites, $programs_module_on, $la_sports,
+ * $la_activity (DS_Programs_Data::ledger_summary()), $la_ledger (recent fetches)
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -65,6 +66,63 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
                 <a class="button" href="<?php echo esc_url( $la_flush_url ); ?>">Refresh now</a>
             </div>
         </div>
+
+        <?php if ( $leagueapps_sites ) :
+            $la_why = array( 'first' => 'first load', 'expired' => 'cache expired', 'flush' => 'manual refresh' );
+        ?>
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-chart-line"></span></div>
+            <div class="dst-card-info">
+                <strong>Feed activity</strong>
+                <span>
+                    <?php if ( empty( $la_activity['last'] ) ) : ?>
+                        No fetch recorded yet. The first page view of a Programs module will make one.
+                    <?php else : ?>
+                        Last 24 hours: <strong><?php echo (int) $la_activity['fetches']; ?></strong> fetches from LeagueApps
+                        (<?php echo (int) $la_activity['requests']; ?> HTTP requests including retries,
+                        <?php echo (int) $la_activity['failures']; ?> failed).
+                        The 10-minute cache allows at most <?php echo (int) $la_activity['budget']; ?> a day for
+                        <?php echo count( $leagueapps_sites ); ?> site<?php echo count( $leagueapps_sites ) === 1 ? '' : 's'; ?>,
+                        and a site nobody visits sends none.
+                        <?php if ( ! empty( $la_activity['over'] ) ) : ?>
+                            <strong style="color:#b32d2e">That is more than the cache should allow: the host's object cache is dropping the feed between visits, so it is being refetched on demand. Listings still render, and each burst is still limited to one fetch, but tell Alipio.</strong>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </span>
+            </div>
+        </div>
+        <?php if ( $la_ledger ) : ?>
+        <div class="dst-card-row dst-mapping-wrap">
+            <div class="dst-mapping-container">
+                <table class="dst-mapping-table dst-la-ledger">
+                    <thead>
+                        <tr>
+                            <th>When</th>
+                            <th>Site</th>
+                            <th>Result</th>
+                            <th>Requests</th>
+                            <th>Took</th>
+                            <th>Programs</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $la_ledger as $e ) : $e = (array) $e; ?>
+                        <tr>
+                            <td title="<?php echo esc_attr( date_i18n( 'Y-m-d H:i:s', (int) $e['t'] + (int) ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) ) ); ?>"><?php echo esc_html( human_time_diff( (int) $e['t'], time() ) ); ?> ago</td>
+                            <td><?php echo esc_html( $e['site'] ?? '' ); ?></td>
+                            <td><?php if ( ! empty( $e['ok'] ) ) : ?><span style="color:#1a7f37">OK</span><?php else : ?><span style="color:#b32d2e" title="<?php echo esc_attr( $e['err'] ?? '' ); ?>">Failed<?php echo ! empty( $e['code'] ) ? ' (HTTP ' . (int) $e['code'] . ')' : ''; ?></span><?php endif; ?></td>
+                            <td><?php echo (int) ( $e['tries'] ?? 1 ); ?></td>
+                            <td><?php echo (int) ( $e['ms'] ?? 0 ); ?> ms</td>
+                            <td><?php echo ! empty( $e['ok'] ) ? (int) ( $e['rows'] ?? 0 ) : '&ndash;'; ?></td>
+                            <td><?php echo esc_html( $la_why[ $e['why'] ?? '' ] ?? ( $e['why'] ?? '' ) ); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; endif; ?>
     </div>
 
     <div class="dst-footer">

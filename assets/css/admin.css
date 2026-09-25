@@ -339,6 +339,16 @@
     text-align: center;
     padding-right: 0;
 }
+/* LeagueApps feed ledger reuses the mapping table without the remove-button column */
+.dst-la-ledger thead th:last-child,
+.dst-la-ledger td:last-child {
+    width: auto;
+    text-align: left;
+}
+.dst-la-ledger td {
+    white-space: nowrap;
+    color: #3c434a;
+}
 .dst-mapping-table input.regular-text {
     width: 100%;
     font-size: 12px;

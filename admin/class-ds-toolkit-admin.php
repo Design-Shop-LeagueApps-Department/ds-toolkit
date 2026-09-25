@@ -237,6 +237,8 @@ class DS_Toolkit_Admin {
                 $leagueapps_sites   = DS_Programs_Data::configured_sites();
                 $programs_module_on = ! empty( $opts['ds_programs_module_enabled'] );
                 $la_sports          = DS_Programs_Data::known_sports();
+                $la_activity        = DS_Programs_Data::ledger_summary();
+                $la_ledger          = array_slice( DS_Programs_Data::ledger(), 0, 12 );
                 require DS_TOOLKIT_PATH . 'admin/views/page-leagueapps.php';
 
             } elseif ( $active_tab === 'global-css' ) {
