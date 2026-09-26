@@ -4,6 +4,14 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.165] - 2026-09-27
+### Fixed
+- **Two false-positive classes found by the 20-site Flywheel pilot of 1.9.164, before any fleet push.** This is what the pilot was for: both would have emailed CRITICAL across a large share of the fleet, and both are now pinned by a regression fixture built from the real vendor file.
+- **`admin_implant` fired on legitimate remote-management plugins.** The rule as shipped asked "does this file create an administrator with no capability check in it?", and that is simply how remote management is built: **ManageWP Worker 4.9.38** `src/MMB/User.php` calls `wp_insert_user($args)`, handles the administrator role, and authenticates the *request* elsewhere in the plugin rather than per file. It hit **2 of 20 pilot sites with the same vendor md5 (`eaf03abc`)**, which extrapolates to roughly 60 Flywheel sites emailing. The rule now requires **hardcoded literal credentials** in the creation call, which is what an implant has (`wp_create_user("kralkenan", "p4ss", ...)` on surfsidevolleyball) and what management code passing `$args` does not. Verified on the real file: CRITICAL to none, while the attacker fixture still convicts.
+- **`wrapinc` fired on phar stubs.** A phar stub legitimately `require_once`es a `phar://` path, because that *is* the phar bootstrap, and `__HALT_COMPILER()` is its definitive marker (it is meaningless anywhere else). Guzzle's `vendor/guzzle/guzzle/phar-stub.php` inside UpdraftPlus scored CRITICAL on reimaginerec.com. The wrapper rule now stands down for a stub; every other behaviour rule still evaluates the file, so a stub that also holds a shell is still convicted on what it does.
+### Added
+- Engine selftest 66 to 68 assertions, the two additions being the exact vendor files above.
+
 ## [1.9.164] - 2026-09-27
 ### Added
 - **The scanner can now see three classes of file it never opened, and judges four shapes it previously scored nothing for.** Everything here is measured against files taken off compromised fleet sites this week, and every rule ships with both halves of its assertion: the malicious shape it must convict and the healthy shape it must stay silent on. The engine selftest goes from 51 to 66 assertions, and running the new assertions against the previous engine fails 6 of them, which is the proof they are not decoration.
