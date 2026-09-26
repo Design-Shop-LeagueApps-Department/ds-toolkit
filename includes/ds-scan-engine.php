@@ -209,6 +209,94 @@ function dsscan_scan_file($path, $opts = []) {
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
     $php_ext = in_array($ext, ['php','phtml','php3','php4','php5','php7','php8','phar','pht','inc','module','install'], true);
 
+    /* --- .maintenance is WordPress's own updater marker. Its whole body is the $upgrading epoch, so
+       every leftover has a DIFFERENT md5 and allow-listing it by hash is unwinnable: two hashes in the
+       list already cover exactly two files. Recognise the shape instead and say nothing. A
+       .maintenance carrying anything else falls through and is judged normally. */
+    if (strtolower(basename($path)) === '.maintenance'
+        && preg_match('/^\s*<\?php\s*\$upgrading\s*=\s*\d+\s*;\s*(\?>)?\s*$/', $src)) {
+        return null;
+    }
+
+    /* --- .htaccess is not PHP, so the behaviour engine has nothing to say about it. It is still one
+       of the load-bearing files the campaign rewrites, so it gets its own STRUCTURAL branch and
+       returns: never tokenised, no interaction with the PHP rules, no new false-positive surface.
+       Both rules below are shapes read off real compromised files, not heuristics.
+       dallaskicsfc.com 2026-09-26: /www/.htaccess denied every casing of php and then explicitly
+       ALLOWED ~30 attacker shell filenames (adminfuns.php, chtmlfuns.php, gdftps.php, phpzipincs.php,
+       postnews.php, ...) beside the genuine WordPress entry points. With every shell removed it is
+       still a loaded gun: any of those names dropped later executes. The scanner already READ that
+       file (it sits at depth 1) and said nothing, because no rule looked at .htaccess at all. */
+    $htname = strtolower(basename($path));
+    if ($htname === '.htaccess' || substr($htname, -9) === '.htaccess') {
+        /* Collect the filenames each "Allow from all" FilesMatch block permits. Deny blocks are
+           normal hardening and are ignored; only an ALLOW list can turn a dropped file executable. */
+        $allowed = [];
+        if (preg_match_all('/<FilesMatch\s+(["\']?)(.*?)\1\s*>(.*?)<\/FilesMatch>/is', $src, $mm, PREG_SET_ORDER)) {
+            foreach ($mm as $m) {
+                if (!preg_match('/Allow\s+from\s+all/i', $m[3])) continue;   // deny block: ignore
+                if (preg_match_all('/[A-Za-z0-9_.-]+\.(?:php|phtml|php[3-8]|phar|pht)/i', $m[2], $names)) {
+                    foreach ($names[0] as $n) $allowed[strtolower($n)] = true;
+                }
+            }
+        }
+        $allowed = array_keys($allowed);
+
+        /* RULE 1: the doubled-directory NEST fingerprint. Every nest in this campaign drops an
+           identical .htaccess (md5 17390d4b...): deny every PHP extension, then re-allow EXACTLY
+           index.php and cache.php. Sweeping that one hash found 11 nests on shoreshots where the
+           alert named 1, 18 on dallaskicsfc where it named none, and 4 more on 2026-09-27 buried in
+           real wordpress-importer / defender-security vendor trees. It is our single best nest
+           locator and it was not a rule until now. Matched STRUCTURALLY so a re-spin with different
+           whitespace still fires, with the known md5 kept as a second, exact tell. Two md5
+           variants of the SAME content exist in one incident (17390d4bee89c556... and ee7f3005...,
+           differing only in trailing whitespace), which is exactly why the structural test is the
+           primary one and the hash is only a backstop. */
+        sort($allowed);
+        if ($allowed === ['cache.php', 'index.php'] && preg_match('/Deny\s+from\s+all/i', $src)) {
+            $add('nest_htaccess', 120, 'doubled-directory NEST .htaccess: denies every PHP extension then re-allows exactly index.php and cache.php (the campaign nest fingerprint, md5 17390d4b family) - treat the whole directory as attacker-owned, not just this file');
+        } elseif (@md5_file($path) === '17390d4bee89c5561d4db280997b9699') {
+            $add('nest_htaccess_md5', 120, 'doubled-directory NEST .htaccess by exact md5 (campaign nest fingerprint)');
+        }
+
+        /* RULE 2: an allow-list of executable filenames. A legitimate hardening .htaccess DENIES php;
+           it never names a long list of php files to permit. WordPress ships one entry point plus the
+           wp-* family, so anything else in an ALLOW list is a filename someone wants to be able to
+           run. Gate on count, not on a vocabulary list, so it does not need maintaining and cannot be
+           evaded by renaming: dallaskicsfc's block named ~130. Threshold 12 is far above anything a
+           real hardening rule does and far below the observed attack. */
+        /* A LEGITIMATE hardening .htaccess does exist in this shape: deny all PHP, then allow the
+           known-good WordPress entry points. Firing on list length alone would eventually convict
+           one of those, and the first draft of this rule did exactly that - it reported 94 of
+           dallaskicsfc's 108 names as "not WordPress entry points" while the sample it printed was
+           admin-ajax.php, admin-footer.php, admin.php, which ARE WordPress. A message that names
+           innocent files is how a rule gets ignored.
+           The real discriminator is that the attacker APPENDS names to the legitimate list, and those
+           names are not on disk: they are files waiting to be dropped, or shells already removed. So
+           test existence, relative to the directory the .htaccess governs and to the WordPress root
+           when we can see it, and convict only on a long list that also permits files that are not
+           there. The names we then print are the meaningful ones. */
+        $dir  = dirname($path);
+        $roots = [$dir];
+        if (defined('ABSPATH')) { $roots[] = rtrim(ABSPATH, '/'); }
+        $missing = [];
+        foreach ($allowed as $n) {
+            if ($n === 'index.php' || $n === 'xmlrpc.php' || strpos($n, 'wp-') === 0) continue;
+            $found = false;
+            foreach ($roots as $r) {
+                if (@is_file($r . '/' . $n) || @is_file($r . '/wp-admin/' . $n) || @is_file($r . '/wp-includes/' . $n)) { $found = true; break; }
+            }
+            if (!$found) $missing[] = $n;
+        }
+        if (count($allowed) > 12 && count($missing) >= 3) {
+            $add('htaccess_exec_allowlist', 120, 'this .htaccess ALLOW-lists ' . count($allowed)
+                . ' executable filenames, and ' . count($missing) . ' of them are not present on disk ('
+                . implode(', ', array_slice($missing, 0, 6))
+                . '). A hardening rule permits files that exist; names that are absent are files someone wants to be able to run once dropped');
+        }
+        return $done();
+    }
+
     /* --- binary? A NUL in the first 8 KB means it is not source. Never tokenise it, and do not run
        the text regexes over megabytes of pixels either.
        2026-09-17, found by running this on a live site: an earlier test accepted
@@ -255,7 +343,28 @@ function dsscan_scan_file($path, $opts = []) {
                media, dotfile, none) is never a legitimate PHP template and keeps full weight, which
                is what still convicts the akismet husk dropper (61 KB of pure PHP named logo-*.png)
                and the selftest's shell.png. */
-            if ($ext === 'html' || $ext === 'htm') {
+            /* A *.php.off file is OUR documented way to disable a mu-plugin, so "the extension is
+               camouflage" is describing our own convention. Require a plugin header near the TOP of
+               the file (an attacker cannot earn the exemption by appending one later) and give NO
+               polyglot credit. The behaviour engine below still runs on it unchanged, so a .off file
+               that really holds a shell is still convicted on what it does. mdjrs.org 2026-09-26
+               emailed CRITICAL for ds-cdn-ttl-test.php.off, a 295-byte header test. */
+            if ($ext === 'off') {
+                /* A *.php.off file is OUR documented way to disable a mu-plugin, and NO web server
+                   hands .off to PHP-FPM, so exactly like the .html template case below it cannot
+                   execute on its own request: it needs an include(). So position alone must not
+                   convict. A plugin header means it is certainly one of ours and earns a full stand
+                   down; without one it keeps the same de-weighted score .html gets, which is REVIEW
+                   rather than a CRITICAL email. Either way the tokeniser below still judges the file
+                   on BEHAVIOUR, so a .off that really holds a shell is still convicted.
+                   Calibrated against the two real files on marylandjr 2026-09-27: the first version of
+                   this rule required a plugin header, and the file that actually emailed CRITICAL
+                   (ds-cdn-ttl-test.php.off, 295 b) does not have one - it opens with a plain comment. */
+                if (!preg_match('/Plugin Name\s*:/i', substr($src, 0, 1024))) {
+                    $score += 45;
+                    $reasons[] = "polyglot: this .$ext file IS PHP (opens with a PHP tag); .off is our own disable convention and no web server executes it, so this alone is not proof - stageable via include()";
+                }
+            } elseif ($ext === 'html' || $ext === 'htm') {
                 $score += 45;
                 $reasons[] = "polyglot: this .$ext file IS PHP (opens with a PHP tag); some plugins legitimately ship PHP-generated templates as .html, so this alone is not proof - stageable via include()";
             } else {
@@ -368,6 +477,7 @@ function dsscan_scan_file($path, $opts = []) {
     /* ---------- walk calls ---------- */
     $hasEvalDecode = false; $hasExecInput = false;
     $hasSelfRewrite = false; $hasAuthCookie = false; $hasInsertUser = false; $hasAdminLookup = false;
+    $hasAdminRole = (bool) preg_match('/[\'"]administrator[\'"]|role\s*=>\s*[\'"]administrator/i', $src);
     $hasNonceOrCap = false; $hasMoveUpload = false; $hasMailLoop = false; $gotoCount = 0;
     $wrapInc = false; $hasInclude = false; $wrapAssembled = false;
     $hasNestedHash = false; $backtickInput = false; $writesPhp = false;
@@ -520,7 +630,10 @@ function dsscan_scan_file($path, $opts = []) {
                     if (isset($stream[$callPos+1]) && $stream[$callPos+1]['t'] === T_STRING && strtolower($stream[$callPos+1]['s']) === 'md5') { $hasNestedHash = true; }
                 }
                 if ($callName === 'wp_set_auth_cookie') $hasAuthCookie = true;
-                if ($callName === 'wp_insert_user') $hasInsertUser = true;
+                /* wp_create_user was missing here until 2026-09-27. surfsidevolleyball's wp-amdin.php
+                   creates an administrator called kralkenan in plain, unobfuscated PHP and scored
+                   NOTHING from this path because only wp_insert_user was watched. */
+                if ($callName === 'wp_insert_user' || $callName === 'wp_create_user') $hasInsertUser = true;
                 if ($callName === 'get_users' || $callName === 'get_user_by' || $callName === 'wp_set_current_user') $hasAdminLookup = true;
                 if (in_array($callName, ['wp_verify_nonce','check_admin_referer','check_ajax_referer','current_user_can'], true)) $hasNonceOrCap = true;
                 if ($callName === 'move_uploaded_file' && $refInput) { $add('mvinput', 10, "move_uploaded_file() fed by request input"); }
@@ -586,6 +699,23 @@ function dsscan_scan_file($path, $opts = []) {
     // goto only counts alongside eval/a decoder (a real state machine uses goto and has neither)
     if ($gotoCount >= 3 && ($hasEvalDecode || preg_match('/base64_decode|gzinflate|gzuncompress|str_rot13|eval\s*\(/i', $src))) {
         $score += 60; $reasons[] = "goto flow-obfuscation ($gotoCount goto) combined with eval/decoders";
+    }
+    /* Creating an ADMINISTRATOR with no capability or credential check anywhere in the file is a
+       persistence implant, not a feature. This is scored on its own because the existing
+       auth-cookie rule needs wp_set_auth_cookie present, and the observed file had only the user
+       creation (surfsidevolleyball wp-amdin.php -> admin "kralkenan", 2026-09-25). A real setup
+       wizard or registration flow carries current_user_can / a nonce, which stands this down, and
+       vendor code is covered by known-good md5 suppression on top. */
+    if ($hasInsertUser && $hasAdminRole && !$verifiesCreds && !preg_match('/current_user_can/i', $src)) {
+        $add('admin_implant', 110, 'creates a user with the administrator role and has NO capability or credential check anywhere in the file (persistence implant, not a registration flow)');
+    }
+    /* A drop-in on a WordPress LOAD PATH has no legitimate reason to be goto-flattened. The rule
+       above needs eval/a decoder alongside the goto, and the north-shore-stars wp-content/db.php
+       (74 bytes, goto-flattened, loads zip://index.zip#index) carried neither, so it scored below
+       CRITICAL on 2 of the 3 sites that had it. On db.php / object-cache.php / advanced-cache.php
+       or anything in mu-plugins, the obfuscation alone is the finding. */
+    if ($gotoCount >= 3 && preg_match('#/(db|object-cache|advanced-cache)\.php$|/mu-plugins/#i', $path)) {
+        $add('goto_dropin', 110, "goto flow-obfuscation ($gotoCount goto) in a file on a WordPress load path (drop-in or mu-plugin) - a drop-in is never legitimately flattened this way");
     }
     if ($hasNestedHash)   { $score += 30; $reasons[] = "nested md5(md5(...)) password gate (shell auth pattern)"; }
     if ($writesPhp)       { $score += 20; }
