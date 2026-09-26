@@ -654,6 +654,13 @@ function dsscan_scan_file($path, $opts = []) {
                 if ($stream[$j]['t'] === T_STRING && isset($stream[$j+1]) && $stream[$j+1]['s'] === '(' && in_array(strtolower($stream[$j]['s']), $DECODERS, true)) $wrapInc = true;
             }
             if ($rem) { $add('rfi', 90, "include/require of a remote URL or request input (remote file inclusion)"); }
+            /* A PHAR STUB legitimately require_once()s a phar:// path - that IS the phar bootstrap
+               mechanism, and __HALT_COMPILER() is its definitive marker (it is meaningless anywhere
+               else). Guzzle's vendor/guzzle/guzzle/phar-stub.php inside UpdraftPlus scored CRIT on the
+               2026-09-27 pilot for exactly this. Stand the wrapper rule down for a stub; every other
+               behaviour rule still evaluates the file, so a stub that also holds a shell is convicted
+               on what it does. */
+            if ($wrapInc && preg_match('/__HALT_COMPILER\s*\(/i', $src)) { $wrapInc = false; }
             if ($wrapInc) { $add('wrapinc', 100, "include/require of an archive/data stream wrapper or of a decoder's output (code hidden outside any .php file)"); $wrapInc = false; }
             $hasInclude = true;
         }
@@ -706,8 +713,19 @@ function dsscan_scan_file($path, $opts = []) {
        creation (surfsidevolleyball wp-amdin.php -> admin "kralkenan", 2026-09-25). A real setup
        wizard or registration flow carries current_user_can / a nonce, which stands this down, and
        vendor code is covered by known-good md5 suppression on top. */
-    if ($hasInsertUser && $hasAdminRole && !$verifiesCreds && !preg_match('/current_user_can/i', $src)) {
-        $add('admin_implant', 110, 'creates a user with the administrator role and has NO capability or credential check anywhere in the file (persistence implant, not a registration flow)');
+    /* NARROWED 2026-09-27 by the 20-site pilot. The first version fired on "creates an admin and has
+       no capability check in this file", and that is simply how legitimate REMOTE-MANAGEMENT plugins
+       are built: ManageWP Worker 4.9.38 src/MMB/User.php calls wp_insert_user($args) and handles the
+       administrator role, authenticating the REQUEST elsewhere in the plugin rather than per file. It
+       fired on 2 of 20 pilot sites with the same vendor md5, which extrapolates to roughly 60 sites
+       emailing CRITICAL fleet-wide - the "alert nobody reads" failure again.
+       The real discriminator is the CREDENTIALS. An implant hardcodes them
+       (wp_create_user("kralkenan", "p4ss", ...) on surfsidevolleyball); management code passes
+       variables it received. So require literal string credentials in the creation call. */
+    $literalAdminCreate = preg_match('/wp_create_user\s*\(\s*[\'"][^\'"]{1,60}[\'"]\s*,\s*[\'"][^\'"]{1,60}[\'"]/i', $src)
+        || preg_match('/[\'"]user_login[\'"]\s*=>\s*[\'"][^\'"]{1,60}[\'"][^;]{0,400}?[\'"]user_pass[\'"]\s*=>\s*[\'"][^\'"]{1,60}[\'"]/is', $src);
+    if ($hasInsertUser && $hasAdminRole && $literalAdminCreate && !$verifiesCreds && !preg_match('/current_user_can/i', $src)) {
+        $add('admin_implant', 110, 'creates a user with the administrator role from HARDCODED credentials, with no capability or credential check anywhere in the file (persistence implant, not a registration or remote-management flow)');
     }
     /* A drop-in on a WordPress LOAD PATH has no legitimate reason to be goto-flattened. The rule
        above needs eval/a decoder alongside the goto, and the north-shore-stars wp-content/db.php
