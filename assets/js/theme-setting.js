@@ -34,8 +34,12 @@
 		prefix: cfg.prefixKey || 'fl-global',
 		wrap: $('#dsts-pal'),
 		/** Beaver Builder's label_to_key(). */
+		/** The label as the server stores it (sanitize_text_field: tags and %xx out, whitespace runs to one space). */
+		clean: function (label) {
+			return String(label || '').replace(/<[^>]*>?/g, '').replace(/%[a-f0-9]{2}/gi, '').replace(/[\r\n\t ]+/g, ' ').trim();
+		},
 		slug: function (label) {
-			return String(label || '').trim().toLowerCase().replace(/[_ ]/g, '-').replace(/[^A-Za-z0-9-]/g, '');
+			return Palette.clean(label).toLowerCase().replace(/[_ ]/g, '-').replace(/[^A-Za-z0-9-]/g, '');
 		},
 		prefixKey: function (p) { var k = Palette.slug(p); return k || 'fl-global'; },
 		varFor: function (name) { var s = Palette.slug(name); return s ? 'var(--' + Palette.prefix + '-' + s + ')' : ''; },
@@ -160,7 +164,7 @@
 		parse: function (txt, allowGlobals) {
 			var v = String(txt || '').trim(); if (!v) { return ''; }
 			if (/^#?([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(v)) { return '#' + v.replace(/^#/, '').toLowerCase(); }
-			if (/^rgba?\(\s*[\d.,\s%]+\)$/i.test(v)) { return v.replace(/\s+/g, ' '); }
+			if (/^rgba?\(\s*[\d.,\s%]+\)$/i.test(v)) { return v.replace(/\s+/g, ' ').toLowerCase(); }
 			if (allowGlobals) {
 				if (Color.isVar(v)) { return v.replace(/\s+/g, ''); }
 				var hit = null; Palette.valid().forEach(function (g) { if (!hit && g.name.toLowerCase() === v.toLowerCase()) { hit = g.varref; } });
@@ -314,17 +318,19 @@
 		data: null, promise: null, list: null, active: null, items: [], hl: -1, before: '',
 		load: function () {
 			if (Fonts.promise) { return Fonts.promise; }
-			var cached = null; try { cached = JSON.parse(sessionStorage.getItem('dsts:fonts') || 'null'); } catch (e) {}
-			if (cached && cached.google) { Fonts.data = cached; Fonts.promise = Promise.resolve(cached); Fonts.applyWeights(); return Fonts.promise; }
+			var cached = null; try { cached = JSON.parse(sessionStorage.getItem('dsts:fonts2') || 'null'); } catch (e) {}
+			if (cached && cached.google && Object.keys(cached.google).length) { Fonts.data = cached; Fonts.promise = Promise.resolve(cached); Fonts.applyWeights(); return Fonts.promise; }
 			var body = new FormData(); body.append('action', cfg.fontsAction); body.append('nonce', cfg.nonce);
 			Fonts.promise = fetch(cfg.ajaxUrl, { method: 'POST', body: body, credentials: 'same-origin' })
 				.then(function (r) { return r.json(); })
 				.then(function (j) {
-					Fonts.data = (j && j.success) ? j.data : { system: {}, google: {} };
-					try { sessionStorage.setItem('dsts:fonts', JSON.stringify(Fonts.data)); } catch (e) {}
+					var ok = j && j.success && j.data && j.data.google && Object.keys(j.data.google).length;
+					Fonts.data = ok ? j.data : { system: {}, google: {} };
+					// Only a real catalog is kept for the tab: a failed request is tried again next time.
+					if (ok) { try { sessionStorage.setItem('dsts:fonts2', JSON.stringify(Fonts.data)); } catch (e) {} } else { Fonts.promise = null; }
 					Fonts.applyWeights(); return Fonts.data;
 				})
-				.catch(function () { Fonts.data = { system: {}, google: {} }; return Fonts.data; });
+				.catch(function () { Fonts.data = { system: {}, google: {} }; Fonts.promise = null; return Fonts.data; });
 			return Fonts.promise;
 		},
 		known: function (name) {
@@ -562,6 +568,8 @@
 		load: function (url) {
 			if (!Preview.iframe) { return; }
 			Preview.ready = false; Preview.state('Loading…', 'busy'); Preview.iframe.src = url;
+			// No word from the page (it refuses to be framed, the session expired): say so instead of loading forever.
+			clearTimeout(Preview.wait); Preview.wait = setTimeout(function () { if (!Preview.ready) { Preview.state('Preview unavailable: reload the page', 'error'); } }, 20000);
 			var open = $('#dsts-preview-open'); if (open) { open.href = url.replace(/[?&]ds_ts_preview=1/, '').replace(/[?&]_dsnonce=[^&]*/, '').replace(/\?&/, '?').replace(/\?$/, ''); }
 		},
 		post: function (d) {
@@ -581,6 +589,8 @@
 		},
 		request: function () {
 			if (!Preview.iframe) { return; }
+			if (Preview.visible && !Preview.visible()) { Preview.stale = true; return; } // caught up when shown
+			Preview.stale = false;
 			Preview.live = true;
 			if (Preview.ctrl) { Preview.ctrl.abort(); }
 			Preview.ctrl = window.AbortController ? new AbortController() : null;
@@ -622,7 +632,7 @@
 			});
 
 			window.addEventListener('message', function (e) {
-				if (e.source !== Preview.iframe.contentWindow) { return; }
+				if (e.source !== Preview.iframe.contentWindow || (cfg.previewOrigin && e.origin !== cfg.previewOrigin)) { return; }
 				var d = e.data || {};
 				if (d.type === 'dsts:ready') {
 					Preview.ready = true; Preview.state('Live preview');
@@ -636,12 +646,14 @@
 			// Hide / show the preview.
 			var hide = $('#dsts-preview-hide'), toggle = $('#dsts-preview-toggle');
 			var narrow = function () { return window.matchMedia('(max-width: 1100px)').matches; };
+			Preview.visible = function () { return narrow() ? root.classList.contains('show-preview') : !root.classList.contains('no-preview'); };
 			if (store.get('preview', 'on') === 'off') { root.classList.add('no-preview'); }
 			if (hide) { hide.addEventListener('click', function () { if (narrow()) { root.classList.remove('show-preview'); } else { root.classList.add('no-preview'); store.set('preview', 'off'); } }); }
 			if (toggle) {
 				toggle.addEventListener('click', function () {
 					if (narrow()) { root.classList.toggle('show-preview'); } else { root.classList.remove('no-preview'); store.set('preview', 'on'); }
 					if (!Preview.iframe.src || Preview.iframe.src === 'about:blank') { var p0 = pages[+sel.value]; if (p0) { Preview.load(p0.url); } }
+					if (Preview.stale) { Preview.request(); }
 					setTimeout(Preview.fit, 30);
 				});
 			}
@@ -693,6 +705,7 @@
 					if (colors.length !== rows.length) { State.leaving = true; location.reload(); return; }
 					colors.forEach(function (c, i) {
 						var uid = $('input[name="color_uid[]"]', rows[i]); if (uid) { uid.value = c.uid || ''; }
+						var nm = $('input[name="color_label[]"]', rows[i]); if (nm && c.label && nm.value !== c.label) { nm.value = c.label; }
 						rows[i].setAttribute('data-orig-name', c.label || ''); Palette.renderVar(rows[i]);
 					});
 					if (j.data.prefixKey) { Palette.prefix = j.data.prefixKey; }
@@ -858,6 +871,8 @@
 	Save.init();
 	State.init();
 	if (/[?&]updated=1/.test(location.search)) { Status.set('saved'); }
+	// Booted: the page is now driven by this script (sections as tabs, Save enabled when dirty).
+	root.classList.remove('dsts-nojs');
 
 	var onEdit = debounce(function () { State.check(); }, 80);
 	var onPreview = debounce(function () { Preview.request(); }, 260);

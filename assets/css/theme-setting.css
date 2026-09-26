@@ -415,3 +415,9 @@
 	.dsts.show-preview .dsts-preview { inset: 46px 0 0; }
 	.dsts-grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Without the script (blocked, failed to load, threw while booting) every section shows and the
+   form still saves as a plain post; the script removes .dsts-nojs once it has booted. */
+.dsts-nojs .dsts-section[hidden],
+.dsts-nojs .dsts-tabpanel[hidden],
+.dsts-nojs .dsts-levelpanel[hidden] { display: block !important; }

@@ -16,7 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * preview shows unsaved values: Beaver Builder generates its global CSS from the
  * submitted form (ajax_preview_css) and the page swaps it into the preview
  * iframe (maybe_start_preview). Saving is an AJAX post to the same admin-post
- * handler, which still works as a plain form post without JavaScript.
+ * handler, which still works as a plain form post without JavaScript (the root
+ * carries .dsts-nojs, showing every section with Save enabled, until the script boots).
  * UI: assets/css/theme-setting.css + assets/js/theme-setting.js.
  */
 class DS_Theme_Setting {
@@ -198,6 +199,15 @@ CSS;
     /** Site-wide default: hide the auto title/subtitle on banners that HAVE a photo/video. */
     public static function banner_photo_title_hidden() {
         return 'hide' === get_theme_mod( 'ds-banner-photo-title', 'show' );
+    }
+
+    /** Post types the Featured image as banner card offers: public, with featured images. */
+    public static function featured_type_choices() {
+        $out = array();
+        foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $pt ) {
+            if ( 'attachment' !== $pt->name && post_type_supports( $pt->name, 'thumbnail' ) ) { $out[] = $pt->name; }
+        }
+        return $out;
     }
 
     public static function banner_featured_types() {
@@ -648,7 +658,12 @@ CSS;
         $m['ds-banner-nobg-attachment'] = $pick( 'banner_nobg_attachment', $attach_ok, 'scroll' );
         $m['ds-banner-nobg-overlay']    = $this->sanitize_color( $g['banner_nobg_overlay'] ?? '' );
         if ( isset( $g['banner_featured_types_set'] ) ) {
-            $m['ds-banner-featured-types'] = array_map( 'sanitize_key', (array) ( $g['banner_featured_types'] ?? array() ) );
+            // The form offers public types with featured images; a stored type it does not list
+            // (fl-builder-template) is kept rather than dropped on every save.
+            $offered = self::featured_type_choices();
+            $kept    = array_diff( self::banner_featured_types(), $offered );
+            $picked  = array_intersect( array_map( 'sanitize_key', (array) ( $g['banner_featured_types'] ?? array() ) ), $offered );
+            $m['ds-banner-featured-types'] = array_values( array_unique( array_merge( $picked, $kept ) ) );
         }
         $m['ds-banner-photo-title']       = ( $g['banner_photo_title'] ?? 'show' ) === 'hide' ? 'hide' : 'show';
         $m['ds-banner-photo-title-color'] = $this->sanitize_color( $g['banner_photo_title_color'] ?? '' );
@@ -656,9 +671,13 @@ CSS;
         $m['ds-corner-radius']            = isset( $g['corner_radius'] ) && '' !== $g['corner_radius'] ? max( 0, min( 60, (int) $g['corner_radius'] ) ) : 8;
         $m['ds-outline-color']            = $this->sanitize_color( $g['outline_color'] ?? '' );
         $m['ds-outline-width']            = isset( $g['outline_width'] ) && '' !== $g['outline_width'] ? max( 1, min( 8, (int) $g['outline_width'] ) ) : 2;
-        // Custom code: LeagueApps-only surface; stored raw like the BB theme's Code section.
-        $m['fl-css-code'] = isset( $g['css_code'] ) ? trim( $g['css_code'] ) : '';
-        $m['fl-js-code']  = isset( $g['js_code'] ) ? trim( $g['js_code'] ) : '';
+        // Custom code: stored raw like the BB theme's Code section, so only a user WordPress
+        // trusts with raw HTML may change it (a Contributor with a LeagueApps email may use the
+        // rest of this page, not add site-wide script). Otherwise the saved code is kept.
+        if ( current_user_can( 'unfiltered_html' ) ) {
+            $m['fl-css-code'] = isset( $g['css_code'] ) ? trim( $g['css_code'] ) : '';
+            $m['fl-js-code']  = isset( $g['js_code'] ) ? trim( $g['js_code'] ) : '';
+        }
         return $m;
     }
 
@@ -748,6 +767,9 @@ CSS;
         if ( ! wp_verify_nonce( isset( $_GET['_dsnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_dsnonce'] ) ) : '', self::PREVIEW_NONCE ) ) { return; }
 
         show_admin_bar( false );
+        // Never cached: the preview carries unsaved styles (plugin page caches honour this constant).
+        if ( ! defined( 'DONOTCACHEPAGE' ) ) { define( 'DONOTCACHEPAGE', true ); }
+        nocache_headers();
         add_filter( 'fl_builder_render_assets_inline', '__return_true', 999 );
         remove_filter( 'fl_builder_global_css_string', 'FLBuilderGlobalStyles::inject_global_css_string', 10 );
 
@@ -787,7 +809,7 @@ CSS;
     });
   }
   window.addEventListener('message', function(e){
-    if (e.source !== window.parent) return;
+    if (e.source !== window.parent || e.origin !== location.origin) return;
     var d = e.data || {};
     if (d.type !== 'dsts:css') return;
     if (typeof d.css === 'string') styleEl('ds-ts-live-inline-css').textContent = d.css;
@@ -806,7 +828,7 @@ CSS;
     location.href = u.toString();
   }, true);
   document.addEventListener('submit', function(e){ e.preventDefault(); }, true);
-  window.parent.postMessage({ type: 'dsts:ready', url: location.href, title: document.title }, '*');
+  if (window.parent !== window) window.parent.postMessage({ type: 'dsts:ready', url: location.href, title: document.title }, location.origin);
 })();
 </script>
         <?php
@@ -1071,7 +1093,7 @@ CSS;
             'code'        => array( 'Custom Code', 'dashicons-editor-code' ),
         );
         ?>
-        <div class="wrap dsts" id="dsts">
+        <div class="wrap dsts dsts-nojs" id="dsts">
         <form id="dsts-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" novalidate>
             <input type="hidden" name="action" value="<?php echo esc_attr( self::SAVE_ACTION ); ?>">
             <?php wp_nonce_field( self::SAVE_ACTION ); ?>
@@ -1085,7 +1107,7 @@ CSS;
                     <span class="dsts-status" id="dsts-status" role="status" aria-live="polite"><?php echo isset( $_GET['updated'] ) ? 'Saved' : 'All changes saved'; ?></span>
                     <button type="button" class="button dsts-preview-toggle" id="dsts-preview-toggle"><span class="dashicons dashicons-visibility" style="margin:4px 4px 0 0;font-size:16px"></span>Preview</button>
                     <button type="button" class="button dsts-discard" id="dsts-discard" hidden>Discard</button>
-                    <button type="submit" class="button button-primary dsts-save" id="dsts-save" disabled title="Save (Ctrl/Cmd + S)">Save changes</button>
+                    <button type="submit" class="button button-primary dsts-save" id="dsts-save" title="Save (Ctrl/Cmd + S)">Save changes</button>
                 </div>
             </header>
             <hr class="wp-header-end">
@@ -1217,8 +1239,8 @@ CSS;
                         <div class="dsts-chips"><input type="hidden" name="general[banner_featured_types_set]" value="1">
                         <?php
                         $ft_allowed = self::banner_featured_types();
-                        foreach ( get_post_types( array( 'public' => true ), 'objects' ) as $ft_pt ) {
-                            if ( 'attachment' === $ft_pt->name || ! post_type_supports( $ft_pt->name, 'thumbnail' ) ) { continue; }
+                        foreach ( self::featured_type_choices() as $ft_name ) {
+                            $ft_pt = get_post_type_object( $ft_name );
                             echo '<label class="dsts-chip"><input type="checkbox" name="general[banner_featured_types][]" value="' . esc_attr( $ft_pt->name ) . '"' . checked( in_array( $ft_pt->name, $ft_allowed, true ), true, false ) . '><span>' . esc_html( $ft_pt->labels->name ) . '</span></label>';
                         }
                         ?>
@@ -1477,7 +1499,7 @@ CSS;
         // 4- and 8-digit hex carry the alpha channel (#rgba / #rrggbbaa) —
         // rejecting them wiped any colour saved with opacity below 100% (GH #80).
         if ( preg_match( '/^#?([A-Fa-f0-9]{3,4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/', $value, $m ) ) { return '#' . strtolower( $m[1] ); }
-        if ( preg_match( '/^rgba?\(\s*[\d.,\s%]+\)$/', $value ) ) { return $value; }
+        if ( preg_match( '/^rgba?\(\s*[\d.,\s%]+\)$/i', $value ) ) { return strtolower( $value ); }
         // Synced global-color reference, e.g. var(--fl-global-primary).
         if ( preg_match( '/^var\(\s*--[A-Za-z0-9_-]+\s*\)$/', $value ) ) { return $value; }
         return (string) sanitize_hex_color( $value );
