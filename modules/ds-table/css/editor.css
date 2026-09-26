@@ -150,3 +150,16 @@
 .ds-te.is-expanded .ds-te-expand { height: 28px; width: auto; padding: 0 16px; background: var(--te-accent); border-color: var(--te-accent); color: #fff; font-size: 12.5px; font-weight: 600; }
 .ds-te-placeholder { padding: 14px; border: 1px dashed #c3c4c7; border-radius: 6px; color: #646970; font-size: 12px; text-align: center; }
 body.ds-te-open { overflow: hidden; }
+
+/* Column types: badge on the heading, image cells with a preview and a Media Library button. */
+.fl-builder-settings .ds-te .ds-te-type { display: inline-block; margin: 0 2px 0 4px; padding: 1px 5px; border-radius: 3px; font-size: 9.5px; font-weight: 700; letter-spacing: .06em; line-height: 1.5; vertical-align: middle; color: var(--te-accent); background: var(--te-accent-soft); }
+.fl-builder-settings .ds-te .ds-te-imgcell { display: flex; align-items: flex-start; gap: 6px; padding: 4px 4px 4px 6px; }
+.fl-builder-settings .ds-te .ds-te-imgcell .ds-te-cell { flex: 1 1 auto; min-width: 70px; padding-left: 2px; padding-right: 2px; }
+.fl-builder-settings .ds-te .ds-te-thumb { flex: 0 0 28px; width: 28px; height: 28px; margin-top: 2px; border-radius: 4px; overflow: hidden; background: var(--te-line); display: flex; align-items: center; justify-content: center; }
+.fl-builder-settings .ds-te .ds-te-thumb:empty { background: transparent; border: 1px dashed var(--te-line); }
+.fl-builder-settings .ds-te .ds-te-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.fl-builder-settings .ds-te .ds-te-thumb-x { font-size: 13px; font-weight: 700; opacity: .6; }
+.fl-builder-settings .ds-te button.ds-te-pick { flex: 0 0 auto; margin-top: 3px; padding: 3px 7px !important; font-size: 11px !important; line-height: 1.4 !important; border-radius: 3px !important; border: 1px solid var(--te-line) !important; background: transparent !important; color: inherit !important; cursor: pointer; box-shadow: none !important; min-height: 0 !important; height: auto !important; }
+.fl-builder-settings .ds-te button.ds-te-pick:hover { border-color: currentColor !important; }
+.fl-builder-settings .ds-te .ds-te-grid td.is-type-image { min-width: 230px !important; }
+.fl-builder-settings .ds-te .ds-te-grid td.is-type-link, .fl-builder-settings .ds-te .ds-te-grid td.is-type-button { min-width: 170px !important; }

@@ -23,6 +23,8 @@ class DS_Table_Data {
 	const MAX_COLS  = 50;
 	const MAX_BYTES = 2097152; // 2 MB
 	const MAX_CELL  = 2000;    // characters per cell
+	/** Column types: text (''), image, link, button. */
+	const TYPES     = array( '', 'image', 'link', 'button' );
 
 	/* ------------------------------------------------------------ Storage */
 
@@ -55,11 +57,13 @@ class DS_Table_Data {
 		foreach ( array_slice( (array) ( $data['cols'] ?? array() ), 0, self::MAX_COLS ) as $c ) {
 			$c      = is_array( $c ) ? $c : array( 'label' => (string) $c );
 			$align  = (string) ( $c['align'] ?? '' );
+			$type   = (string) ( $c['type'] ?? '' );
 			$cols[] = array(
 				'label'  => self::cell( $c['label'] ?? '' ),
 				'align'  => in_array( $align, array( 'left', 'center', 'right' ), true ) ? $align : '',
 				'nowrap' => ! empty( $c['nowrap'] ),
 				'hide'   => ! empty( $c['hide'] ),
+				'type'   => in_array( $type, self::TYPES, true ) ? $type : '',
 			);
 		}
 		$rows = array();
@@ -69,7 +73,7 @@ class DS_Table_Data {
 			$max = max( $max, count( $r ) );
 			$rows[] = $r;
 		}
-		while ( count( $cols ) < $max ) { $cols[] = array( 'label' => '', 'align' => '', 'nowrap' => false, 'hide' => false ); }
+		while ( count( $cols ) < $max ) { $cols[] = array( 'label' => '', 'align' => '', 'nowrap' => false, 'hide' => false, 'type' => '' ); }
 		foreach ( $rows as &$r ) { while ( count( $r ) < count( $cols ) ) { $r[] = ''; } }
 		unset( $r );
 		return array( 'cols' => $cols, 'rows' => $rows );
@@ -284,7 +288,7 @@ class DS_Table_Data {
 
 	/**
 	 * The table a module shows: cells from its source, column options (alignment,
-	 * wrapping, hide on phones) always from the editor so they work for every source.
+	 * wrapping, hide on phones, type) always from the editor so they work for every source.
 	 */
 	public static function resolve( $settings ) {
 		$editor = self::decode( $settings->table_data ?? '' );
@@ -299,7 +303,7 @@ class DS_Table_Data {
 			foreach ( $table['cols'] as $i => &$c ) {
 				if ( isset( $editor['cols'][ $i ] ) ) {
 					$e = $editor['cols'][ $i ];
-					$c['align'] = $e['align']; $c['nowrap'] = $e['nowrap']; $c['hide'] = $e['hide'];
+					$c['align'] = $e['align']; $c['nowrap'] = $e['nowrap']; $c['hide'] = $e['hide']; $c['type'] = $e['type'];
 				}
 			}
 			unset( $c );
@@ -364,20 +368,132 @@ class DS_Table_Data {
 
 	/* -------------------------------------------------------------- Cells */
 
-	/** Escaped cell HTML: line breaks kept, web addresses and emails become links. */
+	/**
+	 * Escaped cell HTML: line breaks kept, [label](address) becomes a link, and (when $link)
+	 * bare web addresses and emails become links. No other markup gets through.
+	 */
 	public static function cell_html( $v, $link = true ) {
-		$html = esc_html( (string) $v );
+		$v     = str_replace( "\x1A", '', (string) $v );
+		$slots = array();
+		$v     = preg_replace_callback( '/\[([^\]\n]{1,200})\]\(\s*([^()\s]{1,500})\s*\)/u', function ( $m ) use ( &$slots ) {
+			$url = self::safe_url( $m[2] );
+			if ( '' === $url ) { return $m[0]; }
+			$key           = "\x1A" . count( $slots ) . "\x1A";
+			$slots[ $key ] = self::anchor( $url, esc_html( $m[1] ) );
+			return $key;
+		}, $v );
+		$html = esc_html( $v );
 		if ( $link ) {
-			$html = preg_replace_callback( '#\bhttps?://[^\s<>"\']+[^\s<>"\'.,;:!?)\]]#i', function ( $m ) {
-				$url  = html_entity_decode( $m[0] );
-				$home = wp_parse_url( home_url(), PHP_URL_HOST );
-				$ext  = wp_parse_url( $url, PHP_URL_HOST ) !== $home;
-				return '<a class="ds-table-link" href="' . esc_url( $url ) . '"' . ( $ext ? ' target="_blank" rel="noopener"' : '' ) . '>' . $m[0] . '</a>';
+			$html = preg_replace_callback( '#\bhttps?://[^\s<>"\'\x1A]+[^\s<>"\'.,;:!?)\]\x1A]#i', function ( $m ) {
+				return self::anchor( html_entity_decode( $m[0] ), $m[0] );
 			}, $html );
 			$html = preg_replace_callback( '/(?<![\w.@\/-])[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i', function ( $m ) {
 				return '<a class="ds-table-link" href="mailto:' . esc_attr( $m[0] ) . '">' . $m[0] . '</a>';
 			}, $html );
 		}
-		return nl2br( $html, false );
+		return nl2br( strtr( $html, $slots ), false );
+	}
+
+	/** A link; other sites open in a new tab. $inner is already-escaped HTML. */
+	public static function anchor( $url, $inner, $class = 'ds-table-link' ) {
+		$host = wp_parse_url( $url, PHP_URL_HOST );
+		$ext  = $host && wp_parse_url( home_url(), PHP_URL_HOST ) !== $host;
+		return '<a class="' . esc_attr( $class ) . '" href="' . esc_url( $url ) . '"' . ( $ext ? ' target="_blank" rel="noopener"' : '' ) . '>' . $inner . '</a>';
+	}
+
+	/**
+	 * A cell address made safe: http(s), mailto:, tel:, a site path ("/register/") or a bare
+	 * domain ("example.org/x", given https). Anything else (javascript:, data:) returns ''.
+	 */
+	public static function safe_url( $url ) {
+		$url = trim( html_entity_decode( (string) $url ) );
+		if ( '' === $url ) { return ''; }
+		if ( preg_match( '#^/(?!/)#', $url ) ) {
+			$url = home_url( $url );
+		} elseif ( ! preg_match( '#^(https?://|mailto:|tel:)#i', $url ) ) {
+			if ( ! preg_match( '#^(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}(/\S*)?$#i', $url ) ) { return ''; }
+			$url = 'https://' . $url;
+		}
+		return (string) esc_url( $url, array( 'http', 'https', 'mailto', 'tel' ) );
+	}
+
+	/**
+	 * A link or image cell split into its two parts:
+	 * "Label | address", "[Label](address)", or a lone address (label ''). Text with no
+	 * address comes back as the label with an empty address.
+	 */
+	public static function split_link( $v ) {
+		$v = trim( (string) $v );
+		if ( preg_match( '/^\[([^\]]*)\]\(\s*([^()\s]+)\s*\)$/u', $v, $m ) ) { return array( trim( $m[1] ), $m[2] ); }
+		if ( false !== strpos( $v, '|' ) ) {
+			$p = explode( '|', $v, 2 );
+			return array( trim( $p[0] ), trim( $p[1] ) );
+		}
+		if ( preg_match( '#^(https?://|mailto:|tel:|/)\S+$#i', $v ) ) { return array( '', $v ); }
+		return array( $v, '' );
+	}
+
+	/** Link or button cell. A lone address takes the column heading (or "View") as its label. */
+	public static function link_html( $v, $type, $fallback = '' ) {
+		list( $label, $url ) = self::split_link( $v );
+		$url = self::safe_url( $url );
+		if ( '' === $url ) { return self::cell_html( $v ); }
+		if ( '' === $label ) { $label = '' !== trim( (string) $fallback ) ? trim( (string) $fallback ) : __( 'View', 'ds-toolkit' ); }
+		if ( 'button' === $type ) {
+			return self::anchor( $url, '<span class="fl-button-text">' . esc_html( $label ) . '</span>', 'fl-button ds-table-btn' );
+		}
+		return self::anchor( $url, esc_html( $label ) );
+	}
+
+	/**
+	 * Where an image cell's picture comes from: a Media Library ID, or a web address
+	 * (a Google Drive share link becomes its public thumbnail URL).
+	 */
+	public static function image_source( $v ) {
+		$v = trim( (string) $v );
+		if ( preg_match( '/^\d+$/', $v ) ) {
+			return wp_attachment_is_image( (int) $v ) ? array( 'id' => (int) $v, 'url' => '' ) : array( 'id' => 0, 'url' => '' );
+		}
+		if ( preg_match( '#drive\.google\.com/(?:file/d/|open\?id=|uc\?(?:export=\w+&(?:amp;)?)?id=)([\w-]{10,})#', $v, $m ) ) {
+			return array( 'id' => 0, 'url' => 'https://drive.google.com/thumbnail?id=' . $m[1] . '&sz=w800' );
+		}
+		$url = self::safe_url( $v );
+		return array( 'id' => 0, 'url' => preg_match( '#^https?://#i', $url ) ? $url : '' );
+	}
+
+	/**
+	 * Image cell: "image", or "image | link" to make it clickable. $alt is used when the
+	 * Media Library has none; $px sizes the width/height attributes (no layout jump).
+	 */
+	public static function image_html( $v, $alt = '', $px = 56 ) {
+		list( $img, $link ) = self::split_link( $v );
+		if ( '' === $img && '' !== $link ) { $img = $link; $link = ''; } // a lone address is the image
+		$src = self::image_source( $img );
+		$px  = max( 16, min( 600, (int) $px ) );
+		$out = '';
+		if ( $src['id'] ) {
+			$att_alt = trim( (string) get_post_meta( $src['id'], '_wp_attachment_image_alt', true ) );
+			$out     = wp_get_attachment_image( $src['id'], $px > 150 ? 'medium' : 'thumbnail', false, array(
+				'class'    => 'ds-table-img',
+				'alt'      => '' !== $att_alt ? $att_alt : $alt,
+				'loading'  => 'lazy',
+				'decoding' => 'async',
+			) );
+		} elseif ( $src['url'] ) {
+			$out = '<img class="ds-table-img" src="' . esc_url( $src['url'] ) . '" alt="' . esc_attr( $alt ) . '" width="' . $px . '" height="' . $px . '" loading="lazy" decoding="async">';
+		}
+		if ( '' === $out ) { return ''; }
+		$link = self::safe_url( $link );
+		return '' !== $link ? self::anchor( $link, $out, 'ds-table-imglink' ) : $out;
+	}
+
+	/** The words a cell shows (for search, sorting and alt text): labels, not addresses. */
+	public static function display_text( $v, $type = '' ) {
+		if ( 'image' === $type ) { return ''; }
+		if ( 'link' === $type || 'button' === $type ) {
+			list( $label, $url ) = self::split_link( $v );
+			return '' !== $label ? $label : '';
+		}
+		return (string) preg_replace( '/\[([^\]\n]{1,200})\]\(\s*[^()\s]{1,500}\s*\)/u', '$1', (string) $v );
 	}
 }

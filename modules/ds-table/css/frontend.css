@@ -91,3 +91,10 @@
 .ds-table-note--sync { margin: 12px 0 0; border-left-color: #2271b1; background: #f0f6fc; color: #1d4a72; }
 
 @media (prefers-reduced-motion: reduce) { .ds-table-scroll { scroll-behavior: auto; } }
+
+/* Image, link and button columns */
+.ds-table .ds-table-t .ds-table-img { display: inline-block; vertical-align: middle; max-width: none; background: transparent; }
+.ds-table .ds-table-t .ds-table-type-image { line-height: 0; }
+.ds-table .ds-table-t .ds-table-imglink { display: inline-block; line-height: 0; border-radius: inherit; }
+.ds-table .ds-table-t .ds-table-imglink:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.ds-table .ds-table-t a.ds-table-btn { display: inline-block; white-space: nowrap; text-decoration: none; }

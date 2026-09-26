@@ -76,5 +76,32 @@ dst_is( 'email linked', DS_Table_Data::cell_html( 'coach@club.org' ), '<a class=
 dst_is( 'line breaks kept', DS_Table_Data::cell_html( "a\nb" ), "a<br>\nb" );
 dst_is( 'linking can be turned off', DS_Table_Data::cell_html( 'https://example.org', false ), 'https://example.org' );
 
+/* ---- column types: links, buttons, images ---- */
+$n = DS_Table_Data::normalize( array( 'cols' => array( array( 'label' => 'Logo', 'type' => 'image' ), array( 'label' => 'X', 'type' => 'evil' ) ), 'rows' => array() ) );
+dst_is( 'column type kept, unknown type dropped', array( $n['cols'][0]['type'], $n['cols'][1]['type'] ), array( 'image', '' ) );
+dst_is( 'split "Label | address"', DS_Table_Data::split_link( 'Register | https://x.org/r' ), array( 'Register', 'https://x.org/r' ) );
+dst_is( 'split [Label](address)', DS_Table_Data::split_link( '[Map](https://maps.example.com/a)' ), array( 'Map', 'https://maps.example.com/a' ) );
+dst_is( 'split lone address', DS_Table_Data::split_link( 'https://x.org' ), array( '', 'https://x.org' ) );
+dst_is( 'split plain text', DS_Table_Data::split_link( 'Just words' ), array( 'Just words', '' ) );
+dst_is( 'javascript: address refused', DS_Table_Data::safe_url( 'javascript:alert(1)' ), '' );
+dst_is( 'data: address refused', DS_Table_Data::safe_url( 'data:text/html,<b>x' ), '' );
+dst_is( 'site path becomes a full address', DS_Table_Data::safe_url( '/register/' ), home_url( '/register/' ) );
+dst_is( 'bare domain gets https', DS_Table_Data::safe_url( 'example.org/tryouts' ), 'https://example.org/tryouts' );
+dst_is( 'link cell with label', DS_Table_Data::link_html( 'Register | https://x.org/r', 'link' ), '<a class="ds-table-link" href="https://x.org/r" target="_blank" rel="noopener">Register</a>' );
+dst_is( 'lone address takes the column heading', (bool) preg_match( '#>Register</a>$#', DS_Table_Data::link_html( 'https://x.org/r', 'link', 'Register' ) ), true );
+dst_is( 'button cell uses the site button class', (bool) preg_match( '#^<a class="fl-button ds-table-btn" href="https://x.org/r"[^>]*><span class="fl-button-text">Go</span></a>$#', DS_Table_Data::link_html( 'Go | https://x.org/r', 'button' ) ), true );
+dst_is( 'label markup is escaped', false === strpos( DS_Table_Data::link_html( '<img src=x onerror=alert(1)> | https://x.org', 'link' ), '<img' ), true );
+dst_is( 'link cell with a bad address falls back to text', DS_Table_Data::link_html( 'Hi | javascript:alert(1)', 'link' ), 'Hi | javascript:alert(1)' );
+$h = DS_Table_Data::cell_html( 'Bring cleats. [Directions](https://maps.example.com/f) or https://x.org' );
+dst_is( 'inline [label](address) plus a bare address in one cell', (bool) preg_match( '#^Bring cleats\. <a class="ds-table-link" href="https://maps\.example\.com/f"[^>]*>Directions</a> or <a class="ds-table-link" href="https://x\.org"[^>]*>https://x\.org</a>$#', $h ), true );
+dst_is( 'inline javascript: link stays text', DS_Table_Data::cell_html( '[x](javascript:alert(1))' ), '[x](javascript:alert(1))' );
+dst_is( 'inline link works with auto-linking off', (bool) preg_match( '#<a [^>]*>Map</a>#', DS_Table_Data::cell_html( '[Map](https://m.org)', false ) ), true );
+dst_is( 'Google Drive share link -> thumbnail', DS_Table_Data::image_source( 'https://drive.google.com/file/d/1AbCdEfGhIjK_lm/view?usp=sharing' )['url'], 'https://drive.google.com/thumbnail?id=1AbCdEfGhIjK_lm&sz=w800' );
+dst_is( 'number that is not an image attachment', DS_Table_Data::image_source( '999999999' ), array( 'id' => 0, 'url' => '' ) );
+dst_is( 'image address with alt text', DS_Table_Data::image_html( 'https://x.org/logo.png', 'U10 Blue', 48 ), '<img class="ds-table-img" src="https://x.org/logo.png" alt="U10 Blue" width="48" height="48" loading="lazy" decoding="async">' );
+dst_is( '"image | link" wraps the image in the link', (bool) preg_match( '#^<a class="ds-table-imglink" href="https://x\.org/team"[^>]*><img [^>]*src="https://x\.org/l\.png"#', DS_Table_Data::image_html( 'https://x.org/l.png | https://x.org/team', 'T' ) ), true );
+dst_is( 'javascript: image refused', DS_Table_Data::image_html( 'javascript:alert(1)' ), '' );
+dst_is( 'display text: link label, no image text, inline link label', array( DS_Table_Data::display_text( 'Go | https://x.org', 'button' ), DS_Table_Data::display_text( 'https://x.org/l.png', 'image' ), DS_Table_Data::display_text( 'See [Map](https://m.org)' ) ), array( 'Go', '', 'See Map' ) );
+
 echo $GLOBALS['dst_fail'] ? "FAILURES: {$GLOBALS['dst_fail']} of {$GLOBALS['dst_n']}\n" : "ALL {$GLOBALS['dst_n']} PASS\n";
 if ( $GLOBALS['dst_fail'] ) { exit( 1 ); }

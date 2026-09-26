@@ -107,6 +107,21 @@ $v = $sc( 'sort_icon' );  if ( $v ) { echo "$w .ds-table-sortbtn.is-asc .ds-tabl
 $v = $px( 'search_width' ); if ( $v ) { echo "$w .ds-table-field--search{flex:0 1 $v;max-width:$v;}\n"; }
 $v = $px( 'bar_space' );    if ( '' !== $v ) { echo "$w .ds-table-bar{margin-bottom:$v;}\n"; }
 
+/* ---------- image and button columns ---------- */
+$has_type = function ( $t ) use ( $module ) { foreach ( $module->table()['cols'] as $c ) { if ( $t === $c['type'] ) { return true; } } return false; };
+if ( $has_type( 'image' ) ) {
+	$shape = (string) ( $settings->img_shape ?? 'rounded' );
+	$rad   = 'circle' === $shape ? '50%' : ( 'square' === $shape ? '0' : '6px' );
+	$fit   = 'cover' === ( $settings->img_fit ?? 'contain' ) ? 'cover' : 'contain';
+	$isz   = (int) ( $settings->img_size ?? 0 ) ?: 56;
+	echo "$w .ds-table-img{width:{$isz}px;height:{$isz}px;object-fit:$fit;border-radius:$rad;}\n";
+	$isz_r = (int) ( $settings->img_size_responsive ?? 0 );
+	if ( $isz_r ) { echo "@media(max-width:{$bp_sm}px){ $w .ds-table-img{width:{$isz_r}px;height:{$isz_r}px;} }\n"; }
+}
+if ( $has_type( 'button' ) && 'normal' !== ( $settings->btn_size ?? 'small' ) ) {
+	echo "$w .ds-table-td a.fl-button.ds-table-btn{padding:8px 16px;font-size:14px;line-height:1.2;}\n";
+}
+
 /* ---------- typography ---------- */
 foreach ( array( 'head_typo' => "$w .ds-table-t .ds-table-th", 'row_typo' => "$w .ds-table-t .ds-table-td" ) as $field => $selector ) {
 	if ( ! empty( $settings->{$field} ) ) {
@@ -140,5 +155,13 @@ if ( $cards ) {
 		$m[] = "$c .ds-table-t .ds-table-td.ds-table-first::before{display:none;}";
 	}
 	$m[] = "$c .ds-table-field--sort{display:flex;flex:1 1 180px;max-width:280px;}";
+	// The picture leads each card; a button spans the card.
+	$m[] = "$c .ds-table-t tbody tr{display:flex;flex-direction:column;}";
+	$m[] = "$c .ds-table-t .ds-table-td.ds-table-type-image:not(.is-empty){order:-1;display:block;padding:14px 0 6px;border-bottom:0;text-align:left;}";
+	$m[] = "$c .ds-table-t .ds-table-td.ds-table-type-image::before,$c .ds-table-t .ds-table-td.ds-table-type-button::before{display:none;}";
+	$m[] = "$c .ds-table-t .ds-table-td.ds-table-type-button:not(.is-empty){display:block;padding:12px 0;text-align:left;}";
+	$m[] = "$c .ds-table-t .ds-table-td .ds-table-v{min-width:0;}";
+	$m[] = "$c .ds-table-t .ds-table-type-button .ds-table-v,$c .ds-table-t .ds-table-type-image .ds-table-v{display:block;}";
+	$m[] = "$c .ds-table-t .ds-table-td.ds-table-type-button a.fl-button.ds-table-btn{display:block;width:100%;text-align:center;}";
 }
 if ( $m ) { echo "@media(max-width:{$bp_sm}px){" . implode( '', $m ) . "}\n"; }

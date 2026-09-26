@@ -110,8 +110,12 @@ class DS_Table_Module extends FLBuilderModule {
 			return;
 		}
 
+		// What each cell shows as words (labels for links, nothing for images): used for sorting and search.
+		$words = array();
+		foreach ( $rows as $ri => $r ) { foreach ( $cols as $i => $c ) { $words[ $ri ][ $i ] = DS_Table_Data::display_text( $r[ $i ], $c['type'] ); } }
 		$types = array();
-		foreach ( $cols as $i => $c ) { $types[ $i ] = DS_Table_Data::column_type( array_column( $rows, $i ) ); }
+		foreach ( $cols as $i => $c ) { $types[ $i ] = 'image' === $c['type'] ? 'none' : DS_Table_Data::column_type( array_column( $words, $i ) ); }
+		$img_px = (int) ( $s->img_size ?? 0 ) ?: 56;
 
 		$search = 'yes' === ( $s->search ?? 'no' );
 		$count  = 'yes' === ( $s->show_count ?? 'no' );
@@ -141,7 +145,7 @@ class DS_Table_Module extends FLBuilderModule {
 				echo '<div class="ds-table-field ds-table-field--sort"><label class="screen-reader-text" for="' . esc_attr( $uid ) . '-s">' . esc_html__( 'Sort by', 'ds-toolkit' ) . '</label><select id="' . esc_attr( $uid ) . '-s" class="ds-table-select" data-ds-table-sortsel>';
 				echo '<option value="">' . esc_html__( 'Sort: as listed', 'ds-toolkit' ) . '</option>';
 				foreach ( $cols as $i => $c ) {
-					if ( '' === $c['label'] ) { continue; }
+					if ( '' === $c['label'] || 'image' === $c['type'] ) { continue; }
 					/* translators: %s: column name */
 					echo '<option value="' . (int) $i . ':asc">' . esc_html( sprintf( __( '%s, first to last', 'ds-toolkit' ), $c['label'] ) ) . '</option>';
 					/* translators: %s: column name */
@@ -165,7 +169,7 @@ class DS_Table_Module extends FLBuilderModule {
 			foreach ( $cols as $i => $c ) {
 				$cls = 'ds-table-th ds-table-c' . $i . ( $c['hide'] ? ' ds-table-hide-sm' : '' );
 				echo '<th scope="col" class="' . esc_attr( $cls ) . '"' . ( $sort ? ' aria-sort="none"' : '' ) . '>';
-				if ( $sort && '' !== $c['label'] ) {
+				if ( $sort && '' !== $c['label'] && 'none' !== $types[ $i ] ) {
 					echo '<button type="button" class="ds-table-sortbtn" data-sort="' . (int) $i . '" data-type="' . esc_attr( 'text' === $types[ $i ] ? 'text' : 'num' ) . '">' . esc_html( $c['label'] ) . '<span class="ds-table-sorticon" aria-hidden="true"></span></button>';
 				} else {
 					echo esc_html( $c['label'] );
@@ -177,15 +181,24 @@ class DS_Table_Module extends FLBuilderModule {
 
 		echo '<tbody>';
 		foreach ( $rows as $ri => $r ) {
-			$hay = function_exists( 'mb_strtolower' ) ? mb_strtolower( implode( ' ', $r ) ) : strtolower( implode( ' ', $r ) );
+			$hay = function_exists( 'mb_strtolower' ) ? mb_strtolower( implode( ' ', $words[ $ri ] ) ) : strtolower( implode( ' ', $words[ $ri ] ) );
 			echo '<tr class="ds-table-row' . ( $ri % 2 ? ' is-alt' : '' ) . '" data-i="' . (int) $ri . '" data-search="' . esc_attr( $hay ) . '"';
-			if ( $sort ) { foreach ( $cols as $i => $c ) { echo ' data-s' . (int) $i . '="' . esc_attr( DS_Table_Data::sort_key( $r[ $i ], $types[ $i ] ) ) . '"'; } }
+			if ( $sort ) { foreach ( $cols as $i => $c ) { if ( 'none' !== $types[ $i ] ) { echo ' data-s' . (int) $i . '="' . esc_attr( DS_Table_Data::sort_key( $words[ $ri ][ $i ], $types[ $i ] ) ) . '"'; } } }
 			echo '>';
 			foreach ( $cols as $i => $c ) {
 				$is_first = 0 === $i;
 				$tag      = ( $is_first && 'rowhead' === $first ) ? 'th' : 'td';
-				$cls      = 'ds-table-td ds-table-c' . $i . ( $c['hide'] ? ' ds-table-hide-sm' : '' ) . ( $is_first ? ' ds-table-first' : '' ) . ( '' === trim( $r[ $i ] ) ? ' is-empty' : '' );
-				echo '<' . $tag . ( 'th' === $tag ? ' scope="row"' : '' ) . ' class="' . esc_attr( $cls ) . '" data-label="' . esc_attr( $c['label'] ) . '">' . DS_Table_Data::cell_html( $r[ $i ], $link ) . '</' . $tag . '>';
+				if ( 'image' === $c['type'] ) {
+					// Alt text: the row's name (its first cell), else the column heading.
+					$alt  = trim( $words[ $ri ][ 0 === $i ? 1 : 0 ] ?? '' ) ?: $c['label'];
+					$body = DS_Table_Data::image_html( $r[ $i ], $alt, $img_px );
+				} elseif ( 'link' === $c['type'] || 'button' === $c['type'] ) {
+					$body = DS_Table_Data::link_html( $r[ $i ], $c['type'], $c['label'] );
+				} else {
+					$body = DS_Table_Data::cell_html( $r[ $i ], $link );
+				}
+				$cls = 'ds-table-td ds-table-c' . $i . ( $c['type'] ? ' ds-table-type-' . $c['type'] : '' ) . ( $c['hide'] ? ' ds-table-hide-sm' : '' ) . ( $is_first ? ' ds-table-first' : '' ) . ( '' === trim( $r[ $i ] ) || '' === $body ? ' is-empty' : '' );
+				echo '<' . $tag . ( 'th' === $tag ? ' scope="row"' : '' ) . ' class="' . esc_attr( $cls ) . '" data-label="' . esc_attr( $c['label'] ) . '"><span class="ds-table-v">' . $body . '</span></' . $tag . '>';
 			}
 			echo '</tr>';
 		}
@@ -515,6 +528,16 @@ FLBuilder::register_module( 'DS_Table_Module', array(
 					'cell_pad'    => $ds_tbl_unit( __( 'Cell padding', 'ds-toolkit' ), 4, 40, array( 'responsive' => true ) ),
 					'link_color'  => $ds_tbl_colour( __( 'Link colour', 'ds-toolkit' ) ),
 					'link_hover'  => $ds_tbl_colour( __( 'Link hover colour', 'ds-toolkit' ) ),
+				),
+			),
+			'media_sec' => array(
+				'title'  => __( 'Images & buttons', 'ds-toolkit' ),
+				'description' => __( 'For columns set to Image, Link or Button in the table editor (column menu > Type).', 'ds-toolkit' ),
+				'fields' => array(
+					'img_size'  => $ds_tbl_unit( __( 'Image size', 'ds-toolkit' ), 24, 300, array( 'responsive' => true, 'help' => __( 'Blank = 56px. On phones the image leads each card.', 'ds-toolkit' ) ) ),
+					'img_shape' => array( 'type' => 'select', 'label' => __( 'Image shape', 'ds-toolkit' ), 'default' => 'rounded', 'options' => array( 'square' => __( 'Square corners', 'ds-toolkit' ), 'rounded' => __( 'Rounded', 'ds-toolkit' ), 'circle' => __( 'Circle', 'ds-toolkit' ) ) ),
+					'img_fit'   => array( 'type' => 'select', 'label' => __( 'Image fit', 'ds-toolkit' ), 'default' => 'contain', 'options' => array( 'contain' => __( 'Show the whole image (logos)', 'ds-toolkit' ), 'cover' => __( 'Fill the box, crop the edges (photos)', 'ds-toolkit' ) ) ),
+					'btn_size'  => array( 'type' => 'select', 'label' => __( 'Button size', 'ds-toolkit' ), 'default' => 'small', 'options' => array( 'small' => __( 'Small', 'ds-toolkit' ), 'normal' => __( 'Same as the site buttons', 'ds-toolkit' ) ), 'help' => __( 'Buttons use the site Button style (Theme Setting).', 'ds-toolkit' ) ),
 				),
 			),
 			'controls_sec' => array(

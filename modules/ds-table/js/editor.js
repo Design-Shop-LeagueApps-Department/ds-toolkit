@@ -12,7 +12,9 @@
  *   file    a CSV in the Media Library, previewed read-only; "Upload new version"
  *           replaces the file in place so every table synced to it updates.
  *   url     a Google Sheet or CSV link, fetched over AJAX; "Refresh now".
- * Column options (alignment, one line, hide on phones) are editable in every mode.
+ * Column options (alignment, one line, hide on phones, type) are editable in every mode.
+ * Types: Text, Image (Media Library ID or image address, "image | link" makes it
+ * clickable), Link and Button ("Label | address"; a lone address takes the heading).
  */
 /* global DSTable, wp, jQuery */
 (function ($) {
@@ -34,12 +36,14 @@
 		if (window.TextDecoder) { var bytes = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); } return new TextDecoder().decode(bytes); }
 		return decodeURIComponent(escape(bin));
 	}
-	function blankCol() { return { label: '', align: '', nowrap: false, hide: false }; }
+	var TYPES = { '': 'Text', image: 'Image', link: 'Link', button: 'Button' };
+	var TYPE_BADGE = { image: 'IMG', link: 'LINK', button: 'BTN' };
+	function blankCol() { return { label: '', align: '', nowrap: false, hide: false, type: '' }; }
 	function normalize(t) {
 		t = t && typeof t === 'object' ? t : {};
 		var cols = Array.isArray(t.cols) ? t.cols.map(function (c) {
 			c = c && typeof c === 'object' ? c : { label: c };
-			return { label: String(c.label == null ? '' : c.label), align: ['left', 'center', 'right'].indexOf(c.align) !== -1 ? c.align : '', nowrap: !!c.nowrap, hide: !!c.hide };
+			return { label: String(c.label == null ? '' : c.label), align: ['left', 'center', 'right'].indexOf(c.align) !== -1 ? c.align : '', nowrap: !!c.nowrap, hide: !!c.hide, type: TYPES.hasOwnProperty(c.type) ? c.type : '' };
 		}) : [];
 		var rows = Array.isArray(t.rows) ? t.rows.map(function (r) { return (Array.isArray(r) ? r : []).map(function (v) { return v == null ? '' : String(v); }); }) : [];
 		var w = cols.length; rows.forEach(function (r) { w = Math.max(w, r.length); });
@@ -54,6 +58,23 @@
 			if (v.indexOf('dst1:') === 0) { return normalize(JSON.parse(b64dec(v.slice(5)))); }
 			return normalize(JSON.parse(v));
 		} catch (e) { return { cols: [], rows: [] }; }
+	}
+	/** The picture part of an image cell ("image" or "image | link"). */
+	function imgPart(v) { v = String(v || '').trim(); var i = v.indexOf('|'); return (i === -1 ? v : v.slice(0, i)).trim(); }
+	var thumbCache = {};
+	/** A preview URL for an image cell: a Media Library ID, a Google Drive share link, or an address. */
+	function thumbURL(v, cb) {
+		var p = imgPart(v);
+		if (/^\d+$/.test(p)) {
+			if (thumbCache.hasOwnProperty(p)) { cb(thumbCache[p]); return; }
+			if (!window.wp || !wp.media || !wp.media.attachment) { cb(''); return; }
+			var a = wp.media.attachment(+p);
+			a.fetch().then(function () { var sz = a.get('sizes') || {}; thumbCache[p] = (sz.thumbnail && sz.thumbnail.url) || a.get('url') || ''; cb(thumbCache[p]); }, function () { thumbCache[p] = ''; cb(''); });
+			return;
+		}
+		var d = p.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]{10,})/);
+		if (d) { cb('https://drive.google.com/thumbnail?id=' + d[1] + '&sz=w200'); return; }
+		cb(/^https?:\/\//i.test(p) ? p : '');
 	}
 	function encode(t) { return 'dst1:' + b64enc(JSON.stringify({ cols: t.cols, rows: t.rows, t: t.t || 0 })); }
 
@@ -218,7 +239,8 @@
 		var label = editable
 			? '<textarea rows="1" class="ds-te-head" data-c="' + i + '" placeholder="Column ' + (i + 1) + '" aria-label="Column ' + (i + 1) + ' heading">' + esc(c) + '</textarea>'
 			: '<span class="ds-te-head-ro">' + (esc(c) || '<em>Column ' + (i + 1) + '</em>') + '</span>';
-		return '<th class="ds-te-colh' + flags + '" data-c="' + i + '">' + label + '<button type="button" class="ds-te-colmenu" data-c="' + i + '" title="Column options" aria-haspopup="menu">&#9662;</button>' + (col.hide ? '<span class="ds-te-badge" title="Hidden on phones">&#128241;&#8416;</span>' : '') + '</th>';
+		var badge = TYPE_BADGE[col.type] ? '<span class="ds-te-type" title="' + TYPES[col.type] + ' column">' + TYPE_BADGE[col.type] + '</span>' : '';
+		return '<th class="ds-te-colh' + flags + '" data-c="' + i + '">' + label + badge + '<button type="button" class="ds-te-colmenu" data-c="' + i + '" title="Column options" aria-haspopup="menu">&#9662;</button>' + (col.hide ? '<span class="ds-te-badge" title="Hidden on phones">&#128241;&#8416;</span>' : '') + '</th>';
 	};
 
 	Editor.prototype.renderManual = function () {
@@ -234,12 +256,18 @@
 			bh += '<tr data-r="' + r + '"><th class="ds-te-rowh"><button type="button" class="ds-te-rowmenu" data-r="' + r + '" title="Row options" aria-haspopup="menu">' + (r + 1) + '</button></th>';
 			for (var c = 0; c < t.cols.length; c++) {
 				var col = t.cols[c];
-				bh += '<td class="' + (col.align ? 'is-' + col.align : '') + (col.hide ? ' is-hidden-sm' : '') + '"><textarea rows="1" class="ds-te-cell" data-r="' + r + '" data-c="' + c + '" aria-label="Row ' + (r + 1) + ', ' + esc(col.label || 'column ' + (c + 1)) + '">' + esc(t.rows[r][c]) + '</textarea></td>';
+				var ph = col.type === 'image' ? ' placeholder="Choose, or an image address"' : (col.type ? ' placeholder="Label | https://…"' : '');
+				var ta = '<textarea rows="1" class="ds-te-cell" data-r="' + r + '" data-c="' + c + '"' + ph + ' aria-label="Row ' + (r + 1) + ', ' + esc(col.label || 'column ' + (c + 1)) + '">' + esc(t.rows[r][c]) + '</textarea>';
+				if (col.type === 'image') {
+					ta = '<div class="ds-te-imgcell"><span class="ds-te-thumb" data-r="' + r + '" data-c="' + c + '" aria-hidden="true"></span>' + ta + '<button type="button" class="ds-te-pick" data-r="' + r + '" data-c="' + c + '" title="Choose from the Media Library">Choose</button></div>';
+				}
+				bh += '<td class="' + (col.align ? 'is-' + col.align : '') + (col.hide ? ' is-hidden-sm' : '') + (col.type ? ' is-type-' + col.type : '') + '">' + ta + '</td>';
 			}
 			bh += '</tr>';
 		}
 		this.$tbody.html(bh);
 		this.$empty.prop('hidden', true);
+		this.fillThumbs();
 		this.growAll();
 		if (t.rows.length > RENDER_CAP) {
 			this.$empty.prop('hidden', false).html('Showing the first ' + RENDER_CAP + ' of ' + t.rows.length + ' rows here; every row is saved. For bulk edits, Export CSV, change it in a spreadsheet, then Import CSV.');
@@ -273,6 +301,43 @@
 		this.$tbody.html(bh);
 		this.$empty.prop('hidden', rows.length <= PREVIEW_CAP).text(rows.length > PREVIEW_CAP ? 'Showing the first ' + PREVIEW_CAP + ' of ' + rows.length + ' rows. Visitors see them all.' : '');
 		if (s.error) { this.say(s.error + ' Showing the last copy that loaded.', 'error'); }
+	};
+
+	/** Show a small preview in each image cell. */
+	Editor.prototype.fillThumbs = function (only) {
+		var self = this;
+		(only ? $(only) : this.$tbody.find('.ds-te-thumb')).each(function () {
+			var el = this, r = +el.getAttribute('data-r'), c = +el.getAttribute('data-c');
+			var v = self.state.rows[r] ? self.state.rows[r][c] : '';
+			if (!String(v || '').trim()) { el.innerHTML = ''; el.classList.remove('has-img'); return; }
+			thumbURL(v, function (url) {
+				el.classList.toggle('has-img', !!url);
+				var miss = '<span class="ds-te-thumb-x" title="No image found at this value">?</span>';
+				el.innerHTML = url ? '<img src="' + esc(url) + '" alt="" loading="lazy">' : miss;
+				var im = el.querySelector('img');
+				if (im) { im.onerror = function () { el.classList.remove('has-img'); el.innerHTML = miss; }; }
+			});
+		});
+	};
+
+	/** Media Library picker for an image cell. A link after "|" is kept. */
+	Editor.prototype.pickImage = function (r, c) {
+		var self = this;
+		if (!window.wp || !wp.media) { this.say('The Media Library is not available here.', 'error'); return; }
+		var frame = wp.media({ title: 'Choose an image', button: { text: 'Use this image' }, multiple: false, library: { type: 'image' } });
+		// Inside the builder the modal can open on "Upload files"; land on the library to pick an existing image.
+		frame.on('open', function () { if (frame.content && frame.content.mode) { frame.content.mode('browse'); } });
+		frame.on('select', function () {
+			var a = frame.state().get('selection').first().toJSON();
+			if (!self.state.rows[r]) { return; }
+			var cur = String(self.state.rows[r][c] || ''), i = cur.indexOf('|');
+			self.snapshot();
+			self.state.rows[r][c] = String(a.id) + (i === -1 ? '' : ' ' + cur.slice(i).trim());
+			thumbCache[String(a.id)] = (a.sizes && a.sizes.thumbnail && a.sizes.thumbnail.url) || a.url || '';
+			self.render(); self.commit(true);
+			self.focusCell(r, c);
+		});
+		frame.open();
 	};
 
 	Editor.prototype.grow = function (ta) { ta.style.height = 'auto'; ta.style.height = Math.min(Math.max(ta.scrollHeight, 32), 160) + 'px'; };
@@ -380,7 +445,12 @@
 			{ k: 'ar', label: 'Align right', on: col.align === 'right', run: function () { setOpt('align', 'right'); } },
 			'-',
 			{ k: 'nw', label: 'Keep on one line', on: col.nowrap, run: function () { setOpt('nowrap', !col.nowrap); } },
-			{ k: 'hd', label: 'Hide on phones', on: col.hide, run: function () { setOpt('hide', !col.hide); } }
+			{ k: 'hd', label: 'Hide on phones', on: col.hide, run: function () { setOpt('hide', !col.hide); } },
+			'-',
+			{ k: 't0', label: 'Type: Text', on: !col.type, run: function () { setOpt('type', ''); } },
+			{ k: 'ti', label: 'Type: Image', on: col.type === 'image', run: function () { setOpt('type', 'image'); } },
+			{ k: 'tl', label: 'Type: Link', on: col.type === 'link', run: function () { setOpt('type', 'link'); } },
+			{ k: 'tb', label: 'Type: Button', on: col.type === 'button', run: function () { setOpt('type', 'button'); } }
 		];
 		if (manual) {
 			items = items.concat(['-',
@@ -520,6 +590,7 @@
 		var self = this;
 		if (!window.wp || !wp.media) { this.say('The Media Library is not available here.', 'error'); return; }
 		var frame = wp.media({ title: 'Choose a CSV file', button: { text: 'Use this file' }, multiple: false, library: { type: ['text/csv', 'text/plain', 'text/tab-separated-values'] } });
+		frame.on('open', function () { if (frame.content && frame.content.mode) { frame.content.mode('browse'); } });
 		frame.on('select', function () {
 			var a = frame.state().get('selection').first().toJSON();
 			if (!/\.(csv|tsv|txt)$/i.test(a.filename || a.url || '')) { self.say('That file is not a CSV.', 'error'); return; }
@@ -537,7 +608,7 @@
 				self.snapshot();
 				var rr = s.rows.slice(), head = self.headerOn() ? rr.shift() : [];
 				var opts = self.state.cols;
-				var t = normalize({ cols: (head.length ? head : new Array(rr[0] ? rr[0].length : 0).fill('')).map(function (l, i) { var o = opts[i] || blankCol(); return { label: l, align: o.align, nowrap: o.nowrap, hide: o.hide }; }), rows: rr });
+				var t = normalize({ cols: (head.length ? head : new Array(rr[0] ? rr[0].length : 0).fill('')).map(function (l, i) { var o = opts[i] || blankCol(); return { label: l, align: o.align, nowrap: o.nowrap, hide: o.hide, type: o.type }; }), rows: rr });
 				self.state = t; self.source.val('manual').trigger('change'); self.render(); self.commit(true);
 				self.say('Copied. The table is now edited here.');
 			} },
@@ -583,6 +654,8 @@
 			var r = +this.getAttribute('data-r'), c = +this.getAttribute('data-c');
 			if (self.state.rows[r]) { self.state.rows[r][c] = this.value; self.commit(); }
 			self.grow(this);
+			var th = this.parentNode.querySelector('.ds-te-thumb');
+			if (th) { clearTimeout(self.thumbTimer); self.thumbTimer = setTimeout(function () { self.fillThumbs(th); }, 400); }
 		});
 		$r.on('input', 'textarea.ds-te-head', function () {
 			var c = +this.getAttribute('data-c');
@@ -623,6 +696,7 @@
 			self.pasteGrid(+this.getAttribute('data-r'), +this.getAttribute('data-c'), grid);
 		});
 
+		$r.on('click', '.ds-te-pick', function (e) { e.preventDefault(); self.pickImage(+this.getAttribute('data-r'), +this.getAttribute('data-c')); });
 		$r.on('click', '.ds-te-colmenu', function (e) { e.preventDefault(); e.stopPropagation(); self.colMenu(this, +this.getAttribute('data-c')); });
 		$r.on('click', '.ds-te-rowmenu', function (e) { e.preventDefault(); e.stopPropagation(); self.rowMenu(this, +this.getAttribute('data-r')); });
 		$r.on('keydown', function (e) {
