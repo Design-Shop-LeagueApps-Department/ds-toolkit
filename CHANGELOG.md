@@ -4,6 +4,11 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.163] - 2026-09-27
+### Added
+- **Tripwire: cleared our own disabled mu-plugins (`*.php.off`), which the polyglot rule flags by design.** Renaming a mu-plugin to `.php.off` is our documented way to disable one, so the finding *"this .off file IS PHP (opens with a PHP tag) - extension is camouflage, stageable via include()"* is describing our own convention rather than an attacker's. Two on marylandjr / mdjrs.org, both read on the container: `ds-cdn-ttl-test.php.off` (295 b, a temporary CDN and browser TTL header test that only fires on `?dscdntest=`, whose single flagged marker is the `isset($_GET[...])` guard, a read and not a sink) and `ds-cache-purge-on-global-edits.php.off` (2915 b, plugin header present, no dangerous sinks), the second added pre-emptively because it is the same class and had not alerted yet. WordPress never loads a `.off` file at all.
+- **A note on why this is a stopgap.** A hash per `.off` file is the same treadmill as `.maintenance`: every future disabled mu-plugin costs another line. The durable fix is an engine rule that does not score a `.php.off` file carrying a plugin header and no request-to-sink flow, and that is queued with the other engine-rule work rather than bundled here, because engine changes need a release push to reach sites while `lists/tripwire-allow.md5` does not.
+
 ## [1.9.162] - 2026-09-27
 ### Fixed
 - **Tripwire: an allow-list hash with the right prefix and the wrong full value, so the site kept alerting.** The line cleared for `wp-slimstat`'s vendored Symfony `AbstractUnicodeString.php` on 2026-09-25 read `bdd44b6e44fb6b7db6f02a39ba71fb0f`; the file is `bdd44b6e55d9298b579698eb45ebcdfa`. Same first eight characters, different hash, so it never matched and skyy2win.com alerted again on 09-26 for the same file and the same plugin version. The cause is that the alert email prints only an 8-character prefix, so a line rebuilt from the email looks right and silently suppresses nothing. Every one of the 25 independently verifiable entries in the list was then re-checked by downloading that exact plugin version from wordpress.org and md5-ing the same path: **24 matched, this was the only bad one.**
