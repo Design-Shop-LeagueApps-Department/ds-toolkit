@@ -4,6 +4,11 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.9.166] - 2026-09-27
+### Fixed
+- **The `.htaccess` allow-list finding named innocent WordPress files when run from the CLI on Flywheel.** The rule counts allow-listed filenames that are not present on disk, and Flywheel symlinks core: `wp-config.php` sits at `/www` while `ABSPATH` is `/www/.wordpress`. In-plugin that is covered, because `ABSPATH` is defined, which is why the real scan on shoreshots.org correctly reported 30. From the CLI (`fw-clean-site`, or a manual run) `ABSPATH` is undefined, only `$dir/wp-admin` was tried, nothing resolved, and southorlandobaberuth.com reported *"93 of them are not present on disk (admin-ajax.php, admin-footer.php, admin-functions.php, ...)"* - naming the genuine WordPress files, which is the same misleading-message failure this rule had already been corrected for once. It now also tries `$dir/.wordpress`, and the same file reports **"32 of them are not present on disk (adminfuns.php, chtmlfuns.php, cjfuns.php, ...)"**, which is the attacker's appended set and matches a hand count exactly.
+- The candidate is deliberately **not** guarded by `is_dir()`: `/www/.wordpress` is a symlink to `/wordpress` and `is_dir()` on the link itself returns false on these containers, in PHP and in the shell, while paths *through* it resolve normally. Guarding on it meant the candidate was never added, which is why the first attempt at this fix changed nothing. A candidate root that does not exist costs one failed `is_file()`.
+
 ## [1.9.165] - 2026-09-27
 ### Fixed
 - **Two false-positive classes found by the 20-site Flywheel pilot of 1.9.164, before any fleet push.** This is what the pilot was for: both would have emailed CRITICAL across a large share of the fleet, and both are now pinned by a regression fixture built from the real vendor file.
