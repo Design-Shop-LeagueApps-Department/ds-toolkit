@@ -18,6 +18,40 @@
 	function b64enc(str) { var bytes = new TextEncoder().encode(str), bin = ''; for (var i = 0; i < bytes.length; i += 0x8000) { bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); } return btoa(bin); }
 	function b64dec(b64) { var bin = atob(b64), bytes = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); } return new TextDecoder().decode(bytes); }
 	function decode(v) { v = (v || '').trim(); if (v.indexOf(PREFIX) !== 0) { return null; } try { return JSON.parse(b64dec(v.slice(PREFIX.length))); } catch (e) { return null; } }
+	/** A saved change set reduced to the shape this panel writes (the server cleans it again on save). */
+	function tidy(c) {
+		var key = function (k) { return /^(?:[1-9]\d{0,9}|n[1-9]\d{0,5})$/.test(String(k)); };
+		var out = { pt: String(c.pt || '').replace(/[^a-z0-9_-]/g, ''), t: +c.t || 0, order: null, items: {}, trash: [], defaults: {} };
+		(Array.isArray(c.trash) ? c.trash : []).forEach(function (x) { x = parseInt(x, 10); if (x > 0 && out.trash.indexOf(x) === -1) { out.trash.push(x); } });
+		if (Array.isArray(c.order)) { out.order = c.order.map(String).filter(key); }
+		Object.keys(c.items && typeof c.items === 'object' ? c.items : {}).forEach(function (k) { if (key(k) && c.items[k] && typeof c.items[k] === 'object') { out.items[k] = c.items[k]; } });
+		if (c.defaults && typeof c.defaults === 'object') { out.defaults = c.defaults; }
+		return out;
+	}
+	/**
+	 * HTML the simple box can hold: p, br, b/strong, i/em, lists, links. Returns null when the
+	 * text has more than that (a table, headings, images): editing it here would lose it.
+	 */
+	var RTE_TAGS = { P: 1, BR: 1, B: 1, STRONG: 1, I: 1, EM: 1, UL: 1, OL: 1, LI: 1, A: 1 };
+	function simpleHtml(html) {
+		var doc = new DOMParser().parseFromString('<div>' + (html || '') + '</div>', 'text/html'), root = doc.body.firstChild, ok = true;
+		(function walk(n) {
+			Array.prototype.slice.call(n.childNodes).forEach(function (c) {
+				if (c.nodeType === 3) { return; }
+				if (c.nodeType !== 1) { c.parentNode.removeChild(c); return; }
+				if (!RTE_TAGS[c.tagName]) {
+					if (/^(SPAN|DIV|FONT|U)$/.test(c.tagName) && !c.attributes.length) { walk(c); while (c.firstChild) { c.parentNode.insertBefore(c.firstChild, c); } c.parentNode.removeChild(c); return; }
+					ok = false; return;
+				}
+				Array.prototype.slice.call(c.attributes).forEach(function (a) {
+					var keep = c.tagName === 'A' && (a.name === 'href' ? /^(https?:\/\/|mailto:|tel:|\/)/i.test(a.value.trim()) : a.name === 'target' || a.name === 'rel');
+					if (!keep) { c.removeAttribute(a.name); }
+				});
+				walk(c);
+			});
+		}(root));
+		return ok ? root.innerHTML : null;
+	}
 	function same(a, b) { return JSON.stringify(a == null ? '' : a) === JSON.stringify(b == null ? '' : b); }
 	function post(action, data) {
 		return new Promise(function (resolve, reject) {
@@ -42,12 +76,14 @@
 		this.data = null; this.openKey = null; this.drag = null;
 		this.ch = this.blank();
 		var saved = decode(this.store.val());
-		if (saved && saved.pt) { this.ch = $.extend(this.blank(), saved); }
+		if (saved && saved.pt) { this.ch = $.extend(this.blank(), tidy(saved)); }
 		this.bind();
 		this.load();
 	}
 
-	Manager.prototype.blank = function () { return { pt: '', order: null, items: {}, trash: [], defaults: {} }; };
+	Manager.prototype.blank = function () { return { pt: '', t: 0, order: null, items: {}, trash: [], defaults: {} }; };
+	/** A row by its key, without building a selector from it. */
+	Manager.prototype.row = function (k) { return this.$el.find('.ds-lm-row').filter(function () { return this.getAttribute('data-k') === String(k); }); };
 	Manager.prototype.val = function (name) {
 		var f = this.form.find('[name="' + name + '"]');
 		if (!f.length) { return ''; }
@@ -68,6 +104,14 @@
 			}
 			q[k] = String(ids).split(',').filter(Boolean).join(',');
 		}
+		// The loop's Include / Exclude pickers (suggest fields too), so the list matches what the loop can show.
+		var pt = this.val('post_type').replace(/-/g, '_'), self = this;
+		['inc_', 'exc_'].forEach(function (p) {
+			var n = p + pt, v = self.val('as_values_' + n);
+			if (!v.replace(/,/g, '')) { try { v = JSON.parse(self.form.find('input[name="' + n + '"]').attr('data-value') || '[]').map(function (t) { return t.value; }).join(','); } catch (e) { v = ''; } }
+			v = String(v).split(',').filter(function (x) { return /^\d+$/.test(x); }).join(',');
+			if (v) { q[n] = v; }
+		});
 		return q;
 	};
 
@@ -124,7 +168,11 @@
 
 	Manager.prototype.save = function (now) {
 		var c = this.ch, has = this.count() > 0;
-		this.store.val(has ? PREFIX + b64enc(JSON.stringify({ pt: c.pt, order: c.order, items: c.items, trash: c.trash, defaults: c.defaults })) : '');
+		// t marks this editing session, so the same edits made again later are a new change set
+		// (the server applies each change set once).
+		if (has && !c.t) { c.t = Date.now(); }
+		if (!has) { c.t = 0; }
+		this.store.val(has ? PREFIX + b64enc(JSON.stringify({ pt: c.pt, t: c.t, order: c.order, items: c.items, trash: c.trash, defaults: c.defaults })) : '');
 		var self = this; clearTimeout(this.t);
 		// Beaver Builder refreshes the preview of a text field on keyup, not on change.
 		this.t = setTimeout(function () { self.store.trigger('keyup').trigger('change'); }, now ? 0 : 500);
@@ -148,7 +196,7 @@
 		if (!keys.length) { h += '<p class="ds-lm-msg">No entries yet.</p>'; }
 		if (this.ch.trash.length) {
 			h += '<div class="ds-lm-trash"><p>Moving to the Trash when you publish:</p><ul>' + this.ch.trash.map(function (id) {
-				var b = self.base[String(id)]; return '<li>' + esc(b ? b.title : '#' + id) + ' <button type="button" class="ds-lm-link" data-act="restore" data-id="' + id + '">Restore</button></li>';
+				var b = self.base[String(id)]; return '<li>' + esc(b ? b.title : '#' + id) + ' <button type="button" class="ds-lm-link" data-act="restore" data-id="' + esc(parseInt(id, 10) || 0) + '">Restore</button></li>';
 			}).join('') + '</ul></div>';
 		}
 		this.$el.html(h);
@@ -158,7 +206,7 @@
 
 	/** Refresh the row's bar (name, photo, flags) and action buttons without touching the inputs being typed in. */
 	Manager.prototype.renderBar = function (k) {
-		var $li = this.$el.find('.ds-lm-row[data-k="' + k + '"]');
+		var $li = this.row(k);
 		if (!$li.length) { return; }
 		var e = this.entry(k);
 		$li.children('.ds-lm-bar').replaceWith(this.barHtml(k, e));
@@ -184,7 +232,7 @@
 	};
 
 	Manager.prototype.renderRow = function (k) {
-		var $li = this.$el.find('.ds-lm-row[data-k="' + k + '"]');
+		var $li = this.row(k);
 		if (!$li.length) { return; }
 		var e = this.entry(k), c = this.ch.items[k] || {}, open = this.openKey === k, isNew = !!c._new;
 		$li.toggleClass('is-open', open).toggleClass('is-hidden', e.status !== 'publish').html(this.barHtml(k, e) + (open ? this.formHtml(k, e) : ''));
@@ -232,9 +280,15 @@
 		var self = this;
 		$li.find('[data-rte]').each(function () {
 			var key = this.getAttribute('data-rte'), html = key === 'content' ? e.content : (e.fields[key.slice(2)] || '');
+			var clean = simpleHtml(html);
+			if (clean === null) {
+				// Tables, headings, images: the simple box would flatten them. Leave the text alone.
+				$(this).html('<p class="ds-lm-na">This text has formatting (a table, headings or images) that this box cannot keep. ' + (e.edit ? '<a class="ds-lm-link" href="' + esc(e.edit) + '" target="_blank" rel="noopener">Edit it in the dashboard</a>.' : 'Edit it in the dashboard.') + '</p>');
+				return;
+			}
 			$(this).html('<div class="ds-lm-rte-bar" role="toolbar"><button type="button" data-cmd="bold" title="Bold"><b>B</b></button><button type="button" data-cmd="italic" title="Italic"><i>I</i></button><button type="button" data-cmd="createLink" title="Link">Link</button><button type="button" data-cmd="insertUnorderedList" title="Bulleted list">&bull; List</button></div><div class="ds-lm-rte-body" contenteditable="true" role="textbox" aria-multiline="true" data-f="' + esc(key) + '"></div>');
 			var body = $(this).find('.ds-lm-rte-body');
-			body.html(html);
+			body.html(clean);
 			var push = function () { self.setKey(k, key, body.html()); };
 			body.on('focus', function () { try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (x) {} });
 			body.on('input', function () { clearTimeout(self.rt); self.rt = setTimeout(push, 250); });
@@ -261,7 +315,7 @@
 		keys.splice(to, 0, keys.splice(from, 1)[0]);
 		this.ch.order = keys;
 		this.render();
-		this.$el.find('.ds-lm-row[data-k="' + k + '"] .ds-lm-bar [data-act="toggle"]').trigger('focus');
+		this.row(k).find('.ds-lm-bar [data-act="toggle"]').trigger('focus');
 	};
 
 	Manager.prototype.bind = function () {
@@ -276,16 +330,25 @@
 				self.ch.items[k] = { _new: 1, title: '', status: 'publish', terms: $.extend(true, {}, self.ch.defaults || {}) };
 				if (self.ch.order) { self.ch.order.push(k); }
 				self.openKey = k; self.render();
-				$el.find('.ds-lm-row[data-k="' + k + '"] [data-f="title"]').trigger('focus');
+				self.row(k).find('[data-f="title"]').trigger('focus');
 			}
 			else if (act === 'remove') {
 				var c = self.ch.items[k];
-				if (c && c._new) { delete self.ch.items[k]; }
-				else { delete self.ch.items[k]; self.ch.trash.push(+k); }
-				if (self.ch.order) { self.ch.order = self.ch.order.filter(function (x) { return x !== k; }); }
+				if (c && c._new) {
+					delete self.ch.items[k];
+					if (self.ch.order) { self.ch.order = self.ch.order.filter(function (x) { return x !== k; }); }
+				} else {
+					// Kept in the order (keys() skips trashed entries), so Restore puts it back in its place.
+					delete self.ch.items[k]; self.ch.trash.push(+k);
+				}
 				self.openKey = null; self.render();
 			}
-			else if (act === 'restore') { var id = +this.getAttribute('data-id'); self.ch.trash = self.ch.trash.filter(function (x) { return x !== id; }); self.render(); }
+			else if (act === 'restore') {
+				var id = parseInt(this.getAttribute('data-id'), 10);
+				self.ch.trash = self.ch.trash.filter(function (x) { return x !== id; });
+				if (self.ch.order && self.ch.order.indexOf(String(id)) === -1) { self.ch.order.push(String(id)); }
+				self.render();
+			}
 			else if (act === 'revert') { delete self.ch.items[k]; self.render(); }
 			else if (act === 'up' || act === 'down') { self.move(k, self.keys().indexOf(k) + (act === 'up' ? -1 : 1)); }
 			else if (act === 'manual') { self.form.find('[name="order_by"]').val('menu_order').trigger('change'); self.load(); }
@@ -304,7 +367,7 @@
 		});
 		$el.on('change', '.ds-lm-form [data-tax]', function () {
 			var k = $(this).closest('.ds-lm-row').attr('data-k'), tax = this.getAttribute('data-tax');
-			var ids = $(this).closest('.ds-lm-terms').find('[data-tax="' + tax + '"]:checked').map(function () { return +this.value; }).get();
+			var ids = $(this).closest('.ds-lm-terms').find('input:checked').filter(function () { return this.getAttribute('data-tax') === tax; }).map(function () { return +this.value; }).get();
 			self.set(k, ['terms', tax], ids);
 		});
 		// Drag to reorder (the bar is the handle).
