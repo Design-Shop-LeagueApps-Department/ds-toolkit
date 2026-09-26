@@ -279,6 +279,18 @@ function dsscan_scan_file($path, $opts = []) {
         $dir  = dirname($path);
         $roots = [$dir];
         if (defined('ABSPATH')) { $roots[] = rtrim(ABSPATH, '/'); }
+        /* Flywheel SYMLINKS core: wp-config.php sits at /www but ABSPATH is /www/.wordpress, so
+           checking only $dir/wp-admin finds nothing and every legitimate WordPress name counts as
+           "missing". In-plugin that is covered by ABSPATH above, but in CLI (fw-clean-site, a manual
+           run) ABSPATH is undefined and the message came out as "93 of them are not present on disk
+           (admin-ajax.php, admin-footer.php, ...)" on southorlandobaberuth, naming innocent files -
+           the same misleading-message failure this rule was already corrected for once. */
+        /* NOT guarded by is_dir(): /www/.wordpress is a SYMLINK to /wordpress, and is_dir() on the
+           LINK ITSELF returns false on these containers (in PHP and in the shell), while paths
+           THROUGH it resolve fine - is_file('/www/.wordpress/wp-admin/admin-ajax.php') is true.
+           Guarding on is_dir() meant the candidate was never added and the message still named
+           innocent WordPress files. A candidate root that does not exist costs one failed is_file(). */
+        $roots[] = $dir . '/.wordpress';
         $missing = [];
         foreach ($allowed as $n) {
             if ($n === 'index.php' || $n === 'xmlrpc.php' || strpos($n, 'wp-') === 0) continue;
