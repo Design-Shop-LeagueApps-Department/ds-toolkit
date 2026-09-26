@@ -152,6 +152,11 @@
 		// Beaver Builder refreshes the preview of a text field on keyup, not on change.
 		this.refreshTimer = setTimeout(function () { self.store.trigger('keyup').trigger('change'); }, immediatePreview ? 0 : 450);
 		this.updateCounts();
+		// Every row is in the page's HTML, so a table is capped at a number of cells (rows x columns).
+		var max = CFG.maxCells || 30000, cells = this.state.rows.length * Math.max(1, this.state.cols.length);
+		if (cells > max) {
+			this.say('This table has ' + cells.toLocaleString() + ' cells. The page shows up to ' + max.toLocaleString() + ', so only the first ' + Math.floor(max / Math.max(1, this.state.cols.length)).toLocaleString() + ' rows will appear. Split it into smaller tables or remove columns.', 'error');
+		}
 	};
 
 	Editor.prototype.snapshot = function () {

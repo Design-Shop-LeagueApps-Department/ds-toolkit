@@ -23,6 +23,12 @@ class DS_Table_Data {
 	const MAX_COLS  = 50;
 	const MAX_BYTES = 2097152; // 2 MB
 	const MAX_CELL  = 2000;    // characters per cell
+	/**
+	 * Cells a table may hold in all (rows x columns). Every row is in the page's HTML
+	 * (paging, search and sorting run in the browser), so 5000 rows x 50 columns would be
+	 * a 30 MB page. 30,000 cells is 3000 rows x 10 columns, about 3 MB.
+	 */
+	const MAX_CELLS = 30000;
 	/** Column types: text (''), image, link, button. */
 	const TYPES     = array( '', 'image', 'link', 'button' );
 
@@ -68,7 +74,10 @@ class DS_Table_Data {
 		}
 		$rows = array();
 		$max  = count( $cols );
-		foreach ( array_slice( (array) ( $data['rows'] ?? array() ), 0, self::MAX_ROWS ) as $r ) {
+		$src  = array_values( (array) ( $data['rows'] ?? array() ) );
+		$wide = count( $cols );
+		foreach ( array_slice( $src, 0, 50 ) as $r ) { $wide = max( $wide, min( self::MAX_COLS, count( (array) $r ) ) ); }
+		foreach ( array_slice( $src, 0, self::row_limit( $wide ) ) as $r ) {
 			$r = array_map( array( __CLASS__, 'cell' ), array_slice( array_values( (array) $r ), 0, self::MAX_COLS ) );
 			$max = max( $max, count( $r ) );
 			$rows[] = $r;
@@ -77,6 +86,11 @@ class DS_Table_Data {
 		foreach ( $rows as &$r ) { while ( count( $r ) < count( $cols ) ) { $r[] = ''; } }
 		unset( $r );
 		return array( 'cols' => $cols, 'rows' => $rows );
+	}
+
+	/** Rows a table this wide may have: MAX_ROWS, or fewer so rows x columns stays within MAX_CELLS. */
+	public static function row_limit( $cols ) {
+		return (int) min( self::MAX_ROWS, max( 1, floor( self::MAX_CELLS / max( 1, (int) $cols ) ) ) );
 	}
 
 	public static function cell( $v ) {
@@ -99,7 +113,11 @@ class DS_Table_Data {
 		$raw = (string) $raw;
 		if ( strlen( $raw ) > self::MAX_BYTES ) {
 			$out['warnings'][] = sprintf( 'The file is larger than %d MB; only the first part was read.', (int) ( self::MAX_BYTES / 1048576 ) );
+			// Cut at the last line break: never mid-row, and never inside a multi-byte
+			// character (which would fail the UTF-8 check below and garble every accent).
 			$raw = substr( $raw, 0, self::MAX_BYTES );
+			$nl  = strrpos( $raw, "\n" );
+			if ( false !== $nl ) { $raw = substr( $raw, 0, $nl + 1 ); }
 		}
 		if ( 0 === strpos( $raw, "\xEF\xBB\xBF" ) ) { $raw = substr( $raw, 3 ); }
 		// Excel on Windows saves "CSV" as Windows-1252, not UTF-8.
@@ -122,14 +140,23 @@ class DS_Table_Data {
 		rewind( $fh );
 		$rows = array();
 		$cut  = false;
+		$limit = self::MAX_ROWS + 1; // the heading row plus MAX_ROWS rows
 		while ( false !== ( $r = fgetcsv( $fh, 0, $delim, '"', '' ) ) ) {
 			if ( null === $r ) { continue; }
-			if ( count( $rows ) >= self::MAX_ROWS ) { $cut = true; break; }
+			if ( count( $rows ) >= $limit ) { $cut = true; break; }
 			if ( count( $r ) > self::MAX_COLS ) { $r = array_slice( $r, 0, self::MAX_COLS ); $out['cols_cut'] = true; }
 			$rows[] = array_map( function ( $c ) { return trim( self::cell( $c ) ); }, $r );
 		}
 		fclose( $fh );
 		if ( $cut ) { $out['warnings'][] = sprintf( 'Only the first %d rows were imported.', self::MAX_ROWS ); }
+		// Rows x columns within MAX_CELLS (the page carries every row).
+		$wide = 0;
+		foreach ( $rows as $r ) { $wide = max( $wide, count( $r ) ); }
+		$fit = self::row_limit( $wide ) + 1;
+		if ( ! $cut && count( $rows ) > $fit ) {
+			$rows  = array_slice( $rows, 0, $fit );
+			$out['warnings'][] = sprintf( 'A table can hold %1$s cells, so only the first %2$d rows of this %3$d-column file were imported.', number_format( self::MAX_CELLS ), $fit - 1, $wide );
+		}
 		if ( ! empty( $out['cols_cut'] ) ) { $out['warnings'][] = sprintf( 'Only the first %d columns were imported.', self::MAX_COLS ); unset( $out['cols_cut'] ); }
 
 		// A row of nothing but empty cells (fgetcsv returns [null] for a blank line).
@@ -202,6 +229,12 @@ class DS_Table_Data {
 		return in_array( $ext, array( 'csv', 'tsv', 'txt' ), true );
 	}
 
+	/** A file's first MAX_BYTES + 1 bytes (enough for parse_csv to see it is too big). */
+	public static function read_file( $path ) {
+		$raw = @file_get_contents( $path, false, null, 0, self::MAX_BYTES + 1 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		return false === $raw ? '' : (string) $raw;
+	}
+
 	/** Rows of an uploaded CSV, cached by path + mtime + size so a replaced file shows immediately. */
 	public static function file_rows( $id ) {
 		if ( ! self::is_csv_attachment( $id ) ) {
@@ -210,11 +243,11 @@ class DS_Table_Data {
 		$path = get_attached_file( (int) $id );
 		clearstatcache( true, $path );
 		$key  = 'ds_table_f_' . md5( $path . '|' . filemtime( $path ) . '|' . filesize( $path ) );
-		$hit  = get_transient( $key );
+		$hit  = self::unpack( get_transient( $key ) );
 		if ( is_array( $hit ) ) { return $hit; }
-		$parsed = self::parse_csv( (string) file_get_contents( $path ) );
+		$parsed = self::parse_csv( self::read_file( $path ) );
 		$res    = array( 'rows' => $parsed['rows'], 'warnings' => $parsed['warnings'], 'error' => '', 'name' => wp_basename( $path ), 'modified' => filemtime( $path ) );
-		set_transient( $key, $res, 12 * HOUR_IN_SECONDS );
+		set_transient( $key, self::pack( $res ), 12 * HOUR_IN_SECONDS );
 		return $res;
 	}
 
@@ -225,7 +258,7 @@ class DS_Table_Data {
 	 */
 	public static function csv_url( $url ) {
 		$url = trim( (string) $url );
-		if ( preg_match( '#^https://docs\.google\.com/spreadsheets/d/(e/)?([A-Za-z0-9_-]+)#', $url, $m ) ) {
+		if ( preg_match( '#^https://docs\.google\.com/spreadsheets/(?:u/\d+/)?d/(e/)?([A-Za-z0-9_-]+)#', $url, $m ) ) {
 			$gid = preg_match( '/[#&?]gid=(\d+)/', $url, $g ) ? $g[1] : '0';
 			if ( 'e/' === $m[1] ) { // published to the web
 				return 'https://docs.google.com/spreadsheets/d/e/' . $m[2] . '/pub?gid=' . $gid . '&single=true&output=csv';
@@ -236,30 +269,33 @@ class DS_Table_Data {
 	}
 
 	/**
-	 * Rows from a CSV link. Fresh copy for $ttl seconds, a stale copy for a week,
-	 * one fetch at a time, and at most one retry a minute after a failure.
+	 * Rows from a CSV link. A fresh copy is used while it is younger than $ttl (each table's
+	 * own "check every"), one fetch runs at a time, and a failure is retried at most once a
+	 * minute. The last copy that loaded is kept with no expiry, so a failed or locked fetch
+	 * never renders (and page-caches) an empty table once the link has loaded once.
 	 */
 	public static function url_rows( $url, $ttl = 900, $force = false ) {
 		$src = self::csv_url( $url );
 		if ( ! wp_http_validate_url( $src ) ) {
 			return array( 'rows' => array(), 'error' => 'Enter a full link starting with https://.' );
 		}
+		$ttl   = max( 60, (int) $ttl );
 		$h     = md5( $src );
 		$fresh = 'ds_table_u_' . $h;
-		$stale = 'ds_table_us_' . $h;
 		$fail  = 'ds_table_ux_' . $h;
 		$lock  = 'ds_table_ul_' . $h;
 
 		if ( ! $force ) {
-			$hit = get_transient( $fresh );
-			if ( is_array( $hit ) ) { return $hit; }
+			$hit = self::unpack( get_transient( $fresh ) );
+			if ( is_array( $hit ) && time() - (int) ( $hit['fetched'] ?? 0 ) < $ttl ) { return $hit; }
 		}
-		$old = get_transient( $stale );
+		$old = self::last_good( $src );
 		if ( ! $force && ( get_transient( $fail ) || get_transient( $lock ) ) ) {
-			return is_array( $old ) ? $old + array( 'stale' => true ) : array( 'rows' => array(), 'error' => 'The link could not be read just now. It will be retried shortly.' );
+			return $old ? $old + array( 'stale' => true ) : array( 'rows' => array(), 'error' => 'The link could not be read just now. It will be retried shortly.' );
 		}
 		set_transient( $lock, 1, 30 );
-		$res = wp_safe_remote_get( $src, array( 'timeout' => 8, 'redirection' => 5, 'limit_response_size' => self::MAX_BYTES, 'user-agent' => 'DS Toolkit Table; ' . home_url( '/' ) ) );
+		// One byte over the limit, so parse_csv can tell a cut-off download from a file of exactly 2 MB.
+		$res = wp_safe_remote_get( $src, array( 'timeout' => 8, 'redirection' => 5, 'limit_response_size' => self::MAX_BYTES + 1, 'user-agent' => 'DS Toolkit Table; ' . home_url( '/' ) ) );
 		delete_transient( $lock );
 
 		$err  = '';
@@ -277,13 +313,65 @@ class DS_Table_Data {
 		}
 		if ( $err ) {
 			set_transient( $fail, 1, MINUTE_IN_SECONDS );
-			return is_array( $old ) ? $old + array( 'stale' => true, 'error' => $err ) : array( 'rows' => array(), 'error' => $err );
+			return $old ? array_merge( $old, array( 'stale' => true, 'error' => $err ) ) : array( 'rows' => array(), 'error' => $err );
 		}
 		$parsed = self::parse_csv( $body );
-		$out    = array( 'rows' => $parsed['rows'], 'warnings' => $parsed['warnings'], 'error' => '', 'fetched' => time(), 'source' => $src );
-		set_transient( $fresh, $out, max( 60, (int) $ttl ) );
-		set_transient( $stale, $out, WEEK_IN_SECONDS );
+		$out    = array( 'rows' => $parsed['rows'], 'warnings' => $parsed['warnings'], 'error' => '', 'fetched' => time(), 'source' => $src, 'hash' => md5( $body ) );
+		// The fresh copy lives as long as the slowest table could want it; freshness is checked above.
+		set_transient( $fresh, self::pack( $out ), DAY_IN_SECONDS );
+		update_option( 'ds_table_last_' . $h, self::pack( $out ), false );
 		return $out;
+	}
+
+	/** The last copy of a link that loaded (no expiry), or null. */
+	public static function last_good( $src ) {
+		$got = self::unpack( get_option( 'ds_table_last_' . md5( $src ) ) );
+		return is_array( $got ) ? $got : null;
+	}
+
+	/**
+	 * Cached rows are stored compressed: a 2 MB sheet is about 3.6 MB serialized, over the
+	 * 1 MB item limit of a memcached object cache, where it would silently never persist
+	 * and every page view would fetch the sheet again.
+	 */
+	public static function pack( array $data ) {
+		$json = wp_json_encode( $data );
+		if ( function_exists( 'gzcompress' ) ) {
+			$z = gzcompress( $json, 6 );
+			if ( false !== $z ) { return 'z:' . base64_encode( $z ); }
+		}
+		return 'j:' . $json;
+	}
+
+	public static function unpack( $stored ) {
+		if ( is_array( $stored ) ) { return $stored; } // written before packing existed
+		if ( ! is_string( $stored ) || strlen( $stored ) < 3 ) { return null; }
+		$body = substr( $stored, 2 );
+		if ( 0 === strpos( $stored, 'z:' ) ) {
+			$z    = base64_decode( $body, true );
+			$body = ( false !== $z && function_exists( 'gzuncompress' ) ) ? @gzuncompress( $z ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		} elseif ( 0 !== strpos( $stored, 'j:' ) ) {
+			return null;
+		}
+		$data = is_string( $body ) ? json_decode( $body, true ) : null;
+		return is_array( $data ) ? $data : null;
+	}
+
+	/* ---------------------------------------------------------- Page cache */
+
+	/**
+	 * Clear the page cache of a post whose table data changed, so visitors see it without
+	 * waiting for the host's cache to expire. WP Engine: WpeCommon purges the post's URLs.
+	 * Other hosts and cache plugins can hook ds_table_purge_post.
+	 */
+	public static function purge_post( $post_id ) {
+		$post_id = (int) $post_id;
+		if ( ! $post_id ) { return; }
+		clean_post_cache( $post_id );
+		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) {
+			WpeCommon::purge_varnish_cache( $post_id );
+		}
+		do_action( 'ds_table_purge_post', $post_id );
 	}
 
 	/**
@@ -384,8 +472,12 @@ class DS_Table_Data {
 		}, $v );
 		$html = esc_html( $v );
 		if ( $link ) {
-			$html = preg_replace_callback( '#\bhttps?://[^\s<>"\'\x1A]+[^\s<>"\'.,;:!?)\]\x1A]#i', function ( $m ) {
-				return self::anchor( html_entity_decode( $m[0] ), $m[0] );
+			// Web addresses go into slots too, so the email pass below cannot link an
+			// address inside one (https://x.org/?ref=coach@club.org).
+			$html = preg_replace_callback( '#\bhttps?://[^\s<>"\'\x1A]+[^\s<>"\'.,;:!?)\]\x1A]#i', function ( $m ) use ( &$slots ) {
+				$key           = "\x1A" . count( $slots ) . "\x1A";
+				$slots[ $key ] = self::anchor( html_entity_decode( $m[0] ), $m[0] );
+				return $key;
 			}, $html );
 			$html = preg_replace_callback( '/(?<![\w.@\/-])[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i', function ( $m ) {
 				return '<a class="ds-table-link" href="mailto:' . esc_attr( $m[0] ) . '">' . $m[0] . '</a>';
@@ -469,6 +561,11 @@ class DS_Table_Data {
 		list( $img, $link ) = self::split_link( $v );
 		if ( '' === $img && '' !== $link ) { $img = $link; $link = ''; } // a lone address is the image
 		$src = self::image_source( $img );
+		if ( ! $src['id'] && ! $src['url'] && '' !== $link ) {
+			// "Label | image": the second part is the picture, the first its alt text.
+			$alt2 = self::image_source( $link );
+			if ( $alt2['id'] || $alt2['url'] ) { $src = $alt2; $alt = $img; $link = ''; }
+		}
 		$px  = max( 16, min( 600, (int) $px ) );
 		$out = '';
 		if ( $src['id'] ) {

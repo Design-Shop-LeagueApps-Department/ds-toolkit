@@ -181,9 +181,10 @@ class DS_Table_Module extends FLBuilderModule {
 
 		echo '<tbody>';
 		foreach ( $rows as $ri => $r ) {
-			$hay = function_exists( 'mb_strtolower' ) ? mb_strtolower( implode( ' ', $words[ $ri ] ) ) : strtolower( implode( ' ', $words[ $ri ] ) );
-			echo '<tr class="ds-table-row' . ( $ri % 2 ? ' is-alt' : '' ) . '" data-i="' . (int) $ri . '" data-search="' . esc_attr( $hay ) . '"';
-			if ( $sort ) { foreach ( $cols as $i => $c ) { if ( 'none' !== $types[ $i ] ) { echo ' data-s' . (int) $i . '="' . esc_attr( DS_Table_Data::sort_key( $words[ $ri ][ $i ], $types[ $i ] ) ) . '"'; } } }
+			// Search and text sorting read the row's own text in the browser; only numbers,
+			// dates and times carry a sort key (every row is in the page, so each byte counts).
+			echo '<tr class="ds-table-row' . ( $ri % 2 ? ' is-alt' : '' ) . '" data-i="' . (int) $ri . '"';
+			if ( $sort ) { foreach ( $cols as $i => $c ) { if ( 'none' !== $types[ $i ] && 'text' !== $types[ $i ] ) { echo ' data-s' . (int) $i . '="' . esc_attr( DS_Table_Data::sort_key( $words[ $ri ][ $i ], $types[ $i ] ) ) . '"'; } } }
 			echo '>';
 			foreach ( $cols as $i => $c ) {
 				$is_first = 0 === $i;
@@ -231,6 +232,7 @@ add_action( 'fl_builder_ui_enqueue_scripts', function () {
 		'nonce'    => wp_create_nonce( 'ds_table' ),
 		'maxRows'  => DS_Table_Data::MAX_ROWS,
 		'maxCols'  => DS_Table_Data::MAX_COLS,
+		'maxCells' => DS_Table_Data::MAX_CELLS,
 		'maxBytes' => DS_Table_Data::MAX_BYTES,
 		'canUpload' => current_user_can( 'upload_files' ),
 	) );
@@ -239,7 +241,8 @@ add_action( 'fl_builder_ui_enqueue_scripts', function () {
 /** Shared guard for the table endpoints. */
 function ds_table_ajax_guard() {
 	check_ajax_referer( 'ds_table', 'nonce' );
-	if ( ! current_user_can( 'edit_posts' ) ) {
+	$builder = ! class_exists( 'FLBuilderUserAccess' ) || FLBuilderUserAccess::current_user_can( 'builder_access' );
+	if ( ! current_user_can( 'edit_posts' ) || ! $builder ) {
 		wp_send_json_error( array( 'message' => __( 'You are not allowed to edit tables.', 'ds-toolkit' ) ), 403 );
 	}
 }
@@ -304,6 +307,7 @@ add_action( 'wp_ajax_ds_table_upload', function () {
 		$meta['filesize'] = filesize( $path );
 		wp_update_attachment_metadata( $replace, $meta );
 		wp_update_post( array( 'ID' => $replace ) ); // bumps the modified date shown in the Media Library
+		foreach ( ds_table_posts_using( 'file', (string) $replace ) as $pid ) { DS_Table_Data::purge_post( $pid ); }
 		ds_table_ajax_reply( $replace, $parsed['rows'], $parsed['warnings'] );
 	}
 
@@ -342,8 +346,17 @@ add_action( 'wp_ajax_ds_table_parse', function () {
 /** Fetch a CSV / Google Sheet link now (the link-source preview and "Refresh now"). */
 add_action( 'wp_ajax_ds_table_fetch', function () {
 	ds_table_ajax_guard();
-	$url   = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
+	// The address exactly as the module stores it (visitors' renders read the same cache key);
+	// url_rows() validates it. Refused unless it is http(s).
+	$url   = isset( $_POST['url'] ) ? trim( (string) wp_unslash( $_POST['url'] ) ) : '';
 	$force = ! empty( $_POST['force'] );
+	// At most 30 fetches a minute per user: the endpoint makes the server download a link.
+	$rate = 'ds_table_rate_' . get_current_user_id();
+	$n    = (int) get_transient( $rate );
+	if ( $n >= 30 ) {
+		wp_send_json_error( array( 'message' => __( 'Too many link checks in a minute. Wait a moment and try again.', 'ds-toolkit' ) ), 429 );
+	}
+	set_transient( $rate, $n + 1, MINUTE_IN_SECONDS );
 	if ( $force ) {
 		// One forced refetch per link per 20 seconds, however often the button is clicked.
 		$gate = 'ds_table_uf_' . md5( DS_Table_Data::csv_url( $url ) );
@@ -354,6 +367,102 @@ add_action( 'wp_ajax_ds_table_fetch', function () {
 		wp_send_json_error( array( 'message' => $got['error'] ) );
 	}
 	wp_send_json_success( array( 'rows' => $got['rows'], 'warnings' => $got['warnings'] ?? array(), 'error' => $got['error'] ?? '', 'fetched' => $got['fetched'] ?? 0, 'stale' => ! empty( $got['stale'] ) ) );
+} );
+
+/* ---------------------------------------------------------------------
+ * Keeping synced tables current behind a page cache
+ *
+ * A cached page never runs PHP, so a visitor's view alone cannot notice that a sheet
+ * changed. On publish, a post remembers the links and files its tables sync to; a cron
+ * job fetches each link on its own schedule and clears the post's page cache when the
+ * data changed. Replacing a CSV file clears every post that shows it.
+ * ------------------------------------------------------------------ */
+
+/** Synced sources in a saved layout: [ [ 'url', <link>, <ttl> ] | [ 'file', <attachment id>, 0 ] ]. */
+function ds_table_sources_in( $data ) {
+	$out = array();
+	foreach ( (array) $data as $node ) {
+		$node = (object) $node;
+		$set  = isset( $node->settings ) ? (object) $node->settings : null;
+		if ( 'module' !== ( $node->type ?? '' ) || ! $set || 'ds-table' !== ( $set->type ?? '' ) ) { continue; }
+		$src = (string) ( $set->source ?? 'manual' );
+		if ( 'url' === $src && '' !== trim( (string) ( $set->csv_url ?? '' ) ) ) {
+			$out[] = array( 'url', trim( (string) $set->csv_url ), DS_Table_Data::ttl( $set ) );
+		} elseif ( 'file' === $src && (int) ( $set->csv_id ?? 0 ) ) {
+			$out[] = array( 'file', (string) (int) $set->csv_id, 0 );
+		}
+	}
+	return $out;
+}
+
+/** Published posts whose tables sync to this link or file. */
+function ds_table_posts_using( $kind, $value ) {
+	$ids = get_posts( array(
+		'post_type'      => 'any',
+		'post_status'    => 'publish',
+		'posts_per_page' => 200,
+		'fields'         => 'ids',
+		'meta_key'       => '_ds_table_sources', // phpcs:ignore WordPress.DB.SlowDBQuery
+		'no_found_rows'  => true,
+	) );
+	$hit = array();
+	foreach ( $ids as $id ) {
+		foreach ( (array) get_post_meta( $id, '_ds_table_sources', true ) as $s ) {
+			if ( is_array( $s ) && $kind === $s[0] && (string) $value === (string) $s[1] ) { $hit[] = (int) $id; break; }
+		}
+	}
+	return $hit;
+}
+
+add_action( 'fl_builder_after_save_layout', function ( $post_id, $publish, $data ) {
+	if ( ! $publish ) { return; }
+	$sources = ds_table_sources_in( $data );
+	if ( $sources ) {
+		update_post_meta( $post_id, '_ds_table_sources', $sources );
+		if ( ! wp_next_scheduled( 'ds_table_sync' ) ) { wp_schedule_event( time() + 300, 'ds_table_5min', 'ds_table_sync' ); }
+	} else {
+		delete_post_meta( $post_id, '_ds_table_sources' );
+	}
+}, 10, 3 );
+
+add_filter( 'cron_schedules', function ( $s ) {
+	$s['ds_table_5min'] = array( 'interval' => 300, 'display' => 'Every 5 minutes (DS Table sync)' );
+	return $s;
+} );
+
+add_action( 'ds_table_sync', function () {
+	$ids = get_posts( array(
+		'post_type'      => 'any',
+		'post_status'    => 'publish',
+		'posts_per_page' => 200,
+		'fields'         => 'ids',
+		'meta_key'       => '_ds_table_sources', // phpcs:ignore WordPress.DB.SlowDBQuery
+		'no_found_rows'  => true,
+	) );
+	if ( ! $ids ) { wp_clear_scheduled_hook( 'ds_table_sync' ); return; }
+	$links = array(); // link => [ shortest ttl, post ids ]
+	foreach ( $ids as $id ) {
+		foreach ( (array) get_post_meta( $id, '_ds_table_sources', true ) as $s ) {
+			if ( ! is_array( $s ) || 'url' !== $s[0] ) { continue; }
+			$ttl = (int) $s[2];
+			if ( ! isset( $links[ $s[1] ] ) ) { $links[ $s[1] ] = array( $ttl, array() ); }
+			$links[ $s[1] ][0]   = min( $links[ $s[1] ][0], $ttl );
+			$links[ $s[1] ][1][] = (int) $id;
+		}
+	}
+	foreach ( $links as $url => $l ) {
+		$got = DS_Table_Data::url_rows( $url, $l[0] );
+		if ( empty( $got['hash'] ) || ! empty( $got['stale'] ) ) { continue; } // the fetch failed: keep what visitors have
+		// Each post remembers the data its cached page was last cleared for, so it is cleared
+		// once per change however the new data arrived (this job, a builder preview, another page).
+		foreach ( array_unique( $l[1] ) as $pid ) {
+			$seen = (array) get_post_meta( $pid, '_ds_table_seen', true );
+			if ( ( $seen[ $url ] ?? '' ) === $got['hash'] ) { continue; }
+			$seen[ $url ] = $got['hash'];
+			update_post_meta( $pid, '_ds_table_seen', $seen );
+			DS_Table_Data::purge_post( $pid );
+		}
+	}
 } );
 
 /* ---------------------------------------------------------------------

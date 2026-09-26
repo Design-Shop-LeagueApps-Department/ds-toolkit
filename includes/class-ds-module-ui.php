@@ -18,11 +18,21 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  */
 class DS_Module_UI {
 
-	/** Normalise a colour: pass through rgb()/#hex/var(); else prefix #. Blank -> ''. */
+	/**
+	 * Normalise a colour for a CSS declaration: #hex (a bare hex gets its #), rgb[a]() /
+	 * hsl[a](), var(--name[, fallback]) or a colour keyword. Anything else returns '', so a
+	 * crafted setting ("#fff;}body{display:none") can never close the rule it is printed in.
+	 */
 	public static function color( $v ) {
 		$v = trim( (string) $v );
 		if ( '' === $v ) { return ''; }
-		return ( 0 === strpos( $v, 'rgb' ) || 0 === strpos( $v, '#' ) || 0 === strpos( $v, 'var' ) ) ? $v : '#' . $v;
+		$fn  = '(?:rgba?|hsla?)\(\s*[-+0-9.,%\s\/a-z]*\)';
+		$hex = '#?[0-9a-f]{3,8}';
+		if ( preg_match( '/^' . $hex . '$/i', $v ) ) { return '#' === $v[0] ? $v : '#' . $v; }
+		if ( preg_match( '/^' . $fn . '$/i', $v ) ) { return $v; }
+		if ( preg_match( '/^var\(\s*--[\w-]+\s*(?:,\s*(?:#[0-9a-f]{3,8}|' . $fn . '|[a-z]+)\s*)?\)$/i', $v ) ) { return $v; }
+		if ( preg_match( '/^[a-z]{3,20}$/i', $v ) ) { return $v; } // transparent, currentColor, white
+		return '';
 	}
 
 	/** Unit int-or-default: unset/blank -> $d, else (int) $v. */

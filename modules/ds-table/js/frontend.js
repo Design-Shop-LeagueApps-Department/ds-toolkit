@@ -5,11 +5,16 @@
  * the table works with JS off or still loading. Idempotent and re-bound after the
  * Beaver Builder preview re-renders a node.
  *
- * Row attributes: data-i original index, data-search lowercase text, data-s<N> the
- * sort key of column N (numeric when the heading button says data-type="num").
+ * Row attributes: data-i original index, data-s<N> the numeric sort key of a number,
+ * date or time column N. Search and text columns read the row's own text.
  */
 (function () {
 	'use strict';
+
+	function esc(s) {
+		return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+	}
+	function lower(s) { return (s || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
 
 	function boot() {
 		Array.prototype.forEach.call(document.querySelectorAll('[data-ds-table]'), function (wrap) {
@@ -31,13 +36,20 @@
 			var nextTxt  = wrap.getAttribute('data-next') || 'Next';
 			if (!tbody || !rows.length) { return; }
 
+			// Search text and text-column sort keys, read once from the cells (the server no
+			// longer repeats every cell's words in data attributes).
+			rows.forEach(function (r) {
+				r.dsHay = lower(r.textContent);
+				r.dsKeys = Array.prototype.map.call(r.children, function (c) { return lower(c.textContent); });
+			});
+
 			var state = { key: '', dir: 'asc', page: 1 };
 			var types = {};
 			Array.prototype.forEach.call(sortBtns, function (b) { types[b.getAttribute('data-sort')] = b.getAttribute('data-type') || 'text'; });
 
 			function matches(row, q) {
 				if (!q) { return true; }
-				var hay = row.getAttribute('data-search') || '';
+				var hay = row.dsHay || '';
 				return q.split(/\s+/).every(function (w) { return hay.indexOf(w) !== -1; });
 			}
 
@@ -45,8 +57,11 @@
 				var byIndex = function (a, b) { return (+a.getAttribute('data-i')) - (+b.getAttribute('data-i')); };
 				if (state.key === '') { return list.slice().sort(byIndex); }
 				var attr = 'data-s' + state.key, num = types[state.key] === 'num', dir = state.dir === 'desc' ? -1 : 1;
+				var key = num
+					? function (r) { return r.getAttribute(attr) || ''; }
+					: function (r) { return r.dsKeys[+state.key] || ''; };
 				return list.slice().sort(function (a, b) {
-					var av = a.getAttribute(attr) || '', bv = b.getAttribute(attr) || '', c;
+					var av = key(a), bv = key(b), c;
 					if (av === '' || bv === '') { c = av === bv ? 0 : (av === '' ? 1 : -1); return c || byIndex(a, b); } // blanks always last
 					if (num) { c = parseFloat(av) - parseFloat(bv); }
 					else { c = av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' }); }
@@ -60,7 +75,7 @@
 				var pages = Math.ceil(total / pageSize);
 				if (state.page > pages) { state.page = pages; }
 				var btn = function (label, page, cls, disabled, current) {
-					return '<button type="button" class="ds-table-page' + (cls ? ' ' + cls : '') + '" data-page="' + page + '"' + (disabled ? ' disabled' : '') + (current ? ' aria-current="page"' : '') + '>' + label + '</button>';
+					return '<button type="button" class="ds-table-page' + (cls ? ' ' + cls : '') + '" data-page="' + page + '"' + (disabled ? ' disabled' : '') + (current ? ' aria-current="page"' : '') + '>' + esc(label) + '</button>';
 				};
 				var html = btn(prevTxt, state.page - 1, 'ds-table-page--prev', state.page === 1);
 				var win = [];
@@ -138,5 +153,5 @@
 	}
 
 	if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
-	if (window.jQuery) { window.jQuery(document).on('fl-builder.layout-rendered', boot); }
+	if (window.jQuery && !window.dsTableBound) { window.dsTableBound = true; window.jQuery(document).on('fl-builder.layout-rendered', boot); }
 }());

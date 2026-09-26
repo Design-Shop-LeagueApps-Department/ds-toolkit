@@ -42,7 +42,9 @@ dst_is( 'trailing empty columns and blank rows dropped', $p['rows'], array( arra
 dst_is( 'empty file', DS_Table_Data::parse_csv( "  \n" )['rows'], array() );
 $big = "H\n" . str_repeat( "x\n", DS_Table_Data::MAX_ROWS + 5 );
 $p = DS_Table_Data::parse_csv( $big );
-dst_is( 'row cap with a warning', array( count( $p['rows'] ), (bool) $p['warnings'] ), array( DS_Table_Data::MAX_ROWS, true ) );
+dst_is( 'row cap: the heading plus MAX_ROWS rows, with a warning', array( count( $p['rows'] ), (bool) $p['warnings'] ), array( DS_Table_Data::MAX_ROWS + 1, true ) );
+$p = DS_Table_Data::parse_csv( "H\n" . str_repeat( "x\n", DS_Table_Data::MAX_ROWS ) );
+dst_is( 'exactly MAX_ROWS rows under a heading: all kept, no warning', array( count( $p['rows'] ), $p['warnings'] ), array( DS_Table_Data::MAX_ROWS + 1, array() ) );
 $tab = DS_Table_Data::from_rows( array( array( 'Date', 'Time' ), array( 'Jan 1', '9 AM' ) ), true );
 dst_is( 'first row becomes the headings', array( $tab['cols'][1]['label'], $tab['rows'] ), array( 'Time', array( array( 'Jan 1', '9 AM' ) ) ) );
 $csv = DS_Table_Data::to_csv( $dec );
@@ -102,6 +104,55 @@ dst_is( 'image address with alt text', DS_Table_Data::image_html( 'https://x.org
 dst_is( '"image | link" wraps the image in the link', (bool) preg_match( '#^<a class="ds-table-imglink" href="https://x\.org/team"[^>]*><img [^>]*src="https://x\.org/l\.png"#', DS_Table_Data::image_html( 'https://x.org/l.png | https://x.org/team', 'T' ) ), true );
 dst_is( 'javascript: image refused', DS_Table_Data::image_html( 'javascript:alert(1)' ), '' );
 dst_is( 'display text: link label, no image text, inline link label', array( DS_Table_Data::display_text( 'Go | https://x.org', 'button' ), DS_Table_Data::display_text( 'https://x.org/l.png', 'image' ), DS_Table_Data::display_text( 'See [Map](https://m.org)' ) ), array( 'Go', '', 'See Map' ) );
+
+/* ---- audit fixes (2026-09-27) ---- */
+dst_is( 'an email inside a web address stays part of that link', DS_Table_Data::cell_html( 'https://example.com/?ref=coach@club.org' ), '<a class="ds-table-link" href="https://example.com/?ref=coach@club.org" target="_blank" rel="noopener">https://example.com/?ref=coach@club.org</a>' );
+dst_is( 'an email next to a web address still links', substr_count( DS_Table_Data::cell_html( 'https://x.org and coach@club.org' ), '<a ' ), 2 );
+$acc = str_repeat( "Café,Zoë,Müller\n", (int) ( DS_Table_Data::MAX_BYTES / 18 ) + 50 );
+$p   = DS_Table_Data::parse_csv( $acc );
+dst_is( 'a file cut at the size limit keeps its accents and whole rows', array( $p['rows'][0], end( $p['rows'] ), (bool) $p['warnings'] ), array( array( 'Café', 'Zoë', 'Müller' ), array( 'Café', 'Zoë', 'Müller' ), true ) );
+dst_is( 'Google Sheets link with /u/0/ converts', DS_Table_Data::csv_url( 'https://docs.google.com/spreadsheets/u/0/d/AbC_12-x/edit#gid=7' ), 'https://docs.google.com/spreadsheets/d/AbC_12-x/export?format=csv&gid=7' );
+dst_is( 'row limit keeps rows x columns within the cell budget', array( DS_Table_Data::row_limit( 10 ), DS_Table_Data::row_limit( 50 ), DS_Table_Data::row_limit( 2 ) ), array( 3000, 600, DS_Table_Data::MAX_ROWS ) );
+$wide = array( 'cols' => array(), 'rows' => array_fill( 0, 1000, array_fill( 0, 50, 'x' ) ) );
+dst_is( 'a stored 1000 x 50 table renders 600 rows (30,000 cells)', count( DS_Table_Data::normalize( $wide )['rows'] ), 600 );
+$p = DS_Table_Data::parse_csv( "a,b,c,d,e,f,g,h,i,j\n" . str_repeat( "1,2,3,4,5,6,7,8,9,10\n", 3500 ) );
+dst_is( 'a CSV over the cell budget is cut with a warning', array( count( $p['rows'] ), count( $p['warnings'] ) ), array( 3001, 1 ) );
+dst_is( '"Label | image" uses the label as alt text', (bool) preg_match( '#<img class="ds-table-img" src="https://x.org/p.png" alt="Jo Smith"#', DS_Table_Data::image_html( 'Jo Smith | https://x.org/p.png' ) ), true );
+$big = array( 'rows' => array_fill( 0, 2000, array( 'Tournament', 'Sat, Jan 17, 2026', '9:00 AM' ) ), 'fetched' => 5 );
+dst_is( 'cached rows round-trip through the compressed store', DS_Table_Data::unpack( DS_Table_Data::pack( $big ) ), $big );
+dst_is( 'the compressed store is far smaller than the rows', strlen( DS_Table_Data::pack( $big ) ) < strlen( serialize( $big ) ) / 10, true );
+dst_is( 'unpack refuses junk, accepts a pre-packing array', array( DS_Table_Data::unpack( 'z:%%' ), DS_Table_Data::unpack( 'nope' ), DS_Table_Data::unpack( array( 'rows' => array() ) ) ), array( null, null, array( 'rows' => array() ) ) );
+dst_is( 'colour helper refuses CSS injection, keeps real colours', array_map( array( 'DS_Module_UI', 'color' ), array( '#fff;}body{display:none', 'var(--x);}a{b:c}', 'ff0000', 'rgba(0,0,0,.09)', 'var(--fl-global-accent, #1d2327)', 'transparent' ) ), array( '', '', '#ff0000', 'rgba(0,0,0,.09)', 'var(--fl-global-accent, #1d2327)', 'transparent' ) );
+
+/* ---- link sync: freshness per table, last good copy, change hash (HTTP faked, nothing leaves the machine) ---- */
+$link  = 'https://example.com/ds-table-audit-' . wp_generate_password( 8, false ) . '.csv';
+$h     = md5( $link );
+$calls = 0; $body = "A,B\n1,2\n"; $fail = false;
+$fake  = function ( $pre, $args, $url ) use ( &$calls, &$body, &$fail, $link ) {
+	if ( $url !== $link ) { return $pre; }
+	$calls++;
+	if ( $fail ) { return new WP_Error( 'down', 'down' ); }
+	return array( 'headers' => array( 'content-type' => 'text/csv' ), 'body' => $body, 'response' => array( 'code' => 200, 'message' => 'OK' ), 'cookies' => array(), 'filename' => null );
+};
+add_filter( 'pre_http_request', $fake, 10, 3 );
+$a = DS_Table_Data::url_rows( $link, 300 );
+$b = DS_Table_Data::url_rows( $link, 300 );
+dst_is( 'second read inside the interval uses the cache', array( $calls, $a['rows'], $b['hash'] === $a['hash'] ), array( 1, array( array( 'A', 'B' ), array( '1', '2' ) ), true ) );
+$c = get_transient( 'ds_table_u_' . $h ); $c = DS_Table_Data::unpack( $c ); $c['fetched'] = time() - 400; set_transient( 'ds_table_u_' . $h, DS_Table_Data::pack( $c ), DAY_IN_SECONDS );
+DS_Table_Data::url_rows( $link, 86400 );
+dst_is( 'a once-a-day table still uses a 400-second-old copy', $calls, 1 );
+$body = "A,B\n1,3\n";
+$d = DS_Table_Data::url_rows( $link, 300 );
+dst_is( 'a 5-minute table refetches it, and the hash changes with the data', array( $calls, $d['hash'] !== $a['hash'] ), array( 2, true ) );
+delete_transient( 'ds_table_u_' . $h ); $fail = true;
+$e = DS_Table_Data::url_rows( $link, 300 );
+dst_is( 'a failed fetch with no fresh copy serves the last good copy', array( $e['rows'][1], ! empty( $e['stale'] ), (bool) $e['error'] ), array( array( '1', '3' ), true, true ) );
+$f = DS_Table_Data::url_rows( $link, 300 );
+dst_is( 'the failure back-off stops a second fetch inside a minute', array( $calls, $f['rows'][1] ), array( 3, array( '1', '3' ) ) );
+remove_filter( 'pre_http_request', $fake, 10 );
+foreach ( array( 'ds_table_u_', 'ds_table_ux_', 'ds_table_ul_' ) as $t ) { delete_transient( $t . $h ); }
+delete_option( 'ds_table_last_' . $h );
+dst_is( 'test cache entries removed', get_option( 'ds_table_last_' . $h ), false );
 
 echo $GLOBALS['dst_fail'] ? "FAILURES: {$GLOBALS['dst_fail']} of {$GLOBALS['dst_n']}\n" : "ALL {$GLOBALS['dst_n']} PASS\n";
 if ( $GLOBALS['dst_fail'] ) { exit( 1 ); }
