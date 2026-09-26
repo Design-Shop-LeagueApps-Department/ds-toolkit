@@ -1,0 +1,75 @@
+/* Post Loop > Manage entries (builder settings panel). Scoped under .fl-builder-settings so it
+   never reaches the page, with resets because the panel styles buttons, inputs and labels. */
+.fl-builder-settings .ds-lm {
+	--lm-bg: #fff; --lm-fg: #1d2327; --lm-muted: #646970; --lm-line: #dcdcde; --lm-soft: #f6f7f7;
+	--lm-accent: #2271b1; --lm-accent-soft: #eaf2fa; --lm-danger: #b32d2e; --lm-new: #007a10;
+	color: var(--lm-fg); font-size: 13px; line-height: 1.45; contain: inline-size; width: 100%;
+}
+.fl-builder-ui-skin--dark .fl-builder-settings .ds-lm {
+	--lm-bg: #1f2124; --lm-fg: #e6e7e8; --lm-muted: #a2a6ab; --lm-line: #3a3d42; --lm-soft: #26282c;
+	--lm-accent: #72aee6; --lm-accent-soft: #1d2b3a; --lm-danger: #f86368; --lm-new: #5bd17a;
+}
+.fl-builder-settings #fl-field-pl_manage { display: none !important; }
+.fl-builder-settings #fl-field-pl_manage_ui > th { display: none !important; }
+.fl-builder-settings #fl-field-pl_manage_ui td { padding-left: 0 !important; padding-right: 0 !important; }
+.fl-builder-settings .ds-lm-msg, .fl-builder-settings .ds-lm-note { margin: 6px 0; color: var(--lm-muted); }
+.fl-builder-settings .ds-lm-note { padding: 8px 10px; border-radius: 4px; background: var(--lm-accent-soft); color: var(--lm-fg); }
+.fl-builder-settings .ds-lm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fl-builder-settings .ds-lm-head strong { font-size: 14px; }
+.fl-builder-settings .ds-lm-n { color: var(--lm-muted); font-weight: 400; }
+.fl-builder-settings .ds-lm-pending { margin: 2px 0 8px; font-size: 12px; color: var(--lm-muted); }
+.fl-builder-settings .ds-lm-list { list-style: none !important; margin: 0 !important; padding: 0 !important; display: flex; flex-direction: column; gap: 6px; }
+.fl-builder-settings .ds-lm-row { margin: 0 !important; border: 1px solid var(--lm-line); border-radius: 6px; background: var(--lm-bg); }
+.fl-builder-settings .ds-lm-row.is-open { border-color: var(--lm-accent); box-shadow: 0 0 0 1px var(--lm-accent); }
+.fl-builder-settings .ds-lm-row.is-hidden .ds-lm-name, .fl-builder-settings .ds-lm-row.is-hidden .ds-lm-thumb { opacity: .55; }
+.fl-builder-settings .ds-lm-row.is-dragging { opacity: .5; }
+.fl-builder-settings .ds-lm-row.drop-before { box-shadow: 0 -3px 0 var(--lm-accent); }
+.fl-builder-settings .ds-lm-row.drop-after { box-shadow: 0 3px 0 var(--lm-accent); }
+.fl-builder-settings .ds-lm-bar { display: flex; align-items: center; gap: 8px; padding: 6px 8px; cursor: grab; }
+.fl-builder-settings .ds-lm-grip { color: var(--lm-muted); letter-spacing: -3px; font-size: 13px; user-select: none; }
+.fl-builder-settings .ds-lm-thumb { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; background: var(--lm-soft); border: 1px solid var(--lm-line); }
+.fl-builder-settings .ds-lm-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fl-builder-settings .ds-lm-thumb--lg { flex-basis: 56px; width: 56px; height: 56px; border-radius: 6px; }
+.fl-builder-settings .ds-lm-name { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fl-builder-settings .ds-lm-name small { display: block; font-weight: 400; color: var(--lm-muted); overflow: hidden; text-overflow: ellipsis; }
+.fl-builder-settings .ds-lm-flag { flex: 0 0 auto; padding: 1px 6px; border-radius: 10px; font-size: 10.5px; font-weight: 600; background: var(--lm-soft); color: var(--lm-muted); border: 1px solid var(--lm-line); }
+.fl-builder-settings .ds-lm-flag--new { color: var(--lm-new); border-color: currentColor; }
+.fl-builder-settings .ds-lm-flag--edit { color: var(--lm-accent); border-color: currentColor; }
+.fl-builder-settings .ds-lm-form { padding: 10px 12px 12px; border-top: 1px solid var(--lm-line); display: flex; flex-direction: column; gap: 10px; cursor: default; }
+.fl-builder-settings .ds-lm-field { display: flex !important; flex-direction: column; gap: 4px; margin: 0 !important; border: 0; padding: 0; }
+.fl-builder-settings .ds-lm-field > span, .fl-builder-settings .ds-lm-field > legend { font-weight: 600; font-size: 12px; color: var(--lm-fg); padding: 0; }
+.fl-builder-settings .ds-lm-field small { color: var(--lm-muted); font-size: 11.5px; }
+.fl-builder-settings .ds-lm .ds-lm-field input[type="text"], .fl-builder-settings .ds-lm .ds-lm-field input[type="email"], .fl-builder-settings .ds-lm .ds-lm-field input[type="url"], .fl-builder-settings .ds-lm .ds-lm-field input[type="number"], .fl-builder-settings .ds-lm .ds-lm-field select, .fl-builder-settings .ds-lm .ds-lm-field textarea {
+	width: 100% !important; max-width: none !important; box-sizing: border-box; margin: 0 !important; padding: 6px 8px !important; min-height: 32px; border: 1px solid var(--lm-line) !important; border-radius: 4px !important; background: var(--lm-bg) !important; color: var(--lm-fg) !important; font-size: 13px !important; box-shadow: none !important;
+}
+.fl-builder-settings .ds-lm .ds-lm-field input:focus, .fl-builder-settings .ds-lm .ds-lm-field select:focus, .fl-builder-settings .ds-lm .ds-lm-field textarea:focus, .fl-builder-settings .ds-lm .ds-lm-rte-body:focus { border-color: var(--lm-accent) !important; outline: 1px solid var(--lm-accent); }
+.fl-builder-settings .ds-lm-na { color: var(--lm-muted); }
+.fl-builder-settings .ds-lm-check { display: flex !important; align-items: center; gap: 6px; font-weight: 400; margin: 0 !important; }
+.fl-builder-settings .ds-lm-check input { margin: 0 !important; }
+.fl-builder-settings .ds-lm-terms { display: flex !important; flex-direction: row; flex-wrap: wrap; gap: 4px 14px; }
+.fl-builder-settings .ds-lm-terms legend { width: 100%; margin-bottom: 2px; }
+.fl-builder-settings .ds-lm-show { padding-top: 4px; border-top: 1px dashed var(--lm-line); }
+.fl-builder-settings .ds-lm-image-row { display: flex; align-items: center; gap: 8px; }
+.fl-builder-settings .ds-lm-rte { border: 1px solid var(--lm-line); border-radius: 4px; background: var(--lm-bg); }
+.fl-builder-settings .ds-lm-rte-bar { display: flex; gap: 2px; padding: 3px; border-bottom: 1px solid var(--lm-line); background: var(--lm-soft); border-radius: 4px 4px 0 0; }
+.fl-builder-settings .ds-lm-rte-body { min-height: 80px; max-height: 260px; overflow: auto; padding: 8px; border: 1px solid transparent; border-radius: 0 0 4px 4px; }
+.fl-builder-settings .ds-lm-rte-body p { margin: 0 0 8px; }
+.fl-builder-settings .ds-lm-rte-body ul { margin: 0 0 8px 18px; list-style: disc; }
+.fl-builder-settings .ds-lm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid var(--lm-line); }
+.fl-builder-settings .ds-lm-actions .ds-lm-btn--danger { margin-left: auto; }
+.fl-builder-settings .ds-lm-trash { margin-top: 10px; padding: 8px 10px; border: 1px dashed var(--lm-line); border-radius: 6px; color: var(--lm-muted); }
+.fl-builder-settings .ds-lm-trash p, .fl-builder-settings .ds-lm-trash ul { margin: 0 !important; padding: 0 !important; list-style: none !important; }
+/* Controls: BB paints panel buttons; reset to our own look. */
+.fl-builder-settings .ds-lm button.ds-lm-btn, .fl-builder-settings .ds-lm .ds-lm-rte-bar button {
+	display: inline-flex !important; align-items: center; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 4px 9px !important; border: 1px solid var(--lm-line) !important; border-radius: 4px !important; background: var(--lm-bg) !important; color: var(--lm-fg) !important; font-size: 12px !important; font-weight: 500 !important; line-height: 1.4 !important; text-transform: none !important; letter-spacing: 0 !important; box-shadow: none !important; cursor: pointer; white-space: nowrap;
+}
+.fl-builder-settings .ds-lm button.ds-lm-btn:hover, .fl-builder-settings .ds-lm .ds-lm-rte-bar button:hover { border-color: var(--lm-accent) !important; color: var(--lm-accent) !important; }
+.fl-builder-settings .ds-lm button.ds-lm-btn--primary { background: var(--lm-accent) !important; border-color: var(--lm-accent) !important; color: #fff !important; }
+.fl-builder-settings .ds-lm button.ds-lm-btn--primary:hover { color: #fff !important; filter: brightness(1.08); }
+.fl-builder-settings .ds-lm button.ds-lm-btn--danger { color: var(--lm-danger) !important; }
+.fl-builder-settings .ds-lm .ds-lm-rte-bar button { padding: 2px 8px !important; border-color: transparent !important; background: transparent !important; }
+.fl-builder-settings .ds-lm button.ds-lm-link, .fl-builder-settings .ds-lm a.ds-lm-link { display: inline !important; padding: 0 !important; margin: 0 !important; border: 0 !important; background: none !important; color: var(--lm-accent) !important; text-decoration: underline !important; font-size: 12px !important; cursor: pointer; box-shadow: none !important; height: auto !important; min-height: 0 !important; }
+.fl-builder-settings .ds-lm, .fl-builder-settings .ds-lm-field, .fl-builder-settings .ds-lm-field > span, .fl-builder-settings .ds-lm-check { text-align: left !important; }
+/* BB centres every panel label (label { align-items: center }); our field labels stack left. */
+.fl-builder-settings .ds-lm label.ds-lm-field { align-items: stretch !important; min-height: 0; font-size: 13px; font-weight: 400; }
+.fl-builder-settings .ds-lm label.ds-lm-check { align-items: center !important; min-height: 0; }

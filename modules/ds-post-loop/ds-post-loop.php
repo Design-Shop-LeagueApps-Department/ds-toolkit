@@ -2,6 +2,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-module-ui.php';
+require_once __DIR__ . '/includes/class-ds-loop-manager.php';
 
 /**
  * LeagueApps Post Loop — an in-house Beaver Builder query-loop module.
@@ -399,6 +400,9 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		// here (except when the user actually picked Menu Order).
 		if ( 'menu_order' !== $ob ) { $args['ignore_custom_sort'] = true; }
 
+		// Builder preview of pending "Manage entries" changes (DS_Loop_Manager::pv_posts).
+		if ( DS_Loop_Manager::previewing() ) { $args['ds_loop_preview'] = 1; }
+
 		return new WP_Query( $args );
 	}
 
@@ -464,7 +468,9 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		);
 		$method = isset( $map[ $layout ] ) ? $map[ $layout ] : 'render_style1';
 		if ( ! method_exists( $this, $method ) ) { $method = 'render_style1'; }
-		$this->$method();
+		// In the builder, show pending "Manage entries" changes (saved only on Publish).
+		$pv = DS_Loop_Manager::begin_preview( $this->settings );
+		try { $this->$method(); } finally { if ( $pv ) { DS_Loop_Manager::end_preview(); } }
 	}
 
 	/** A round contact/social icon link. */
@@ -1604,24 +1610,34 @@ $ds_pl_form = array(
 						'options' => DS_Post_Loop_Module::card_layouts(),
 						'help'    => __( 'How each result is presented. The Query tab decides WHICH posts are pulled (Post Type + filters). Set Post Type to match the card (Staff card uses the Staff type, etc.).', 'ds-toolkit' ),
 						'toggle'  => array(
-							'news_featured'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'layout', 'featured', 'cards', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
-							'news_grid'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'cards2', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'staff_card'     => array( 'sections' => array( 'header', 'query', 'query_filter', 'staff_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_photo'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_logo'   => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_action' => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_strip'  => array( 'sections' => array( 'header', 'query', 'query_filter', 'commit_strip_opts', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'team_list'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'team_list_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
-							'team_card'      => array( 'sections' => array( 'header', 'query', 'query_filter', 'team_card_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'custom'         => array( 'sections' => array( 'header', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'news_featured'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'layout', 'featured', 'cards', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
+							'news_grid'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'cards2', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'staff_card'     => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'staff_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_photo'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_logo'   => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_action' => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_strip'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_strip_opts', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'team_list'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'team_list_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
+							'team_card'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'team_card_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'custom'         => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'sponsor'        => array( 'sections' => array( 'header', 'sponsors_sec', 'sponsor_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
 							'program'        => array( 'sections' => array( 'header', 'programs_sec', 'program_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
 							// No news 'typography' section here: its fields target .ds-news-card-* classes
 							// that never render in tournament markup (GH: title/meta typography live in
 							// the Tournament Cards section as tn_title_typo / tn_meta_typo).
-							'tournament'     => array( 'sections' => array( 'header', 'query', 'query_filter', 'tn_filter_opts', 'tournament_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'tournament'     => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'tn_filter_opts', 'tournament_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 						),
 					),
+				),
+			),
+			// Edit the entries this loop shows, in place (DS_Loop_Manager). Changes are
+			// held in pl_manage and written to the posts only when the page is published.
+			'manage_sec' => array(
+				'title'       => __( 'Manage entries', 'ds-toolkit' ),
+				'description' => __( 'Edit, add, hide, remove and reorder the entries this loop shows. Changes are saved to them when you publish; Cancel or discarding the draft throws them away.', 'ds-toolkit' ),
+				'fields'      => array(
+					'pl_manage_ui' => array( 'type' => 'raw', 'label' => '', 'content' => '<div class="ds-lm" data-ds-loop-manager><p class="ds-lm-msg">' . esc_html__( 'Loading entries…', 'ds-toolkit' ) . '</p></div>' ),
+					'pl_manage'    => array( 'type' => 'text', 'label' => '', 'default' => '', 'className' => 'ds-lm-store' ),
 				),
 			),
 			// Sits directly below the Layout selector. Only revealed when the
@@ -2372,6 +2388,18 @@ foreach ( $ds_pl_taxes as $ds_tx_name => $ds_tx_label ) {
 $ds_pl_form['query']['sections']['query_filter']['fields'] = $ds_tax_fields;
 
 FLBuilder::register_module( 'DS_Post_Loop_Module', $ds_pl_form );
+
+// Builder assets for "Manage entries".
+add_action( 'fl_builder_ui_enqueue_scripts', function () {
+	$v = function ( $rel ) { $t = @filemtime( DS_TOOLKIT_PATH . $rel ); return $t ? DS_TOOLKIT_VERSION . '.' . $t : DS_TOOLKIT_VERSION; };
+	wp_enqueue_media();
+	wp_enqueue_style( 'ds-loop-manager', DS_TOOLKIT_URL . 'modules/ds-post-loop/css/manager.css', array(), $v( 'modules/ds-post-loop/css/manager.css' ) );
+	wp_enqueue_script( 'ds-loop-manager', DS_TOOLKIT_URL . 'modules/ds-post-loop/js/manager.js', array( 'jquery' ), $v( 'modules/ds-post-loop/js/manager.js' ), true );
+	wp_localize_script( 'ds-loop-manager', 'DSLoopManager', array(
+		'ajaxurl' => admin_url( 'admin-ajax.php' ),
+		'nonce'   => wp_create_nonce( 'ds_loop_manager' ),
+	) );
+} );
 
 // [ds_team_coach_avatars] — usable in the Custom Item Markup above, and anywhere
 // else a shortcode runs (a Text module, a Themer layout, post content).
