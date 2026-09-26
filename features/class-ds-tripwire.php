@@ -80,8 +80,15 @@ class DS_Tripwire {
     /** A legit mu-plugins/index.php is an empty guard file; loaders are 20KB+. */
     const MU_INDEX_MAX_BYTES = 4096;
     /** mu-plugins files ds-toolkit itself writes; trusted only when small and clean (see check_mu_plugins). */
-    const MU_MANAGED = array( 'ds-origin-guard.php', 'ds-antibot-off.php', 'ds-doorway-block.php' );
-    const MU_MANAGED_MAX_BYTES = 4096;
+    /* Toolkit helpers that get installed on site after site, so the "new file in mu-plugins" rule
+       would otherwise email once PER SITE as a rollout lands. ds-cache-purge-globals.php is the
+       standard slow-site fix in speed-kit/SPEED.md and is 4854 bytes, which is why the cap moves from
+       4096 to 8192. The gate is deliberately still name + size + no-obfuscation and NOT the bare
+       ds-* prefix: the Sep 2026 attacker overwrote ds-origin-guard.php with an 8 KB loader, so a name
+       on its own is not trust. One-off per-site files are not listed here on purpose - the rule
+       self-heals into mu_baseline after a single alert, so they cost one email, not one per site. */
+    const MU_MANAGED = array( 'ds-origin-guard.php', 'ds-antibot-off.php', 'ds-doorway-block.php', 'ds-cache-purge-globals.php' );
+    const MU_MANAGED_MAX_BYTES = 8192;
 
     /** Self-heal markers; any hit in a scanned tail is a confirmed infection. */
     const MARKERS = array( 'WDG-CORE-' . 'START', '$wdg' . '_k', '$co' . 'ki' );
@@ -164,7 +171,23 @@ class DS_Tripwire {
      *  and in mu-plugins, which is where polyglots and dotfile shells hide. */
     /** A file this small has no room for code, so it cannot execute anything. See is_executable_file(). */
     const EXEC_MIN_BYTES = 16;
-    const CONTENT_EXT = '/\.(php|phtml|php[3-8]|phar|pht|inc|html?|module|install)$/i';
+    /* What the content scan will OPEN. A rule cannot fire on a file that is never read, and until
+       2026-09-27 this list meant three whole classes were invisible unless they happened to sit at
+       depth 1, in uploads, or in mu-plugins:
+         - MEDIA extensions. The 09-26 re-seed on dallaskicsfc put w.avi and qjISgYFUT.m4a, both
+           opening <?php, inside real plugin trees. The polyglot rule that convicts them is
+           header-based and correct; the files simply never reached it. Found by hand instead.
+         - .htaccess. Every nest in the campaign drops one with an identical fingerprint, which is our
+           single best nest locator, and the ROOT .htaccess was itself rewritten into a backdoor.
+         - .off, our own disable convention, so camouflage cannot hide behind it outside mu-plugins.
+       Measured cost of the whole widening on a live install: +11 files against 12,608 already read
+       out of 22,097 total, so ~0.05%.
+       ARCHIVES ARE DELIBERATELY NOT HERE. A real .zip is binary, so its PHP is compressed and the
+       polyglot test cannot see it, while "every plugin zip contains PHP" is an established false
+       positive that has already cost two allow-list hashes (bb-theme-builder.zip, mokan-core.zip).
+       Adding .zip would spread that FP into every plugin tree and buy nothing. A payload stash inside
+       a nest is caught by the nest .htaccess rule, which takes the whole directory. */
+    const CONTENT_EXT = '/\.(php|phtml|php[3-8]|phar|pht|inc|html?|module|install|off|htaccess|avi|m4a|mp2|mp3|mp4|mov|wav|wmv|f4v|ogv|jpx|wbmp)$/i';
 
     private $settings;
 
