@@ -6,9 +6,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 $node = ".fl-node-$id";
 
-// ---- Content width (boxed / full / custom) so it can fill a full-width container ----
+// ---- Content width. 'fill' (default since 1.10.4) takes the column's width with no module
+// padding/margin; boxed / full / custom are the legacy options, kept as saved. ----
 $cw = $settings->content_width ?? 'boxed';
-if ( 'full' === $cw ) {
+if ( 'fill' === $cw || 'full' === $cw ) {
 	echo "$node .ds-news-wrap { max-width: none; margin: 0; }\n";
 } elseif ( 'custom' === $cw ) {
 	$cmw = ( isset( $settings->content_max_width ) && '' !== $settings->content_max_width ) ? (int) $settings->content_max_width : 1280;
@@ -186,8 +187,8 @@ if ( $gs && ( $settings->card_layout ?? '' ) === 'tournament' ) {
 	DS_Module_UI::global_button_css( "$node .ds-tourn-btn", "$node .ds-tourn-btn:hover, $node .ds-tourn-card:hover .ds-tourn-btn" );
 }
 
-// ---- Spacing: padding on the wrap, margin on the section (deferred) ----
-if ( class_exists( 'FLBuilderCSS' ) ) {
+// ---- Spacing: padding on the wrap, margin on the section (legacy widths only; 'fill' uses the Advanced tab) ----
+if ( 'fill' !== $cw && class_exists( 'FLBuilderCSS' ) ) {
 	FLBuilderCSS::dimension_field_rule( array(
 		'settings'     => $settings,
 		'setting_name' => 'padding',

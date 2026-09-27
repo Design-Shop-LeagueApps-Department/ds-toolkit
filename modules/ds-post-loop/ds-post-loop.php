@@ -59,6 +59,72 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	}
 
 	/**
+	 * Values a module gets when its saved settings predate a field, pinned to what that
+	 * field's default USED to be. Beaver Builder fills missing keys from the current form
+	 * defaults, so without this a module scripted or saved before 1.10.4 would pick up the
+	 * new defaults (fill the column, solid header divider) and change on the live site.
+	 * Every module saved from the builder already stores these keys, so this only reaches
+	 * the ones that never did.
+	 */
+	private static function legacy_defaults() {
+		return array(
+			'content_width'        => 'boxed',
+			'header_divider'       => 'none',
+			'header_divider_w'     => '1',
+			'header_divider_color' => '',
+			'connections'          => array(),
+		);
+	}
+
+	/**
+	 * A new module's Divider Colour arrives connected to the site's "Line Color" global
+	 * colour, so the builder shows the "Global - Line Color" pill and the line follows that
+	 * swatch. The connection names the colour by its per-site id, so it is looked up here;
+	 * a site without a "Line Color" global keeps the plain var(--fl-global-line-color) default.
+	 * Runs on fl_builder_module_defaults, i.e. only for settings Beaver builds from defaults.
+	 */
+	public static function default_divider_connection( $defaults, $module = null ) {
+		if ( ! is_object( $defaults ) || 'ds-post-loop' !== ( $defaults->type ?? '' ) || ! class_exists( 'FLBuilderGlobalStyles' ) ) {
+			return $defaults;
+		}
+		static $uid = null;
+		if ( null === $uid ) {
+			$uid = '';
+			$gs  = FLBuilderGlobalStyles::get_settings( false );
+			foreach ( (array) ( $gs->colors ?? array() ) as $c ) {
+				$c = (object) $c;
+				if ( ! empty( $c->uid ) && 'line-color' === sanitize_title( $c->label ?? '' ) ) { $uid = (string) $c->uid; break; }
+			}
+		}
+		if ( '' === $uid ) { return $defaults; }
+		$conn = is_array( $defaults->connections ?? null ) ? $defaults->connections : array();
+		if ( empty( $conn['header_divider_color'] ) ) {
+			$conn['header_divider_color'] = (object) array( 'property' => 'global_color_' . $uid, 'object' => 'site', 'field' => 'color', 'settings' => null );
+		}
+		$defaults->connections = $conn;
+		return $defaults;
+	}
+
+	private static function pin_legacy_defaults( $settings ) {
+		if ( is_object( $settings ) ) {
+			foreach ( self::legacy_defaults() as $k => $v ) {
+				if ( ! property_exists( $settings, $k ) ) { $settings->$k = $v; }
+			}
+		}
+		return $settings;
+	}
+
+	/** Beaver Builder 2.9+: raw saved settings, before the form defaults are merged in. */
+	public function filter_raw_settings_defaults( $settings, $defaults ) {
+		return self::pin_legacy_defaults( $settings );
+	}
+
+	/** Beaver Builder before 2.9 calls this one instead. */
+	public function filter_raw_settings( $settings ) {
+		return self::pin_legacy_defaults( $settings );
+	}
+
+	/**
 	 * Layout options for the Layout dropdown. The News-specific designs first, then
 	 * the universal "Loop Card" — always offered for every content type (it loops any
 	 * post type into a grid of built-in or custom cards). Layout keys kept for data compat.
@@ -1622,22 +1688,22 @@ $ds_pl_form = array(
 						'options' => DS_Post_Loop_Module::card_layouts(),
 						'help'    => __( 'How each result is presented. The Query tab decides WHICH posts are pulled (Post Type + filters). Set Post Type to match the card (Staff card uses the Staff type, etc.).', 'ds-toolkit' ),
 						'toggle'  => array(
-							'news_featured'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'layout', 'featured', 'cards', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ), 'fields' => array( 'date_format' ) ),
-							'news_grid'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'cards2', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ), 'fields' => array( 'date_format' ) ),
-							'staff_card'     => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'staff_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_photo'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_logo'   => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_action' => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'athlete_strip'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_strip_opts', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'team_list'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'team_list_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
-							'team_card'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'team_card_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'custom'         => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ), 'fields' => array( 'date_format' ) ),
-							'sponsor'        => array( 'sections' => array( 'header', 'sponsors_sec', 'sponsor_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
-							'program'        => array( 'sections' => array( 'header', 'programs_sec', 'program_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
+							'news_featured'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'layout', 'featured', 'cards', 'header_style', 'typography', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ), 'fields' => array( 'date_format' ) ),
+							'news_grid'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'cards2', 'header_style', 'typography', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ), 'fields' => array( 'date_format' ) ),
+							'staff_card'     => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'staff_card', 'header_style', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_photo'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_logo'   => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_action' => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'athlete_strip'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_strip_opts', 'commit_filter_opts', 'header_style', 'hover', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'team_list'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'team_list_opts', 'header_style', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
+							'team_card'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'team_card_opts', 'header_style', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'custom'         => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ), 'fields' => array( 'date_format' ) ),
+							'sponsor'        => array( 'sections' => array( 'header', 'sponsors_sec', 'sponsor_opts', 'header_style', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
+							'program'        => array( 'sections' => array( 'header', 'programs_sec', 'program_opts', 'header_style', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
 							// No news 'typography' section here: its fields target .ds-news-card-* classes
 							// that never render in tournament markup (GH: title/meta typography live in
 							// the Tournament Cards section as tn_title_typo / tn_meta_typo).
-							'tournament'     => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'tn_filter_opts', 'tournament_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'tournament'     => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'tn_filter_opts', 'tournament_opts', 'header_style', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 						),
 					),
 					'date_format'    => array( 'type' => 'text', 'label' => __( 'Date Format', 'ds-toolkit' ), 'default' => 'M Y', 'help' => __( 'PHP date format for the card date (e.g. M Y → Jun 2026).', 'ds-toolkit' ) ),
@@ -1731,7 +1797,7 @@ $ds_pl_form = array(
 					'header_divider'    => array(
 						'type'    => 'select',
 						'label'   => __( 'Header Divider', 'ds-toolkit' ),
-						'default' => 'none',
+						'default' => 'solid',
 						'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'solid' => __( 'Solid', 'ds-toolkit' ), 'dashed' => __( 'Dashed', 'ds-toolkit' ), 'dotted' => __( 'Dotted', 'ds-toolkit' ) ),
 						'help'    => __( 'Draws a line between the header and the content below.', 'ds-toolkit' ),
 						'toggle'  => array(
@@ -1740,8 +1806,8 @@ $ds_pl_form = array(
 							'dotted' => array( 'fields' => array( 'header_divider_w', 'header_divider_color', 'header_divider_gap' ) ),
 						),
 					),
-					'header_divider_w'     => array( 'type' => 'unit', 'label' => __( 'Divider Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 10, 'step' => 1 ) ),
-					'header_divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'header_divider_w'     => array( 'type' => 'unit', 'label' => __( 'Divider Width', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 10, 'step' => 1 ) ),
+					'header_divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-line-color)', 'show_reset' => true ),
 					'header_divider_gap'   => array( 'type' => 'unit', 'label' => __( 'Space Below Divider', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 80, 'step' => 1 ) ),
 				),
 			),
@@ -1922,6 +1988,32 @@ $ds_pl_form = array(
 	'style'   => array(
 		'title'    => __( 'Style', 'ds-toolkit' ),
 		'sections' => array(
+			// Top to bottom as the module renders: header, the chosen layout's cards, then
+			// what applies to every card, the section box, and last the legacy width block.
+			'header_style' => array(
+				'title'  => __( 'Header', 'ds-toolkit' ),
+				'fields' => array(
+					'heading_color'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'heading_accent_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Accent', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
+					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
+					'heading_typography'  => array( 'type' => 'typography', 'label' => __( 'Heading Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-heading' ) ),
+					'btn_global' => array(
+						'type'    => 'select',
+						'label'   => __( 'Button Style', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array(
+							'yes'    => __( 'Match site Button (Theme Setting)', 'ds-toolkit' ),
+							'dark'   => __( 'Dark', 'ds-toolkit' ),
+							'accent' => __( 'Heading Accent colour', 'ds-toolkit' ),
+						),
+						'help'    => __( 'The “See all” button inherits the global Button (background, hover, radius, typography) from Theme Setting by default.', 'ds-toolkit' ),
+						'toggle'  => array( 'dark' => array( 'fields' => array( 'btn_dark_bg', 'btn_dark_color' ) ) ),
+					),
+					'btn_dark_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'btn_dark_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+				),
+			),
 			'layout' => array(
 				'title'  => __( 'Layout', 'ds-toolkit' ),
 				'fields' => array(
@@ -2103,67 +2195,6 @@ $ds_pl_form = array(
 					'team_name_typo'    => array( 'type' => 'typography', 'label' => __( 'Team Name Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-team-name' ) ),
 				),
 			),
-			// --- Display: Grid / Carousel / Paginated (card-grid layouts) ---
-			'hover' => array(
-				'title'  => __( 'Hover & Animation', 'ds-toolkit' ),
-				'fields' => array(
-					'hover_effect' => array(
-						'type'    => 'select',
-						'label'   => __( 'Hover Effect', 'ds-toolkit' ),
-						'default' => 'lift',
-						'options' => array(
-							'none'   => __( 'None', 'ds-toolkit' ),
-							'lift'   => __( 'Lift', 'ds-toolkit' ),
-							'grow'   => __( 'Grow', 'ds-toolkit' ),
-							'zoom'   => __( 'Zoom Image', 'ds-toolkit' ),
-							'shadow' => __( 'Shadow', 'ds-toolkit' ),
-							'border' => __( 'Border Highlight', 'ds-toolkit' ),
-						),
-						'toggle'  => array(
-							'lift'   => array( 'fields' => array( 'hover_distance', 'hover_speed', 'hover_shadow_color' ) ),
-							'grow'   => array( 'fields' => array( 'hover_scale', 'hover_speed', 'hover_shadow_color' ) ),
-							'zoom'   => array( 'fields' => array( 'hover_scale', 'hover_speed' ) ),
-							'shadow' => array( 'fields' => array( 'hover_speed', 'hover_shadow_color' ) ),
-							'border' => array( 'fields' => array( 'hover_speed', 'hover_border_color' ) ),
-						),
-						'help'    => __( 'Animation when a card is hovered. Applies to every card layout.', 'ds-toolkit' ),
-					),
-					'hover_distance'     => array( 'type' => 'unit', 'label' => __( 'Lift Distance', 'ds-toolkit' ), 'default' => '6', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
-					'hover_scale'        => array( 'type' => 'unit', 'label' => __( 'Scale', 'ds-toolkit' ), 'default' => '105', 'description' => '%', 'slider' => array( 'min' => 100, 'max' => 120, 'step' => 1 ) ),
-					'hover_speed'        => array( 'type' => 'unit', 'label' => __( 'Transition Speed', 'ds-toolkit' ), 'default' => '300', 'description' => 'ms', 'slider' => array( 'min' => 100, 'max' => 800, 'step' => 25 ) ),
-					'hover_shadow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Shadow Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
-					'hover_border_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Hover Border Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-					'hover_bg'           => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Hover Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Optional. Colour the card fades to on hover (any layout).', 'ds-toolkit' ) ),
-				),
-			),
-			'card_border' => array(
-				'title'  => __( 'Card Border', 'ds-toolkit' ),
-				'fields' => array(
-					'card_bd_style' => array(
-						'type'    => 'select',
-						'label'   => __( 'Border Style', 'ds-toolkit' ),
-						'default' => 'default',
-						'options' => array(
-							'default' => __( 'Theme Default', 'ds-toolkit' ),
-							'none'    => __( 'None', 'ds-toolkit' ),
-							'solid'   => __( 'Solid', 'ds-toolkit' ),
-							'dashed'  => __( 'Dashed', 'ds-toolkit' ),
-							'dotted'  => __( 'Dotted', 'ds-toolkit' ),
-							'double'  => __( 'Double', 'ds-toolkit' ),
-						),
-						'toggle'  => array(
-							'solid'  => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
-							'dashed' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
-							'dotted' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
-							'double' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
-						),
-						'help'    => __( 'Border around each card. “Theme Default” keeps the layout’s built-in border.', 'ds-toolkit' ),
-					),
-					'card_bd_width'  => array( 'type' => 'unit', 'label' => __( 'Border Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 10, 'step' => 1 ) ),
-					'card_bd_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Color', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-					'card_bd_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank keeps the layout default.', 'ds-toolkit' ) ),
-				),
-			),
 			'tournament_opts' => array(
 				'title'       => __( 'Tournament Cards', 'ds-toolkit' ),
 				'description' => __( 'Ordering is automatic: upcoming events first, sorted by the Event Date field, with past events hidden. (The Query tab\'s Order By / Order do not apply to this layout.)', 'ds-toolkit' ),
@@ -2262,33 +2293,8 @@ $ds_pl_form = array(
 					'sp_grayscale'  => array( 'type' => 'select', 'label' => __( 'Greyscale Logos', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes (colour on hover)', 'ds-toolkit' ) ) ),
 				),
 			),
-			'header_style' => array(
-				'title'  => __( 'Header & Section', 'ds-toolkit' ),
-				'fields' => array(
-					'section_bg'          => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Section Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-					'heading_color'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-					'heading_accent_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Accent', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
-					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
-					'heading_typography'  => array( 'type' => 'typography', 'label' => __( 'Heading Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-heading' ) ),
-					'btn_global' => array(
-						'type'    => 'select',
-						'label'   => __( 'Button Style', 'ds-toolkit' ),
-						'default' => 'yes',
-						'options' => array(
-							'yes'    => __( 'Match site Button (Theme Setting)', 'ds-toolkit' ),
-							'dark'   => __( 'Dark', 'ds-toolkit' ),
-							'accent' => __( 'Heading Accent colour', 'ds-toolkit' ),
-						),
-						'help'    => __( 'The “See all” button inherits the global Button (background, hover, radius, typography) from Theme Setting by default.', 'ds-toolkit' ),
-						'toggle'  => array( 'dark' => array( 'fields' => array( 'btn_dark_bg', 'btn_dark_color' ) ) ),
-					),
-					'btn_dark_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-					'btn_dark_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-				),
-			),
 			'typography' => array(
-				'title'  => __( 'Typography', 'ds-toolkit' ),
+				'title'  => __( 'Card Typography', 'ds-toolkit' ),
 				'fields' => array(
 					'feature_title_typography' => array( 'type' => 'typography', 'label' => __( 'Featured Title', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-feature-title' ) ),
 					'excerpt_typography'       => array( 'type' => 'typography', 'label' => __( 'Featured Excerpt', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-feature-excerpt' ) ),
@@ -2298,20 +2304,91 @@ $ds_pl_form = array(
 					'card_date_typography'     => array( 'type' => 'typography', 'label' => __( 'Card Date', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-date, .ds-news-card2-date' ) ),
 				),
 			),
-			'spacing' => array(
-				'title'  => __( 'Spacing', 'ds-toolkit' ),
+			'card_border' => array(
+				'title'  => __( 'Card Border', 'ds-toolkit' ),
 				'fields' => array(
+					'card_bd_style' => array(
+						'type'    => 'select',
+						'label'   => __( 'Border Style', 'ds-toolkit' ),
+						'default' => 'default',
+						'options' => array(
+							'default' => __( 'Theme Default', 'ds-toolkit' ),
+							'none'    => __( 'None', 'ds-toolkit' ),
+							'solid'   => __( 'Solid', 'ds-toolkit' ),
+							'dashed'  => __( 'Dashed', 'ds-toolkit' ),
+							'dotted'  => __( 'Dotted', 'ds-toolkit' ),
+							'double'  => __( 'Double', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'solid'  => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
+							'dashed' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
+							'dotted' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
+							'double' => array( 'fields' => array( 'card_bd_width', 'card_bd_color' ) ),
+						),
+						'help'    => __( 'Border around each card. “Theme Default” keeps the layout’s built-in border.', 'ds-toolkit' ),
+					),
+					'card_bd_width'  => array( 'type' => 'unit', 'label' => __( 'Border Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 10, 'step' => 1 ) ),
+					'card_bd_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Color', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'card_bd_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank keeps the layout default.', 'ds-toolkit' ) ),
+				),
+			),
+			// --- Display: Grid / Carousel / Paginated (card-grid layouts) ---
+			'hover' => array(
+				'title'  => __( 'Hover & Animation', 'ds-toolkit' ),
+				'fields' => array(
+					'hover_effect' => array(
+						'type'    => 'select',
+						'label'   => __( 'Hover Effect', 'ds-toolkit' ),
+						'default' => 'lift',
+						'options' => array(
+							'none'   => __( 'None', 'ds-toolkit' ),
+							'lift'   => __( 'Lift', 'ds-toolkit' ),
+							'grow'   => __( 'Grow', 'ds-toolkit' ),
+							'zoom'   => __( 'Zoom Image', 'ds-toolkit' ),
+							'shadow' => __( 'Shadow', 'ds-toolkit' ),
+							'border' => __( 'Border Highlight', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'lift'   => array( 'fields' => array( 'hover_distance', 'hover_speed', 'hover_shadow_color' ) ),
+							'grow'   => array( 'fields' => array( 'hover_scale', 'hover_speed', 'hover_shadow_color' ) ),
+							'zoom'   => array( 'fields' => array( 'hover_scale', 'hover_speed' ) ),
+							'shadow' => array( 'fields' => array( 'hover_speed', 'hover_shadow_color' ) ),
+							'border' => array( 'fields' => array( 'hover_speed', 'hover_border_color' ) ),
+						),
+						'help'    => __( 'Animation when a card is hovered. Applies to every card layout.', 'ds-toolkit' ),
+					),
+					'hover_distance'     => array( 'type' => 'unit', 'label' => __( 'Lift Distance', 'ds-toolkit' ), 'default' => '6', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+					'hover_scale'        => array( 'type' => 'unit', 'label' => __( 'Scale', 'ds-toolkit' ), 'default' => '105', 'description' => '%', 'slider' => array( 'min' => 100, 'max' => 120, 'step' => 1 ) ),
+					'hover_speed'        => array( 'type' => 'unit', 'label' => __( 'Transition Speed', 'ds-toolkit' ), 'default' => '300', 'description' => 'ms', 'slider' => array( 'min' => 100, 'max' => 800, 'step' => 25 ) ),
+					'hover_shadow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Shadow Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'hover_border_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Hover Border Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'hover_bg'           => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Hover Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Optional. Colour the card fades to on hover (any layout).', 'ds-toolkit' ) ),
+				),
+			),
+			// Retired in 1.10.4: a new Post Loop fills its column and takes its spacing from the
+			// Advanced tab like any Beaver module. This block only appears on modules saved on
+			// Boxed / Full / Custom (content_width toggles its own section), so they keep their
+			// width and padding; picking "Fill the column" retires it for that module.
+			'spacing' => array(
+				'title'       => __( 'Width & Spacing (legacy)', 'ds-toolkit' ),
+				'description' => __( 'Kept for modules built before 1.10.4. New modules fill their column; set spacing on the Advanced tab.', 'ds-toolkit' ),
+				'fields'      => array(
 					'content_width'     => array(
 						'type'    => 'select',
 						'label'   => __( 'Content Width', 'ds-toolkit' ),
-						'default' => 'boxed',
+						'default' => 'fill',
 						'options' => array(
+							'fill'   => __( 'Fill the column (recommended)', 'ds-toolkit' ),
 							'boxed'  => __( 'Boxed (max 1280px)', 'ds-toolkit' ),
-							'full'   => __( 'Full width (fill container)', 'ds-toolkit' ),
+							'full'   => __( 'Full width + padding / margin below', 'ds-toolkit' ),
 							'custom' => __( 'Custom max-width', 'ds-toolkit' ),
 						),
-						'toggle'  => array( 'custom' => array( 'fields' => array( 'content_max_width' ) ) ),
-						'help'    => __( 'Full width lets this fill a full-width row/column; use the row/column padding for side spacing.', 'ds-toolkit' ),
+						'toggle'  => array(
+							'boxed'  => array( 'sections' => array( 'spacing' ) ),
+							'full'   => array( 'sections' => array( 'spacing' ) ),
+							'custom' => array( 'sections' => array( 'spacing' ), 'fields' => array( 'content_max_width' ) ),
+						),
+						'help'    => __( 'Fill the column hides this block: the loop takes its column\'s width and the Advanced tab\'s spacing, like other modules. Padding and Margin here stop applying.', 'ds-toolkit' ),
 					),
 					'content_max_width' => array( 'type' => 'unit', 'label' => __( 'Max Width', 'ds-toolkit' ), 'default' => '1280', 'description' => 'px', 'slider' => array( 'min' => 480, 'max' => 1920, 'step' => 10 ) ),
 					'padding' => array(
@@ -2337,8 +2414,16 @@ $ds_pl_form = array(
 		),
 	),
 );
-// Shared "Border & Divider" section appended to the Style tab for every layout.
-$ds_pl_form['style']['sections'] = array_merge( $ds_pl_form['style']['sections'], DS_Module_UI::border_section( false ) );
+// Shared "Border & Divider" section, shown for every layout as "Section" with the section
+// background, placed before the legacy width block so that block stays last.
+$ds_pl_spacing = $ds_pl_form['style']['sections']['spacing'];
+unset( $ds_pl_form['style']['sections']['spacing'] );
+$ds_pl_form['style']['sections'] = array_merge( $ds_pl_form['style']['sections'], DS_Module_UI::border_section( false ), array( 'spacing' => $ds_pl_spacing ) );
+$ds_pl_form['style']['sections']['ds_borders']['title']  = __( 'Section', 'ds-toolkit' );
+$ds_pl_form['style']['sections']['ds_borders']['fields'] = array(
+	'section_bg' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Section Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+) + $ds_pl_form['style']['sections']['ds_borders']['fields'];
+unset( $ds_pl_spacing );
 
 /* Include / Exclude specific posts (GH #132) — one post-suggest (autocomplete + pills)
    pair per public post type, revealed by the Post Type selector's toggle. Built the
@@ -2414,6 +2499,7 @@ foreach ( $ds_pl_taxes as $ds_tx_name => $ds_tx_label ) {
 $ds_pl_form['query']['sections']['query_filter']['fields'] = $ds_tax_fields;
 
 FLBuilder::register_module( 'DS_Post_Loop_Module', $ds_pl_form );
+add_filter( 'fl_builder_module_defaults', array( 'DS_Post_Loop_Module', 'default_divider_connection' ), 10, 2 );
 
 // Builder assets for "Manage entries".
 add_action( 'fl_builder_ui_enqueue_scripts', function () {
