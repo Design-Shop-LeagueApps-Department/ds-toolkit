@@ -33,6 +33,7 @@ class DS_Page_Banner {
 	const TOUCHED_META = '_ds_banner_featured_touched';
 	const VIDEO_NAME   = 'video_page_hero_banner';
 	const AJAX         = 'ds_builder_banner_image';
+	const FOCAL_META   = '_ds_banner_focal'; // "x y" in percent: the spot the banner keeps in view (Hero module reads it)
 
 	private $settings;
 	private $syncing = false;
@@ -81,7 +82,11 @@ class DS_Page_Banner {
 		if ( 'page' === get_post_type( $id ) ) { $img = (int) get_post_meta( $id, self::IMG_NAME, true ); }
 		if ( ! $img ) { $img = (int) get_post_thumbnail_id( $id ); }
 		$video = get_post_meta( $id, self::VIDEO_NAME, true );
+		$fx = 50; $fy = 50;
+		if ( preg_match( '/^(\d{1,3}) (\d{1,3})$/', (string) get_post_meta( $id, self::FOCAL_META, true ), $m ) ) { $fx = min( 100, (int) $m[1] ); $fy = min( 100, (int) $m[2] ); }
 		return array(
+			'focal'     => array( $fx, $fy ),
+			'full'      => $img ? (string) wp_get_attachment_image_url( $img, 'large' ) : '',
 			'id'        => $img,
 			'thumb'     => $img ? (string) wp_get_attachment_image_url( $img, 'medium_large' ) : '',
 			'url'       => $img ? (string) wp_get_attachment_image_url( $img, 'full' ) : '',
@@ -134,6 +139,12 @@ class DS_Page_Banner {
 				'saved'    => __( 'Banner image saved', 'ds-toolkit' ),
 				'removed'  => __( 'Banner image removed', 'ds-toolkit' ),
 				'failed'   => __( 'Could not save the banner image. Please try again.', 'ds-toolkit' ),
+				'focal'    => __( 'Focus point', 'ds-toolkit' ),
+				'focalHint'=> __( 'Click the part of the photo that must stay in view. The banner keeps it visible on every screen size.', 'ds-toolkit' ),
+				'horiz'    => __( 'Horizontal', 'ds-toolkit' ),
+				'vert'     => __( 'Vertical', 'ds-toolkit' ),
+				'centre'   => __( 'Centre', 'ds-toolkit' ),
+				'posSaved' => __( 'Position saved', 'ds-toolkit' ),
 			),
 		) );
 	}
@@ -144,11 +155,20 @@ class DS_Page_Banner {
 		if ( ! check_ajax_referer( self::AJAX . $id, 'nonce', false ) || ! $this->can_take_image( $id ) ) {
 			wp_send_json_error( array( 'message' => 'forbidden' ), 403 );
 		}
+		// Focal point only (Alipio 2026-09-27: "position control x and y ... so partner can adjust the cut off image").
+		if ( isset( $_POST['focal_x'], $_POST['focal_y'] ) ) {
+			$fx = max( 0, min( 100, (int) $_POST['focal_x'] ) );
+			$fy = max( 0, min( 100, (int) $_POST['focal_y'] ) );
+			if ( 50 === $fx && 50 === $fy ) { delete_post_meta( $id, self::FOCAL_META ); } else { update_post_meta( $id, self::FOCAL_META, $fx . ' ' . $fy ); }
+			if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) { WpeCommon::purge_varnish_cache( $id ); }
+			wp_send_json_success( $this->state( $id ) );
+		}
 		if ( $img && ! wp_attachment_is_image( $img ) ) {
 			wp_send_json_error( array( 'message' => 'not an image' ), 400 );
 		}
 		$this->syncing = true; // our own write: not a partner edit of the Featured Image
 		$img ? set_post_thumbnail( $id, $img ) : delete_post_thumbnail( $id );
+		if ( ! $img ) { delete_post_meta( $id, self::FOCAL_META ); } // no image, no point to keep
 		if ( 'page' === get_post_type( $id ) ) {
 			// The Background Photo beats the Featured Image in the banner; keep the two equal.
 			if ( function_exists( 'update_field' ) ) { update_field( self::IMG_FIELD, $img ? $img : '', $id ); }
