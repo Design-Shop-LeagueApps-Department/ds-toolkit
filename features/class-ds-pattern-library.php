@@ -115,15 +115,18 @@ class DS_Pattern_Library {
 	}
 
 	public function ajax_make() {
-		if ( ! check_ajax_referer( self::AJAX, 'nonce', false ) || ! current_user_can( 'edit_posts' ) ) {
+		// Same gate as the Theme Setting page it serves: a LeagueApps user who can edit.
+		if ( ! check_ajax_referer( self::AJAX, 'nonce', false ) || ! current_user_can( 'edit_posts' ) || ! DS_Toolkit::is_leagueapps_user() ) {
 			wp_send_json_error( array( 'message' => 'forbidden' ), 403 );
 		}
 		$p = self::pattern( sanitize_key( wp_unslash( $_POST['slug'] ?? '' ) ) );
 		$color = self::hex( (string) wp_unslash( $_POST['color'] ?? '' ) );
 		if ( ! $p || '' === $color ) { wp_send_json_error( array( 'message' => 'bad pattern or colour' ), 400 ); }
-		$opacity = max( 0.05, min( 1, (float) ( $_POST['opacity'] ?? 0.2 ) ) );
-		$scale   = max( 0.5, min( 8, (float) ( $_POST['scale'] ?? 1 ) ) );
-		$stroke  = max( 0.25, min( max( 0.5, (float) $p['ms'] ), (float) ( $_POST['stroke'] ?? 1 ) ) );
+		// Rounded to the panel's slider steps, so the same look always names the same file (no near-duplicates).
+		$step    = function ( $v, $s ) { return round( round( $v / $s ) * $s, 3 ); };
+		$opacity = $step( max( 0.05, min( 1, (float) wp_unslash( $_POST['opacity'] ?? 0.2 ) ) ), 0.01 );
+		$scale   = $step( max( 0.5, min( 8, (float) wp_unslash( $_POST['scale'] ?? 1 ) ) ), 0.1 );
+		$stroke  = $step( max( 0.25, min( max( 0.5, (float) $p['ms'] ), (float) wp_unslash( $_POST['stroke'] ?? 1 ) ) ), 0.25 );
 		$svg     = self::svg( $p, $color, round( $opacity, 3 ), round( $scale, 3 ), round( $stroke, 3 ) );
 
 		$up = wp_upload_dir();

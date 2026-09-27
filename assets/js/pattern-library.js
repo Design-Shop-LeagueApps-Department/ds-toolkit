@@ -26,13 +26,11 @@
 	var data = null, loading = null, ui = null, target = null;
 	var st = { slug: '', color: '', opacity: 0.2, scale: 1, stroke: 1, cat: 'All', q: '' };
 
-	function el( tag, attrs, html ) {
+	function el( tag, attrs ) {
 		var e = document.createElement( tag );
 		for ( var k in ( attrs || {} ) ) { if ( 'class' === k ) { e.className = attrs[ k ]; } else { e.setAttribute( k, attrs[ k ] ); } }
-		if ( html ) { e.innerHTML = html; }
 		return e;
 	}
-	function esc( s ) { return String( s ).replace( /[&<>"']/g, function ( c ) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ c ]; } ); }
 	function num( n ) { return String( Math.round( n * 1000 ) / 1000 ); }
 
 	/** Same tile as DS_Pattern_Library::svg() (the file the server writes). */
