@@ -523,7 +523,7 @@ if ( 'style3' === $style ) {
 	echo "$peek .ds-peek-cta { " . ( $sizes[ $bsize ] ?? $sizes['medium'] ) . " }\n";
 
 	if ( ( $settings->peek_btn_global ?? 'yes' ) === 'yes' ) {
-		DS_Module_UI::global_button_css( "$peek .ds-peek-cta" );
+		DS_Module_UI::global_button_css( "$peek .ds-peek-cta", null, false ); // keeps the Button Size above
 	} else {
 		$b = '';
 		$bbg = DS_Module_UI::color( $settings->peek_btn_bg ?? '' );

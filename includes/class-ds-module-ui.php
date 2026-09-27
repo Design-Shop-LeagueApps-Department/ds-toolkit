@@ -74,15 +74,18 @@ class DS_Module_UI {
 	 *
 	 * @param string      $selector       Full selector (already node-scoped).
 	 * @param string|null $hover_selector Hover selector; null derives ":hover".
+	 * @param bool        $base           Also emit the theme's base button size/weight/line height (button_base_css).
+	 *                                    False for callers that size the button themselves on the same selector
+	 *                                    (the Hero slider's Button Size, the Menu's CTA, which inherits the bar typography).
 	 * @return bool True when global styles existed and something was emitted.
 	 */
-	public static function global_button_css( $selector, $hover_selector = null ) {
+	public static function global_button_css( $selector, $hover_selector = null, $base = true ) {
 		if ( ! class_exists( 'FLBuilderGlobalStyles' ) ) { return false; }
 		$gs = FLBuilderGlobalStyles::get_settings( false );
 		if ( ! $gs ) { return false; }
 		if ( null === $hover_selector ) { $hover_selector = $selector . ':hover'; }
 
-		self::button_base_css( $selector );
+		if ( $base ) { self::button_base_css( $selector ); }
 
 		$bg    = self::color( $gs->button_background ?? '' );
 		$text  = self::color( $gs->button_color ?? '' );
