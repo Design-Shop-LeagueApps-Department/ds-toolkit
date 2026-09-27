@@ -247,6 +247,12 @@ class DS_Home_Templates {
 	const BUNDLE_META = '_ds_home_bundle';
 	const SAVE_AJAX   = 'ds_home_tpl_save';
 	const POST_KEYS   = array( '_fl_builder_data', '_fl_builder_draft', '_fl_builder_data_settings', '_fl_builder_draft_settings', '_fl_theme_layout_settings' );
+	/**
+	 * The Themer layouts a template carries. 'page' and 'archive' are the base layouts that hold the page banner
+	 * (Alipio 2026-09-27: a template's inner-page banner must be built with the Beaver module's own settings, not CSS),
+	 * so each template keeps its own banner module settings and applying one never changes another's.
+	 */
+	const PARTS       = array( 'header', 'footer', 'page', 'archive' );
 
 	/** Theme Setting's design options (theme mods) a template carries. */
 	public static function style_mods() {
@@ -258,12 +264,16 @@ class DS_Home_Templates {
 		) );
 	}
 
-	/** The site-wide Themer header / footer layout the site uses, or 0. */
+	/**
+	 * The Themer layouts a template sets, or 0: the site-wide header and footer, and the base page and archive layouts
+	 * (the singular layout shown on every single, the archive layout on every archive) that hold the page banner.
+	 */
 	public static function part_ids() {
-		$ids = array( 'header' => 0, 'footer' => 0 );
-		foreach ( array_keys( $ids ) as $type ) {
-			foreach ( get_posts( array( 'post_type' => 'fl-theme-layout', 'post_status' => 'publish', 'posts_per_page' => 20, 'fields' => 'ids', 'orderby' => 'menu_order date', 'order' => 'ASC', 'meta_key' => '_fl_theme_layout_type', 'meta_value' => $type ) ) as $id ) { // phpcs:ignore WordPress.DB.SlowDBQuery
-				if ( in_array( 'general:site', (array) get_post_meta( $id, '_fl_theme_builder_locations', true ), true ) ) { $ids[ $type ] = (int) $id; break; }
+		$ids   = array( 'header' => 0, 'footer' => 0, 'page' => 0, 'archive' => 0 );
+		$where = array( 'header' => array( 'header', 'general:site' ), 'footer' => array( 'footer', 'general:site' ), 'page' => array( 'singular', 'general:single' ), 'archive' => array( 'archive', 'general:archive' ) );
+		foreach ( $where as $part => $w ) {
+			foreach ( get_posts( array( 'post_type' => 'fl-theme-layout', 'post_status' => 'publish', 'posts_per_page' => 20, 'fields' => 'ids', 'orderby' => 'menu_order date', 'order' => 'ASC', 'meta_key' => '_fl_theme_layout_type', 'meta_value' => $w[0] ) ) as $id ) { // phpcs:ignore WordPress.DB.SlowDBQuery
+				if ( in_array( $w[1], (array) get_post_meta( $id, '_fl_theme_builder_locations', true ), true ) ) { $ids[ $part ] = (int) $id; break; }
 			}
 		}
 		return apply_filters( 'ds_home_templates_part_ids', $ids );
@@ -317,9 +327,11 @@ class DS_Home_Templates {
 		$ids = self::part_ids();
 		return array(
 			'home'   => $target ? self::capture_post( $target ) : null,
-			'header' => $ids['header'] ? self::capture_post( $ids['header'] ) : null,
-			'footer' => $ids['footer'] ? self::capture_post( $ids['footer'] ) : null,
-			'styles' => self::capture_styles(),
+			'header'  => $ids['header'] ? self::capture_post( $ids['header'] ) : null,
+			'footer'  => $ids['footer'] ? self::capture_post( $ids['footer'] ) : null,
+			'page'    => $ids['page'] ? self::capture_post( $ids['page'] ) : null,
+			'archive' => $ids['archive'] ? self::capture_post( $ids['archive'] ) : null,
+			'styles'  => self::capture_styles(),
 		);
 	}
 
@@ -333,7 +345,7 @@ class DS_Home_Templates {
 	public static function parts_of( $tpl ) {
 		$b = get_post_meta( $tpl, self::BUNDLE_META, true );
 		$p = array( 'home' );
-		if ( is_array( $b ) ) { foreach ( array( 'header', 'footer', 'styles' ) as $k ) { if ( ! empty( $b[ $k ] ) ) { $p[] = $k; } } }
+		if ( is_array( $b ) ) { foreach ( array_merge( self::PARTS, array( 'styles' ) ) as $k ) { if ( ! empty( $b[ $k ] ) ) { $p[] = $k; } } }
 		return $p;
 	}
 
@@ -383,7 +395,7 @@ class DS_Home_Templates {
 		$bundle = get_post_meta( $tpl, self::BUNDLE_META, true );
 		if ( is_array( $bundle ) ) {
 			$ids = self::part_ids();
-			foreach ( array( 'header', 'footer' ) as $part ) {
+			foreach ( self::PARTS as $part ) {
 				if ( ! empty( $bundle[ $part ] ) && $ids[ $part ] ) { self::write_post( $ids[ $part ], $bundle[ $part ] ); }
 			}
 			if ( ! empty( $bundle['styles'] ) ) { self::write_styles( $bundle['styles'] ); }
@@ -444,7 +456,7 @@ class DS_Home_Templates {
 		if ( $busy ) { return $busy; }
 		$from = (int) ( $b['from'] ?? 0 );
 		self::write_post( $target, $b['home'] );
-		foreach ( array( 'header', 'footer' ) as $part ) {
+		foreach ( self::PARTS as $part ) {
 			$id = (int) ( $b['ids'][ $part ] ?? 0 );
 			if ( $id && ! empty( $b[ $part ] ) && get_post( $id ) ) { self::write_post( $id, $b[ $part ] ); }
 		}
@@ -499,7 +511,7 @@ class DS_Home_Templates {
 		}
 		update_post_meta( $tpl, '_fl_builder_enabled', true );
 		$site = self::capture_site( $target );
-		self::store( $tpl, self::BUNDLE_META, array( 'version' => 1, 'saved' => time(), 'by' => get_current_user_id(), 'header' => $site['header'], 'footer' => $site['footer'], 'styles' => $site['styles'] ) );
+		self::store( $tpl, self::BUNDLE_META, array( 'version' => 1, 'saved' => time(), 'by' => get_current_user_id(), 'header' => $site['header'], 'footer' => $site['footer'], 'page' => $site['page'], 'archive' => $site['archive'], 'styles' => $site['styles'] ) );
 		FLBuilderModel::delete_all_asset_cache( $tpl );
 		update_post_meta( $target, self::CURRENT_META, (int) $tpl );
 		return (int) $tpl;
@@ -570,7 +582,7 @@ class DS_Home_Templates {
 	private static function preview_bundle( $bundle ) {
 		if ( ! is_array( $bundle ) ) { return; }
 		$ids = self::part_ids();
-		foreach ( array( 'header', 'footer' ) as $part ) {
+		foreach ( self::PARTS as $part ) {
 			$pid  = (int) $ids[ $part ];
 			$snap = $bundle[ $part ] ?? null;
 			if ( ! $pid || ! is_array( $snap ) ) { continue; }
@@ -668,7 +680,7 @@ class DS_Home_Templates {
 				$is = $current === $t['id'];
 				echo '<li class="dsht-card' . ( $is ? ' is-current' : '' ) . '" data-id="' . esc_attr( $t['id'] ) . '">';
 				echo '<div class="dsht-thumb">' . ( $t['thumb'] ? '<img src="' . esc_url( $t['thumb'] ) . '" alt="" loading="lazy">' : '<span class="dashicons dashicons-admin-home" aria-hidden="true"></span>' ) . ( $is ? '<span class="dsht-badge">Current</span>' : '' ) . '</div>';
-				$labels = array( 'home' => 'Home', 'header' => 'Header', 'footer' => 'Footer', 'styles' => 'Design' );
+				$labels = array( 'home' => 'Home', 'header' => 'Header', 'footer' => 'Footer', 'page' => 'Page banner', 'archive' => 'Archive banner', 'styles' => 'Design' );
 				$parts  = array_map( function ( $k ) use ( $labels ) { return $labels[ $k ]; }, self::parts_of( $t['id'] ) );
 				echo '<div class="dsht-meta"><strong class="dsht-title">' . esc_html( $t['title'] ) . '</strong>';
 				echo '<span class="dsht-parts">' . esc_html( implode( ' · ', $parts ) ) . '</span>';

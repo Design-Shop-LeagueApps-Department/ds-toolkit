@@ -5,6 +5,8 @@ All notable changes to DS Toolkit are documented here.
 ---
 
 ## [Unreleased]
+### Changed
+- **Home templates carry the page and archive banner layouts.** The page banner lives in the base Themer layouts (the singular layout and the archive layout), which every template shared, so a template could only restyle it with CSS. A template now carries those two layouts like its header and footer: Save site here captures them, Apply writes them, Revert restores them and Preview shows them, so each template keeps its own banner module settings (Alipio, 2026-09-27). Template cards list them as Page banner and Archive banner. A template saved before this has no copy and leaves them as they are.
 ### Added
 - **Theme Setting > Home page: pick the home page layout of a new build. Not released yet: on branch `feat/home-templates` (stacked on `feat/theme-setting-ux`), tested on ds-launchpad-7** (Alipio, 2026-09-27: "home page template picker"; "this will only use in staging site or development site and should work only for dsl 7 and above"; "other dev can edit it. we might hide this for non leagueapps email"; "let the current home page template be template option 1").
   - **Templates are ordinary Beaver Builder layout templates** in the template category **Home**, so any LeagueApps dev can open and edit one in the builder, and the blueprint carries them into every build. ds-launchpad-7's current home page is the first one ("Home 1 · LP7 default").
