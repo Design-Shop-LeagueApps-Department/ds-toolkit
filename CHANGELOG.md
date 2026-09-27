@@ -7,6 +7,7 @@ All notable changes to DS Toolkit are documented here.
 ## [Unreleased]
 ### Fixed
 - **Post Loop: Card Title, Card Category and Card Date typography did nothing on the "News grid" cards.** The fields show for that layout, but their CSS only targeted the other card style's classes (`.ds-news-card-title` / `-cat` / `-date`), while News grid renders `.ds-news-card2-title`, `.ds-news-card2-pill` and `.ds-news-card2-date`. Found when a 20 px Card Title set in the builder on ds-launchpad-7's home page (2026-09-27) never showed; it now does (18.4 px became 20 px), in the page CSS and in the builder's live preview. Only modules that set these fields change.
+- **Post Loop: the News grid card date was unreadable** (`#8b97a4`, 2.7:1 on the card's `#f4f4f4`; small text needs 4.5:1). It is now `#5f6a76`, the same cool grey a shade darker: 5.0:1 on `#f4f4f4`, 5.5:1 on white. A module with its own Date colour set is unaffected.
 
 ## [1.9.166] - 2026-09-27
 ### Fixed
