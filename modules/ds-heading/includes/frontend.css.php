@@ -172,9 +172,10 @@ if ( '' !== $oc_ov ) { echo "$node { --ds-outline-c: {$oc_ov}; }\n"; }
 if ( isset( $settings->outline_width ) && '' !== $settings->outline_width ) { echo "$node { --ds-outline-w: " . max( 1, (int) $settings->outline_width ) . "px; }\n"; }
 
 /* ---- Style 2 (GH #143) ---- */
-$sep_h = $u( $settings->divider_thickness ?? '', 2 );
+// Style 2's own Line Thickness / Line Colour; blank = the Divider values, exactly as before they existed.
+$sep_h = ( '' !== (string) ( $settings->style2_sep_thick ?? '' ) ) ? max( 1, (int) $settings->style2_sep_thick ) : $u( $settings->divider_thickness ?? '', 2 );
 echo "$node .ds-heading-sep { --ds-heading-sep-h: {$sep_h}px; }\n";
-$dc = DS_Module_UI::color( $settings->divider_color ?? '' );
+$dc = DS_Module_UI::color( $settings->style2_sep_color ?? '' ) ?: DS_Module_UI::color( $settings->divider_color ?? '' );
 if ( '' !== $dc ) { echo "$node .ds-heading-sep { background: {$dc}; }\n"; }
 // Double Line (GH #224): the span becomes a column of two pseudo-element rules, each at the
 // authored thickness and colour, with an authored gap. Node-scoped so it out-specifies the

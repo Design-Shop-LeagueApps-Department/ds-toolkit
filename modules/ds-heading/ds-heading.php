@@ -242,7 +242,7 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'label'   => __( 'Sub-heading', 'ds-toolkit' ),
 						'default' => 'yes',
 						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'subheading', 'subheading_position', 'subheading_tag' ) ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'subheading', 'subheading_position', 'subheading_tag' ), 'sections' => array( 'style_sub' ) ) ),
 						'help'    => __( 'The small line above or below the heading (the eyebrow).', 'ds-toolkit' ),
 					),
 					'subheading' => array( 'type' => 'text', 'label' => __( 'Sub-heading Text', 'ds-toolkit' ), 'default' => 'Sub Heading', 'connections' => array( 'string' ) ),
@@ -257,9 +257,17 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'label'   => __( 'Description', 'ds-toolkit' ),
 						'default' => 'no',
 						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'description' ) ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'description' ), 'sections' => array( 'style_desc' ) ) ),
 					),
 					'description' => array( 'type' => 'editor', 'media_buttons' => false, 'wpautop' => false, 'label' => __( 'Description Text', 'ds-toolkit' ), 'rows' => 4, 'connections' => array( 'string' ), 'help' => __( 'Paragraph under the heading. Line breaks kept; basic inline HTML (e.g. <strong>, <a>) allowed. Use the connect (+) icon for a dynamic field.', 'ds-toolkit' ) ),
+					'divider_show' => array(
+						'type'    => 'select',
+						'label'   => __( 'Divider', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'sections' => array( 'divider' ) ) ),
+						'help'    => __( 'The short rule beside the sub-heading, or above / below the heading. Its look is on the Style tab. (Style 2\'s long line has its own settings.)', 'ds-toolkit' ),
+					),
 				),
 			),
 			'layout' => array(
@@ -314,21 +322,26 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 	'style'   => array(
 		'title'    => __( 'Style', 'ds-toolkit' ),
 		'sections' => array(
-			'colors' => array(
-				'title'  => __( 'Colours', 'ds-toolkit' ),
+			'style_heading' => array(
+				'title'  => __( 'Heading', 'ds-toolkit' ),
 				'fields' => array(
-					'heading_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
-					'heading_accent_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Accent {a}…{/a}', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
-					'subheading_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
-					'description_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Description', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'heading_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'heading_accent_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Accent Colour {a}…{/a}', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'heading_typography' => array( 'type' => 'typography', 'label' => __( 'Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-title' ) ),
 				),
 			),
-			'typography' => array(
-				'title'  => __( 'Typography', 'ds-toolkit' ),
+			'style_sub' => array(
+				'title'  => __( 'Sub-heading', 'ds-toolkit' ),
 				'fields' => array(
-					'heading_typography' => array( 'type' => 'typography', 'label' => __( 'Heading', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-title' ) ),
-					'subheading_typography' => array( 'type' => 'typography', 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-sub' ) ),
-					'description_typography' => array( 'type' => 'typography', 'label' => __( 'Description', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-desc' ) ),
+					'subheading_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'subheading_typography' => array( 'type' => 'typography', 'label' => __( 'Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-sub' ) ),
+				),
+			),
+			'style_desc' => array(
+				'title'  => __( 'Description', 'ds-toolkit' ),
+				'fields' => array(
+					'description_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'description_typography' => array( 'type' => 'typography', 'label' => __( 'Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-desc' ) ),
 				),
 			),
 			'endmark' => array(
@@ -339,9 +352,11 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						'label'   => __( 'Line', 'ds-toolkit' ),
 						'default' => 'single',
 						'options' => array( 'single' => __( 'Single Line', 'ds-toolkit' ), 'double' => __( 'Double Line', 'ds-toolkit' ) ),
-						'toggle'  => array( 'double' => array( 'fields' => array( 'style2_sep_gap', 'style2_sep_color1', 'style2_sep_color2' ) ) ),
+						'toggle'  => array( 'single' => array( 'fields' => array( 'style2_sep_color' ) ), 'double' => array( 'fields' => array( 'style2_sep_gap', 'style2_sep_color1', 'style2_sep_color2' ) ) ),
 						'help'    => __( 'Double Line stacks two rules of the same thickness in the separator\'s place, each with its own colour (blank = the divider colour). Existing modules stay on Single Line.', 'ds-toolkit' ),
 					),
+					'style2_sep_thick' => array( 'type' => 'unit', 'label' => __( 'Line Thickness', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 16, 'step' => 1 ), 'help' => __( 'Blank uses the Divider thickness (how Style 2 has always worked), so existing headings keep their line.', 'ds-toolkit' ) ),
+					'style2_sep_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Line Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank uses the Divider colour, then the site accent.', 'ds-toolkit' ) ),
 					'style2_sep_gap' => array(
 						'type'        => 'unit',
 						'label'       => __( 'Space Between Lines', 'ds-toolkit' ),
@@ -364,15 +379,7 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 			),
 			'divider' => array(
 				'title'  => __( 'Divider', 'ds-toolkit' ),
-				'collapsed' => true,
 				'fields' => array(
-					'divider_show' => array(
-						'type'    => 'select',
-						'label'   => __( 'Divider', 'ds-toolkit' ),
-						'default' => 'yes',
-						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'divider_type', 'divider_position', 'divider_style', 'divider_width', 'divider_width_unit', 'divider_thickness', 'divider_radius', 'divider_gap', 'divider_color', 'divider_image', 'divider_img_h' ) ) ),
-					),
 					'divider_type' => array(
 						'type'    => 'select',
 						'label'   => __( 'Divider Type', 'ds-toolkit' ),
