@@ -306,6 +306,7 @@ class DS_Toolkit_Admin {
                 $academy_pinned_label     = ! empty( $opts['academy_pinned_label'] ) ? $opts['academy_pinned_label'] : "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder";
                 $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );
                 $image_optimization_enabled = ! empty( $opts['image_optimization_enabled'] );
+                $pattern_library_enabled    = ! empty( $opts['ds_pattern_library_enabled'] );
                 $bot_shield_enabled           = ! empty( $opts['bot_shield_enabled'] );
                 $bot_shield_mode              = ( isset( $opts['bot_shield_mode'] ) && 'block' === $opts['bot_shield_mode'] ) ? 'block' : 'monitor';
                 $bot_shield_page_cap          = ! empty( $opts['bot_shield_page_cap'] ) ? (int) $opts['bot_shield_page_cap'] : 20;
