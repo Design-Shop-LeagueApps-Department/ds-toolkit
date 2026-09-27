@@ -191,6 +191,13 @@ class DS_Toolkit {
             'class'         => 'DS_Page_Banner',
             'min_blueprint' => 6,
         ),
+        // Theme Setting "Browse patterns": 330 tileable SVG patterns (pattern.monster, MIT) previewed in the site
+        // palette; a pick is written to uploads/ds-patterns/ and its URL goes in the field an uploaded image uses.
+        'ds_pattern_library_enabled' => array(
+            'file'          => 'features/class-ds-pattern-library.php',
+            'class'         => 'DS_Pattern_Library',
+            'min_blueprint' => 6,
+        ),
         'ds_content_router_module_enabled' => array(
             'file'          => 'features/class-ds-content-router.php',
             'class'         => 'DS_Content_Router',
@@ -466,6 +473,7 @@ class DS_Toolkit {
             $defaults['ds_device_module_enabled']     = 1;
             $defaults['image_optimization_enabled']   = 1;
             $defaults['page_banner_sync_enabled']     = 1;
+            $defaults['ds_pattern_library_enabled']   = 1;
             $defaults['ds_content_router_module_enabled'] = 1;
             $defaults['ds_info_list_module_enabled']  = 1;
             $defaults['ds_page_cards_module_enabled'] = 1;
