@@ -5,6 +5,8 @@ All notable changes to DS Toolkit are documented here.
 ---
 
 ## [Unreleased]
+### Fixed
+- **Home templates: only saved LAYOUT templates in the Home category are hidden** (pre-release audit 2026-09-27). The rule matched the category alone, so a global row or module a developer saved into "Home" was left out of every non-LeagueApps query, including Beaver Builder's global-node lookups, and visitors would have been served a stale copy. Hiding is now by the Home templates' IDs, and the capability check also accepts a post object. The template preview renders its CSS/JS inline and sends no-cache headers itself, so it never writes the front page's shared cache file. Apply, Revert and Save also need `edit_theme_options` (they rewrite the header, footer and site styles) and answer cleanly when Beaver Builder is off. The Features tab has a Home Page Templates switch (blueprint 7+). Theme Setting's Custom Code boxes are read-only, with a note, for accounts that cannot save code, instead of silently dropping the edit. `tests/home-templates-test.php`: 41 checks.
 ### Changed
 - **Home templates carry the page and archive banner layouts.** The page banner lives in the base Themer layouts (the singular layout and the archive layout), which every template shared, so a template could only restyle it with CSS. A template now carries those two layouts like its header and footer: Save site here captures them, Apply writes them, Revert restores them and Preview shows them, so each template keeps its own banner module settings (Alipio, 2026-09-27). Template cards list them as Page banner and Archive banner. A template saved before this has no copy and leaves them as they are.
 ### Added

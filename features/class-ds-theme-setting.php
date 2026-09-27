@@ -1304,12 +1304,13 @@ CSS;
 
                 <!-- CUSTOM CODE -->
                 <section class="dsts-section" id="dsts-sec-code" data-section="code" hidden>
-                    <div class="dsts-sec-head"><h2>Custom Code</h2><p>Site-wide code for this partner. CSS previews live; JavaScript runs only on the saved site.</p></div>
+                    <?php $code_ro = ! current_user_can( 'unfiltered_html' ) ? ' readonly' : ''; ?>
+                    <div class="dsts-sec-head"><h2>Custom Code</h2><p>Site-wide code for this partner. CSS previews live; JavaScript runs only on the saved site.<?php if ( $code_ro ) { echo ' <strong>Read-only for your account: saving custom code needs the unfiltered HTML permission.</strong>'; } ?></p></div>
                     <?php $this->card_open( 'CSS', 'Output in the <code>&lt;head&gt;</code>. No <code>&lt;style&gt;</code> tags needed.' ); ?>
-                        <textarea class="dsts-code" id="dsts-css-code" name="general[css_code]" spellcheck="false" placeholder="/* Custom CSS */"><?php echo esc_textarea( $mod( 'fl-css-code' ) ); ?></textarea>
+                        <textarea class="dsts-code" id="dsts-css-code" name="general[css_code]" spellcheck="false"<?php echo $code_ro; ?> placeholder="/* Custom CSS */"><?php echo esc_textarea( $mod( 'fl-css-code' ) ); ?></textarea>
                     <?php $this->card_close(); ?>
                     <?php $this->card_open( 'JavaScript', 'Output before <code>&lt;/body&gt;</code>. No <code>&lt;script&gt;</code> tags needed.' ); ?>
-                        <textarea class="dsts-code" id="dsts-js-code" name="general[js_code]" spellcheck="false" placeholder="// Custom JavaScript"><?php echo esc_textarea( $mod( 'fl-js-code' ) ); ?></textarea>
+                        <textarea class="dsts-code" id="dsts-js-code" name="general[js_code]" spellcheck="false"<?php echo $code_ro; ?> placeholder="// Custom JavaScript"><?php echo esc_textarea( $mod( 'fl-js-code' ) ); ?></textarea>
                     <?php $this->card_close(); ?>
                 </section>
 

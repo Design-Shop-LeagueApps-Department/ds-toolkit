@@ -50,6 +50,19 @@ remove_filter( 'ds_home_templates_hide_in_cli', '__return_true' );
 ht_is( 'a partner cannot open, edit or delete a Home template by ID', array( user_can( $partner, 'edit_post', $tpl ), user_can( $partner, 'delete_post', $tpl ), user_can( $partner, 'read_post', $tpl ) ), array( false, false, false ) );
 ht_is( 'a LeagueApps admin can edit it', user_can( $la, 'edit_post', $tpl ), true );
 ht_is( 'other templates are untouched for a partner', $other ? user_can( $partner, 'edit_post', $other[0] ) : true, true );
+// A global ROW saved into the Home category is not a Home template: visitors' global-node lookups must still find it.
+$row = wp_insert_post( array( 'post_type' => 'fl-builder-template', 'post_status' => 'publish', 'post_title' => 'HT test global row (temporary)' ) );
+wp_set_post_terms( $row, 'row', 'fl-builder-template-type' );
+$hc = get_term_by( 'slug', 'home', 'fl-builder-template-category' ); if ( $hc ) { wp_set_object_terms( $row, (int) $hc->term_id, 'fl-builder-template-category' ); }
+update_post_meta( $row, '_fl_builder_template_global', true );
+add_filter( 'ds_home_templates_hide_in_cli', '__return_true' );
+wp_set_current_user( $partner );
+$rq = new WP_Query( array( 'post_type' => 'fl-builder-template', 'posts_per_page' => -1, 'fields' => 'ids', 'post_status' => 'any' ) );
+$rp = array_map( 'intval', $rq->posts );
+remove_filter( 'ds_home_templates_hide_in_cli', '__return_true' );
+ht_is( 'a global row in the Home category stays visible to everyone, the Home layout does not', array( in_array( (int) $row, $rp, true ), in_array( (int) $tpl, $rp, true ) ), array( true, false ) );
+ht_is( 'a partner can still edit that row, and a WP_Post argument is handled', array( user_can( $partner, 'edit_post', $row ), user_can( $partner, 'edit_post', get_post( $tpl ) ) ), array( true, false ) );
+wp_delete_post( $row, true );
 
 /* ---- apply / revert on a temporary page ---- */
 wp_set_current_user( $la );

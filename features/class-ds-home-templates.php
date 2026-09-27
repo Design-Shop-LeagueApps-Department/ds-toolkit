@@ -88,9 +88,9 @@ class DS_Home_Templates {
 		return self::is_dev_host() && ! get_option( self::LAUNCHED );
 	}
 
-	/** Who may use the picker: LeagueApps users who can edit pages. */
+	/** Who may use the picker: LeagueApps users who can edit pages and the site's design (it rewrites the header, footer and site styles). */
 	public static function can_use() {
-		return class_exists( 'DS_Toolkit' ) && DS_Toolkit::is_leagueapps_user() && current_user_can( 'edit_pages' );
+		return class_exists( 'DS_Toolkit' ) && DS_Toolkit::is_leagueapps_user() && current_user_can( 'edit_pages' ) && current_user_can( 'edit_theme_options' );
 	}
 
 	/* ------------------------------------------- Hidden from non-LeagueApps users */
@@ -100,27 +100,57 @@ class DS_Home_Templates {
 		return $t ? (int) $t->term_id : 0;
 	}
 
+	/**
+	 * A Home template: a saved LAYOUT template in the "home" category. The type matters: a global row or module a
+	 * developer saves into the same category must stay visible, or Beaver Builder's global-node lookups (get_posts)
+	 * would miss it for visitors and they would get a stale copy (pre-release audit 2026-09-27).
+	 */
 	public static function is_home_template( $id ) {
-		$id = (int) $id;
-		return $id && 'fl-builder-template' === get_post_type( $id ) && has_term( self::CATEGORY, 'fl-builder-template-category', $id );
+		$id = is_object( $id ) ? (int) ( $id->ID ?? 0 ) : (int) $id;
+		return $id && 'fl-builder-template' === get_post_type( $id )
+			&& has_term( self::CATEGORY, 'fl-builder-template-category', $id )
+			&& has_term( 'layout', 'fl-builder-template-type', $id );
+	}
+
+	/** The Home templates' IDs, once per request. */
+	private static function home_ids() {
+		static $ids = null, $busy = false;
+		if ( null !== $ids ) { return $ids; }
+		if ( $busy ) { return array(); } // this lookup runs through pre_get_posts too
+		$busy = true;
+		$ids  = get_posts( array(
+			'post_type'        => 'fl-builder-template',
+			'post_status'      => 'any',
+			'posts_per_page'   => 200,
+			'fields'           => 'ids',
+			'no_found_rows'    => true,
+			'suppress_filters' => true,
+			'tax_query'        => array(
+				'relation' => 'AND',
+				array( 'taxonomy' => 'fl-builder-template-category', 'field' => 'slug', 'terms' => array( self::CATEGORY ) ),
+				array( 'taxonomy' => 'fl-builder-template-type', 'field' => 'slug', 'terms' => array( 'layout' ) ),
+			),
+		) );
+		$busy = false;
+		return $ids;
 	}
 
 	/** Leave Home templates out of every template query a non-LeagueApps user makes. */
 	public static function hide_from_others( $q ) {
+		$pt = $q->get( 'post_type' );
+		if ( ! in_array( 'fl-builder-template', (array) $pt, true ) ) { return; }
 		// Scripts (WP-CLI) see every template, unless a test asks for the web behaviour.
 		$cli = defined( 'WP_CLI' ) && WP_CLI && ! apply_filters( 'ds_home_templates_hide_in_cli', false );
 		if ( $cli || ( class_exists( 'DS_Toolkit' ) && DS_Toolkit::is_leagueapps_user() ) ) { return; }
-		$pt = $q->get( 'post_type' );
-		if ( ! in_array( 'fl-builder-template', (array) $pt, true ) ) { return; }
-		$rule = array( 'taxonomy' => 'fl-builder-template-category', 'field' => 'slug', 'terms' => array( self::CATEGORY ), 'operator' => 'NOT IN' );
-		$tq   = $q->get( 'tax_query' );
-		$q->set( 'tax_query', $tq ? array( 'relation' => 'AND', $tq, $rule ) : array( $rule ) );
+		$ids = self::home_ids();
+		if ( ! $ids ) { return; }
+		$q->set( 'post__not_in', array_values( array_unique( array_merge( array_map( 'intval', (array) $q->get( 'post__not_in' ) ), $ids ) ) ) );
 	}
 
 	/** And no reading, editing or deleting one by ID either. */
 	public static function deny_others( $caps, $cap, $user_id, $args ) {
 		if ( empty( $args[0] ) || ! in_array( $cap, array( 'edit_post', 'delete_post', 'read_post', 'publish_post' ), true ) ) { return $caps; }
-		if ( 'fl-builder-template' !== get_post_type( (int) $args[0] ) || ! has_term( self::CATEGORY, 'fl-builder-template-category', (int) $args[0] ) ) { return $caps; }
+		if ( ! self::is_home_template( $args[0] ) ) { return $caps; }
 		$u = get_userdata( $user_id );
 		if ( $u && class_exists( 'DS_Toolkit' ) && self::leagueapps_email( $u->user_email ) ) { return $caps; }
 		return array( 'do_not_allow' );
@@ -141,6 +171,7 @@ class DS_Home_Templates {
 			'post_type'        => 'fl-builder-template',
 			'post_status'      => 'publish',
 			'posts_per_page'   => 50,
+			'update_post_meta_cache' => false, // bundles are large; each is read only when needed
 			'orderby'          => 'menu_order title',
 			'order'            => 'ASC',
 			'suppress_filters' => false,
@@ -540,6 +571,7 @@ class DS_Home_Templates {
 	private function guard() {
 		check_ajax_referer( self::NONCE, 'nonce' );
 		if ( ! self::can_use() ) { wp_send_json_error( array( 'message' => 'Only LeagueApps users can change the home page layout here.' ), 403 ); }
+		if ( ! class_exists( 'FLBuilderModel' ) ) { wp_send_json_error( array( 'message' => 'Beaver Builder is not active.' ), 409 ); }
 	}
 
 	/* -------------------------------------------------------- Preview */
@@ -575,7 +607,10 @@ class DS_Home_Templates {
 			return (int) $post_id === $target ? $settings : $s;
 		}, 999, 3 );
 		self::preview_bundle( get_post_meta( $tpl, self::BUNDLE_META, true ) );
+		// The previewed layout's CSS/JS inline, never into the front page's shared cache file; and never cached.
+		add_filter( 'fl_builder_render_assets_inline', '__return_true', 999 );
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) { define( 'DONOTCACHEPAGE', true ); }
+		nocache_headers();
 	}
 
 	/** The template's header, footer (layout, settings, sticky / overlay) and design options, for this request. */
