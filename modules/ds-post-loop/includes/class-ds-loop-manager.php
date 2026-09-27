@@ -157,6 +157,22 @@ class DS_Loop_Manager {
 		return $o && $o->public && ! in_array( $o->name, array( 'post', 'page', 'attachment' ), true );
 	}
 
+	/**
+	 * Where this post type's entries are managed in the dashboard (Alipio 2026-09-27: "add link to post type post where
+	 * they manage post or the current post type ... because you cant control in beaver"): the Nested Pages screen when
+	 * Nested Pages manages the type, else WordPress's own list. Null when the user cannot edit that type.
+	 */
+	public static function manage_link( $pt ) {
+		$o = get_post_type_object( (string) $pt );
+		if ( ! $o || ! $o->show_ui || ! current_user_can( $o->cap->edit_posts ) ) { return null; }
+		$np  = get_option( 'nestedpages_posttypes' );
+		$url = ( class_exists( 'NestedPages' ) && is_array( $np ) && isset( $np[ $o->name ] ) )
+			? admin_url( 'admin.php?page=' . ( 'page' === $o->name ? 'nestedpages' : 'nestedpages-' . $o->name ) )
+			: admin_url( 'post' === $o->name ? 'edit.php' : 'edit.php?post_type=' . $o->name );
+		/* translators: %s: post type name, e.g. "Posts" */
+		return array( 'url' => $url, 'label' => sprintf( __( 'Open the %s list', 'ds-toolkit' ), $o->labels->name ) );
+	}
+
 	/* ------------------------------------------------------------- schema */
 
 	/** What the edit form shows for a post type: ACF fields, core parts, taxonomies. */
@@ -298,7 +314,11 @@ class DS_Loop_Manager {
 		check_ajax_referer( 'ds_loop_manager', 'nonce' );
 		if ( ! current_user_can( 'edit_posts' ) ) { wp_send_json_error( array( 'message' => __( 'You are not allowed to edit these entries.', 'ds-toolkit' ) ), 403 ); }
 		$pt = sanitize_key( wp_unslash( $_POST['post_type'] ?? '' ) );
-		if ( ! self::supported( $pt ) ) { wp_send_json_error( array( 'message' => __( 'This post type cannot be managed here.', 'ds-toolkit' ) ) ); }
+		if ( ! self::supported( $pt ) ) {
+			$o = get_post_type_object( $pt );
+			/* translators: %s: post type name, e.g. "Posts" */
+			wp_send_json_error( array( 'message' => $o ? sprintf( __( '%s are edited in the dashboard, not in this box.', 'ds-toolkit' ), $o->labels->name ) : __( 'This post type cannot be managed here.', 'ds-toolkit' ), 'manage' => self::manage_link( $pt ) ) );
+		}
 		$s = array();
 		foreach ( array( 'filter_tax', 'filter_terms', 'order_by', 'order' ) as $k ) { $s[ $k ] = sanitize_text_field( wp_unslash( $_POST['q'][ $k ] ?? '' ) ); }
 		foreach ( (array) ( $_POST['q'] ?? array() ) as $k => $v ) {
@@ -317,6 +337,7 @@ class DS_Loop_Manager {
 			'manual'    => 'menu_order' === ( $s['order_by'] ?? '' ),
 			'defaults'  => $tf ? array( $tf['taxonomy'] => self::term_ids( $tf ) ) : new stdClass(),
 			'canCreate' => current_user_can( get_post_type_object( $pt )->cap->create_posts ),
+			'manage'    => self::manage_link( $pt ),
 		) );
 	}
 

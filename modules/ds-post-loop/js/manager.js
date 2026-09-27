@@ -56,7 +56,7 @@
 	function post(action, data) {
 		return new Promise(function (resolve, reject) {
 			$.post(CFG.ajaxurl, $.extend({ action: action, nonce: CFG.nonce }, data)).done(function (r) {
-				if (r && r.success) { resolve(r.data); } else { reject(new Error((r && r.data && r.data.message) || 'Something went wrong.')); }
+				if (r && r.success) { resolve(r.data); } else { var err = new Error((r && r.data && r.data.message) || 'Something went wrong.'); err.data = r && r.data; reject(err); }
 			}).fail(function () { reject(new Error('The server did not answer. Try again.')); });
 		});
 	}
@@ -131,10 +131,12 @@
 			self.data = d; self.ch.pt = pt; self.ch.defaults = d.defaults || {};
 			self.base = {}; d.items.forEach(function (it) { self.base[String(it.id)] = it; });
 			self.render();
-		}).catch(function (e) { self.msg(e.message); });
+		}).catch(function (e) { self.msg(e.message, e.data && e.data.manage); });
 	};
 
-	Manager.prototype.msg = function (t) { this.$el.html('<p class="ds-lm-msg">' + esc(t) + '</p>'); };
+	/** A link to where the post type is managed in the dashboard (Nested Pages or the WordPress list), in a new tab. */
+	function manageLink(m) { return m && m.url ? '<a class="ds-lm-link" href="' + esc(m.url) + '" target="_blank" rel="noopener">' + esc(m.label) + ' \u2197</a>' : ''; }
+	Manager.prototype.msg = function (t, manage) { this.$el.html('<p class="ds-lm-msg">' + esc(t) + (manage ? ' ' + manageLink(manage) : '') + '</p>'); };
 
 	/** Keys in display order: the saved order, else the loop's, then new entries; trashed left out. */
 	Manager.prototype.keys = function () {
@@ -199,6 +201,7 @@
 				var b = self.base[String(id)]; return '<li>' + esc(b ? b.title : '#' + id) + ' <button type="button" class="ds-lm-link" data-act="restore" data-id="' + esc(parseInt(id, 10) || 0) + '">Restore</button></li>';
 			}).join('') + '</ul></div>';
 		}
+		if (this.data && this.data.manage) { h += '<p class="ds-lm-full">' + manageLink(this.data.manage) + '</p>'; }
 		this.$el.html(h);
 		keys.forEach(function (k) { self.renderRow(k); });
 		this.save(true);

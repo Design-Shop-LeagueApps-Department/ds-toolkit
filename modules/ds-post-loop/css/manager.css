@@ -73,3 +73,4 @@
 /* BB centres every panel label (label { align-items: center }); our field labels stack left. */
 .fl-builder-settings .ds-lm label.ds-lm-field { align-items: stretch !important; min-height: 0; font-size: 13px; font-weight: 400; }
 .fl-builder-settings .ds-lm label.ds-lm-check { align-items: center !important; min-height: 0; }
+.fl-builder-settings .ds-lm-full { margin: 10px 0 0; }
