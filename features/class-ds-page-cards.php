@@ -61,7 +61,7 @@ class DS_Page_Cards {
 		if ( ! $parent ) { return array(); }
 		$orderby = (string) ( $q['order_by'] ?? 'menu_order title' );
 		if ( ! in_array( $orderby, array( 'menu_order title', 'menu_order', 'title', 'date', 'modified' ), true ) ) { $orderby = 'menu_order title'; }
-		return get_posts( array(
+		$pages = get_posts( array(
 			'post_type'      => 'page',
 			'post_status'    => array( 'publish', 'draft' ),
 			'post_parent'    => $parent,
@@ -69,13 +69,20 @@ class DS_Page_Cards {
 			'order'          => ( 'DESC' === strtoupper( (string) ( $q['order'] ?? 'ASC' ) ) ) ? 'DESC' : 'ASC',
 			'posts_per_page' => max( 1, min( 200, absint( $q['limit'] ?? 50 ) ?: 50 ) ),
 		) );
+		// A draft is listed only to someone who may edit it (the parent can be any page the request names).
+		return array_values( array_filter( $pages, function ( $p ) { return 'publish' === $p->post_status || current_user_can( 'edit_post', $p->ID ); } ) );
+	}
+
+	/** A title as plain text for the panel, which escapes it itself (get_the_title() is already entity-encoded). */
+	private static function plain_title( $p ) {
+		return html_entity_decode( wp_strip_all_tags( get_the_title( $p ) ), ENT_QUOTES, 'UTF-8' );
 	}
 
 	private static function row( WP_Post $p ) {
 		$img = (int) get_post_thumbnail_id( $p->ID );
 		return array(
 			'id'      => $p->ID,
-			'title'   => wp_strip_all_tags( get_the_title( $p ) ),
+			'title'   => self::plain_title( $p ),
 			'img'     => $img,
 			'thumb'   => $img ? (string) wp_get_attachment_image_url( $img, 'medium' ) : '',
 			'canEdit' => current_user_can( 'edit_post', $p->ID ),
@@ -109,7 +116,8 @@ class DS_Page_Cards {
 		}
 		global $wpdb;
 		$last = (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(menu_order) FROM $wpdb->posts WHERE post_type = 'page' AND post_parent = %d AND post_status IN ('publish','draft','pending','private')", $parent ) );
-		$id = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_parent' => $parent, 'post_title' => $title, 'menu_order' => $last + 1, 'post_author' => get_current_user_id() ), true );
+		// wp_insert_post() unslashes its input: slash it, or a backslash in the title is lost.
+		$id = wp_insert_post( wp_slash( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_parent' => $parent, 'post_title' => $title, 'menu_order' => $last + 1, 'post_author' => get_current_user_id() ) ), true );
 		if ( is_wp_error( $id ) ) { wp_send_json_error( array( 'message' => $id->get_error_message() ), 500 ); }
 		wp_send_json_success( self::row( get_post( $id ) ) );
 	}
@@ -120,6 +128,10 @@ class DS_Page_Cards {
 		$id = absint( $_POST['page_id'] ?? 0 );
 		if ( ! $id || 'page' !== get_post_type( $id ) || ! current_user_can( 'publish_pages' ) || ! current_user_can( 'edit_post', $id ) ) {
 			wp_send_json_error( array( 'message' => __( 'You cannot publish that page.', 'ds-toolkit' ) ), 403 );
+		}
+		// Only a draft or pending page: never force a trashed, private or scheduled page live, or re-date a published one.
+		if ( ! in_array( get_post_status( $id ), array( 'draft', 'pending' ), true ) ) {
+			wp_send_json_error( array( 'message' => __( 'That page is not a draft any more. Reload the list.', 'ds-toolkit' ) ), 409 );
 		}
 		// Publish the way the editor does, not with wp_publish_post(): that only flips the status, so a draft made here went
 		// live with no slug (its card linked to the parent page and its own URL was a 404) and an empty GMT date. Publishing
@@ -140,7 +152,7 @@ class DS_Page_Cards {
 		wp_send_json_success( array(
 			'pages'     => array_map( array( __CLASS__, 'row' ), self::children( $post_id, $q ) ),
 			'canCreate' => $parent && 'page' === get_post_type( $parent ) && current_user_can( 'edit_post', $parent ) && current_user_can( 'edit_pages' ),
-			'parent'    => $parent ? wp_strip_all_tags( get_the_title( $parent ) ) : '',
+			'parent'    => $parent ? self::plain_title( $parent ) : '',
 		) );
 	}
 
@@ -158,7 +170,7 @@ class DS_Page_Cards {
 			delete_post_meta( $id, '_ds_banner_featured_touched' );
 		}
 		clean_post_cache( $id );
-		if ( class_exists( 'FLBuilderModel' ) ) { FLBuilderModel::delete_asset_cache( $id ); }
+		if ( class_exists( 'FLBuilderModel' ) ) { FLBuilderModel::delete_all_asset_cache( $id ); }
 		$host = absint( $_POST['post_id'] ?? 0 ); // the page showing the cards
 		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) {
 			WpeCommon::purge_varnish_cache( $id );
