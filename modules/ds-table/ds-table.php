@@ -72,7 +72,8 @@ class DS_Table_Module extends FLBuilderModule {
 		}
 		$google = FLBuilderFontFamilies::google();
 		foreach ( array_unique( array_filter( $families ) ) as $f ) {
-			if ( 'Default' === $f || ( isset( $google[ $f ] ) && ! in_array( '700', (array) $google[ $f ], true ) ) ) { continue; }
+			// Google fonts only (Typekit and custom fonts load their own weights; older BB would request them from Google).
+			if ( 'Default' === $f || ! isset( $google[ $f ] ) || ! in_array( '700', (array) $google[ $f ], true ) ) { continue; }
 			FLBuilderFonts::add_font( array( 'family' => $f, 'weight' => '700' ) );
 		}
 	}
@@ -270,7 +271,7 @@ function ds_table_ajax_reply( $id, array $rows, array $warnings = array(), $name
 add_action( 'wp_ajax_ds_table_upload', function () {
 	ds_table_ajax_guard();
 	$replace = isset( $_POST['replace_id'] ) ? absint( $_POST['replace_id'] ) : 0;
-	$store   = $replace || ! isset( $_POST['store'] ) || '0' !== (string) $_POST['store'];
+	$store   = $replace || ! isset( $_POST['store'] ) || '0' !== (string) wp_unslash( $_POST['store'] );
 	if ( $store && ! current_user_can( 'upload_files' ) ) {
 		wp_send_json_error( array( 'message' => __( 'Your account cannot upload files.', 'ds-toolkit' ) ), 403 );
 	}
@@ -286,6 +287,10 @@ add_action( 'wp_ajax_ds_table_upload', function () {
 		wp_send_json_error( array( 'message' => sprintf( __( 'The file is larger than %d MB.', 'ds-toolkit' ), (int) ( DS_Table_Data::MAX_BYTES / 1048576 ) ) ) );
 	}
 	$raw    = (string) file_get_contents( $f['tmp_name'] );
+	// A CSV never holds PHP: refuse it, so a script cannot be parked in uploads under a .csv name (new file or replace).
+	if ( preg_match( '/<\?(php|=)/i', $raw ) ) {
+		wp_send_json_error( array( 'message' => __( 'That file contains code, not table data.', 'ds-toolkit' ) ) );
+	}
 	$parsed = DS_Table_Data::parse_csv( $raw );
 	if ( ! $parsed['rows'] ) {
 		wp_send_json_error( array( 'message' => __( 'The file has no rows.', 'ds-toolkit' ) ) );
@@ -316,8 +321,10 @@ add_action( 'wp_ajax_ds_table_upload', function () {
 	require_once ABSPATH . 'wp-admin/includes/image.php';
 	// Some hosts sniff a CSV as text/plain; let the upload through as the CSV it is.
 	$allow = function ( $data, $file, $filename ) {
-		$e = strtolower( pathinfo( (string) $filename, PATHINFO_EXTENSION ) );
-		if ( in_array( $e, array( 'csv', 'tsv', 'txt' ), true ) && empty( $data['type'] ) ) {
+		$e    = strtolower( pathinfo( (string) $filename, PATHINFO_EXTENSION ) );
+		$real = function_exists( 'finfo_open' ) ? (string) finfo_file( finfo_open( FILEINFO_MIME_TYPE ), $file ) : 'text/plain';
+		// Only when the content really is text: never re-allow what core blanked because it sniffed HTML or PHP.
+		if ( in_array( $e, array( 'csv', 'tsv', 'txt' ), true ) && empty( $data['type'] ) && in_array( $real, array( 'text/plain', 'text/csv', 'application/csv' ), true ) ) {
 			$data['ext']  = $e;
 			$data['type'] = 'txt' === $e ? 'text/plain' : ( 'tsv' === $e ? 'text/tab-separated-values' : 'text/csv' );
 		}
@@ -335,6 +342,9 @@ add_action( 'wp_ajax_ds_table_upload', function () {
 /** Parse a CSV that is already in the Media Library (Choose from library, and the file-source preview). */
 add_action( 'wp_ajax_ds_table_parse', function () {
 	ds_table_ajax_guard();
+	if ( ! current_user_can( 'upload_files' ) ) {
+		wp_send_json_error( array( 'message' => __( 'Your account cannot read files from the Media Library.', 'ds-toolkit' ) ), 403 );
+	}
 	$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
 	if ( ! DS_Table_Data::is_csv_attachment( $id ) ) {
 		wp_send_json_error( array( 'message' => __( 'That file is not a CSV in the Media Library.', 'ds-toolkit' ) ) );
@@ -395,10 +405,15 @@ function ds_table_sources_in( $data ) {
 	return $out;
 }
 
+/** Post types a synced table can live in: 'any' leaves out Themer layouts and saved templates (exclude_from_search). */
+function ds_table_post_types() {
+	return array_values( array_unique( array_merge( array_values( get_post_types( array( 'public' => true ) ) ), array( 'fl-theme-layout', 'fl-builder-template' ) ) ) );
+}
+
 /** Published posts whose tables sync to this link or file. */
 function ds_table_posts_using( $kind, $value ) {
 	$ids = get_posts( array(
-		'post_type'      => 'any',
+		'post_type'      => ds_table_post_types(),
 		'post_status'    => 'publish',
 		'posts_per_page' => 200,
 		'fields'         => 'ids',
@@ -426,13 +441,13 @@ add_action( 'fl_builder_after_save_layout', function ( $post_id, $publish, $data
 }, 10, 3 );
 
 add_filter( 'cron_schedules', function ( $s ) {
-	$s['ds_table_5min'] = array( 'interval' => 300, 'display' => 'Every 5 minutes (DS Table sync)' );
+	$s['ds_table_5min'] = array( 'interval' => 300, 'display' => __( 'Every 5 minutes (DS Table sync)', 'ds-toolkit' ) );
 	return $s;
 } );
 
 add_action( 'ds_table_sync', function () {
 	$ids = get_posts( array(
-		'post_type'      => 'any',
+		'post_type'      => ds_table_post_types(),
 		'post_status'    => 'publish',
 		'posts_per_page' => 200,
 		'fields'         => 'ids',
@@ -450,7 +465,9 @@ add_action( 'ds_table_sync', function () {
 			$links[ $s[1] ][1][] = (int) $id;
 		}
 	}
+	$until = microtime( true ) + 20; // one run never ties up a PHP worker; what is left waits for the next run
 	foreach ( $links as $url => $l ) {
+		if ( microtime( true ) > $until ) { break; }
 		$got = DS_Table_Data::url_rows( $url, $l[0] );
 		if ( empty( $got['hash'] ) || ! empty( $got['stale'] ) ) { continue; } // the fetch failed: keep what visitors have
 		// Each post remembers the data its cached page was last cleared for, so it is cleared
@@ -464,6 +481,26 @@ add_action( 'ds_table_sync', function () {
 		}
 	}
 } );
+
+/** A visitor's render found an old copy: refresh it here, off the page view. */
+add_action( 'ds_table_refresh', function ( $url, $ttl ) {
+	DS_Table_Data::url_rows( (string) $url, (int) $ttl );
+}, 10, 2 );
+
+/** Once a day: drop kept copies of links that no published table syncs to any more (previews leave them behind). */
+add_action( 'ds_table_sync', function () {
+	if ( get_transient( 'ds_table_prune' ) ) { return; }
+	set_transient( 'ds_table_prune', 1, DAY_IN_SECONDS );
+	$keep = array();
+	foreach ( get_posts( array( 'post_type' => ds_table_post_types(), 'post_status' => 'any', 'posts_per_page' => 500, 'fields' => 'ids', 'meta_key' => '_ds_table_sources', 'no_found_rows' => true ) ) as $id ) { // phpcs:ignore WordPress.DB.SlowDBQuery
+		foreach ( (array) get_post_meta( $id, '_ds_table_sources', true ) as $s ) {
+			if ( is_array( $s ) && 'url' === $s[0] ) { $keep[ 'ds_table_last_' . md5( DS_Table_Data::csv_url( $s[1] ) ) ] = true; }
+		}
+	}
+	global $wpdb;
+	$names = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM $wpdb->options WHERE option_name LIKE %s LIMIT 500", $wpdb->esc_like( 'ds_table_last_' ) . '%' ) );
+	foreach ( $names as $n ) { if ( ! isset( $keep[ $n ] ) ) { delete_option( $n ); } }
+}, 20 );
 
 /* ---------------------------------------------------------------------
  * Settings form

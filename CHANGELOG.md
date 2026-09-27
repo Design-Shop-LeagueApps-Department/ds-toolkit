@@ -5,6 +5,18 @@ All notable changes to DS Toolkit are documented here.
 ---
 
 ## [Unreleased]
+### Security
+- **LeagueApps Table hardening from the pre-release audit (2026-09-27).**
+  - **Link fetch can no longer reach the server's own network.** `wp_safe_remote_get()` checks a host once and cURL then resolves it again, so a rebinding DNS name, an AAAA record for `::1` or a redirect could have made the server fetch an internal address and show it on a page. Each hop now resolves every A and AAAA address, refuses the request unless all are public (private, loopback, link-local and cloud metadata, CGNAT, NAT64 and reserved ranges refused), pins cURL to the checked address, and follows redirects by hand so each new host is checked. Error messages no longer echo network detail.
+  - **Uploads:** a `.csv` that contains PHP is refused on both a new upload and "Upload new version", and a file core blanked as HTML or PHP is no longer re-allowed as text. Reading a CSV from the Media Library needs `upload_files`, and only text-type attachments are read.
+  - **CSV export** (editor and server) prefixes an apostrophe on cells that would run as formulas in Excel (`=`, `+`, `-`, `@`), leaving plain numbers alone.
+### Changed
+- **Table defaults ON for Launchpad 7+ only**; older sites opt in on the Features tab, so a release adds nothing to a live site's builder, AJAX or cron. Its 5-minute sync job is cleared when the module is turned off.
+- **A visitor's page view never waits on a remote sheet** once a copy exists: it gets that copy and the refresh runs in the background. The CSS pass no longer resolves the source.
+### Fixed
+- **Synced tables in Themer layouts and saved rows stay current**: the sync job and "Upload new version" looked only at `post_type = any`, which leaves those out, and a layout's change now purges the whole page cache (its own URL is not where it shows). One sync run stops after 20 seconds; kept copies of links no table uses are pruned daily.
+- The cell budget applies even when the 5,000-row cap was also hit; two Content-Type headers no longer raise a PHP warning; `html_entity_decode()` passes its flags (same result on PHP 7.4 and 8.x); only Google fonts get a 700 weight request; the editor's hide rules are scoped to the Table's own settings form; editor messages are translatable.
+- `tests/table-security-test.php`: 29 checks (with the existing 100, 129 in all).
 ### Added
 - **LeagueApps Table: a Beaver Builder module for schedules, fees, rosters and standings. Not released yet: on branch `feat/table-module`, being tested on ds-launchpad-7** (Alipio, 2026-09-26: "an easy way to create table using beaver UI they can also upload CSV. make sure its ajax and well sync"). Sample: the Tryout Schedule section on ds-launchpad-7's Tryouts page.
   - **Three sources.** Rows typed into a spreadsheet-style editor inside the settings panel, a CSV file in the Media Library that the table stays synced to, or a CSV / Google Sheets link fetched on a timer (every 5 minutes to daily). In the editor, Tab and Enter move between cells, a block pasted from Excel or Google Sheets spreads across cells (adding rows and columns as needed), there are 40 steps of undo, row and column menus (insert, move, delete, align, keep on one line, hide on phones), CSV import (replace or add below) and export, and a full-screen mode for big tables. Every change reaches the builder preview without a reload.

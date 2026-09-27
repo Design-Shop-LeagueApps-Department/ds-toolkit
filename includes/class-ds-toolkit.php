@@ -451,10 +451,14 @@ class DS_Toolkit {
             $defaults['ds_content_router_module_enabled'] = 1;
             $defaults['ds_info_list_module_enabled']  = 1;
             $defaults['ds_page_cards_module_enabled'] = 1;
-            $defaults['ds_table_module_enabled']      = 1;
             $defaults['ds_team_detail_module_enabled'] = 1;
             $defaults['ds_builder_defaults_enabled']   = 1;
             $defaults['ds_admin_bar_links_enabled']    = 1;
+        }
+        // New modules default ON for new builds only (Launchpad 7+); older sites opt in on the Features tab, so a release
+        // adds nothing to a live site's builder, AJAX or cron (pre-release audit 2026-09-27).
+        if ( $bp >= 7 ) {
+            $defaults['ds_table_module_enabled'] = 1;
         }
 
         return $defaults;
@@ -544,6 +548,9 @@ class DS_Toolkit {
             // it handles install, version refresh, and removal-on-disable.
             require_once DS_TOOLKIT_PATH . 'includes/class-ds-origin-guard-installer.php';
             ( new DS_Origin_Guard_Installer( $settings ) )->sync();
+
+            // The Table module's 5-minute sync job stops with the module (its handler only loads while it is on).
+            if ( empty( $settings['ds_table_module_enabled'] ) && wp_next_scheduled( 'ds_table_sync' ) ) { wp_clear_scheduled_hook( 'ds_table_sync' ); }
         }
 
         $blueprint    = self::blueprint_version();

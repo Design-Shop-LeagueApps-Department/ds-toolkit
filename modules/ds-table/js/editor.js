@@ -97,7 +97,8 @@
 		return rows;
 	}
 	function toCSV(t) {
-		var line = function (cells) { return cells.map(function (v) { v = String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(','); };
+		// A cell starting = + - @ (not a plain number) would run as a formula in Excel: prefix an apostrophe.
+		var line = function (cells) { return cells.map(function (v) { v = String(v); if (/^[=+\-@\t\r]/.test(v) && isNaN(Number(v))) { v = "'" + v; } return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(','); };
 		var out = [line(t.cols.map(function (c) { return c.label; }))];
 		t.rows.forEach(function (r) { out.push(line(r)); });
 		return out.join('\r\n') + '\r\n';

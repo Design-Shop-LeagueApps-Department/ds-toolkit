@@ -153,7 +153,7 @@ class DS_Table_Data {
 		$wide = 0;
 		foreach ( $rows as $r ) { $wide = max( $wide, count( $r ) ); }
 		$fit = self::row_limit( $wide ) + 1;
-		if ( ! $cut && count( $rows ) > $fit ) {
+		if ( count( $rows ) > $fit ) {
 			$rows  = array_slice( $rows, 0, $fit );
 			$out['warnings'][] = sprintf( 'A table can hold %1$s cells, so only the first %2$d rows of this %3$d-column file were imported.', number_format( self::MAX_CELLS ), $fit - 1, $wide );
 		}
@@ -209,8 +209,10 @@ class DS_Table_Data {
 	/** Table -> CSV text (RFC 4180 quoting), for the editor's Export. */
 	public static function to_csv( array $table, $with_header = true ) {
 		$fh = fopen( 'php://temp', 'r+' );
-		if ( $with_header ) { fputcsv( $fh, wp_list_pluck( $table['cols'], 'label' ), ',', '"', '' ); }
-		foreach ( $table['rows'] as $r ) { fputcsv( $fh, $r, ',', '"', '' ); }
+		// A cell starting = + - @ (not a plain number) would run as a formula in Excel: prefix an apostrophe.
+		$safe = function ( $row ) { return array_map( function ( $v ) { $v = (string) $v; return ( '' !== $v && strpbrk( $v[0], "=+-@\t\r" ) && ! is_numeric( $v ) ) ? "'" . $v : $v; }, (array) $row ); };
+		if ( $with_header ) { fputcsv( $fh, $safe( wp_list_pluck( $table['cols'], 'label' ) ), ',', '"', '' ); }
+		foreach ( $table['rows'] as $r ) { fputcsv( $fh, $safe( $r ), ',', '"', '' ); }
 		rewind( $fh );
 		$csv = stream_get_contents( $fh );
 		fclose( $fh );
@@ -226,7 +228,8 @@ class DS_Table_Data {
 		$path = get_attached_file( $id );
 		if ( ! $path || ! is_readable( $path ) ) { return false; }
 		$ext  = strtolower( pathinfo( $path, PATHINFO_EXTENSION ) );
-		return in_array( $ext, array( 'csv', 'tsv', 'txt' ), true );
+		$mime = (string) get_post_mime_type( $id );
+		return in_array( $ext, array( 'csv', 'tsv', 'txt' ), true ) && in_array( $mime, array( 'text/csv', 'text/plain', 'text/tab-separated-values', 'application/csv', 'application/vnd.ms-excel' ), true );
 	}
 
 	/** A file's first MAX_BYTES + 1 bytes (enough for parse_csv to see it is too big). */
@@ -277,10 +280,10 @@ class DS_Table_Data {
 	 * minute. The last copy that loaded is kept with no expiry, so a failed or locked fetch
 	 * never renders (and page-caches) an empty table once the link has loaded once.
 	 */
-	public static function url_rows( $url, $ttl = 900, $force = false ) {
+	public static function url_rows( $url, $ttl = 900, $force = false, $wait = true ) {
 		$src = self::csv_url( $url );
 		if ( ! wp_http_validate_url( $src ) ) {
-			return array( 'rows' => array(), 'error' => 'Enter a full link starting with https://.' );
+			return array( 'rows' => array(), 'error' => __( 'Enter a full, public link starting with https://.', 'ds-toolkit' ) );
 		}
 		$ttl   = max( 60, (int) $ttl );
 		$h     = md5( $src );
@@ -294,25 +297,37 @@ class DS_Table_Data {
 		}
 		$old = self::last_good( $src );
 		if ( ! $force && ( get_transient( $fail ) || get_transient( $lock ) ) ) {
-			return $old ? $old + array( 'stale' => true ) : array( 'rows' => array(), 'error' => 'The link could not be read just now. It will be retried shortly.' );
+			return $old ? $old + array( 'stale' => true ) : array( 'rows' => array(), 'error' => __( 'The link could not be read just now. It will be retried shortly.', 'ds-toolkit' ) );
+		}
+		// A visitor's page view never waits on the remote host once a copy exists: it gets that copy and the
+		// refresh runs in the background (cron keeps published tables current anyway).
+		if ( ! $force && ! $wait && $old ) {
+			$args = array( (string) $url, $ttl );
+			if ( ! wp_next_scheduled( 'ds_table_refresh', $args ) ) { wp_schedule_single_event( time(), 'ds_table_refresh', $args ); }
+			return $old + array( 'stale' => true );
 		}
 		set_transient( $lock, 1, 30 );
-		// One byte over the limit, so parse_csv can tell a cut-off download from a file of exactly 2 MB.
-		$res = wp_safe_remote_get( $src, array( 'timeout' => 8, 'redirection' => 5, 'limit_response_size' => self::MAX_BYTES + 1, 'user-agent' => 'DS Toolkit Table; ' . home_url( '/' ) ) );
+		$res = self::fetch( $src );
 		delete_transient( $lock );
 
 		$err  = '';
 		$code = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
 		$body = is_wp_error( $res ) ? '' : (string) wp_remote_retrieve_body( $res );
-		$type = is_wp_error( $res ) ? '' : (string) wp_remote_retrieve_header( $res, 'content-type' );
+		$type = is_wp_error( $res ) ? '' : implode( ',', (array) wp_remote_retrieve_header( $res, 'content-type' ) );
 		if ( is_wp_error( $res ) ) {
-			$err = 'The link could not be reached (' . $res->get_error_message() . ').';
+			// No network detail in the message: it would tell an editor which internal hosts and ports exist.
+			$err = 'ds_table_blocked' === $res->get_error_code()
+				? __( 'That address is not allowed. Use a public https:// link to a CSV file or a Google Sheet.', 'ds-toolkit' )
+				: __( 'The link could not be reached. Check that it opens in a browser.', 'ds-toolkit' );
 		} elseif ( $code >= 400 ) {
-			$err = 'The link returned an error (HTTP ' . $code . ').';
+			/* translators: %d: HTTP status code */
+			$err = sprintf( __( 'The link returned an error (HTTP %d).', 'ds-toolkit' ), $code );
+		} elseif ( $code >= 300 ) {
+			$err = __( 'The link redirects too many times.', 'ds-toolkit' );
 		} elseif ( false !== stripos( $type, 'text/html' ) || preg_match( '/^\s*<(!doctype|html)/i', $body ) ) {
 			$err = false !== strpos( $src, 'docs.google.com' )
-				? 'Google returned a sign-in page, so the sheet is private. In the sheet: Share > General access > Anyone with the link can view (or File > Share > Publish to web > CSV).'
-				: 'The link returned a web page, not a CSV file.';
+				? __( 'Google returned a sign-in page, so the sheet is private. In the sheet: Share > General access > Anyone with the link can view (or File > Share > Publish to web > CSV).', 'ds-toolkit' )
+				: __( 'The link returned a web page, not a CSV file.', 'ds-toolkit' );
 		}
 		if ( $err ) {
 			set_transient( $fail, 1, MINUTE_IN_SECONDS );
@@ -324,6 +339,89 @@ class DS_Table_Data {
 		set_transient( $fresh, self::pack( $out ), DAY_IN_SECONDS );
 		update_option( 'ds_table_last_' . $h, self::pack( $out ), false );
 		return $out;
+	}
+
+	/**
+	 * GET a public http(s) link. wp_safe_remote_get() checks a host once and cURL then resolves it again, so a
+	 * rebinding DNS name, an AAAA record for ::1 or a redirect could reach this server's network. Here every hop
+	 * resolves ALL the host's addresses, refuses the request unless each one is public, pins cURL to the checked
+	 * address, and redirects are followed by hand so each new host is checked the same way (audit 2026-09-27).
+	 */
+	public static function fetch( $url ) {
+		$deadline = microtime( true ) + 12;
+		for ( $hop = 0; $hop <= 5; $hop++ ) {
+			$p      = wp_parse_url( $url );
+			$scheme = strtolower( (string) ( $p['scheme'] ?? '' ) );
+			$host   = strtolower( trim( (string) ( $p['host'] ?? '' ), '[]' ) );
+			$port   = (int) ( $p['port'] ?? ( 'https' === $scheme ? 443 : 80 ) );
+			if ( ! in_array( $scheme, array( 'http', 'https' ), true ) || '' === $host || isset( $p['user'] ) || ! in_array( $port, array( 80, 443, 8080 ), true ) ) {
+				return new WP_Error( 'ds_table_blocked', 'scheme, credentials or port' );
+			}
+			$ips = self::public_ips( $host );
+			if ( ! $ips ) { return new WP_Error( 'ds_table_blocked', 'not a public host' ); }
+			$ip  = $ips[0];
+			$pin = function ( $h ) use ( $host, $port, $ip ) {
+				if ( defined( 'CURLOPT_RESOLVE' ) ) { curl_setopt( $h, CURLOPT_RESOLVE, array( $host . ':' . $port . ':' . ( false !== strpos( $ip, ':' ) ? '[' . $ip . ']' : $ip ) ) ); } // phpcs:ignore WordPress.WP.AlternativeFunctions.curl_curl_setopt
+			};
+			add_action( 'http_api_curl', $pin );
+			// One byte over the limit, so parse_csv can tell a cut-off download from a file of exactly 2 MB.
+			$res = wp_safe_remote_get( $url, array(
+				'timeout'             => max( 2, min( 8, (int) ceil( $deadline - microtime( true ) ) ) ),
+				'redirection'         => 0,
+				'limit_response_size' => self::MAX_BYTES + 1,
+				'user-agent'          => 'DS Toolkit Table; ' . home_url( '/' ),
+			) );
+			remove_action( 'http_api_curl', $pin );
+			if ( is_wp_error( $res ) ) { return $res; }
+			$code = (int) wp_remote_retrieve_response_code( $res );
+			$loc  = wp_remote_retrieve_header( $res, 'location' );
+			$loc  = is_array( $loc ) ? (string) end( $loc ) : (string) $loc;
+			if ( $code < 300 || $code >= 400 || '' === $loc ) { return $res; }
+			if ( microtime( true ) > $deadline ) { return new WP_Error( 'ds_table_timeout', 'too slow' ); }
+			$url = WP_Http::make_absolute_url( $loc, $url );
+		}
+		return $res;
+	}
+
+	/** Every address a host resolves to, or [] when any of them is not public (or it does not resolve). */
+	public static function public_ips( $host ) {
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			$ips = array( $host );
+		} else {
+			$ips = array();
+			$rec = function_exists( 'dns_get_record' ) ? @dns_get_record( $host, DNS_A | DNS_AAAA ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			foreach ( (array) $rec as $r ) {
+				if ( ! empty( $r['ip'] ) ) { $ips[] = $r['ip']; }
+				if ( ! empty( $r['ipv6'] ) ) { $ips[] = $r['ipv6']; }
+			}
+			if ( ! $ips ) { $ips = (array) gethostbynamel( $host ); }
+		}
+		$ips = array_values( array_filter( $ips ) );
+		foreach ( $ips as $ip ) { if ( ! self::is_public_ip( $ip ) ) { return array(); } }
+		return $ips;
+	}
+
+	/** Public unicast only: not private, loopback, link-local (cloud metadata), CGNAT, reserved or IPv4-mapped private. */
+	public static function is_public_ip( $ip ) {
+		if ( preg_match( '/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i', (string) $ip, $m ) ) { $ip = $m[1]; }
+		if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) { return false; }
+		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+			$l = ip2long( $ip );
+			foreach ( array( '0.0.0.0/8', '100.64.0.0/10', '127.0.0.0/8', '169.254.0.0/16', '192.0.0.0/24', '198.18.0.0/15', '224.0.0.0/3' ) as $cidr ) {
+				list( $net, $bits ) = explode( '/', $cidr );
+				$mask = -1 << ( 32 - (int) $bits );
+				if ( ( $l & $mask ) === ( ip2long( $net ) & $mask ) ) { return false; }
+			}
+			return true;
+		}
+		$lc = strtolower( $ip );
+		return ! preg_match( '/^(::1?$|::\d|fe[89ab]|f[cd]|ff|64:ff9b:|2001:db8:)/', $lc ); // + NAT64, IPv4-compatible, documentation
+	}
+
+	/** An editor, an AJAX call, cron or WP-CLI may wait on a fetch; a visitor's page view may not. */
+	private static function may_wait() {
+		return is_admin() || wp_doing_ajax() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI )
+			|| ( class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active() );
 	}
 
 	/** The last copy of a link that loaded (no expiry), or null. */
@@ -372,7 +470,10 @@ class DS_Table_Data {
 		if ( ! $post_id ) { return; }
 		clean_post_cache( $post_id );
 		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) {
-			WpeCommon::purge_varnish_cache( $post_id );
+			// A Themer layout or saved template renders on other pages, which its own URL purge would miss.
+			in_array( get_post_type( $post_id ), array( 'fl-theme-layout', 'fl-builder-template' ), true )
+				? WpeCommon::purge_varnish_cache()
+				: WpeCommon::purge_varnish_cache( $post_id );
 		}
 		do_action( 'ds_table_purge_post', $post_id );
 	}
@@ -388,7 +489,7 @@ class DS_Table_Data {
 		if ( 'file' === $source || 'url' === $source ) {
 			$got = 'file' === $source
 				? self::file_rows( (int) ( $settings->csv_id ?? 0 ) )
-				: self::url_rows( (string) ( $settings->csv_url ?? '' ), self::ttl( $settings ) );
+				: self::url_rows( (string) ( $settings->csv_url ?? '' ), self::ttl( $settings ), false, self::may_wait() );
 			$meta  = array_merge( $meta, array_intersect_key( $got, array_flip( array( 'error', 'warnings', 'name', 'modified', 'fetched', 'stale' ) ) ) );
 			$table = self::from_rows( $got['rows'] ?? array(), 'no' !== ( $settings->csv_header ?? 'yes' ) );
 			foreach ( $table['cols'] as $i => &$c ) {
@@ -479,7 +580,7 @@ class DS_Table_Data {
 			// address inside one (https://x.org/?ref=coach@club.org).
 			$html = preg_replace_callback( '#\bhttps?://[^\s<>"\'\x1A]+[^\s<>"\'.,;:!?)\]\x1A]#i', function ( $m ) use ( &$slots ) {
 				$key           = "\x1A" . count( $slots ) . "\x1A";
-				$slots[ $key ] = self::anchor( html_entity_decode( $m[0] ), $m[0] );
+				$slots[ $key ] = self::anchor( html_entity_decode( $m[0], ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ), $m[0] );
 				return $key;
 			}, $html );
 			$html = preg_replace_callback( '/(?<![\w.@\/-])[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i', function ( $m ) {
@@ -501,7 +602,7 @@ class DS_Table_Data {
 	 * domain ("example.org/x", given https). Anything else (javascript:, data:) returns ''.
 	 */
 	public static function safe_url( $url ) {
-		$url = trim( html_entity_decode( (string) $url ) );
+		$url = trim( html_entity_decode( (string) $url, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401 ) );
 		if ( '' === $url ) { return ''; }
 		if ( preg_match( '#^/(?!/)#', $url ) ) {
 			$url = home_url( $url );

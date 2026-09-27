@@ -1,10 +1,10 @@
 /* LeagueApps Table: the spreadsheet editor in the Beaver Builder settings panel (js/editor.js). */
 
-.fl-builder-settings #fl-field-table_data,
-.fl-builder-settings #fl-field-csv_id { display: none !important; }
-.fl-builder-settings #fl-field-editor > th,
-.fl-builder-settings #fl-field-editor .fl-field-label { display: none; }
-.fl-builder-settings #fl-field-editor > td { padding-top: 4px; }
+.fl-builder-ds-table-settings #fl-field-table_data,
+.fl-builder-ds-table-settings #fl-field-csv_id { display: none !important; }
+.fl-builder-ds-table-settings #fl-field-editor > th,
+.fl-builder-ds-table-settings #fl-field-editor .fl-field-label { display: none; }
+.fl-builder-ds-table-settings #fl-field-editor > td { padding-top: 4px; }
 
 .ds-te {
 	--te-bg: #fff;

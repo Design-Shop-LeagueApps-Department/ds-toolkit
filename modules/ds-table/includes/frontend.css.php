@@ -72,7 +72,8 @@ foreach ( array( 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp 
 }
 
 /* ---------- per column (from the editor) ---------- */
-$table = $module->table();
+// Column options always come from the editor: never resolve (fetch or parse) the source just to write CSS.
+$table = DS_Table_Data::decode( $settings->table_data ?? '' );
 $hide  = false;
 foreach ( $table['cols'] as $i => $c ) {
 	$props = array();
