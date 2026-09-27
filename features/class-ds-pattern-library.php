@@ -115,8 +115,8 @@ class DS_Pattern_Library {
 	}
 
 	public function ajax_make() {
-		// Same gate as the Theme Setting page it serves: a LeagueApps user who can edit.
-		if ( ! check_ajax_referer( self::AJAX, 'nonce', false ) || ! current_user_can( 'edit_posts' ) || ! DS_Toolkit::is_leagueapps_user() ) {
+		// Same gate as the Theme Setting page it serves.
+		if ( ! check_ajax_referer( self::AJAX, 'nonce', false ) || ! class_exists( 'DS_Theme_Setting' ) || ! DS_Theme_Setting::can_access() ) {
 			wp_send_json_error( array( 'message' => 'forbidden' ), 403 );
 		}
 		$p = self::pattern( sanitize_key( wp_unslash( $_POST['slug'] ?? '' ) ) );

@@ -298,6 +298,7 @@ class DS_Toolkit_Admin {
                 $blueprint_version        = DS_Toolkit::blueprint_version();
                 $disable_comments_enabled = ! empty( $opts['disable_comments_enabled'] );
                 $theme_setting_enabled    = ! empty( $opts['theme_setting_enabled'] );
+                $theme_setting_all_users  = ! empty( $opts['theme_setting_all_users'] );
                 $admin_menu_tidy_enabled  = ! empty( $opts['admin_menu_tidy_enabled'] );
                 $user_roles_enabled       = ! empty( $opts['user_roles_enabled'] );
                 $partner_plugin_access    = ! empty( $opts['partner_plugin_access'] );
