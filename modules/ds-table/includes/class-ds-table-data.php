@@ -259,11 +259,14 @@ class DS_Table_Data {
 	public static function csv_url( $url ) {
 		$url = trim( (string) $url );
 		if ( preg_match( '#^https://docs\.google\.com/spreadsheets/(?:u/\d+/)?d/(e/)?([A-Za-z0-9_-]+)#', $url, $m ) ) {
-			$gid = preg_match( '/[#&?]gid=(\d+)/', $url, $g ) ? $g[1] : '0';
+			// A tab only when the link names one. Without it Google serves the published (or first) tab; "gid=0" is not
+			// "the first tab" but the tab whose ID is 0, which a sheet whose first tab was added later does not have, and
+			// Google answers 400 (Alipio 2026-09-27: a "Publish to web" CSV link that worked when pasted never synced).
+			$tab = preg_match( '/[#&?]gid=(\d+)/', $url, $g ) ? $g[1] : '';
 			if ( 'e/' === $m[1] ) { // published to the web
-				return 'https://docs.google.com/spreadsheets/d/e/' . $m[2] . '/pub?gid=' . $gid . '&single=true&output=csv';
+				return 'https://docs.google.com/spreadsheets/d/e/' . $m[2] . '/pub?' . ( '' !== $tab ? 'gid=' . $tab . '&single=true&' : '' ) . 'output=csv';
 			}
-			return 'https://docs.google.com/spreadsheets/d/' . $m[2] . '/export?format=csv&gid=' . $gid;
+			return 'https://docs.google.com/spreadsheets/d/' . $m[2] . '/export?format=csv' . ( '' !== $tab ? '&gid=' . $tab : '' );
 		}
 		return $url;
 	}

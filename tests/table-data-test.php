@@ -66,7 +66,9 @@ dst_is( '12 AM is midnight', DS_Table_Data::time_minutes( '12:30 AM' ), 30 );
 
 /* ---- Google Sheets links ---- */
 dst_is( 'share link -> CSV export (with tab)', DS_Table_Data::csv_url( 'https://docs.google.com/spreadsheets/d/1AbC-xyz_09/edit#gid=123456' ), 'https://docs.google.com/spreadsheets/d/1AbC-xyz_09/export?format=csv&gid=123456' );
-dst_is( 'share link without a tab -> first tab', DS_Table_Data::csv_url( 'https://docs.google.com/spreadsheets/d/1AbC/edit?usp=sharing' ), 'https://docs.google.com/spreadsheets/d/1AbC/export?format=csv&gid=0' );
+dst_is( 'share link without a tab -> first tab (no gid: gid=0 is a tab ID, not "the first tab")', DS_Table_Data::csv_url( 'https://docs.google.com/spreadsheets/d/1AbC/edit?usp=sharing' ), 'https://docs.google.com/spreadsheets/d/1AbC/export?format=csv' );
+dst_is( 'published CSV link without a tab stays as published', DS_Table_Data::csv_url( 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8u/pub?output=csv' ), 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8u/pub?output=csv' );
+dst_is( 'published web page without a tab -> CSV of the published tab', DS_Table_Data::csv_url( 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8u/pubhtml' ), 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8u/pub?output=csv' );
 dst_is( 'published link -> CSV output', DS_Table_Data::csv_url( 'https://docs.google.com/spreadsheets/d/e/2PACX-1v/pubhtml?gid=7' ), 'https://docs.google.com/spreadsheets/d/e/2PACX-1v/pub?gid=7&single=true&output=csv' );
 dst_is( 'other links unchanged', DS_Table_Data::csv_url( 'https://example.org/schedule.csv' ), 'https://example.org/schedule.csv' );
 
