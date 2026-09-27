@@ -282,3 +282,12 @@
 @media (prefers-reduced-motion:reduce){
   .ds-hero--style3 .ds-peek-track{transition:none !important;}
 }
+
+/* SEO tags (1.10.5): the eyebrow and headline can render as H1-H6 / P / DIV / Span. Global Styles
+   style headings as `.fl-builder-content hN` (0,1,1), which outranks the single-class rules above,
+   so these re-pin each element's own look at (0,1,2). Two-class hero rules and the module's Style
+   settings (0,2,0) still win. The headline's H1 typography is re-applied per module in
+   frontend.css.php. */
+html .ds-hero-eyebrow:is(h1,h2,h3,h4,h5,h6,p,div){font-family:inherit;font-size:.74rem;font-weight:700;font-style:inherit;line-height:inherit;letter-spacing:.28em;text-transform:uppercase;text-decoration:none;text-align:inherit;color:var(--fl-global-primary,#7ee29a);margin:0;}
+html .ds-banner-eyebrow:is(h1,h2,h3,h4,h5,h6,p,div){font-family:inherit;font-size:.72rem;font-weight:700;font-style:inherit;line-height:inherit;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;text-align:inherit;color:var(--fl-global-accent,#188830);margin:0 0 10px;}
+html .ds-hero-title:is(h2,h3,h4,h5,h6,p,div,span){display:block;font-size:clamp(3.4rem,10vw,8rem);line-height:.92;text-transform:uppercase;letter-spacing:.01em;font-weight:700;font-style:normal;text-decoration:none;text-align:inherit;color:var(--fl-global-white,#fff);margin:20px 0 0;}
