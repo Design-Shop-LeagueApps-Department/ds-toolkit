@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.1] - 2026-09-28
+### Fixed
+- **Post Loop: Manage entries lists entries in the same order the loop shows them.** When entries tie on the sort field (every staff entry at menu order 0, the usual case until someone drags them), the loop's query left the tie to the database, which returned the oldest first, while the Manage entries panel broke ties newest first. On dslaunchpad7's Staff page a new entry sat at the top of the panel and at the bottom of the page. Both now sort by the loop's field, then by ID ascending, which is what the database already returned, so no live page changes order.
+
 ## [1.10.0] - 2026-09-28
 First published as 1.9.167 the same day and renumbered to 1.10.0 for its new modules (Table, Device, Home templates, Pattern library, Loop manager) and security changes. The code is identical to 1.9.167 apart from the version number.
 

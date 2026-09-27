@@ -354,6 +354,13 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			'ignore_sticky_posts' => true,
 			'no_found_rows'       => true,
 		);
+		// Ties (every entry at menu_order 0, two posts at the same minute) need a fixed tiebreak, or the database
+		// picks one and the Manage entries list can show another. ID ascending is what MySQL returned for ties
+		// before, so no live page changes order; DS_Loop_Manager::list_posts() uses the same rule.
+		if ( in_array( $ob, array( 'date', 'title', 'menu_order', 'modified' ), true ) ) {
+			$args['orderby'] = array( $ob => $order, 'ID' => 'ASC' );
+			unset( $args['order'] );
+		}
 
 		// On a single view, optionally drop the post being viewed so a "More News /
 		// Related" strip never relists the current article.
