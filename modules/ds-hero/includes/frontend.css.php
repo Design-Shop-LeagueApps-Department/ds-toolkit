@@ -191,9 +191,9 @@ if ( 'style2' === $style ) {
 
 	// Breadcrumbs colour + typography.
 	$bc = $col( $settings->breadcrumbs_color ?? '' );
-	if ( '' !== $bc ) { echo "$node .ds-hero .ds-banner-crumbs, $node .ds-hero .ds-banner-crumbs a, $node .ds-hero .ds-banner-crumbs .breadcrumb_last { color: {$bc}; }\n"; }
+	if ( '' !== $bc ) { echo "$node .ds-hero .ds-banner-crumbs, $node .ds-hero .ds-banner-crumbs a, $node .ds-hero .ds-banner-crumbs .breadcrumb_last, $node .ds-banner-edge .ds-banner-crumbs, $node .ds-banner-edge .ds-banner-crumbs a, $node .ds-banner-edge .ds-banner-crumbs .breadcrumb_last { color: {$bc}; }\n"; }
 	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $settings->breadcrumbs_typography ) ) {
-		FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'breadcrumbs_typography', 'selector' => "$node .ds-hero .ds-banner-crumbs" ) );
+		FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'breadcrumbs_typography', 'selector' => "$node .ds-hero .ds-banner-crumbs, $node .ds-banner-edge .ds-banner-crumbs" ) );
 	}
 
 	// ---- Shape & Accent Line (Style > Shape & Accent Line) and the pill breadcrumb (Breadcrumbs Style = Pill) ----
@@ -217,6 +217,22 @@ if ( 'style2' === $style ) {
 		echo "$node .ds-hero .ds-banner-crumbs--pill { display: inline-block; padding: 8px 20px; border-radius: 999px; background: " . ( '' !== $pbg ? $pbg : 'rgba(255, 255, 255, .1)' ) . '; border: 1px solid ' . ( '' !== $pbd ? $pbd : 'rgba(255, 255, 255, .28)' ) . "; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }\n";
 		// Clear of the title it sits under (Position = Below) or over (Top).
 		echo "$node .ds-hero .ds-banner-crumbs--pill { " . ( ( $settings->breadcrumbs_position ?? 'top' ) === 'below' ? 'margin-top: 24px' : 'margin-bottom: 20px' ) . "; }\n";
+	}
+	if ( ( $settings->breadcrumbs_style ?? 'plain' ) === 'tab' ) {
+		$tbg = $col( $settings->breadcrumbs_pill_bg ?? '' );
+		echo "$node .ds-banner-crumbs--tab { display: inline-block; padding: 10px 30px; color: var(--fl-global-white, #fff); background: " . ( '' !== $tbg ? $tbg : 'var(--fl-global-dark-background)' ) . "; clip-path: polygon(12px 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }\n";
+		echo "$node .ds-banner-crumbs--tab a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }\n";
+		echo "@media (max-width:{$bpr}px){ $node .ds-banner-crumbs--tab { padding: 8px 20px; } }\n";
+	}
+	if ( ( $settings->breadcrumbs_position ?? 'top' ) === 'edge' ) {
+		$just = array( 'left' => 'flex-start', 'right' => 'flex-end' )[ $settings->banner_align ?? 'center' ] ?? 'center';
+		echo "$node .ds-banner-edge { position: relative; z-index: 3; display: flex; justify-content: {$just}; height: 0; padding: 0 20px; }\n";
+		foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+			$lv = $settings->{ 'breadcrumbs_edge_lift' . $sfx } ?? '';
+			if ( '' === $lv || null === $lv ) { if ( '' !== $sfx ) { continue; } $lv = 30; }
+			$rule = "$node .ds-banner-edge > .ds-banner-crumbs { margin-top: -" . max( 0, (int) $lv ) . 'px; align-self: flex-start; }';
+			echo ( '' === $sfx ) ? "$rule\n" : "@media (max-width:{$bp}px){ $rule }\n";
+		}
 	}
 
 	// Default the banner text to the Theme Setting global typography (heading + body),

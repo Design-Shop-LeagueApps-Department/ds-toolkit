@@ -434,10 +434,11 @@ class DS_Hero_Module extends FLBuilderModule {
 		// Yoast breadcrumbs (optional, top or below the text).
 		$crumbs = '';
 		if ( ( $s->show_breadcrumbs ?? 'no' ) === 'yes' && function_exists( 'yoast_breadcrumb' ) ) {
-			$pill   = ( $s->breadcrumbs_style ?? 'plain' ) === 'pill' ? ' ds-banner-crumbs--pill' : '';
+			$cstyle = (string) ( $s->breadcrumbs_style ?? 'plain' );
+			$pill   = in_array( $cstyle, array( 'pill', 'tab' ), true ) ? ' ds-banner-crumbs--' . $cstyle : '';
 			$crumbs = yoast_breadcrumb( '<nav class="ds-banner-crumbs' . $pill . '" aria-label="' . esc_attr__( 'Breadcrumb', 'ds-toolkit' ) . '">', '</nav>', false );
 		}
-		$crumb_pos = in_array( $s->breadcrumbs_position ?? 'top', array( 'top', 'below' ), true ) ? ( $s->breadcrumbs_position ?? 'top' ) : 'top';
+		$crumb_pos = in_array( $s->breadcrumbs_position ?? 'top', array( 'top', 'below', 'edge' ), true ) ? ( $s->breadcrumbs_position ?? 'top' ) : 'top';
 
 		echo '<div class="ds-hero-wrap"><div class="ds-hero-inner">';
 		if ( '' !== $crumbs && 'top' === $crumb_pos ) { echo $crumbs; }
@@ -446,6 +447,9 @@ class DS_Hero_Module extends FLBuilderModule {
 		if ( '' !== $sub )     { echo '<div class="ds-hero-sub">' . wpautop( wp_kses_post( $sub ) ) . '</div>'; }
 		if ( '' !== $crumbs && 'below' === $crumb_pos ) { echo $crumbs; }
 		echo '</div></div></section>';
+		// On the bottom edge: drawn after the banner, so a shaped or clipped banner edge never cuts it; lifted back over
+		// the edge by Breadcrumbs Lift (Style > Colours), and it takes no space of its own.
+		if ( '' !== $crumbs && 'edge' === $crumb_pos ) { echo '<div class="ds-banner-edge">' . $crumbs . '</div>'; }
 	}
 	/* ------------------------------------------- Style 3 — Peek Slider (GH #160) */
 
@@ -1002,14 +1006,14 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'help'    => __( 'Shows the Yoast SEO breadcrumb trail. Enable Yoast breadcrumbs under SEO → Settings → Breadcrumbs.', 'ds-toolkit' ),
 						'toggle'  => array( 'yes' => array( 'fields' => array( 'breadcrumbs_position', 'breadcrumbs_style' ) ) ),
 					),
-					'breadcrumbs_position' => array( 'type' => 'select', 'label' => __( 'Breadcrumbs Position', 'ds-toolkit' ), 'default' => 'top', 'options' => array( 'top' => __( 'Top (above heading)', 'ds-toolkit' ), 'below' => __( 'Below (under description)', 'ds-toolkit' ) ) ),
+					'breadcrumbs_position' => array( 'type' => 'select', 'label' => __( 'Breadcrumbs Position', 'ds-toolkit' ), 'default' => 'top', 'options' => array( 'top' => __( 'Top (above heading)', 'ds-toolkit' ), 'below' => __( 'Below (under description)', 'ds-toolkit' ), 'edge' => __( 'On the bottom edge', 'ds-toolkit' ) ), 'toggle' => array( 'edge' => array( 'fields' => array( 'breadcrumbs_edge_lift' ) ) ) ),
 					'breadcrumbs_style'    => array(
 						'type'    => 'select',
 						'label'   => __( 'Breadcrumbs Style', 'ds-toolkit' ),
 						'default' => 'plain',
-						'options' => array( 'plain' => __( 'Plain text', 'ds-toolkit' ), 'pill' => __( 'Pill (glass)', 'ds-toolkit' ) ),
-						'help'    => __( 'Pill sets the trail in a rounded, frosted capsule. Its colours are under Style > Colours.', 'ds-toolkit' ),
-						'toggle'  => array( 'pill' => array( 'fields' => array( 'breadcrumbs_pill_bg', 'breadcrumbs_pill_border' ) ) ),
+						'options' => array( 'plain' => __( 'Plain text', 'ds-toolkit' ), 'pill' => __( 'Pill (glass)', 'ds-toolkit' ), 'tab' => __( 'Tab (slanted)', 'ds-toolkit' ) ),
+						'help'    => __( 'Pill sets the trail in a rounded, frosted capsule; Tab in a solid slanted tab with underlined links. Their colours are under Style > Colours.', 'ds-toolkit' ),
+						'toggle'  => array( 'pill' => array( 'fields' => array( 'breadcrumbs_pill_bg', 'breadcrumbs_pill_border' ) ), 'tab' => array( 'fields' => array( 'breadcrumbs_pill_bg' ) ) ),
 					),
 				),
 			),
@@ -1416,7 +1420,8 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'banner_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = automatic: light on a photo, dark on a plain background.', 'ds-toolkit' ) , 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero--banner .ds-hero-title', 'property' => 'color' ) ),
 					'banner_sub_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Subtitle Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true , 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero--banner .ds-hero-sub', 'property' => 'color' ) ),
 					'breadcrumbs_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = automatic (light on a photo, muted on a plain background).', 'ds-toolkit' ) , 'preview' => array( 'type' => 'css', 'selector' => '.ds-banner-crumbs, .ds-banner-crumbs a, .ds-banner-crumbs .breadcrumb_last', 'property' => 'color' ) ),
-					'breadcrumbs_pill_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Pill Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = a light frosted glass (white at 10%).', 'ds-toolkit' ) ),
+					'breadcrumbs_pill_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Pill / Tab Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = frosted glass (white at 10%) for the pill, the Dark Background colour for the tab.', 'ds-toolkit' ) ),
+					'breadcrumbs_edge_lift'   => array( 'type' => 'unit', 'label' => __( 'Breadcrumbs Lift', 'ds-toolkit' ), 'default' => '30', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 120, 'step' => 1 ), 'help' => __( 'On the bottom edge: how far the breadcrumbs rise over the banner\'s lower edge. 0 hangs them just below it.', 'ds-toolkit' ) ),
 					'breadcrumbs_pill_border' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Pill Border', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = white at 28%.', 'ds-toolkit' ) ),
 				),
 			),
