@@ -99,11 +99,12 @@ class DS_Page_Banner {
 			'class'   => 'fl-builder-button-silent',
 			'onclick' => 'window.dsBannerImage && window.dsBannerImage.toggle(this); return false;',
 		) );
-		// Beside the other icons, just before the + (content panel).
+		// Between the cloud (Assistant) and the + (Alipio). The bar lays its buttons out right to left, so
+		// "after the + in the array" is "left of the + on screen".
 		$out = array();
 		foreach ( $buttons as $slug => $b ) {
-			if ( 'content-panel' === $slug ) { $out += $button; }
 			$out[ $slug ] = $b;
+			if ( 'content-panel' === $slug ) { $out += $button; }
 		}
 		return isset( $out['ds-banner-image'] ) ? $out : $buttons + $button;
 	}
