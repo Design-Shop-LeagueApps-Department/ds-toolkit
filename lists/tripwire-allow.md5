@@ -92,3 +92,10 @@ ed82f9944e6a0550d957ced39a475fd6  marylandjr mu-plugins/ds-banner-featured-wins.
 ca0353bb671d790e7e2e91859df79bd7  wp-file-manager 8.0.1 file_folder_manager.php - 87231b, cjva.org. DIFF-verified vs the official 8.0.6 zip (8.0.1 is a 404): declares "Version: 8.0.1" and $ver="8.0.1", site-unique lines are real plugin code (REST backup routes, deactivate_file_manager_pro). Marker counts identical to official: mail( 1/1, base64_decode 4/4, eval 0/0, move_uploaded_file 0/0
 c1f2353438390926982bc2a9ae49e1b5  wp-file-manager 8.0.1 lib/php/elFinder.class.php - 186887b, cjva.org. DIFF-verified vs official 8.0.6: carries $ApiRevision=60 where 8.0.6 has 66, i.e. genuine older upstream elFinder. Markers identical: eval 0/0, base64_decode 5/5, move_uploaded_file 1/1, proc_open 3/3, file_put_contents 4/4, mail 0/0
 05764c33fb028fd2745dbeb8e24b37e9  wp-file-manager 8.0.6 file_folder_manager.php - 116047b, BYTE-IDENTICAL to the current wordpress.org zip. Live on beachfutbolclub.com and fairfaxadultsoftball.com (both WPE)
+# --- 2026-09-27: pixelyoursite class-pys.php, versions 3 and 4. The list already held 11.4.0 and
+# --- 11.4.1; brsoccer.org runs 11.4.2 and alerted CRIT (105: "sniffs crawler UA/referer then
+# --- redirects (doorway)" + "injects a Search Console verification meta AND touches user/admin
+# --- state"). That is what a pixel/analytics plugin does. Harvested straight from the vendor zips,
+# --- so both are byte-identical by construction. 11.4.2.1 ships the SAME file as 11.4.2.
+84e96086fae46baad557a51dcf24e3c4  pixelyoursite 11.4.2 AND 11.4.2.1 includes/class-pys.php - 69898b, byte-identical to both wordpress.org zips (the file is unchanged between the two releases). Site: brsoccer.org
+ac359df9a8f30f081ba7d00467848c5b  pixelyoursite 11.3.1 includes/class-pys.php - 61578b, byte-identical to the wordpress.org zip. Added ahead of need: the fleet runs several versions of this plugin and each one is a separate hash
