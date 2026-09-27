@@ -313,7 +313,9 @@ class DS_CTA_Module extends FLBuilderModule {
 			$cbg   = DS_Module_UI::color( $cell->cell_bg ?? '' );
 			if ( '' !== $cbg ) { $style .= 'background:' . $cbg . ';'; }
 			$ctx = DS_Module_UI::color( $cell->cell_text ?? '' );
-			if ( '' !== $ctx ) { $style .= 'color:' . $ctx . ';'; }
+			// The title and description carry their own colours, and only inherit the card's colour under a Treatment; the
+			// --ctext class lets a card's Text Colour reach them on Automatic too.
+			if ( '' !== $ctx ) { $style .= 'color:' . $ctx . ';'; $cls .= ' ds-cta-bento-cell--ctext'; }
 
 			if ( 'text' === $type ) {
 				// Markup order and nesting kept identical to before — the existing

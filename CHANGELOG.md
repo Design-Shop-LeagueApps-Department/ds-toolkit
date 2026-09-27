@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [Unreleased]
+### Fixed
+- **CTA Bento: a card's Text Colour did nothing on the Automatic treatment.** The colour was set on the card, but the title and description carry their own colours and only inherited the card's under a Dark, Light or Accent treatment, so on Automatic (the default) the setting silently had no effect. Found on ds-launchpad-7's Home 3 (2026-09-27): a white Text Colour on a photo card left its description the default grey `#c7ccd2`, 3.3:1 over the photo; with the fix it is white, 5.3:1. A card gets the new `ds-cta-bento-cell--ctext` class only when a Text Colour is set, so cards without one render exactly as before.
+
 ## [1.9.166] - 2026-09-27
 ### Fixed
 - **The `.htaccess` allow-list finding named innocent WordPress files when run from the CLI on Flywheel.** The rule counts allow-listed filenames that are not present on disk, and Flywheel symlinks core: `wp-config.php` sits at `/www` while `ABSPATH` is `/www/.wordpress`. In-plugin that is covered, because `ABSPATH` is defined, which is why the real scan on shoreshots.org correctly reported 30. From the CLI (`fw-clean-site`, or a manual run) `ABSPATH` is undefined, only `$dir/wp-admin` was tried, nothing resolved, and southorlandobaberuth.com reported *"93 of them are not present on disk (admin-ajax.php, admin-footer.php, admin-functions.php, ...)"* - naming the genuine WordPress files, which is the same misleading-message failure this rule had already been corrected for once. It now also tries `$dir/.wordpress`, and the same file reports **"32 of them are not present on disk (adminfuns.php, chtmlfuns.php, cjfuns.php, ...)"**, which is the attacker's appended set and matches a hand count exactly.
