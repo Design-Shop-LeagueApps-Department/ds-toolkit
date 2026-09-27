@@ -840,7 +840,7 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'hide'    => array(
 							'style1' => array( 'fields' => array( 'breadcrumbs_typography' ) ),
 							'style2' => array( 'fields' => array( 'eyebrow_typography' ) ),
-							'style3' => array( 'fields' => array( 'container_width', 'padding' ) ),
+							'style3' => array( 'fields' => array( 'container_width', 'container_max_width', 'padding' ) ),
 						),
 					),
 				),

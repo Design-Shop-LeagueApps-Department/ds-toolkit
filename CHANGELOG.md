@@ -5,6 +5,8 @@ All notable changes to DS Toolkit are documented here.
 ---
 
 ## [Unreleased]
+### Fixed
+- **Hero Banner form: Style 3 no longer shows an orphan Max Width control** (its Container Width is hidden there, but a hide rule does not cascade to that select's own toggle target; pre-release audit 2026-09-27).
 ### Changed
 - **Page Banner breadcrumbs: Tab style and On the bottom edge.** Breadcrumbs Style gains Tab (slanted): a solid parallelogram tab with underlined links, background under Colours. Breadcrumbs Position gains On the bottom edge: the trail is drawn just after the banner, so a shaped or clipped edge never cuts it, and lifted back over the edge by Breadcrumbs Lift (per device). Rebuilt Home 3's breadcrumb tab from these settings instead of template CSS (Alipio 2026-09-27), pixel-identical on desktop and archives.
 - **Page Banner follows each page's focus point.** The page banner's photo (or video) is positioned on the page's saved focal point (`_ds_banner_focal`, set in the builder's Page Banner Image panel), so the part that matters stays in view however the banner crops it on desktop, tablet or phone. Centre (the default) adds nothing, so existing banners are unchanged.
