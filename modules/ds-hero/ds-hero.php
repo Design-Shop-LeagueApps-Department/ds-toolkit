@@ -266,9 +266,9 @@ class DS_Hero_Module extends FLBuilderModule {
 
 	public static function styles() {
 		return array(
-			'style1' => __( 'Style 1 — Classic', 'ds-toolkit' ),
-			'style2' => __( 'Style 2 — Page Banner (auto)', 'ds-toolkit' ),
-			'style3' => __( 'Style 3 — Slider', 'ds-toolkit' ),
+			'style1' => __( 'Style 1: Classic', 'ds-toolkit' ),
+			'style2' => __( 'Style 2: Page Banner (auto)', 'ds-toolkit' ),
+			'style3' => __( 'Style 3: Slider', 'ds-toolkit' ),
 		);
 	}
 
@@ -544,7 +544,7 @@ class DS_Hero_Module extends FLBuilderModule {
 		if ( empty( $slides ) ) {
 			if ( class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active() ) {
 				echo '<section class="ds-hero ds-hero--style3"><div class="ds-peek-empty">'
-					. esc_html__( 'Peek Slider — add your slides under Content → Slides.', 'ds-toolkit' )
+					. esc_html__( 'Slider: add your slides under Content → Slides.', 'ds-toolkit' )
 					. '</div></section>';
 			}
 			return;
@@ -720,7 +720,7 @@ FLBuilder::register_settings_form( 'ds_hero_peek_slide_form', array(
 							'label'       => __( 'Mobile Image', 'ds-toolkit' ),
 							'show_remove' => true,
 							'connections' => array( 'photo' ),
-							'help'        => __( 'Optional. Used below the small breakpoint — handy when the desktop crop loses its subject on a phone.', 'ds-toolkit' ),
+							'help'        => __( 'Optional. Used below the small breakpoint, handy when the desktop crop loses its subject on a phone.', 'ds-toolkit' ),
 						),
 						'img_alt' => array(
 							'type'        => 'text',
@@ -799,6 +799,10 @@ FLBuilder::register_settings_form( 'ds_hero_peek_slide_form', array(
 ) );
 
 FLBuilder::register_module( 'DS_Hero_Module', array(
+	// Reorganised only (Alipio 2026-09-27: "too crowded, just re organizing it so that it wont affect the
+	// other builds or setting"). Content first; every field keeps its key, type, default and option values,
+	// so saved heroes render exactly as before. Section keys are what hero_style toggles, so a section added
+	// or renamed here must be listed there too.
 	'content' => array(
 		'title'    => __( 'Content', 'ds-toolkit' ),
 		'sections' => array(
@@ -810,20 +814,146 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'label'   => __( 'Hero Style', 'ds-toolkit' ),
 						'default' => 'style1',
 						'options' => DS_Hero_Module::styles(),
-						'help'    => __( 'Choose a hero layout. More styles will be added; the options below adapt to the selected style.', 'ds-toolkit' ),
+						'help'    => __( 'Choose a hero layout. The options below change to match the style you pick.', 'ds-toolkit' ),
 						// Each style shows only its own sections. Add a key per style.
 						'toggle'  => array(
-							'style1' => array(
-								'sections' => array( 'text', 'buttons', 'stats', 'bg', 'overlay', 'layout', 'spacing', 'colors', 'typography' ),
-							),
-							'style2' => array(
-								'sections' => array( 'banner', 'banner_design', 'banner_height', 'banner_nobg', 'overlay', 'banner_scrim', 'typography', 'spacing' ),
-							),
-							'style3' => array(
-								'sections' => array( 'peek_slides_sec', 'peek_behavior', 'peek_layout', 'peek_bg', 'peek_text', 'peek_cta', 'spacing' ),
-							),
+							'style1' => array( 'sections' => array( 'text', 'buttons', 'bg', 'stats', 'layout', 'overlay', 'colors', 'typography', 'buttons_style', 'effects', 'spacing' ) ),
+							'style2' => array( 'sections' => array( 'banner', 'banner_media', 'banner_crumbs', 'banner_design', 'overlay', 'banner_scrim', 'banner_colors', 'typography', 'banner_nobg', 'effects', 'spacing' ) ),
+							'style3' => array( 'sections' => array( 'peek_slides_sec', 'peek_behavior', 'peek_layout', 'peek_overlay', 'peek_text', 'peek_cta', 'peek_bg', 'peek_pattern_sec', 'spacing' ) ),
+						),
+						// Controls inside a shared section that do nothing in one style: the Page Banner
+						// eyebrow is .ds-banner-eyebrow (Eyebrow typography styles .ds-hero-eyebrow), the
+						// Slider has no .ds-hero-wrap for Container Width or Padding to reach, and the
+						// breadcrumbs exist only on the Page Banner. Only fields no other toggle drives.
+						'hide'    => array(
+							'style1' => array( 'fields' => array( 'breadcrumbs_typography' ) ),
+							'style2' => array( 'fields' => array( 'eyebrow_typography' ) ),
+							'style3' => array( 'fields' => array( 'container_width', 'container_max_width', 'padding' ) ),
 						),
 					),
+				),
+			),
+			'text' => array(
+				'title'       => __( 'Text', 'ds-toolkit' ),
+				'fields'      => array(
+					'eyebrow' => array(
+						'type'    => 'text',
+						'label'   => __( 'Eyebrow', 'ds-toolkit' ),
+						'default' => 'Lorem Ipsum Dolor',
+						'help'    => __( 'Small label above the headline (optional).', 'ds-toolkit' ),
+					),
+					'heading' => array(
+						'type'    => 'textarea',
+						'label'   => __( 'Headline', 'ds-toolkit' ),
+						'rows'    => 3,
+						'default' => "Lorem Ipsum\nDolor {a}Sit{/a}",
+						'help'    => __( 'Line breaks are kept. Wrap a word in {a}…{/a} to colour it with the accent colour, or in {g}…{/g} for a two-colour gradient (Style → Gradient & Outline Text). {outline}…{/outline} renders outlined (transparent, stroked) text, default style in Theme Setting. Markers cannot be nested; wrap separate ranges.', 'ds-toolkit' ),
+					),
+					'subtext' => array(
+						'type'    => 'editor', 'media_buttons' => false, 'wpautop' => false,
+						'label'   => __( 'Subtext', 'ds-toolkit' ),
+						'rows'    => 3,
+						'default' => 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.',
+					),
+					// Optional mark above the eyebrow (GH #192): a crest, badge or logo. Same
+					// shape as the Heading module's divider image — the editor authors a
+					// HEIGHT and the width follows, so the aspect ratio is never touched.
+					'eyebrow_image' => array(
+						'type'        => 'photo',
+						'label'       => __( 'Eyebrow Image', 'ds-toolkit' ),
+						'show_remove' => true,
+						'connections' => array( 'photo' ),
+						'help'        => __( 'Optional crest, badge or logo shown directly above the Eyebrow text. Blank renders nothing, not even a gap.', 'ds-toolkit' ),
+					),
+					'eyebrow_img_h' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Eyebrow Image Size', 'ds-toolkit' ),
+						'default'     => '',
+						'description' => 'px',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 16, 'max' => 320, 'step' => 1 ),
+						'help'        => __( 'Height of the eyebrow image; the width follows so the aspect ratio never changes. Blank = 72px. Use the responsive icon for tablet and mobile sizes.', 'ds-toolkit' ),
+					),
+				),
+			),
+			'buttons' => array(
+				'title'       => __( 'Buttons', 'ds-toolkit' ),
+				'fields'      => array(
+					'btn1_text'  => array( 'type' => 'text', 'label' => __( 'Button 1 Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
+					'btn1_link'  => array( 'type' => 'link', 'label' => __( 'Button 1 Link', 'ds-toolkit' ), 'default' => '' ),
+					'btn1_style' => array( 'type' => 'select', 'label' => __( 'Button 1 Style', 'ds-toolkit' ), 'default' => 'primary', 'options' => array( 'primary' => __( 'Primary (filled)', 'ds-toolkit' ), 'ghost' => __( 'Ghost (outline)', 'ds-toolkit' ) ) ),
+					'btn2_text'  => array( 'type' => 'text', 'label' => __( 'Button 2 Text', 'ds-toolkit' ), 'default' => 'Dolor Sit' ),
+					'btn2_link'  => array( 'type' => 'link', 'label' => __( 'Button 2 Link', 'ds-toolkit' ), 'default' => '' ),
+					'btn2_style' => array( 'type' => 'select', 'label' => __( 'Button 2 Style', 'ds-toolkit' ), 'default' => 'ghost', 'options' => array( 'primary' => __( 'Primary (filled)', 'ds-toolkit' ), 'ghost' => __( 'Ghost (outline)', 'ds-toolkit' ) ) ),
+				),
+			),
+			'bg' => array(
+				'title'       => __( 'Background', 'ds-toolkit' ),
+				'fields'      => array(
+					'bg_type' => array(
+						'type'    => 'select',
+						'label'   => __( 'Background Type', 'ds-toolkit' ),
+						'default' => 'image',
+						'options' => array(
+							'image'     => __( 'Single Image', 'ds-toolkit' ),
+							'slideshow' => __( 'Image Slideshow', 'ds-toolkit' ),
+							'video'     => __( 'Video', 'ds-toolkit' ),
+							'mixed'     => __( 'Mixed Media (Images + Videos)', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'image'     => array( 'fields' => array( 'bg_photo', 'kenburns' ) ),
+							'slideshow' => array( 'fields' => array( 'bg_photos', 'slide_interval', 'kenburns', 'slide_nav' ) ),
+							'video'     => array( 'fields' => array( 'video_media', 'video_url', 'video_poster', 'video_pos_x', 'video_pos_y' ) ),
+							'mixed'     => array( 'fields' => array( 'mixed_slides', 'slide_interval', 'kenburns', 'slide_nav' ) ),
+						),
+					),
+					'bg_photo'       => array( 'type' => 'photo', 'label' => __( 'Image', 'ds-toolkit' ), 'show_remove' => true ),
+					'bg_photos'      => array( 'type' => 'multiple-photos', 'label' => __( 'Slideshow Images', 'ds-toolkit' ) ),
+					'mixed_slides'   => array(
+						'type'         => 'form',
+						'label'        => __( 'Slide', 'ds-toolkit' ),
+						'form'         => 'ds_hero_slide_form',
+						'preview_text' => 'slide_type',
+						'multiple'     => true,
+						'help'         => __( 'Build the slideshow from any mix of image and video slides. Drag to reorder.', 'ds-toolkit' ),
+					),
+					'slide_interval' => array( 'type' => 'unit', 'label' => __( 'Slide Interval', 'ds-toolkit' ), 'default' => '6', 'description' => 's', 'slider' => array( 'min' => 2, 'max' => 15, 'step' => 1 ) ),
+					'kenburns'       => array( 'type' => 'select', 'label' => __( 'Ken Burns Effect', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes (slow zoom)', 'ds-toolkit' ) ), 'help' => __( 'Slowly zooms the background image(s). Disabled for reduced-motion visitors.', 'ds-toolkit' ) ),
+					'slide_nav'      => array( 'type' => 'select', 'label' => __( 'Slide Navigation', 'ds-toolkit' ), 'default' => 'lines', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'lines' => __( 'Progress Lines (cooldown)', 'ds-toolkit' ), 'dots' => __( 'Dots', 'ds-toolkit' ), 'arrows' => __( 'Arrows', 'ds-toolkit' ), 'lines_arrows' => __( 'Lines + Arrows', 'ds-toolkit' ), 'both' => __( 'Dots + Arrows', 'ds-toolkit' ) ), 'help' => __( 'Navigation for the slideshow (2+ slides). Progress Lines are thin bars that fill over the slide interval (a cooldown to the next slide; on a play-until-end video slide they fill over the video). The active indicator and arrow hover use the accent colour.', 'ds-toolkit' ) ),
+					'video_media'    => array( 'type' => 'video', 'label' => __( 'Video (Media Library)', 'ds-toolkit' ), 'help' => __( 'Upload / pick an MP4 from the Media Library. Takes priority over the Video URL below. Autoplays muted and loops.', 'ds-toolkit' ) ),
+					'video_url'      => array( 'type' => 'text', 'label' => __( 'Video URL (MP4)', 'ds-toolkit' ), 'connections' => array( 'url' ), 'help' => __( 'Direct .mp4 URL if the video is hosted elsewhere. Autoplays muted and loops.', 'ds-toolkit' ) ),
+					'video_poster'   => array( 'type' => 'photo', 'label' => __( 'Video Poster', 'ds-toolkit' ), 'show_remove' => true ),
+					'video_pos_x'    => array(
+						'type'        => 'unit',
+						'label'       => __( 'Video Position X', 'ds-toolkit' ),
+						'default'     => '50',
+						'description' => '%',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
+						'help'        => __( 'Which part of the video stays in frame when it is cropped to the hero. 0% is the left edge, 100% the right. Use it to keep the action in view.', 'ds-toolkit' ),
+					),
+					'video_pos_y'    => array(
+						'type'        => 'unit',
+						'label'       => __( 'Video Position Y', 'ds-toolkit' ),
+						'default'     => '50',
+						'description' => '%',
+						'responsive'  => true,
+						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
+						'help'        => __( '0% is the top edge, 100% the bottom.', 'ds-toolkit' ),
+					),
+				),
+			),
+			'stats' => array(
+				'title'       => __( 'Stats Row', 'ds-toolkit' ),
+				'description' => __( 'Up to three proof points. Leave a pair blank to hide it.', 'ds-toolkit' ),
+				'collapsed'   => true,
+				'fields'      => array(
+					'stat1_number' => array( 'type' => 'text', 'label' => __( 'Stat 1 Number', 'ds-toolkit' ), 'default' => '00' ),
+					'stat1_label'  => array( 'type' => 'text', 'label' => __( 'Stat 1 Label', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
+					'stat2_number' => array( 'type' => 'text', 'label' => __( 'Stat 2 Number', 'ds-toolkit' ), 'default' => '00' ),
+					'stat2_label'  => array( 'type' => 'text', 'label' => __( 'Stat 2 Label', 'ds-toolkit' ), 'default' => 'Dolor Sit Amet' ),
+					'stat3_number' => array( 'type' => 'text', 'label' => __( 'Stat 3 Number', 'ds-toolkit' ), 'default' => 'Lorem' ),
+					'stat3_label'  => array( 'type' => 'text', 'label' => __( 'Stat 3 Label', 'ds-toolkit' ), 'default' => 'Consectetur Elit' ),
 				),
 			),
 			'banner' => array(
@@ -833,6 +963,11 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'banner_eyebrow'  => array( 'type' => 'text', 'label' => __( 'Sub-heading (eyebrow)', 'ds-toolkit' ), 'default' => '', 'connections' => array( 'string' ), 'help' => __( 'Small line above the heading (optional).', 'ds-toolkit' ) ),
 					'banner_heading'  => array( 'type' => 'text', 'label' => __( 'Heading', 'ds-toolkit' ), 'default' => '', 'connections' => array( 'string' ), 'help' => __( 'Blank = the page’s Banner Title, or the page name.', 'ds-toolkit' ) ),
 					'banner_subtitle' => array( 'type' => 'editor', 'media_buttons' => false, 'wpautop' => false, 'label' => __( 'Subtitle', 'ds-toolkit' ), 'default' => '', 'rows' => 2, 'connections' => array( 'string' ), 'help' => __( 'Blank = the page’s Banner Subtitle.', 'ds-toolkit' ) ),
+				),
+			),
+			'banner_media' => array(
+				'title'       => __( 'Background', 'ds-toolkit' ),
+				'fields'      => array(
 					'banner_image'    => array( 'type' => 'photo', 'label' => __( 'Background Photo', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Blank = the page’s Banner photo.', 'ds-toolkit' ) ),
 					'banner_video'    => array( 'type' => 'text', 'label' => __( 'Background Video URL', 'ds-toolkit' ), 'default' => '', 'connections' => array( 'string' ), 'help' => __( 'Optional MP4 URL. Blank = the page’s Banner video.', 'ds-toolkit' ) ),
 					'banner_hide_text' => array(
@@ -842,10 +977,15 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'options' => array(
 							''           => __( 'Theme Setting default (recommended)', 'ds-toolkit' ),
 							'force_show' => __( 'Always show (this instance)', 'ds-toolkit' ),
-							'force_hide' => __( 'Always hide — image only (this instance)', 'ds-toolkit' ),
+							'force_hide' => __( 'Always hide, image only (this instance)', 'ds-toolkit' ),
 						),
 						'help'    => __( 'When the banner has a background image or video, hide the auto heading / subtitle for a clean image-only banner.', 'ds-toolkit' ),
 					),
+				),
+			),
+			'banner_crumbs' => array(
+				'title'       => __( 'Breadcrumbs', 'ds-toolkit' ),
+				'fields'      => array(
 					'show_breadcrumbs'     => array(
 						'type'    => 'select',
 						'label'   => __( 'Breadcrumbs', 'ds-toolkit' ),
@@ -877,8 +1017,9 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 				),
 			),
 			'peek_behavior' => array(
-				'title'  => __( 'Slider Behaviour', 'ds-toolkit' ),
-				'fields' => array(
+				'title'       => __( 'Slider Behaviour', 'ds-toolkit' ),
+				'collapsed'   => true,
+				'fields'      => array(
 					'peek_autoplay' => array(
 						'type'    => 'select',
 						'label'   => __( 'Autoplay', 'ds-toolkit' ),
@@ -953,7 +1094,7 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'label'   => __( 'Navigation Arrows', 'ds-toolkit' ),
 						'default' => 'yes',
 						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
-						'help'    => __( 'Hidden on phones either way — they cost more width than they earn.', 'ds-toolkit' ),
+						'help'    => __( 'Hidden on phones either way: they cost more width than they earn.', 'ds-toolkit' ),
 					),
 					'peek_dots' => array(
 						'type'    => 'select',
@@ -963,160 +1104,29 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					),
 				),
 			),
-			'text' => array(
-				'title'  => __( 'Text', 'ds-toolkit' ),
-				'fields' => array(
-					// Optional mark above the eyebrow (GH #192): a crest, badge or logo. Same
-					// shape as the Heading module's divider image — the editor authors a
-					// HEIGHT and the width follows, so the aspect ratio is never touched.
-					'eyebrow_image' => array(
-						'type'        => 'photo',
-						'label'       => __( 'Eyebrow Image', 'ds-toolkit' ),
-						'show_remove' => true,
-						'connections' => array( 'photo' ),
-						'help'        => __( 'Optional image shown directly above the Eyebrow text (a crest, badge or logo). Blank renders nothing, not even a gap.', 'ds-toolkit' ),
-					),
-					'eyebrow_img_h' => array(
-						'type'        => 'unit',
-						'label'       => __( 'Eyebrow Image Size', 'ds-toolkit' ),
-						'default'     => '',
-						'description' => 'px',
-						'responsive'  => true,
-						'slider'      => array( 'min' => 16, 'max' => 320, 'step' => 1 ),
-						'help'        => __( 'Height of the eyebrow image; the width follows so the aspect ratio never changes. Blank = 72px. Use the responsive icon for tablet and mobile sizes.', 'ds-toolkit' ),
-					),
-					'eyebrow' => array(
-						'type'    => 'text',
-						'label'   => __( 'Eyebrow', 'ds-toolkit' ),
-						'default' => 'Lorem Ipsum Dolor',
-						'help'    => __( 'Small label above the headline (optional).', 'ds-toolkit' ),
-					),
-					'heading' => array(
-						'type'    => 'textarea',
-						'label'   => __( 'Headline', 'ds-toolkit' ),
-						'rows'    => 3,
-						'default' => "Lorem Ipsum\nDolor {a}Sit{/a}",
-						'help'    => __( 'Line breaks are kept. Wrap a word in {a}…{/a} to colour it with the accent colour, or in {g}…{/g} for a two-colour gradient (Colours section). {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting. Markers cannot be nested; wrap separate ranges.', 'ds-toolkit' ),
-					),
-					'subtext' => array(
-						'type'    => 'editor', 'media_buttons' => false, 'wpautop' => false,
-						'label'   => __( 'Subtext', 'ds-toolkit' ),
-						'rows'    => 3,
-						'default' => 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.',
-					),
-				),
-			),
-			'buttons' => array(
-				'title'  => __( 'Buttons', 'ds-toolkit' ),
-				'fields' => array(
-					'btn_global' => array(
-						'type'    => 'select',
-						'label'   => __( 'Button Style', 'ds-toolkit' ),
-						'default' => 'yes',
-						'options' => array(
-							'yes' => __( 'Match site Button (Theme Setting)', 'ds-toolkit' ),
-							'no'  => __( 'Accent colour', 'ds-toolkit' ),
-						),
-						'help'    => __( 'Primary buttons inherit the global Button style (background, hover, radius, typography) from Theme Setting → Elements → Button by default. Both buttons pick up its corner radius and typography.', 'ds-toolkit' ),
-					),
-					'btn_align' => array(
-						'type'       => 'select',
-						'label'      => __( 'Buttons Alignment', 'ds-toolkit' ),
-						'default'    => '',
-						'responsive' => true,
-						'options'    => array(
-							''       => __( 'Follow Alignment (Layout tab)', 'ds-toolkit' ),
-							'left'   => __( 'Left', 'ds-toolkit' ),
-							'center' => __( 'Center', 'ds-toolkit' ),
-							'right'  => __( 'Right', 'ds-toolkit' ),
-						),
-						'help'       => __( 'Horizontal position of the button group only — text and stats keep following the module Alignment. Blank = follow Alignment; use the device icon for per-device values. (On phones the buttons go full-width by design, so alignment has no visible effect there.)', 'ds-toolkit' ),
-						'preview'    => array( 'type' => 'css', 'selector' => '.ds-hero-cta', 'property' => 'justify-content' ),
-					),
-					'btn1_text'  => array( 'type' => 'text', 'label' => __( 'Button 1 Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
-					'btn1_link'  => array( 'type' => 'link', 'label' => __( 'Button 1 Link', 'ds-toolkit' ), 'default' => '' ),
-					'btn1_style' => array( 'type' => 'select', 'label' => __( 'Button 1 Style', 'ds-toolkit' ), 'default' => 'primary', 'options' => array( 'primary' => __( 'Primary (filled)', 'ds-toolkit' ), 'ghost' => __( 'Ghost (outline)', 'ds-toolkit' ) ) ),
-					'btn2_text'  => array( 'type' => 'text', 'label' => __( 'Button 2 Text', 'ds-toolkit' ), 'default' => 'Dolor Sit' ),
-					'btn2_link'  => array( 'type' => 'link', 'label' => __( 'Button 2 Link', 'ds-toolkit' ), 'default' => '' ),
-					'btn2_style' => array( 'type' => 'select', 'label' => __( 'Button 2 Style', 'ds-toolkit' ), 'default' => 'ghost', 'options' => array( 'primary' => __( 'Primary (filled)', 'ds-toolkit' ), 'ghost' => __( 'Ghost (outline)', 'ds-toolkit' ) ) ),
-				),
-			),
-			'stats' => array(
-				'title'       => __( 'Stats Row', 'ds-toolkit' ),
-				'description' => __( 'Up to three proof points. Leave a pair blank to hide it.', 'ds-toolkit' ),
-				'fields'      => array(
-					'stat1_number' => array( 'type' => 'text', 'label' => __( 'Stat 1 — Number', 'ds-toolkit' ), 'default' => '00' ),
-					'stat1_label'  => array( 'type' => 'text', 'label' => __( 'Stat 1 — Label', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
-					'stat2_number' => array( 'type' => 'text', 'label' => __( 'Stat 2 — Number', 'ds-toolkit' ), 'default' => '00' ),
-					'stat2_label'  => array( 'type' => 'text', 'label' => __( 'Stat 2 — Label', 'ds-toolkit' ), 'default' => 'Dolor Sit Amet' ),
-					'stat3_number' => array( 'type' => 'text', 'label' => __( 'Stat 3 — Number', 'ds-toolkit' ), 'default' => 'Lorem' ),
-					'stat3_label'  => array( 'type' => 'text', 'label' => __( 'Stat 3 — Label', 'ds-toolkit' ), 'default' => 'Consectetur Elit' ),
-				),
-			),
-			'bg' => array(
-				'title'  => __( 'Background', 'ds-toolkit' ),
-				'fields' => array(
-					'bg_type' => array(
-						'type'    => 'select',
-						'label'   => __( 'Background Type', 'ds-toolkit' ),
-						'default' => 'image',
-						'options' => array(
-							'image'     => __( 'Single Image', 'ds-toolkit' ),
-							'slideshow' => __( 'Image Slideshow', 'ds-toolkit' ),
-							'video'     => __( 'Video', 'ds-toolkit' ),
-							'mixed'     => __( 'Mixed Media (Images + Videos)', 'ds-toolkit' ),
-						),
-						'toggle'  => array(
-							'image'     => array( 'fields' => array( 'bg_photo', 'kenburns' ) ),
-							'slideshow' => array( 'fields' => array( 'bg_photos', 'slide_interval', 'kenburns', 'slide_nav' ) ),
-							'video'     => array( 'fields' => array( 'video_media', 'video_url', 'video_poster', 'video_pos_x', 'video_pos_y' ) ),
-							'mixed'     => array( 'fields' => array( 'mixed_slides', 'slide_interval', 'kenburns', 'slide_nav' ) ),
-						),
-					),
-					'bg_photo'       => array( 'type' => 'photo', 'label' => __( 'Image', 'ds-toolkit' ), 'show_remove' => true ),
-					'bg_photos'      => array( 'type' => 'multiple-photos', 'label' => __( 'Slideshow Images', 'ds-toolkit' ) ),
-					'mixed_slides'   => array(
-						'type'         => 'form',
-						'label'        => __( 'Slide', 'ds-toolkit' ),
-						'form'         => 'ds_hero_slide_form',
-						'preview_text' => 'slide_type',
-						'multiple'     => true,
-						'help'         => __( 'Build the slideshow from any mix of image and video slides. Drag to reorder.', 'ds-toolkit' ),
-					),
-					'slide_interval' => array( 'type' => 'unit', 'label' => __( 'Slide Interval', 'ds-toolkit' ), 'default' => '6', 'description' => 's', 'slider' => array( 'min' => 2, 'max' => 15, 'step' => 1 ) ),
-					'kenburns'       => array( 'type' => 'select', 'label' => __( 'Ken Burns Effect', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes (slow zoom)', 'ds-toolkit' ) ), 'help' => __( 'Slowly zooms the background image(s). Disabled for reduced-motion visitors.', 'ds-toolkit' ) ),
-					'slide_nav'      => array( 'type' => 'select', 'label' => __( 'Slide Navigation', 'ds-toolkit' ), 'default' => 'lines', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'lines' => __( 'Progress Lines (cooldown)', 'ds-toolkit' ), 'dots' => __( 'Dots', 'ds-toolkit' ), 'arrows' => __( 'Arrows', 'ds-toolkit' ), 'lines_arrows' => __( 'Lines + Arrows', 'ds-toolkit' ), 'both' => __( 'Dots + Arrows', 'ds-toolkit' ) ), 'help' => __( 'Navigation for the slideshow (2+ slides). Progress Lines are thin bars that fill over the slide interval (a cooldown to the next slide; on a play-until-end video slide they fill over the video). The active indicator and arrow hover use the accent colour.', 'ds-toolkit' ) ),
-					'video_media'    => array( 'type' => 'video', 'label' => __( 'Video (Media Library)', 'ds-toolkit' ), 'help' => __( 'Upload / pick an MP4 from the Media Library. Takes priority over the Video URL below. Autoplays muted and loops.', 'ds-toolkit' ) ),
-					'video_url'      => array( 'type' => 'text', 'label' => __( 'Video URL (MP4)', 'ds-toolkit' ), 'connections' => array( 'url' ), 'help' => __( 'Direct .mp4 URL if the video is hosted elsewhere. Autoplays muted and loops.', 'ds-toolkit' ) ),
-					'video_poster'   => array( 'type' => 'photo', 'label' => __( 'Video Poster', 'ds-toolkit' ), 'show_remove' => true ),
-					'video_pos_x'    => array(
-						'type'        => 'unit',
-						'label'       => __( 'Video Position X', 'ds-toolkit' ),
-						'default'     => '50',
-						'description' => '%',
-						'responsive'  => true,
-						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
-						'help'        => __( 'Which part of the video stays in frame when it is cropped to the hero. 0% is the left edge, 100% the right. Use it to keep the action in view.', 'ds-toolkit' ),
-					),
-					'video_pos_y'    => array(
-						'type'        => 'unit',
-						'label'       => __( 'Video Position Y', 'ds-toolkit' ),
-						'default'     => '50',
-						'description' => '%',
-						'responsive'  => true,
-						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
-						'help'        => __( '0% is the top edge, 100% the bottom.', 'ds-toolkit' ),
-					),
-				),
-			),
 		),
 	),
 	'style'   => array(
 		'title'    => __( 'Style', 'ds-toolkit' ),
 		'sections' => array(
+			'layout' => array(
+				'title'       => __( 'Layout', 'ds-toolkit' ),
+				'fields'      => array(
+					'min_height'    => array( 'type' => 'unit', 'label' => __( 'Min Height', 'ds-toolkit' ), 'default' => '92', 'description' => 'vh', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+					'content_width' => array( 'type' => 'unit', 'label' => __( 'Content Width', 'ds-toolkit' ), 'default' => '760', 'description' => 'px', 'slider' => array( 'min' => 300, 'max' => 1920, 'step' => 10 ), 'help' => __( 'Max width of the text column (eyebrow, headline, subtext, buttons, stats). Going wider than the Container Width below now widens the container to match, so this value is always honoured.', 'ds-toolkit' ) ),
+					'align'         => array(
+						'type'       => 'select',
+						'label'      => __( 'Alignment', 'ds-toolkit' ),
+						'default'    => 'left',
+						'responsive' => true,
+						'options'    => array( 'left' => __( 'Left', 'ds-toolkit' ), 'center' => __( 'Center', 'ds-toolkit' ) ),
+					),
+				),
+			),
 			'banner_design' => array(
-				'title'  => __( 'Banner', 'ds-toolkit' ),
-				'fields' => array(
+				'title'       => __( 'Layout', 'ds-toolkit' ),
+				'description' => __( 'The banner is taller when a page has a photo or video, and shorter when it has none.', 'ds-toolkit' ),
+				'fields'      => array(
 					'banner_align'       => array( 'type' => 'select', 'label' => __( 'Alignment', 'ds-toolkit' ), 'default' => 'center', 'responsive' => true, 'options' => array( 'left' => __( 'Left', 'ds-toolkit' ), 'center' => __( 'Center', 'ds-toolkit' ), 'right' => __( 'Right', 'ds-toolkit' ) ) ),
 					'banner_valign'      => array(
 						'type'    => 'select',
@@ -1129,6 +1139,8 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						),
 						'help'    => __( 'Where the title block sits vertically inside the banner. Bottom keeps a photo\'s subject clear — faces in a team photo stay uncovered. Only the title placement moves; the photo, overlay and typography are untouched.', 'ds-toolkit' ),
 					),
+					'banner_h_bg'   => array( 'type' => 'unit', 'label' => __( 'Height with Photo / Video', 'ds-toolkit' ), 'default' => '52', 'description' => 'vh', 'responsive' => true, 'slider' => array( 'min' => 20, 'max' => 100, 'step' => 1 ) ),
+					'banner_h_nobg' => array( 'type' => 'unit', 'label' => __( 'Height without Photo / Video', 'ds-toolkit' ), 'default' => '28', 'description' => 'vh', 'responsive' => true, 'slider' => array( 'min' => 12, 'max' => 80, 'step' => 1 ) ),
 					'banner_parallax' => array(
 						'type'    => 'select',
 						'label'   => __( 'Parallax', 'ds-toolkit' ),
@@ -1136,182 +1148,11 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes (photo scrolls slower)', 'ds-toolkit' ) ),
 						'help'    => __( 'Background photo moves slower than the page on scroll. Photo banners only; disabled for reduced-motion visitors.', 'ds-toolkit' ),
 					),
-					'banner_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = automatic: light on a photo, dark on a plain background.', 'ds-toolkit' ) , 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero--banner .ds-hero-title', 'property' => 'color' ) ),
-					'banner_sub_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Subtitle Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true , 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero--banner .ds-hero-sub', 'property' => 'color' ) ),
-					'breadcrumbs_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = automatic (light on a photo, muted on a plain background).', 'ds-toolkit' ) , 'preview' => array( 'type' => 'css', 'selector' => '.ds-banner-crumbs, .ds-banner-crumbs a, .ds-banner-crumbs .breadcrumb_last', 'property' => 'color' ) ),
-					'breadcrumbs_typography' => array( 'type' => 'typography', 'label' => __( 'Breadcrumbs Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-banner-crumbs' ) ),
-				),
-			),
-			'banner_height' => array(
-				'title'  => __( 'Height', 'ds-toolkit' ),
-					'description' => __( 'The banner is taller when a page has a photo or video, and shorter when it has none.', 'ds-toolkit' ),
-				'fields' => array(
-					'banner_h_bg'   => array( 'type' => 'unit', 'label' => __( 'Height — with photo / video', 'ds-toolkit' ), 'default' => '52', 'description' => 'vh', 'responsive' => true, 'slider' => array( 'min' => 20, 'max' => 100, 'step' => 1 ) ),
-					'banner_h_nobg' => array( 'type' => 'unit', 'label' => __( 'Height — no photo / video', 'ds-toolkit' ), 'default' => '28', 'description' => 'vh', 'responsive' => true, 'slider' => array( 'min' => 12, 'max' => 80, 'step' => 1 ) ),
-				),
-			),
-			'banner_nobg' => array(
-				'title'  => __( 'No-Image Background', 'ds-toolkit' ),
-					'description' => __( 'Used only when a page has no banner photo or video. Give plain pages a brand colour and/or a subtle, tileable pattern.', 'ds-toolkit' ),
-				'fields' => array(
-					'nobg_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Background Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the site default from Theme Setting (General > Page Banner). Set a colour to override it for this page.', 'ds-toolkit' ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-banner--no-bg', 'property' => 'background-color' ) ),
-					'nobg_pattern' => array( 'type' => 'photo', 'label' => __( 'Pattern / Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Optional. A small, tileable pattern (PNG/SVG) looks best with Repeat = Tile.', 'ds-toolkit' ) ),
-					'nobg_repeat'  => array( 'type' => 'select', 'label' => __( 'Repeat', 'ds-toolkit' ), 'default' => 'repeat', 'options' => array( 'repeat' => __( 'Tile', 'ds-toolkit' ), 'repeat-x' => __( 'Tile horizontally', 'ds-toolkit' ), 'repeat-y' => __( 'Tile vertically', 'ds-toolkit' ), 'no-repeat' => __( 'No repeat', 'ds-toolkit' ) ) ),
-					'nobg_size'    => array( 'type' => 'select', 'label' => __( 'Size', 'ds-toolkit' ), 'default' => 'auto', 'options' => array( 'auto' => __( 'Auto (real size — best for patterns)', 'ds-toolkit' ), 'contain' => __( 'Contain', 'ds-toolkit' ), 'cover' => __( 'Cover (fill)', 'ds-toolkit' ) ) ),
-					'nobg_blend'   => array( 'type' => 'select', 'label' => __( 'Blend with Colour', 'ds-toolkit' ), 'default' => 'normal', 'options' => array( 'normal' => __( 'Normal (pattern over colour)', 'ds-toolkit' ), 'multiply' => __( 'Multiply', 'ds-toolkit' ), 'overlay' => __( 'Overlay', 'ds-toolkit' ), 'screen' => __( 'Screen', 'ds-toolkit' ), 'soft-light' => __( 'Soft Light', 'ds-toolkit' ) ), 'help' => __( 'How the pattern mixes with the Background Colour beneath it. Multiply/Overlay tint the pattern with the colour.', 'ds-toolkit' ) ),
-				),
-			),
-			'banner_scrim' => array(
-				'title'       => __( 'Image Scrim', 'ds-toolkit' ),
-				'description' => __( 'A designed darkening over the banner photo so the heading stays readable (Page Banner with an image).', 'ds-toolkit' ),
-				'fields'      => array(
-					'scrim_preset' => array(
-						'type'    => 'select',
-						'label'   => __( 'Scrim', 'ds-toolkit' ),
-						'default' => 'none',
-						'options' => array(
-							'none'     => __( 'None', 'ds-toolkit' ),
-							'bottom'   => __( 'Bottom fade', 'ds-toolkit' ),
-							'top'      => __( 'Top fade', 'ds-toolkit' ),
-							'vignette' => __( 'Vignette (edges)', 'ds-toolkit' ),
-							'full'     => __( 'Full (even darken)', 'ds-toolkit' ),
-						),
-						'toggle'  => array(
-							'bottom'   => array( 'fields' => array( 'scrim_color', 'scrim_strength' ) ),
-							'top'      => array( 'fields' => array( 'scrim_color', 'scrim_strength' ) ),
-							'vignette' => array( 'fields' => array( 'scrim_color', 'scrim_strength' ) ),
-							'full'     => array( 'fields' => array( 'scrim_color', 'scrim_strength' ) ),
-						),
-					),
-					'scrim_color'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Scrim Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
-					'scrim_strength' => array( 'type' => 'unit', 'label' => __( 'Strength', 'ds-toolkit' ), 'default' => '55', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
-				),
-			),
-			'overlay' => array(
-				'title'  => __( 'Overlay', 'ds-toolkit' ),
-				'fields' => array(
-					'overlay_style' => array(
-						'type'    => 'select',
-						'label'   => __( 'Overlay', 'ds-toolkit' ),
-						'default' => 'gradient',
-						'options' => array(
-							'none'     => __( 'None', 'ds-toolkit' ),
-							'solid'    => __( 'Solid Colour', 'ds-toolkit' ),
-							'gradient' => __( 'Gradient', 'ds-toolkit' ),
-							'multiple' => __( 'Multiple Backgrounds', 'ds-toolkit' ),
-						),
-						'toggle'  => array(
-							'solid'    => array( 'fields' => array( 'overlay_color', 'overlay_opacity' ) ),
-							'gradient' => array( 'fields' => array( 'grad_color1', 'grad_opacity1', 'grad_color2', 'grad_opacity2', 'grad_angle' ) ),
-							'multiple' => array( 'fields' => array( 'overlay_bg' ) ),
-						),
-					),
-					'overlay_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Overlay Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
-					'overlay_opacity' => array( 'type' => 'unit', 'label' => __( 'Opacity', 'ds-toolkit' ), 'default' => '70', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
-					'grad_color1'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient Start', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
-					'grad_opacity1' => array( 'type' => 'unit', 'label' => __( 'Start Opacity', 'ds-toolkit' ), 'default' => '92', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
-					'grad_color2'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient End', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
-					'grad_opacity2' => array( 'type' => 'unit', 'label' => __( 'End Opacity', 'ds-toolkit' ), 'default' => '35', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
-					'grad_angle'    => array( 'type' => 'unit', 'label' => __( 'Gradient Angle', 'ds-toolkit' ), 'default' => '105', 'description' => 'deg', 'slider' => array( 'min' => 0, 'max' => 360, 'step' => 1 ) ),
-					// Multiple Backgrounds — Beaver Builder's native layered "background" control.
-					// Stack colours / gradients / images; BB's auto-css engine composites them into
-					// one `background:` shorthand (persisted under ->css) and emits it onto
-					// .ds-hero-overlay automatically. The preview `enabled` guard scopes that emission
-					// to overlay_style = 'multiple', so switching styles never leaves a stray paint.
-					'overlay_bg' => array(
-						'type'       => 'background',
-						'label'      => __( 'Background Layers', 'ds-toolkit' ),
-						'responsive' => array(
-							'default' => array(
-								'default' => array(
-									array(
-										'id'    => 1,
-										'type'  => 'color',
-										'state' => array( 'color' => 'rgba(10, 14, 21, 0.45)' ),
-									),
-								),
-							),
-						),
-						'preview'    => array(
-							'type'      => 'css',
-							'auto'      => true,
-							'selector'  => '.ds-hero-overlay',
-							'property'  => 'background',
-							'sub_value' => array( 'setting_name' => 'css' ),
-							'enabled'   => array( 'overlay_style' => 'multiple' ),
-						),
-						'help'       => __( 'Stack multiple background layers (colours, gradients, images) like a Beaver Builder row. They composite top to bottom into the hero overlay.', 'ds-toolkit' ),
-					),
-				),
-			),
-			'layout' => array(
-				'title'  => __( 'Layout', 'ds-toolkit' ),
-				'fields' => array(
-					'min_height'    => array( 'type' => 'unit', 'label' => __( 'Min Height', 'ds-toolkit' ), 'default' => '92', 'description' => 'vh', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
-					'content_width' => array( 'type' => 'unit', 'label' => __( 'Content Width', 'ds-toolkit' ), 'default' => '760', 'description' => 'px', 'slider' => array( 'min' => 300, 'max' => 1920, 'step' => 10 ), 'help' => __( 'Max width of the text column (eyebrow, headline, subtext, buttons, stats). Going wider than the Container Width below now widens the container to match, so this value is always honoured.', 'ds-toolkit' ) ),
-					'align'         => array(
-						'type'       => 'select',
-						'label'      => __( 'Alignment', 'ds-toolkit' ),
-						'default'    => 'left',
-						'responsive' => true,
-						'options'    => array( 'left' => __( 'Left', 'ds-toolkit' ), 'center' => __( 'Center', 'ds-toolkit' ) ),
-					),
-				),
-			),
-			'spacing' => array(
-				'title'  => __( 'Spacing', 'ds-toolkit' ),
-				'fields' => array(
-					'container_width'   => array(
-						'type'    => 'select',
-						'label'   => __( 'Container Width', 'ds-toolkit' ),
-						'default' => 'boxed',
-						'options' => array(
-							'boxed'  => __( 'Boxed (max 1280px)', 'ds-toolkit' ),
-							'full'   => __( 'Full width (fill container)', 'ds-toolkit' ),
-							'custom' => __( 'Custom max-width', 'ds-toolkit' ),
-						),
-						'toggle'  => array( 'custom' => array( 'fields' => array( 'container_max_width' ) ) ),
-						'help'    => __( 'Full width lets this fill a full-width row/column; use the row/column padding for side spacing.', 'ds-toolkit' ),
-					),
-					'container_max_width' => array( 'type' => 'unit', 'label' => __( 'Container Max Width', 'ds-toolkit' ), 'default' => '1280', 'description' => 'px', 'slider' => array( 'min' => 480, 'max' => 1920, 'step' => 10 ) ),
-					'padding' => array(
-						'type'       => 'dimension',
-						'label'      => __( 'Padding', 'ds-toolkit' ),
-						'default'    => '0',
-						'units'      => array( 'px' ),
-						'slider'     => true,
-						'responsive' => true,
-						'help'       => __( 'Inner spacing around the content. 0 = compact / flush.', 'ds-toolkit' ),
-					),
-					'margin'  => array(
-						'type'       => 'dimension',
-						'label'      => __( 'Margin', 'ds-toolkit' ),
-						'default'    => '0',
-						'units'      => array( 'px' ),
-						'slider'     => true,
-						'responsive' => true,
-						'help'       => __( 'Outer spacing around the whole section. 0 = compact / flush.', 'ds-toolkit' ),
-					),
-				),
-			),
-			'colors' => array(
-				'title'  => __( 'Colours', 'ds-toolkit' ),
-				'fields' => array(
-					'eyebrow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Eyebrow', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
-					'title_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Headline', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
-					'accent_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Accent Word', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true, 'help' => __( 'Colour of {a}…{/a} text and the primary button.', 'ds-toolkit' ) ),
-					'gradient_start_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient Start Colour {g}…{/g}', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Wrap headline text in {g}…{/g} to apply a left-to-right gradient. Set both gradient colours to control it; a blank value falls back to the Accent Word colour.', 'ds-toolkit' ) ),
-					'gradient_end_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient End Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
-					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
-					'sub_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Subtext', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
-					'stat_num_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Stat Number', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
-					'stat_label_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Stat Label', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
 				),
 			),
 			'peek_layout' => array(
-				'title'  => __( 'Slide Layout', 'ds-toolkit' ),
-				'fields' => array(
+				'title'       => __( 'Slide Layout', 'ds-toolkit' ),
+				'fields'      => array(
 					'peek_height' => array(
 						'type'        => 'unit',
 						'label'       => __( 'Slide Height', 'ds-toolkit' ),
@@ -1376,7 +1217,7 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'label'   => __( 'Heading & CTA Alignment', 'ds-toolkit' ),
 						'default' => 'split',
 						'options' => array(
-							'split'  => __( 'Split — heading left, CTA right', 'ds-toolkit' ),
+							'split'  => __( 'Split: heading left, button right', 'ds-toolkit' ),
 							'left'   => __( 'Stacked left', 'ds-toolkit' ),
 							'center' => __( 'Stacked centre', 'ds-toolkit' ),
 							'right'  => __( 'Stacked right', 'ds-toolkit' ),
@@ -1385,98 +1226,66 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					),
 				),
 			),
-			'peek_bg' => array(
-				'title'       => __( 'Slide Background Layers', 'ds-toolkit' ),
-				'description' => __( 'Stacked bottom to top: base colour, slide image, pattern, overlay, then the heading and CTA. Each slide sets its own image and focal point; these settings style every slide the same way.', 'ds-toolkit' ),
+			'overlay' => array(
+				'title'       => __( 'Overlay', 'ds-toolkit' ),
 				'fields'      => array(
-					'peek_base_color' => array(
-						'type'        => 'color',
-						'label'       => __( 'Base Background Colour', 'ds-toolkit' ),
-						'default'     => '',
-						'show_reset'  => true,
-						'show_alpha'  => true,
-						'connections' => array( 'color' ),
-						'help'        => __( 'Sits under the image — shows through a transparent PNG or a reduced image opacity.', 'ds-toolkit' ),
-					),
-					'peek_img_size' => array(
+					'overlay_style' => array(
 						'type'    => 'select',
-						'label'   => __( 'Image Size', 'ds-toolkit' ),
-						'default' => 'cover',
+						'label'   => __( 'Overlay', 'ds-toolkit' ),
+						'default' => 'gradient',
 						'options' => array(
-							'cover'   => __( 'Cover (fill the slide)', 'ds-toolkit' ),
-							'contain' => __( 'Contain (fit inside)', 'ds-toolkit' ),
+							'none'     => __( 'None', 'ds-toolkit' ),
+							'solid'    => __( 'Solid Colour', 'ds-toolkit' ),
+							'gradient' => __( 'Gradient', 'ds-toolkit' ),
+							'multiple' => __( 'Multiple Backgrounds', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'solid'    => array( 'fields' => array( 'overlay_color', 'overlay_opacity' ) ),
+							'gradient' => array( 'fields' => array( 'grad_color1', 'grad_opacity1', 'grad_color2', 'grad_opacity2', 'grad_angle' ) ),
+							'multiple' => array( 'fields' => array( 'overlay_bg' ) ),
 						),
 					),
-					'peek_img_opacity' => array(
-						'type'        => 'unit',
-						'label'       => __( 'Image Opacity', 'ds-toolkit' ),
-						'default'     => '100',
-						'description' => '%',
-						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
-					),
-					'peek_img_blend' => array(
-						'type'    => 'select',
-						'label'   => __( 'Image Blend Mode', 'ds-toolkit' ),
-						'default' => 'normal',
-						'options' => DS_Hero_Module::blend_modes(),
-					),
-					'peek_pattern' => array(
-						'type'        => 'photo',
-						'label'       => __( 'Pattern / Texture', 'ds-toolkit' ),
-						'show_remove' => true,
-						'connections' => array( 'photo' ),
-						'help'        => __( 'Optional tileable image laid over the photo.', 'ds-toolkit' ),
-					),
-					'peek_pattern_size' => array(
-						'type'    => 'select',
-						'label'   => __( 'Pattern Size', 'ds-toolkit' ),
-						'default' => 'auto',
-						'options' => array(
-							'auto'    => __( 'Original', 'ds-toolkit' ),
-							'cover'   => __( 'Cover', 'ds-toolkit' ),
-							'contain' => __( 'Contain', 'ds-toolkit' ),
+					'overlay_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Overlay Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
+					'overlay_opacity' => array( 'type' => 'unit', 'label' => __( 'Opacity', 'ds-toolkit' ), 'default' => '70', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+					'grad_color1'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient Start', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
+					'grad_opacity1' => array( 'type' => 'unit', 'label' => __( 'Start Opacity', 'ds-toolkit' ), 'default' => '92', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+					'grad_color2'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient End', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
+					'grad_opacity2' => array( 'type' => 'unit', 'label' => __( 'End Opacity', 'ds-toolkit' ), 'default' => '35', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+					'grad_angle'    => array( 'type' => 'unit', 'label' => __( 'Gradient Angle', 'ds-toolkit' ), 'default' => '105', 'description' => 'deg', 'slider' => array( 'min' => 0, 'max' => 360, 'step' => 1 ) ),
+					// Multiple Backgrounds — Beaver Builder's native layered "background" control.
+					// Stack colours / gradients / images; BB's auto-css engine composites them into
+					// one `background:` shorthand (persisted under ->css) and emits it onto
+					// .ds-hero-overlay automatically. The preview `enabled` guard scopes that emission
+					// to overlay_style = 'multiple', so switching styles never leaves a stray paint.
+					'overlay_bg' => array(
+						'type'       => 'background',
+						'label'      => __( 'Background Layers', 'ds-toolkit' ),
+						'responsive' => array(
+							'default' => array(
+								'default' => array(
+									array(
+										'id'    => 1,
+										'type'  => 'color',
+										'state' => array( 'color' => 'rgba(10, 14, 21, 0.45)' ),
+									),
+								),
+							),
 						),
-					),
-					'peek_pattern_repeat' => array(
-						'type'    => 'select',
-						'label'   => __( 'Pattern Repeat', 'ds-toolkit' ),
-						'default' => 'repeat',
-						'options' => array(
-							'repeat'    => __( 'Tile', 'ds-toolkit' ),
-							'repeat-x'  => __( 'Tile horizontally', 'ds-toolkit' ),
-							'repeat-y'  => __( 'Tile vertically', 'ds-toolkit' ),
-							'no-repeat' => __( 'No repeat', 'ds-toolkit' ),
+						'preview'    => array(
+							'type'      => 'css',
+							'auto'      => true,
+							'selector'  => '.ds-hero-overlay',
+							'property'  => 'background',
+							'sub_value' => array( 'setting_name' => 'css' ),
+							'enabled'   => array( 'overlay_style' => 'multiple' ),
 						),
+						'help'       => __( 'Stack multiple background layers (colours, gradients, images) like a Beaver Builder row. They composite top to bottom into the hero overlay.', 'ds-toolkit' ),
 					),
-					'peek_pattern_pos' => array(
-						'type'    => 'select',
-						'label'   => __( 'Pattern Position', 'ds-toolkit' ),
-						'default' => 'center center',
-						'options' => array(
-							'left top'      => __( 'Top Left', 'ds-toolkit' ),
-							'center top'    => __( 'Top Centre', 'ds-toolkit' ),
-							'right top'     => __( 'Top Right', 'ds-toolkit' ),
-							'left center'   => __( 'Middle Left', 'ds-toolkit' ),
-							'center center' => __( 'Centre', 'ds-toolkit' ),
-							'right center'  => __( 'Middle Right', 'ds-toolkit' ),
-							'left bottom'   => __( 'Bottom Left', 'ds-toolkit' ),
-							'center bottom' => __( 'Bottom Centre', 'ds-toolkit' ),
-							'right bottom'  => __( 'Bottom Right', 'ds-toolkit' ),
-						),
-					),
-					'peek_pattern_opacity' => array(
-						'type'        => 'unit',
-						'label'       => __( 'Pattern Opacity', 'ds-toolkit' ),
-						'default'     => '100',
-						'description' => '%',
-						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
-					),
-					'peek_pattern_blend' => array(
-						'type'    => 'select',
-						'label'   => __( 'Pattern Blend Mode', 'ds-toolkit' ),
-						'default' => 'normal',
-						'options' => DS_Hero_Module::blend_modes(),
-					),
+				),
+			),
+			'peek_overlay' => array(
+				'title'       => __( 'Slide Overlay', 'ds-toolkit' ),
+				'fields'      => array(
 					'peek_ov_type' => array(
 						'type'    => 'select',
 						'label'   => __( 'Overlay Type', 'ds-toolkit' ),
@@ -1538,9 +1347,55 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					),
 				),
 			),
+			'banner_scrim' => array(
+				'title'       => __( 'Image Scrim', 'ds-toolkit' ),
+				'description' => __( 'A designed darkening over the banner photo so the heading stays readable (Page Banner with an image).', 'ds-toolkit' ),
+				'collapsed'   => true,
+				'fields'      => array(
+					'scrim_preset' => array(
+						'type'    => 'select',
+						'label'   => __( 'Scrim', 'ds-toolkit' ),
+						'default' => 'none',
+						'options' => array(
+							'none'     => __( 'None', 'ds-toolkit' ),
+							'bottom'   => __( 'Bottom fade', 'ds-toolkit' ),
+							'top'      => __( 'Top fade', 'ds-toolkit' ),
+							'vignette' => __( 'Vignette (edges)', 'ds-toolkit' ),
+							'full'     => __( 'Full (even darken)', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'bottom'   => array( 'fields' => array( 'scrim_color', 'scrim_strength' ) ),
+							'top'      => array( 'fields' => array( 'scrim_color', 'scrim_strength' ) ),
+							'vignette' => array( 'fields' => array( 'scrim_color', 'scrim_strength' ) ),
+							'full'     => array( 'fields' => array( 'scrim_color', 'scrim_strength' ) ),
+						),
+					),
+					'scrim_color'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Scrim Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
+					'scrim_strength' => array( 'type' => 'unit', 'label' => __( 'Strength', 'ds-toolkit' ), 'default' => '55', 'description' => '%', 'slider' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ),
+				),
+			),
+			'colors' => array(
+				'title'       => __( 'Colours', 'ds-toolkit' ),
+				'fields'      => array(
+					'eyebrow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Eyebrow', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
+					'title_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Headline', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
+					'accent_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Accent Word', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true, 'help' => __( 'Colour of {a}…{/a} text and the slideshow indicators, and of the primary button when Button Style is Accent colour.', 'ds-toolkit' ) ),
+					'sub_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Subtext', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
+					'stat_num_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Stat Number', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
+					'stat_label_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Stat Label', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
+				),
+			),
+			'banner_colors' => array(
+				'title'       => __( 'Colours', 'ds-toolkit' ),
+				'fields'      => array(
+					'banner_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = automatic: light on a photo, dark on a plain background.', 'ds-toolkit' ) , 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero--banner .ds-hero-title', 'property' => 'color' ) ),
+					'banner_sub_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Subtitle Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true , 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero--banner .ds-hero-sub', 'property' => 'color' ) ),
+					'breadcrumbs_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = automatic (light on a photo, muted on a plain background).', 'ds-toolkit' ) , 'preview' => array( 'type' => 'css', 'selector' => '.ds-banner-crumbs, .ds-banner-crumbs a, .ds-banner-crumbs .breadcrumb_last', 'property' => 'color' ) ),
+				),
+			),
 			'peek_text' => array(
-				'title'  => __( 'Slide Heading', 'ds-toolkit' ),
-				'fields' => array(
+				'title'       => __( 'Slide Heading', 'ds-toolkit' ),
+				'fields'      => array(
 					'peek_title_color' => array(
 						'type'        => 'color',
 						'label'       => __( 'Heading Colour', 'ds-toolkit' ),
@@ -1560,9 +1415,47 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					),
 				),
 			),
+			'typography' => array(
+				'title'       => __( 'Typography', 'ds-toolkit' ),
+				'fields'      => array(
+					'title_typography' => array( 'type' => 'typography', 'label' => __( 'Headline', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero-title' ) ),
+					'sub_typography'   => array( 'type' => 'typography', 'label' => __( 'Subtext', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero-sub' ) ),
+					'eyebrow_typography' => array( 'type' => 'typography', 'label' => __( 'Eyebrow', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero-eyebrow' ) ),
+					'breadcrumbs_typography' => array( 'type' => 'typography', 'label' => __( 'Breadcrumbs Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-banner-crumbs' ) ),
+				),
+			),
+			'buttons_style' => array(
+				'title'       => __( 'Buttons', 'ds-toolkit' ),
+				'fields'      => array(
+					'btn_global' => array(
+						'type'    => 'select',
+						'label'   => __( 'Button Style', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array(
+							'yes' => __( 'Match site Button (Theme Setting)', 'ds-toolkit' ),
+							'no'  => __( 'Accent colour', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Primary buttons inherit the global Button style (background, hover, radius, typography) from Theme Setting → Elements → Button by default. Both buttons pick up its corner radius and typography.', 'ds-toolkit' ),
+					),
+					'btn_align' => array(
+						'type'       => 'select',
+						'label'      => __( 'Buttons Alignment', 'ds-toolkit' ),
+						'default'    => '',
+						'responsive' => true,
+						'options'    => array(
+							''       => __( 'Follow Alignment (Style → Layout)', 'ds-toolkit' ),
+							'left'   => __( 'Left', 'ds-toolkit' ),
+							'center' => __( 'Center', 'ds-toolkit' ),
+							'right'  => __( 'Right', 'ds-toolkit' ),
+						),
+						'help'       => __( 'Horizontal position of the button group only; text and stats keep following the module Alignment. Blank = follow Alignment; use the device icon for per-device values. (On phones the buttons go full-width by design, so alignment has no visible effect there.)', 'ds-toolkit' ),
+						'preview'    => array( 'type' => 'css', 'selector' => '.ds-hero-cta', 'property' => 'justify-content' ),
+					),
+				),
+			),
 			'peek_cta' => array(
-				'title'  => __( 'Slide CTA Button', 'ds-toolkit' ),
-				'fields' => array(
+				'title'       => __( 'Slide Button', 'ds-toolkit' ),
+				'fields'      => array(
 					'peek_btn_global' => array(
 						'type'    => 'select',
 						'label'   => __( 'Button Style', 'ds-toolkit' ),
@@ -1601,12 +1494,164 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'peek_btn_typography'  => array( 'type' => 'typography', 'label' => __( 'Button Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-peek-cta' ) ),
 				),
 			),
-			'typography' => array(
-				'title'  => __( 'Typography', 'ds-toolkit' ),
-				'fields' => array(
-					'title_typography' => array( 'type' => 'typography', 'label' => __( 'Headline', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero-title' ) ),
-					'sub_typography'   => array( 'type' => 'typography', 'label' => __( 'Subtext', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero-sub' ) ),
-					'eyebrow_typography' => array( 'type' => 'typography', 'label' => __( 'Eyebrow', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero-eyebrow' ) ),
+			'banner_nobg' => array(
+				'title'       => __( 'No-Image Background', 'ds-toolkit' ),
+				'description' => __( 'Used only when a page has no banner photo or video. Give plain pages a brand colour and/or a subtle, tileable pattern.', 'ds-toolkit' ),
+				'collapsed'   => true,
+				'fields'      => array(
+					'nobg_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Background Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = the site default from Theme Setting (General > Page Banner). Set a colour to override it for this page.', 'ds-toolkit' ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-banner--no-bg', 'property' => 'background-color' ) ),
+					'nobg_pattern' => array( 'type' => 'photo', 'label' => __( 'Pattern / Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Optional. A small, tileable pattern (PNG/SVG) looks best with Repeat = Tile.', 'ds-toolkit' ) ),
+					'nobg_repeat'  => array( 'type' => 'select', 'label' => __( 'Repeat', 'ds-toolkit' ), 'default' => 'repeat', 'options' => array( 'repeat' => __( 'Tile', 'ds-toolkit' ), 'repeat-x' => __( 'Tile horizontally', 'ds-toolkit' ), 'repeat-y' => __( 'Tile vertically', 'ds-toolkit' ), 'no-repeat' => __( 'No repeat', 'ds-toolkit' ) ) ),
+					'nobg_size'    => array( 'type' => 'select', 'label' => __( 'Size', 'ds-toolkit' ), 'default' => 'auto', 'options' => array( 'auto' => __( 'Auto (real size, best for patterns)', 'ds-toolkit' ), 'contain' => __( 'Contain', 'ds-toolkit' ), 'cover' => __( 'Cover (fill)', 'ds-toolkit' ) ) ),
+					'nobg_blend'   => array( 'type' => 'select', 'label' => __( 'Blend with Colour', 'ds-toolkit' ), 'default' => 'normal', 'options' => array( 'normal' => __( 'Normal (pattern over colour)', 'ds-toolkit' ), 'multiply' => __( 'Multiply', 'ds-toolkit' ), 'overlay' => __( 'Overlay', 'ds-toolkit' ), 'screen' => __( 'Screen', 'ds-toolkit' ), 'soft-light' => __( 'Soft Light', 'ds-toolkit' ) ), 'help' => __( 'How the pattern mixes with the Background Colour beneath it. Multiply/Overlay tint the pattern with the colour.', 'ds-toolkit' ) ),
+				),
+			),
+			'peek_bg' => array(
+				'title'       => __( 'Slide Image', 'ds-toolkit' ),
+				'description' => __( 'Stacked bottom to top: base colour, slide image, pattern, overlay, then the heading and CTA. Each slide sets its own image and focal point; these settings style every slide the same way.', 'ds-toolkit' ),
+				'collapsed'   => true,
+				'fields'      => array(
+					'peek_base_color' => array(
+						'type'        => 'color',
+						'label'       => __( 'Base Background Colour', 'ds-toolkit' ),
+						'default'     => '',
+						'show_reset'  => true,
+						'show_alpha'  => true,
+						'connections' => array( 'color' ),
+						'help'        => __( 'Sits under the image and shows through a transparent PNG or a reduced image opacity.', 'ds-toolkit' ),
+					),
+					'peek_img_size' => array(
+						'type'    => 'select',
+						'label'   => __( 'Image Size', 'ds-toolkit' ),
+						'default' => 'cover',
+						'options' => array(
+							'cover'   => __( 'Cover (fill the slide)', 'ds-toolkit' ),
+							'contain' => __( 'Contain (fit inside)', 'ds-toolkit' ),
+						),
+					),
+					'peek_img_opacity' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Image Opacity', 'ds-toolkit' ),
+						'default'     => '100',
+						'description' => '%',
+						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
+					),
+					'peek_img_blend' => array(
+						'type'    => 'select',
+						'label'   => __( 'Image Blend Mode', 'ds-toolkit' ),
+						'default' => 'normal',
+						'options' => DS_Hero_Module::blend_modes(),
+					),
+				),
+			),
+			'peek_pattern_sec' => array(
+				'title'       => __( 'Slide Pattern', 'ds-toolkit' ),
+				'collapsed'   => true,
+				'fields'      => array(
+					'peek_pattern' => array(
+						'type'        => 'photo',
+						'label'       => __( 'Pattern / Texture', 'ds-toolkit' ),
+						'show_remove' => true,
+						'connections' => array( 'photo' ),
+						'help'        => __( 'Optional tileable image laid over the photo.', 'ds-toolkit' ),
+					),
+					'peek_pattern_size' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pattern Size', 'ds-toolkit' ),
+						'default' => 'auto',
+						'options' => array(
+							'auto'    => __( 'Original', 'ds-toolkit' ),
+							'cover'   => __( 'Cover', 'ds-toolkit' ),
+							'contain' => __( 'Contain', 'ds-toolkit' ),
+						),
+					),
+					'peek_pattern_repeat' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pattern Repeat', 'ds-toolkit' ),
+						'default' => 'repeat',
+						'options' => array(
+							'repeat'    => __( 'Tile', 'ds-toolkit' ),
+							'repeat-x'  => __( 'Tile horizontally', 'ds-toolkit' ),
+							'repeat-y'  => __( 'Tile vertically', 'ds-toolkit' ),
+							'no-repeat' => __( 'No repeat', 'ds-toolkit' ),
+						),
+					),
+					'peek_pattern_pos' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pattern Position', 'ds-toolkit' ),
+						'default' => 'center center',
+						'options' => array(
+							'left top'      => __( 'Top Left', 'ds-toolkit' ),
+							'center top'    => __( 'Top Centre', 'ds-toolkit' ),
+							'right top'     => __( 'Top Right', 'ds-toolkit' ),
+							'left center'   => __( 'Middle Left', 'ds-toolkit' ),
+							'center center' => __( 'Centre', 'ds-toolkit' ),
+							'right center'  => __( 'Middle Right', 'ds-toolkit' ),
+							'left bottom'   => __( 'Bottom Left', 'ds-toolkit' ),
+							'center bottom' => __( 'Bottom Centre', 'ds-toolkit' ),
+							'right bottom'  => __( 'Bottom Right', 'ds-toolkit' ),
+						),
+					),
+					'peek_pattern_opacity' => array(
+						'type'        => 'unit',
+						'label'       => __( 'Pattern Opacity', 'ds-toolkit' ),
+						'default'     => '100',
+						'description' => '%',
+						'slider'      => array( 'min' => 0, 'max' => 100, 'step' => 1 ),
+					),
+					'peek_pattern_blend' => array(
+						'type'    => 'select',
+						'label'   => __( 'Pattern Blend Mode', 'ds-toolkit' ),
+						'default' => 'normal',
+						'options' => DS_Hero_Module::blend_modes(),
+					),
+				),
+			),
+			'effects' => array(
+				'title'       => __( 'Gradient & Outline Text', 'ds-toolkit' ),
+				'collapsed'   => true,
+				'fields'      => array(
+					'gradient_start_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient Start Colour {g}…{/g}', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Wrap headline text in {g}…{/g} to apply a left-to-right gradient. Set both gradient colours to control it; a blank value falls back to the Accent Word colour.', 'ds-toolkit' ) ),
+					'gradient_end_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient End Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
+					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
+				),
+			),
+			'spacing' => array(
+				'title'       => __( 'Spacing', 'ds-toolkit' ),
+				'collapsed'   => true,
+				'fields'      => array(
+					'container_width'   => array(
+						'type'    => 'select',
+						'label'   => __( 'Container Width', 'ds-toolkit' ),
+						'default' => 'boxed',
+						'options' => array(
+							'boxed'  => __( 'Boxed (max 1280px)', 'ds-toolkit' ),
+							'full'   => __( 'Full width (fill container)', 'ds-toolkit' ),
+							'custom' => __( 'Custom max-width', 'ds-toolkit' ),
+						),
+						'toggle'  => array( 'custom' => array( 'fields' => array( 'container_max_width' ) ) ),
+						'help'    => __( 'Full width lets this fill a full-width row/column; use the row/column padding for side spacing.', 'ds-toolkit' ),
+					),
+					'container_max_width' => array( 'type' => 'unit', 'label' => __( 'Container Max Width', 'ds-toolkit' ), 'default' => '1280', 'description' => 'px', 'slider' => array( 'min' => 480, 'max' => 1920, 'step' => 10 ) ),
+					'padding' => array(
+						'type'       => 'dimension',
+						'label'      => __( 'Padding', 'ds-toolkit' ),
+						'default'    => '0',
+						'units'      => array( 'px' ),
+						'slider'     => true,
+						'responsive' => true,
+						'help'       => __( 'Inner spacing around the content. 0 = compact / flush.', 'ds-toolkit' ),
+					),
+					'margin'  => array(
+						'type'       => 'dimension',
+						'label'      => __( 'Margin', 'ds-toolkit' ),
+						'default'    => '0',
+						'units'      => array( 'px' ),
+						'slider'     => true,
+						'responsive' => true,
+						'help'       => __( 'Outer spacing around the whole section. 0 = compact / flush.', 'ds-toolkit' ),
+					),
 				),
 			),
 		),
