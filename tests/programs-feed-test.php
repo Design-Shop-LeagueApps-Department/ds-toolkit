@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over HTTP
 /**
  * LeagueApps Programs feed: rate-limiting and cache behaviour, plus the
  * Register button URL rule. Stub-style, no WordPress needed:

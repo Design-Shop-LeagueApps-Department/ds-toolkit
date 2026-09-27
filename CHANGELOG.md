@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [Unreleased]
+### Security
+- **Test scripts do nothing over HTTP** (pre-release audit 2026-09-27). `tests/` ships in the release zip, and a direct request to a test file could fatal with a server path in the error or run its own stub WordPress. Every test now exits unless it runs from the command line (`wp eval-file` or `php`).
+
 ## [1.9.166] - 2026-09-27
 ### Fixed
 - **The `.htaccess` allow-list finding named innocent WordPress files when run from the CLI on Flywheel.** The rule counts allow-listed filenames that are not present on disk, and Flywheel symlinks core: `wp-config.php` sits at `/www` while `ABSPATH` is `/www/.wordpress`. In-plugin that is covered, because `ABSPATH` is defined, which is why the real scan on shoreshots.org correctly reported 30. From the CLI (`fw-clean-site`, or a manual run) `ABSPATH` is undefined, only `$dir/wp-admin` was tried, nothing resolved, and southorlandobaberuth.com reported *"93 of them are not present on disk (admin-ajax.php, admin-footer.php, admin-functions.php, ...)"* - naming the genuine WordPress files, which is the same misleading-message failure this rule had already been corrected for once. It now also tries `$dir/.wordpress`, and the same file reports **"32 of them are not present on disk (adminfuns.php, chtmlfuns.php, cjfuns.php, ...)"**, which is the attacker's appended set and matches a hand count exactly.
