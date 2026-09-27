@@ -60,7 +60,7 @@
 .ds-news--style2 .ds-news-card2-img{height:210px;background:var(--fl-global-headings) center/cover no-repeat;}
 .ds-news--style2 .ds-news-card2-pill{position:absolute;top:14px;left:14px;background:var(--fl-global-accent);color:var(--fl-global-white);font-weight:700;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;padding:6px 12px;}
 .ds-news--style2 .ds-news-card2-body{padding:22px 22px 24px;display:flex;flex-direction:column;gap:8px;flex:1;}
-.ds-news--style2 .ds-news-card2-date{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#8b97a4;font-weight:600;}
+.ds-news--style2 .ds-news-card2-date{font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:#5f6a76;font-weight:600;}
 .ds-news--style2 .ds-news-card2-title{font-size:1.15rem;line-height:1.25;font-weight:700;color:var(--fl-global-headings);margin:0;}
 .ds-news--style2 .ds-news-card2-more{display:inline-flex;align-items:center;gap:8px;margin-top:auto;padding-top:6px;font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--fl-global-accent);}
 .ds-news--style2 .ds-news-card2-more svg{width:14px;height:14px;transition:transform .25s ease;}

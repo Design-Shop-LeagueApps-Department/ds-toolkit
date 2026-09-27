@@ -2274,9 +2274,9 @@ $ds_pl_form = array(
 					'feature_title_typography' => array( 'type' => 'typography', 'label' => __( 'Featured Title', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-feature-title' ) ),
 					'excerpt_typography'       => array( 'type' => 'typography', 'label' => __( 'Featured Excerpt', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-feature-excerpt' ) ),
 					'badge_typography'         => array( 'type' => 'typography', 'label' => __( 'Badge', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-badge' ) ),
-					'card_title_typography'    => array( 'type' => 'typography', 'label' => __( 'Card Title', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-title' ) ),
-					'card_cat_typography'      => array( 'type' => 'typography', 'label' => __( 'Card Category', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-cat' ) ),
-					'card_date_typography'     => array( 'type' => 'typography', 'label' => __( 'Card Date', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-date' ) ),
+					'card_title_typography'    => array( 'type' => 'typography', 'label' => __( 'Card Title', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-title, .ds-news-card2-title' ) ),
+					'card_cat_typography'      => array( 'type' => 'typography', 'label' => __( 'Card Category', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-cat, .ds-news-card2-pill' ) ),
+					'card_date_typography'     => array( 'type' => 'typography', 'label' => __( 'Card Date', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-news-card-date, .ds-news-card2-date' ) ),
 				),
 			),
 			'spacing' => array(
