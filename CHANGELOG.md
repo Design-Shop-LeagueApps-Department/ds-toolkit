@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.2] - 2026-09-28
+### Changed
+- **Post Loop: the Query tab reads top-down** (Alipio: "taxonomy filter should be place above. its more usable"). Posts (Source, Post Type, Include / Exclude Specific, Number of Posts), then Filter by Taxonomy, then Sort (Order By, Custom Field Key, Order), then More Filters (From / To Date, Keyword, Offset, Exclude Current Post; collapsed), then When There Are No Results (collapsed). Date Format moved to Content > Layout and shows only for the layouts that print a date (News Featured, News Grid, Custom). With Source set to "Current archive" the taxonomy, sort and filter sections hide, since an archive ignores them. Order labels read "Descending (Z to A, newest first)" / "Ascending (A to Z, oldest first)" so they make sense for Title and Menu Order too. A pure reorganisation: all 290 fields keep their key, type, default and options (compared on dslaunchpad7 before and after), so every saved Post Loop renders exactly as before.
+
 ## [1.10.1] - 2026-09-28
 ### Fixed
 - **Post Loop: Manage entries lists entries in the same order the loop shows them.** When entries tie on the sort field (every staff entry at menu order 0, the usual case until someone drags them), the loop's query left the tie to the database, which returned the oldest first, while the Manage entries panel broke ties newest first. On dslaunchpad7's Staff page a new entry sat at the top of the panel and at the bottom of the page. Both now sort by the loop's field, then by ID ascending, which is what the database already returned, so no live page changes order.

@@ -1622,8 +1622,8 @@ $ds_pl_form = array(
 						'options' => DS_Post_Loop_Module::card_layouts(),
 						'help'    => __( 'How each result is presented. The Query tab decides WHICH posts are pulled (Post Type + filters). Set Post Type to match the card (Staff card uses the Staff type, etc.).', 'ds-toolkit' ),
 						'toggle'  => array(
-							'news_featured'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'layout', 'featured', 'cards', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
-							'news_grid'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'cards2', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'news_featured'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'layout', 'featured', 'cards', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ), 'fields' => array( 'date_format' ) ),
+							'news_grid'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'cards2', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ), 'fields' => array( 'date_format' ) ),
 							'staff_card'     => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'staff_card', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'athlete_photo'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'athlete_logo'   => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_card', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
@@ -1631,7 +1631,7 @@ $ds_pl_form = array(
 							'athlete_strip'  => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'commit_strip_opts', 'commit_filter_opts', 'header_style', 'spacing', 'hover', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 							'team_list'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'team_list_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders' ), 'tabs' => array( 'query' ) ),
 							'team_card'      => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'team_card_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
-							'custom'         => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
+							'custom'         => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'loopcard', 'header_style', 'typography', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ), 'fields' => array( 'date_format' ) ),
 							'sponsor'        => array( 'sections' => array( 'header', 'sponsors_sec', 'sponsor_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
 							'program'        => array( 'sections' => array( 'header', 'programs_sec', 'program_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ) ),
 							// No news 'typography' section here: its fields target .ds-news-card-* classes
@@ -1640,6 +1640,7 @@ $ds_pl_form = array(
 							'tournament'     => array( 'sections' => array( 'header', 'manage_sec', 'query', 'query_filter', 'tn_filter_opts', 'tournament_opts', 'header_style', 'spacing', 'hover', 'card_border', 'ds_borders', 'ds_display' ), 'tabs' => array( 'query' ) ),
 						),
 					),
+					'date_format'    => array( 'type' => 'text', 'label' => __( 'Date Format', 'ds-toolkit' ), 'default' => 'M Y', 'help' => __( 'PHP date format for the card date (e.g. M Y → Jun 2026).', 'ds-toolkit' ) ),
 				),
 			),
 			// Edit the entries this loop shows, in place (DS_Loop_Manager). Changes are
@@ -1782,9 +1783,20 @@ $ds_pl_form = array(
 			'query' => array(
 				'title'  => __( 'Posts', 'ds-toolkit' ),
 				'fields' => array(
-					'source'         => array( 'type' => 'select', 'label' => __( 'Source', 'ds-toolkit' ), 'default' => 'custom', 'options' => array( 'custom' => __( 'This query (below)', 'ds-toolkit' ), 'archive' => __( 'Current archive (main query)', 'ds-toolkit' ) ), 'help' => __( 'On an archive template choose “Current archive” to loop whatever the archive shows (team-category term, category, tag, CPT archive). Otherwise build a custom query below.', 'ds-toolkit' ), 'toggle' => array( 'custom' => array( 'fields' => array( 'post_type', 'posts_per_page', 'order_by', 'order', 'offset', 'exclude_current', 'date_after', 'date_before', 'keyword' ) ) ) ),
+					'source'         => array( 'type' => 'select', 'label' => __( 'Source', 'ds-toolkit' ), 'default' => 'custom', 'options' => array( 'custom' => __( 'This query (below)', 'ds-toolkit' ), 'archive' => __( 'Current archive (main query)', 'ds-toolkit' ) ), 'help' => __( 'On an archive template choose “Current archive” to loop whatever the archive shows (team-category term, category, tag, CPT archive). Otherwise build a custom query below.', 'ds-toolkit' ), 'hide' => array( 'archive' => array( 'sections' => array( 'query_filter', 'query_sort', 'query_more' ) ) ), 'toggle' => array( 'custom' => array( 'fields' => array( 'post_type', 'posts_per_page', 'order_by', 'order', 'offset', 'exclude_current', 'date_after', 'date_before', 'keyword' ) ) ) ),
 					'post_type'      => array( 'type' => 'select', 'label' => __( 'Post Type', 'ds-toolkit' ), 'default' => 'post', 'options' => DS_Post_Loop_Module::post_type_options() ),
 					'posts_per_page' => array( 'type' => 'unit', 'label' => __( 'Number of Posts', 'ds-toolkit' ), 'default' => '5', 'slider' => array( 'min' => 1, 'max' => 12, 'step' => 1 ), 'help' => __( 'Total posts pulled. The first one becomes the large featured card; the rest fill the loop.', 'ds-toolkit' ) ),
+				),
+			),
+			'query_filter' => array(
+				'title'  => __( 'Filter by Taxonomy', 'ds-toolkit' ),
+				// Fields injected after the form is defined (one term-suggest field per
+				// public taxonomy, revealed by the Taxonomy selector's toggle).
+				'fields' => array(),
+			),
+			'query_sort' => array(
+				'title'  => __( 'Sort', 'ds-toolkit' ),
+				'fields' => array(
 					'order_by'       => array(
 						'type'    => 'select',
 						'label'   => __( 'Order By', 'ds-toolkit' ),
@@ -1809,18 +1821,24 @@ $ds_pl_form = array(
 						'type'    => 'select',
 						'label'   => __( 'Order', 'ds-toolkit' ),
 						'default' => 'DESC',
-						'options' => array( 'DESC' => __( 'Descending (newest first)', 'ds-toolkit' ), 'ASC' => __( 'Ascending (oldest first)', 'ds-toolkit' ) ),
+						'options' => array( 'DESC' => __( 'Descending (Z to A, newest first)', 'ds-toolkit' ), 'ASC' => __( 'Ascending (A to Z, oldest first)', 'ds-toolkit' ) ),
 					),
-					'offset'         => array( 'type' => 'unit', 'label' => __( 'Offset', 'ds-toolkit' ), 'default' => '0', 'slider' => array( 'min' => 0, 'max' => 20, 'step' => 1 ), 'help' => __( 'Skip this many posts from the start of the result set.', 'ds-toolkit' ) ),
+				),
+			),
+			'query_more' => array(
+				'title'     => __( 'More Filters', 'ds-toolkit' ),
+				'collapsed' => true,
+				'fields'    => array(
 					'date_after'     => array( 'type' => 'text', 'label' => __( 'From Date', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Only posts published on/after this date. YYYY-MM-DD, or a relative window like "-30 days". Blank = no lower bound.', 'ds-toolkit' ) ),
 					'date_before'    => array( 'type' => 'text', 'label' => __( 'To Date', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Only posts published on/before this date. Same formats as From Date. Blank = no upper bound.', 'ds-toolkit' ) ),
 					'keyword'        => array( 'type' => 'text', 'label' => __( 'Keyword Search', 'ds-toolkit' ), 'default' => '', 'help' => __( 'Only posts matching this keyword (searches title and content).', 'ds-toolkit' ) ),
+					'offset'         => array( 'type' => 'unit', 'label' => __( 'Offset', 'ds-toolkit' ), 'default' => '0', 'slider' => array( 'min' => 0, 'max' => 20, 'step' => 1 ), 'help' => __( 'Skip this many posts from the start of the result set.', 'ds-toolkit' ) ),
 					'exclude_current' => array( 'type' => 'select', 'label' => __( 'Exclude Current Post', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ), 'help' => __( 'On a single post / CPT view, leave out the post being viewed — ideal for a “More News / Related” strip.', 'ds-toolkit' ) ),
-					'date_format'    => array( 'type' => 'text', 'label' => __( 'Date Format', 'ds-toolkit' ), 'default' => 'M Y', 'help' => __( 'PHP date format for the card date (e.g. M Y → Jun 2026).', 'ds-toolkit' ) ),
 				),
 			),
 			'empty_cfg' => array(
-				'title'  => __( 'When There Are No Results', 'ds-toolkit' ),
+				'title'     => __( 'When There Are No Results', 'ds-toolkit' ),
+				'collapsed' => true,
 				'fields' => array(
 					'empty_show' => array(
 						'type'    => 'select',
@@ -1859,12 +1877,6 @@ $ds_pl_form = array(
 						'options' => array( 'center' => __( 'Center', 'ds-toolkit' ), 'left' => __( 'Left', 'ds-toolkit' ) ),
 					),
 				),
-			),
-			'query_filter' => array(
-				'title'  => __( 'Taxonomy Filter', 'ds-toolkit' ),
-				// Fields injected after the form is defined (one term-suggest field per
-				// public taxonomy, revealed by the Taxonomy selector's toggle).
-				'fields' => array(),
 			),
 			'tn_filter_opts' => array(
 				'title'       => __( 'Filter Bar (Event Card)', 'ds-toolkit' ),
@@ -2365,6 +2377,8 @@ if ( isset( $ds_pl_q['post_type'] ) ) {
 		);
 	}
 	unset( $ds_pt_name, $ds_pt_label, $ds_pt_key, $ds_inc, $ds_exc );
+	// Posts section order: Source, Post Type, Include / Exclude Specific, then Number of Posts.
+	if ( isset( $ds_pl_q['posts_per_page'] ) ) { $ds_pp = $ds_pl_q['posts_per_page']; unset( $ds_pl_q['posts_per_page'] ); $ds_pl_q['posts_per_page'] = $ds_pp; unset( $ds_pp ); }
 }
 unset( $ds_pl_q );
 
