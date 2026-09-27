@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [Unreleased]
+### Fixed
+- **Saving Theme Setting could silently swap the site's share image for the Design Shop placeholder.** The social card is stored twice, as an attachment id and as a URL, and Theme Setting re-submits both on every save; `DS_Social_Card::set_card()` stored them as given and mirrored them into Yoast, which outputs the image by id. On a site where the two disagreed (oyo.local: URL = the club's own card, id = 56525, the blueprint placeholder, from a card set by script on 2026-09-24), any Theme Setting save, even one only touching a background, turned every page's `og:image` into the placeholder. `set_card()` now reconciles them first: the URL is what the partner sees, so its attachment id wins, a stale id is dropped when the URL is not a library file, and a blank URL is filled from a valid id. Verified on oyo: the same save keeps the club card on the home page and inner pages; 7 of 7 reconcile cases (matching, stale id, id only, blank, external URL with and without a stale id, deleted attachment).
+
 ## [1.9.166] - 2026-09-27
 ### Fixed
 - **The `.htaccess` allow-list finding named innocent WordPress files when run from the CLI on Flywheel.** The rule counts allow-listed filenames that are not present on disk, and Flywheel symlinks core: `wp-config.php` sits at `/www` while `ABSPATH` is `/www/.wordpress`. In-plugin that is covered, because `ABSPATH` is defined, which is why the real scan on shoreshots.org correctly reported 30. From the CLI (`fw-clean-site`, or a manual run) `ABSPATH` is undefined, only `$dir/wp-admin` was tried, nothing resolved, and southorlandobaberuth.com reported *"93 of them are not present on disk (admin-ajax.php, admin-footer.php, admin-functions.php, ...)"* - naming the genuine WordPress files, which is the same misleading-message failure this rule had already been corrected for once. It now also tries `$dir/.wordpress`, and the same file reports **"32 of them are not present on disk (adminfuns.php, chtmlfuns.php, cjfuns.php, ...)"**, which is the attacker's appended set and matches a hand count exactly.

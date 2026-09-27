@@ -74,11 +74,28 @@ class DS_Social_Card {
 	 * save and by the seeder.
 	 */
 	public static function set_card( $id, $url ) {
-		$id  = (int) $id;
-		$url = esc_url_raw( (string) $url );
+		list( $id, $url ) = self::reconcile( (int) $id, esc_url_raw( (string) $url ) );
 		update_option( self::OPT_ID, $id );
 		update_option( self::OPT_URL, $url );
 		self::sync_yoast( $id, $url );
+	}
+
+	/**
+	 * Make the id and the URL name the same image. The URL is what the partner sees (Theme Setting shows it as the
+	 * thumbnail), so it wins: its attachment id replaces a different one, and an id whose file is not that URL is dropped.
+	 * Without this a stale id (a card URL set by a script while the id still named the blueprint placeholder, seen on
+	 * oyo 2026-09-27) is re-saved on EVERY Theme Setting save and mirrored into Yoast, which outputs by id, so the site's
+	 * share image silently turns into the placeholder.
+	 */
+	public static function reconcile( $id, $url ) {
+		if ( '' === $url ) {
+			$url = $id ? (string) wp_get_attachment_url( $id ) : '';
+			return array( $url ? $id : 0, $url );
+		}
+		$from_url = (int) attachment_url_to_postid( $url );
+		if ( $from_url ) { return array( $from_url, $url ); }
+		if ( $id && (string) wp_get_attachment_url( $id ) !== $url ) { $id = 0; }
+		return array( $id, $url );
 	}
 
 	/** Push the card into Yoast's default OG image option (no-op without Yoast). */
