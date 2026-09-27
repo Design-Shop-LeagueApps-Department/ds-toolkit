@@ -413,6 +413,116 @@ class DS_Tripwire {
      * failure mode is "keep scanning", never "go quiet". Regenerate with
      * fleet-audit/bin/gen-known-good.sh on every release; a stale list only costs a false positive.
      */
+    /**
+     * Is this file one the vendor verifiably ships, at this path, in the version the plugin declares?
+     * Returns true ONLY on an exact path + md5 hit in the official manifest. See VENDOR_BASE above
+     * for why this is hash equality and not a name or path exemption.
+     */
+    private static function vendor_verified( $path, $md5 ) {
+        try {
+            if ( '' === (string) $path || '' === (string) $md5 ) { return false; }
+            $md5 = strtolower( $md5 );
+
+            // a file already verified on this site never needs the network again
+            if ( null === self::$vendor_ok ) {
+                $c = function_exists( 'get_transient' ) ? get_transient( 'ds_tripwire_vendor_ok' ) : false;
+                self::$vendor_ok = is_array( $c ) ? $c : array();
+            }
+            if ( isset( self::$vendor_ok[ $md5 ] ) ) { self::$vendor_stats['verified']++; return true; }
+
+            // the path must sit inside a plugin folder, and give us the slug + the vendor-relative path
+            $norm = str_replace( '\\', '/', (string) $path );
+            if ( ! preg_match( '#/wp-content/plugins/([^/]+)/(.+)$#', $norm, $mm ) ) { return false; }
+            $slug = $mm[1];
+            $rel  = $mm[2];
+            // our own plugin is never on wordpress.org; do not even ask
+            if ( 'ds-toolkit' === $slug || ! preg_match( '/^[a-z0-9][a-z0-9\-\.]*$/i', $slug ) ) { return false; }
+
+            $ver = self::plugin_version( $slug );
+            if ( '' === $ver || ! preg_match( '/^[0-9A-Za-z\.\-]+$/', $ver ) ) { return false; }
+
+            $key = $slug . '|' . $ver;
+            if ( isset( self::$vendor_tried[ $key ] ) ) {
+                // already fetched (or failed) this run. If it succeeded, the md5 set was merged, so
+                // arriving here means this file is simply not a verified vendor file.
+                return false;
+            }
+            if ( self::$vendor_fetches >= self::VENDOR_FETCH_MAX ) { self::$vendor_stats['budget']++; return false; }
+
+            self::$vendor_tried[ $key ] = true;
+            self::$vendor_fetches++;
+
+            if ( ! function_exists( 'wp_remote_get' ) ) { self::$vendor_stats['error']++; return false; }
+            $r = wp_remote_get( self::VENDOR_BASE . rawurlencode( $slug ) . '/' . rawurlencode( $ver ) . '.json', array(
+                'timeout'     => self::VENDOR_TIMEOUT,
+                'redirection' => 1,
+                'sslverify'   => true,
+                'user-agent'  => 'DS-Tripwire/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '?' ),
+            ) );
+            if ( is_wp_error( $r ) ) { self::$vendor_stats['error']++; return false; }
+            $code = (int) wp_remote_retrieve_response_code( $r );
+            if ( 200 !== $code ) { self::$vendor_stats['no_manifest']++; return false; }  // 404 = premium or unpublished version
+            $body = (string) wp_remote_retrieve_body( $r );
+            if ( '' === $body || strlen( $body ) > self::VENDOR_MAX_BYTES ) { self::$vendor_stats['error']++; return false; }
+            $d = json_decode( $body, true );
+            if ( ! is_array( $d ) || empty( $d['files'] ) || ! is_array( $d['files'] ) ) { self::$vendor_stats['error']++; return false; }
+
+            // Merge EVERY md5 this manifest declares into the verified set, so the rest of this run
+            // and the next week of runs cost nothing. Keyed by md5 only, which is safe because a
+            // match still had to come from this plugin's own manifest.
+            $add = array();
+            foreach ( $d['files'] as $fpath => $meta ) {
+                if ( is_array( $meta ) && ! empty( $meta['md5'] ) ) { $add[ strtolower( $meta['md5'] ) ] = true; }
+            }
+            $hit = isset( $d['files'][ $rel ] ) && is_array( $d['files'][ $rel ] )
+                && strtolower( (string) $d['files'][ $rel ]['md5'] ) === $md5;
+
+            if ( $hit ) {
+                self::$vendor_ok = array_merge( self::$vendor_ok, $add );
+                if ( function_exists( 'set_transient' ) ) {
+                    // cap the stored set so a site with many plugins cannot grow this without bound
+                    $keep = self::$vendor_ok;
+                    if ( count( $keep ) > 20000 ) { $keep = array_slice( $keep, -20000, null, true ); }
+                    set_transient( 'ds_tripwire_vendor_ok', $keep, self::VENDOR_TTL );
+                }
+                self::$vendor_stats['verified']++;
+                return true;
+            }
+            if ( ! isset( $d['files'][ $rel ] ) ) { self::$vendor_stats['not_shipped']++; }
+            else { self::$vendor_stats['mismatch']++; }
+            return false;
+        } catch ( \Throwable $e ) {
+            self::$vendor_stats['error']++;
+            return false;
+        }
+    }
+
+    /** The version a plugin declares, from its own main file header. '' when unknown. */
+    private static function plugin_version( $slug ) {
+        try {
+            $dir = ( defined( 'WP_PLUGIN_DIR' ) ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/plugins' ) . '/' . $slug;
+            if ( ! is_dir( $dir ) ) { return ''; }
+            $files = glob( $dir . '/*.php' );
+            if ( ! is_array( $files ) ) { return ''; }
+            // the main file is usually <slug>.php; try it first, then any file with a Version header
+            usort( $files, function ( $a, $b ) use ( $slug ) {
+                $pa = ( basename( $a ) === $slug . '.php' ) ? 0 : 1;
+                $pb = ( basename( $b ) === $slug . '.php' ) ? 0 : 1;
+                return $pa === $pb ? strcmp( $a, $b ) : $pa - $pb;
+            } );
+            foreach ( array_slice( $files, 0, 12 ) as $f ) {
+                $head = @file_get_contents( $f, false, null, 0, 8192 );
+                if ( false === $head ) { continue; }
+                if ( preg_match( '/^[ \t\/*#@]*Version:\s*(.+)$/mi', $head, $m ) ) {
+                    return trim( $m[1] );
+                }
+            }
+            return '';
+        } catch ( \Throwable $e ) {
+            return '';
+        }
+    }
+
     private static function known_good_md5() {
         static $set = null;
         if ( null !== $set ) {
@@ -455,7 +565,42 @@ class DS_Tripwire {
     const REMOTE_TIMEOUT   = 4;      // seconds; runs BEFORE the scan deadline is stamped, cached the other 59 min
 
     /** Per-list fetch health for this run, recorded in state so silence is auditable. */
+    /**
+     * VENDOR MANIFEST verification. wordpress.org publishes per-file md5 for every plugin release at
+     * downloads.wordpress.org/plugin-checksums/<slug>/<version>.json. A file that the vendor
+     * verifiably ships, at that exact path, in the version the plugin declares, is not a finding.
+     *
+     * This exists because a vendor false positive is one hash PER VERSION PER FILE PER PLUGIN. On
+     * 2026-09-27 five CRITICALs stayed unread and four were one plugin's own code; clearing them by
+     * hand took four releases' worth of allow-list entries (#245 #246 #247 #250) and still only
+     * covered the versions we happened to see. WP Engine auto-updates plugins, so on that half of
+     * the fleet the hand-curated list can never keep up.
+     *
+     * WHY IT IS NOT A SOFTENING. It is NOT "trust files inside a registered plugin" - two shells in
+     * our own signature table live inside real active plugins (bb-plugin's mailerlite vendor tree,
+     * wpforms-lite's assets/images/entry-importer/). The test is this md5 at this path in this
+     * version, which is the same hash equality known_good_md5() does, with the vendor answering
+     * instead of a human. Verified: the wpforms-lite shell path is absent from that plugin's
+     * official 4,856-file manifest, and premium plugins (bb-plugin, css-hero, wpe-site-migration)
+     * plus ds-toolkit itself have no manifest at all, so they can never be cleared this way.
+     *
+     * Every failure refuses to clear: no manifest, path not shipped, md5 differs (someone edited a
+     * vendor file - interesting), transport error, budget spent. Only an exact hit returns true.
+     */
+    const VENDOR_BASE      = 'https://downloads.wordpress.org/plugin-checksums/';
+    const VENDOR_TIMEOUT   = 4;       // seconds, same as the remote lists
+    const VENDOR_MAX_BYTES = 4194304; // 4 MB; the largest manifests are ~500 KB
+    const VENDOR_FETCH_MAX = 6;       // manifests per run. A scoring file is rare, so this is generous.
+    const VENDOR_TTL       = 604800;  // 7 days; a slug+version manifest is immutable once published
+
     private static $remote_status = array();
+
+    /** md5 => true for files this site has already verified against a vendor manifest. */
+    private static $vendor_ok = null;
+    /** slug|version => true for manifests already fetched (or failed) this run, to fetch each once. */
+    private static $vendor_tried = array();
+    private static $vendor_fetches = 0;
+    private static $vendor_stats = array( 'verified' => 0, 'no_manifest' => 0, 'not_shipped' => 0, 'mismatch' => 0, 'error' => 0, 'budget' => 0 );
 
     /**
      * Parse an md5 list body. PURE: no WordPress, no I/O, so the unit test can feed it garbage.
@@ -1019,6 +1164,10 @@ class DS_Tripwire {
                 if ( ! empty( $f['skipped'] ) ) { $skipped++; return; }
                 // known-good by HASH: verified vendor and blueprint code, never a path or name match
                 if ( ! empty( $f['md5'] ) && isset( $known[ $f['md5'] ] ) ) { $cleared++; return; }
+                // vendor-verified by HASH against the plugin's own official manifest. Same equality
+                // test, answered by wordpress.org instead of a curated list, so a plugin update no
+                // longer mints a false positive. Every failure path leaves the finding standing.
+                if ( ! empty( $f['md5'] ) && ! empty( $f['path'] ) && self::vendor_verified( $f['path'], $f['md5'] ) ) { $cleared++; return; }
                 // name it if we have identified this exact file before (bundled list + remote deny list)
                 if ( ! empty( $f['md5'] ) && isset( $bad[ $f['md5'] ] ) ) {
                     $f['reasons'] = array_merge(
@@ -1075,6 +1224,8 @@ class DS_Tripwire {
         // goes quiet has to be able to say why: "cleared=412" is auditable, silence is not.
         $c['cleared']     = $cleared;
         $c['known_good']  = count( $known );
+        // observable, so "the noise went away" can be checked instead of assumed
+        $c['vendor']      = self::$vendor_stats;
         // Remote list health for this run. A scan that suppressed or named more than the bundle can
         // say where that came from, and a dead endpoint shows up here instead of silently leaving the
         // bundle in charge. Read it with: wp option get ds_tripwire_state --format=json (content.remote)

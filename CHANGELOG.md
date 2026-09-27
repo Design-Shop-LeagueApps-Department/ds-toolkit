@@ -4,6 +4,20 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.6] - 2026-09-28
+### Security
+- **DS Tripwire verifies a plugin's own files against the vendor, so a plugin update no longer mints a false alarm.** wordpress.org publishes per-file md5 for every plugin release (`downloads.wordpress.org/plugin-checksums/<slug>/<version>.json`). When a file scores, the content scan now asks whether the plugin that ships it declares that exact md5 at that exact path in the version installed, and clears it only on an exact hit.
+
+  Why: a vendor false positive is one hash **per version, per file, per plugin**. On 2026-09-27 five CRITICALs stayed unread and four of them were one plugin's own code; clearing them by hand produced four allow-list releases (#245, #246, #247, #250) and still only covered the versions we happened to see. WP Engine auto-updates plugins, so on that half of the fleet a hand-curated list can never keep up.
+
+  **This is not a name or path exemption.** Two shells in our own signature table live *inside* real, active plugins (`bb-plugin`'s mailerlite vendor tree, and `wpforms-lite/assets/images/entry-importer/`). The test is hash equality, exactly as `known_good_md5()` already does it, with the vendor answering instead of a curated list. Every other outcome leaves the finding standing: no manifest (premium plugins, and ds-toolkit itself), path not shipped at that version, path shipped but a different md5 (someone edited a vendor file), transport failure, or the per-run fetch budget spent.
+
+  Costs nothing when nothing scores: the manifest is fetched only when a file actually scores, at most 6 per run with a 4s timeout, and a verified md5 is remembered for 7 days. `content.vendor` in the tripwire state counts each outcome, so the effect is measurable rather than assumed.
+
+  Verified with 15 assertions against the live checksum service (`fleet-audit/bin/ds-vendor-selftest.php`, no WordPress and no site needed): the 5 real vendor files that alerted this week are cleared, and the wpforms-lite shell, the bb-plugin shell, a genuine vendor path carrying attacker content, our own plugin, a file outside any plugin folder, a mu-plugin, an empty hash, an unknown plugin, and a spent budget are all refused. `tests/tripwire-vendor-manifest-test.php` runs the same contract under WP-CLI. The engine selftest stays at 68 passed, 0 failed.
+
+---
+
 ## [1.10.5] - 2026-09-28
 ### Changed
 - **Content Router and Team Detail are offered only where they work** (Alipio: "Content router and Team detail still showing even its not needed in simple internal pages"). Both read the current context (the post type being viewed, or the team's own fields), so they belong in a Beaver Themer layout or a saved template (the Single Teams template is a saved template the Content Router inserts). The builder's module list now leaves them out on ordinary pages and posts. Existing instances anywhere keep rendering and still open their settings. Checked on dslaunchpad7: About Us lists 16 LeagueApps modules without the two, the Base Themer layout and the Single Teams template list all 18, and the team and About pages render the same before and after.
