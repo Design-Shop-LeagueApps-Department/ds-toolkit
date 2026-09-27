@@ -5,6 +5,8 @@ All notable changes to DS Toolkit are documented here.
 ---
 
 ## [Unreleased]
+### Fixed
+- **Hero Banner form: Style 3 no longer shows an orphan Max Width control** (its Container Width is hidden there, but a hide rule does not cascade to that select's own toggle target; pre-release audit 2026-09-27).
 ### Changed
 - **The Hero Banner settings are reorganised, content first.** The module carries three styles and 134 settings, and partners opened it to a crowded panel (Alipio, 2026-09-27: "too crowded, just re organizing it so that it wont affect the other builds or setting"). Each style now opens on its words and puts the styling behind it:
   - **Style 1 (Classic):** Content is Text (eyebrow, headline, subtext, then the optional eyebrow image), Buttons (text, link, style), Background, and Stats Row (collapsed). Style is Layout, Overlay, Colours, Typography, Buttons (Match site Button, alignment), then Gradient & Outline Text and Spacing (collapsed).
