@@ -5,6 +5,8 @@ All notable changes to DS Toolkit are documented here.
 ---
 
 ## [Unreleased]
+### Security
+- **Manage entries: a change set only runs when the server signed it** (pre-release audit 2026-09-27). The "held to the rights of whoever made the change" check trusted a user id carried inside the saved settings, and only Beaver Builder 2.11+ re-stamped it on save, so on BB 2.10 sites (and through a copied or aliased module on any version) an Author could plant changes that would run with an admin's rights when the admin published. Saving the module now signs the change set for the saving user with the site's secret (in the module's `update()`, which every BB version runs, as well as the 2.11 save filter), and publish refuses any set whose signature is missing or does not match. Builder and Themer templates are never managed from a loop (trashing a global template would break every page using it), and terms are only set in taxonomies the user may assign. `tests/loop-manager-test.php`: 57 checks.
 ### Added
 - **Manage entries links to where the post type is managed.** A Post Loop showing Posts or Pages, which the in-builder manager does not edit, only said "This post type cannot be managed here" (Alipio, 2026-09-27: "add link to post type post where they manage post ... because you cant control in beaver"). It now says "Posts are edited in the dashboard, not in this box" with **Open the Posts list**, and a loop of a managed type (Staff, Teams, Athletes) shows the same link under its entries. The link opens the Nested Pages screen when Nested Pages manages that type (`admin.php?page=nestedpages-post`, `nestedpages` for pages), otherwise WordPress's own list, in a new tab, and only for users who can edit that type.
 ### Added

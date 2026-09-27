@@ -53,6 +53,11 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$this->add_css( 'font-awesome-5' );
 	}
 
+	/** Beaver Builder runs this whenever the module's settings are saved (all versions): sign any pending "Manage entries" changes for the saving user. */
+	public function update( $settings ) {
+		return class_exists( 'DS_Loop_Manager' ) ? DS_Loop_Manager::stamp_settings( $settings ) : $settings;
+	}
+
 	/**
 	 * Layout options for the Layout dropdown. The News-specific designs first, then
 	 * the universal "Loop Card" — always offered for every content type (it loops any

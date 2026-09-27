@@ -114,6 +114,7 @@ class DS_Loop_Manager {
 			'defaults' => $terms( $c['defaults'] ?? array() ),
 		);
 		if ( ! empty( $c['by'] ) ) { $out['by'] = absint( $c['by'] ); }
+		if ( isset( $c['sig'] ) && is_string( $c['sig'] ) && preg_match( '/^[0-9a-f]{32}$/', $c['sig'] ) ) { $out['sig'] = $c['sig']; }
 		foreach ( array_slice( (array) ( $c['items'] ?? array() ), 0, self::MAX, true ) as $k => $ch ) {
 			if ( ! self::valid_key( $k ) || ! is_array( $ch ) ) { continue; }
 			$o = array();
@@ -143,18 +144,52 @@ class DS_Loop_Manager {
 	 * the changes to that user's rights as well as the publisher's.
 	 */
 	public static function on_save_settings( $settings, $node ) {
-		if ( ! is_object( $settings ) || 'ds-post-loop' !== ( $node->settings->type ?? '' ) || ! isset( $settings->pl_manage ) ) { return $settings; }
+		if ( ! is_object( $settings ) || 'ds-post-loop' !== ( $node->settings->type ?? '' ) ) { return $settings; }
+		return self::stamp_settings( $settings );
+	}
+
+	/**
+	 * Re-clean a module's change set and sign it for the user saving it. Called from
+	 * DS_Post_Loop_Module::update() (every Beaver Builder version runs it when module settings
+	 * are saved) and from fl_builder_pre_verify_node_settings (BB 2.11+).
+	 */
+	public static function stamp_settings( $settings ) {
+		if ( ! is_object( $settings ) || ! isset( $settings->pl_manage ) || '' === (string) $settings->pl_manage ) { return $settings; }
 		$c = self::sanitize_payload( self::decode( $settings->pl_manage ) );
-		if ( ! $c || '' === $c['pt'] ) { $settings->pl_manage = ''; return $settings; }
-		$c['by'] = get_current_user_id();
-		$settings->pl_manage = self::encode( $c );
+		$settings->pl_manage = ( ! $c || '' === $c['pt'] ) ? '' : self::encode( self::stamp( $c ) );
 		return $settings;
+	}
+
+	/**
+	 * Sign a change set for a user: "by" is who made it, "sig" binds it to this site's secret, so a
+	 * change set arriving any other way (typed into the settings JSON, a copied or aliased module,
+	 * an older builder that skips the save filter) carries no valid signature and is refused.
+	 */
+	public static function stamp( array $c, $user_id = null ) {
+		$c        = self::sanitize_payload( $c );
+		$c['by']  = null === $user_id ? get_current_user_id() : absint( $user_id );
+		$c['sig'] = self::signature( $c );
+		return $c;
+	}
+
+	private static function signature( array $c ) {
+		unset( $c['sig'] );
+		return wp_hash( 'ds-loop-manager|' . wp_json_encode( $c ), 'auth' );
+	}
+
+	/** The signing user of a sanitized change set, or 0 when the signature is missing or wrong. */
+	public static function signed_by( array $c ) {
+		if ( empty( $c['by'] ) || empty( $c['sig'] ) ) { return 0; }
+		return hash_equals( self::signature( $c ), (string) $c['sig'] ) ? (int) $c['by'] : 0;
 	}
 
 	/** A post type the manager may edit: a public custom type, not posts, pages or media. */
 	public static function supported( $pt ) {
 		$o = get_post_type_object( (string) $pt );
-		return $o && $o->public && ! in_array( $o->name, array( 'post', 'page', 'attachment' ), true );
+		// Builder and theme-builder templates are public for builder admins; trashing one from a loop
+		// would break every page that uses it, so they are never managed here.
+		$never = array( 'post', 'page', 'attachment', 'fl-builder-template', 'fl-theme-layout', 'elementor_library', 'wp_block', 'wp_template', 'wp_template_part' );
+		return $o && $o->public && ! in_array( $o->name, $never, true );
 	}
 
 	/**
@@ -394,8 +429,9 @@ class DS_Loop_Manager {
 		$pt     = $c['pt'] ?? '';
 		// The changes belong to the post type this loop shows (a leftover set for another type is ignored).
 		if ( ! self::supported( $pt ) || ( isset( $s->post_type ) && (string) $s->post_type !== $pt ) ) { return $report; }
-		$by     = (int) ( $c['by'] ?? 0 );
-		if ( $by && ! get_userdata( $by ) ) { return $report; }
+		// Only a change set signed on save counts, and it is held to its author's rights as well as the publisher's.
+		$by     = self::signed_by( $c );
+		if ( ! $by || ! get_userdata( $by ) ) { $report['skipped'] = count( (array) ( $c['items'] ?? array() ) ) + count( (array) ( $c['trash'] ?? array() ) ); return $report; }
 		$schema = self::schema( $pt );
 		$fmap   = array();
 		foreach ( $schema['fields'] as $f ) { if ( 'unsupported' !== $f['type'] ) { $fmap[ $f['name'] ] = $f; } }
@@ -446,6 +482,8 @@ class DS_Loop_Manager {
 			if ( $isnew && ! $terms && ! empty( $c['defaults'] ) ) { $terms = (array) $c['defaults']; }
 			foreach ( $terms as $tax => $ids ) {
 				if ( ! in_array( $tax, $taxes, true ) ) { continue; }
+				$tobj = get_taxonomy( $tax );
+				if ( ! $tobj || ! self::can( $by, $tobj->cap->assign_terms ) ) { continue; }
 				// The panel lists at most 200 terms: keep any term the post has that it did not show.
 				$listed = array();
 				foreach ( $schema['tax'] as $t ) { if ( $t['name'] === $tax ) { $listed = wp_list_pluck( $t['terms'], 'id' ); } }

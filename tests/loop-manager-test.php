@@ -82,23 +82,37 @@ $loop = function ( $extra = array() ) { return (object) array_merge( array( 'typ
 
 $deny = function ( $caps ) { foreach ( array( 'edit_posts', 'edit_others_posts', 'edit_published_posts', 'delete_posts', 'delete_others_posts', 'delete_published_posts', 'publish_posts', 'edit_post', 'delete_post' ) as $k ) { $caps[ $k ] = false; } return $caps; };
 add_filter( 'user_has_cap', $deny );
-$r = DS_Loop_Manager::apply( array( 'pt' => 'staff', 'items' => array( (string) $a1 => array( 'title' => 'HACKED', 'status' => 'draft' ), 'n1' => array( 'title' => 'Injected' ) ), 'trash' => array( $a2 ), 'order' => array( (string) $a2, (string) $a1 ) ), $loop() );
+$r = DS_Loop_Manager::apply( DS_Loop_Manager::stamp( array( 'pt' => 'staff', 'items' => array( (string) $a1 => array( 'title' => 'HACKED', 'status' => 'draft' ), 'n1' => array( 'title' => 'Injected' ) ), 'trash' => array( $a2 ), 'order' => array( (string) $a2, (string) $a1 ) ) ), $loop() );
 remove_filter( 'user_has_cap', $deny );
 lm_is( 'without edit rights: every change skipped', array( $r['updated'], $r['created'], $r['trashed'], $r['reordered'] ), array( 0, 0, 0, 0 ) );
 lm_is( 'without edit rights: the post is untouched', array( get_the_title( $a1 ), get_post_status( $a1 ), get_post_status( $a2 ) ), array( 'LM test A', 'publish', 'publish' ) );
 
 $sub = wp_insert_user( array( 'user_login' => 'lm_test_' . wp_generate_password( 6, false ), 'user_pass' => wp_generate_password(), 'role' => 'subscriber' ) );
-$r   = DS_Loop_Manager::apply( array( 'pt' => 'staff', 'by' => $sub, 'items' => array( (string) $a1 => array( 'title' => 'By a subscriber' ) ), 'trash' => array( $a2 ) ), $loop() );
+$r   = DS_Loop_Manager::apply( DS_Loop_Manager::stamp( array( 'pt' => 'staff', 'items' => array( (string) $a1 => array( 'title' => 'By a subscriber' ) ), 'trash' => array( $a2 ) ), $sub ), $loop() );
 lm_is( 'changes written by a user without rights are refused even when an admin publishes', array( $r['updated'], $r['trashed'], get_the_title( $a1 ) ), array( 0, 0, 'LM test A' ) );
 wp_delete_user( $sub );
 
-$r = DS_Loop_Manager::apply( array( 'pt' => 'athlete', 'items' => array( (string) $a1 => array( 'title' => 'Wrong type' ) ) ), $loop() );
+$set = array( 'pt' => 'staff', 'items' => array( (string) $a1 => array( 'title' => 'Unsigned' ) ), 'trash' => array( $a2 ) );
+$r   = DS_Loop_Manager::apply( array_merge( $set, array( 'by' => (int) $admin[0] ) ), $loop() );
+lm_is( 'an unsigned change set (a user id typed into the payload) is refused', array( $r['updated'], $r['trashed'], get_the_title( $a1 ), get_post_status( $a2 ) ), array( 0, 0, 'LM test A', 'publish' ) );
+$forged = DS_Loop_Manager::stamp( $set ); $forged['items'][ (string) $a1 ]['title'] = 'Tampered';
+$r   = DS_Loop_Manager::apply( $forged, $loop() );
+lm_is( 'a signed change set edited afterwards is refused', array( $r['updated'], get_the_title( $a1 ) ), array( 0, 'LM test A' ) );
+$swap = DS_Loop_Manager::stamp( $set ); $swap['by'] = 1 === (int) $admin[0] ? 2 : 1;
+lm_is( 'swapping the author on a signed set breaks the signature', DS_Loop_Manager::signed_by( DS_Loop_Manager::sanitize_payload( $swap ) ), 0 );
+if ( class_exists( 'DS_Post_Loop_Module' ) ) {
+	$upd = ( new ReflectionClass( 'DS_Post_Loop_Module' ) )->newInstanceWithoutConstructor()->update( (object) array( 'pl_manage' => DS_Loop_Manager::encode( $set ) ) );
+	lm_is( 'module update() (every builder version) signs the set for the saving user', DS_Loop_Manager::signed_by( DS_Loop_Manager::sanitize_payload( DS_Loop_Manager::decode( $upd->pl_manage ) ) ), (int) $admin[0] );
+}
+lm_is( 'builder templates are never managed', array( DS_Loop_Manager::supported( 'fl-builder-template' ), DS_Loop_Manager::supported( 'fl-theme-layout' ) ), array( false, false ) );
+
+$r = DS_Loop_Manager::apply( DS_Loop_Manager::stamp( array( 'pt' => 'athlete', 'items' => array( (string) $a1 => array( 'title' => 'Wrong type' ) ) ) ), $loop() );
 lm_is( 'a change set for another post type than the loop shows is ignored', array( $r['updated'], get_the_title( $a1 ) ), array( 0, 'LM test A' ) );
-$r = DS_Loop_Manager::apply( array( 'pt' => 'staff', 'items' => array( (string) get_option( 'page_on_front' ) => array( 'title' => 'HACKED' ) ) ), $loop() );
+$r = DS_Loop_Manager::apply( DS_Loop_Manager::stamp( array( 'pt' => 'staff', 'items' => array( (string) get_option( 'page_on_front' ) => array( 'title' => 'HACKED' ) ) ) ), $loop() );
 lm_is( 'an ID of another post type is skipped', array( $r['updated'], $r['skipped'], get_the_title( get_option( 'page_on_front' ) ) !== 'HACKED' ), array( 0, 1, true ) );
-$r = DS_Loop_Manager::apply( array( 'pt' => 'staff', 'order' => array( (string) $a2, (string) $a1 ) ), $loop( array( 'order_by' => 'date' ) ) );
+$r = DS_Loop_Manager::apply( DS_Loop_Manager::stamp( array( 'pt' => 'staff', 'order' => array( (string) $a2, (string) $a1 ) ) ), $loop( array( 'order_by' => 'date' ) ) );
 lm_is( 'a date-sorted loop does not renumber menu_order', array( $r['reordered'], (int) get_post_field( 'menu_order', $a1 ), (int) get_post_field( 'menu_order', $a2 ) ), array( 0, 1, 2 ) );
-$r = DS_Loop_Manager::apply( array( 'pt' => 'staff', 'order' => array( (string) $a2, (string) $a1 ) ), $loop() );
+$r = DS_Loop_Manager::apply( DS_Loop_Manager::stamp( array( 'pt' => 'staff', 'order' => array( (string) $a2, (string) $a1 ) ) ), $loop() );
 lm_is( 'a menu_order loop takes the list order', array( (int) get_post_field( 'menu_order', $a2 ), (int) get_post_field( 'menu_order', $a1 ) ), array( 1, 2 ) );
 $tax = get_object_taxonomies( 'staff' );
 if ( $tax ) {
@@ -108,7 +122,7 @@ if ( $tax ) {
 		wp_set_object_terms( $a1, array( $tid ), $tax[0] );
 		$hide = function ( $terms, $taxes, $args ) use ( $tid ) { return is_array( $terms ) ? array_values( array_filter( $terms, function ( $t ) use ( $tid ) { return ! is_object( $t ) || (int) $t->term_id !== $tid; } ) ) : $terms; };
 		add_filter( 'get_terms', $hide, 10, 3 ); // as if it were term 201+, not listed in the panel
-		DS_Loop_Manager::apply( array( 'pt' => 'staff', 'items' => array( (string) $a1 => array( 'terms' => array( $tax[0] => array() ) ) ) ), $loop() );
+		DS_Loop_Manager::apply( DS_Loop_Manager::stamp( array( 'pt' => 'staff', 'items' => array( (string) $a1 => array( 'terms' => array( $tax[0] => array() ) ) ) ) ), $loop() );
 		remove_filter( 'get_terms', $hide, 10 );
 		lm_is( 'a term the panel did not list is kept', wp_get_object_terms( $a1, $tax[0], array( 'fields' => 'ids' ) ), array( $tid ) );
 		wp_delete_term( $tid, $tax[0] );
@@ -118,7 +132,7 @@ if ( $tax ) {
 // Publish: a real page with a loop, an HTML module full of backslashes, and a revision.
 $page = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'LM test page (temporary)' ) ); $tmp[] = $page;
 $html = (object) array( 'node' => 'h1', 'type' => 'module', 'parent' => null, 'position' => 1, 'settings' => (object) array( 'type' => 'html', 'html' => '<style>.q:before{content:"\201C"}</style><script>/\d+/.test("1")</script>' ) );
-$pl   = DS_Loop_Manager::encode( array( 'pt' => 'staff', 't' => 1, 'items' => array( (string) $a1 => array( 'title' => 'Published name' ) ) ) );
+$pl   = DS_Loop_Manager::encode( DS_Loop_Manager::stamp( array( 'pt' => 'staff', 't' => 1, 'items' => array( (string) $a1 => array( 'title' => 'Published name' ) ) ) ) );
 $lm   = (object) array( 'node' => 'l1', 'type' => 'module', 'parent' => null, 'position' => 0, 'settings' => $loop( array( 'pl_manage' => $pl ) ) );
 $data = array( 'l1' => $lm, 'h1' => $html );
 foreach ( array( 'published', 'draft' ) as $st ) { FLBuilderModel::update_layout_data( $data, $st, $page ); }
@@ -131,7 +145,7 @@ wp_update_post( array( 'ID' => $a1, 'post_title' => 'Renamed in the dashboard' )
 DS_Loop_Manager::on_publish( $page, true, $data, array() ); // the same change set again (restored revision, undo, duplicate)
 lm_is( 'the same change set is never applied twice', get_the_title( $a1 ), 'Renamed in the dashboard' );
 $dup = array( 'l1' => $lm, 'l2' => (object) array_merge( (array) $lm, array( 'node' => 'l2' ) ) );
-$pl2 = DS_Loop_Manager::encode( array( 'pt' => 'staff', 't' => 2, 'items' => array( 'n1' => array( '_new' => 1, 'title' => 'LM test dup' ) ) ) );
+$pl2 = DS_Loop_Manager::encode( DS_Loop_Manager::stamp( array( 'pt' => 'staff', 't' => 2, 'items' => array( 'n1' => array( '_new' => 1, 'title' => 'LM test dup' ) ) ) ) );
 $dup['l1'] = clone $lm; $dup['l1']->settings = clone $lm->settings; $dup['l1']->settings->pl_manage = $pl2;
 $dup['l2'] = clone $dup['l1']; $dup['l2']->node = 'l2';
 DS_Loop_Manager::on_publish( $page, true, $dup, array() );
