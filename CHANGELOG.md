@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [Unreleased]
+### Added
+- **Page Cards: set each card's image from Beaver Builder.** A child page's card image is its featured image, which meant leaving the builder to edit each page (Alipio, 2026-09-27: "option to replace the featured image in this page cards module, and it sync to the page ... goal is we stick in beaver builder"). A new **Page Images** section lists the child pages the module shows, in card order, each with its image and Add / Change / Remove. A change is saved to that page straight away (no Publish needed), to its Page Banner photo as well (the toolkit keeps the two equal), and the card in the builder preview updates at once. It says so when the cards are set to hide images, only offers pages the user can edit, and follows Cards From, the parent page and Sorting as they change.
+### Changed
+- **Page Cards settings reorganised, content first.** Content: Cards From, Page Images, My Cards, What Each Card Shows, then Sorting (collapsed). Style: a new Card Design section (built-in card or saved template, link style) above Grid, Card Style, Image and Text. Reorganising only: every field keeps its key, type, default and option values, and the only new setting is the display-only Page Images panel. Verified on ds-launchpad-7: field definitions and module defaults identical, both pages using the module render byte-identical HTML, CSS and JS, merged settings equal by value.
+
 ## [1.9.166] - 2026-09-27
 ### Fixed
 - **The `.htaccess` allow-list finding named innocent WordPress files when run from the CLI on Flywheel.** The rule counts allow-listed filenames that are not present on disk, and Flywheel symlinks core: `wp-config.php` sits at `/www` while `ABSPATH` is `/www/.wordpress`. In-plugin that is covered, because `ABSPATH` is defined, which is why the real scan on shoreshots.org correctly reported 30. From the CLI (`fw-clean-site`, or a manual run) `ABSPATH` is undefined, only `$dir/wp-admin` was tried, nothing resolved, and southorlandobaberuth.com reported *"93 of them are not present on disk (admin-ajax.php, admin-footer.php, admin-functions.php, ...)"* - naming the genuine WordPress files, which is the same misleading-message failure this rule had already been corrected for once. It now also tries `$dir/.wordpress`, and the same file reports **"32 of them are not present on disk (adminfuns.php, chtmlfuns.php, cjfuns.php, ...)"**, which is the attacker's appended set and matches a hand count exactly.
