@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over HTTP
 /**
  * DS_Loop_Manager (Post Loop > Manage entries): storage, per-type sanitizing, the loop's
  * taxonomy filter and sort direction, and the guards that stop writes (no edit rights, a
