@@ -45,8 +45,8 @@ class DS_Heading_Module extends FLBuilderModule {
 	/** Registered presentations. Style 1 is the original layout. */
 	public static function styles() {
 		return array(
-			'style1' => __( 'Style 1 — Stacked (default)', 'ds-toolkit' ),
-			'style2' => __( 'Style 2 — Heading + separator rule', 'ds-toolkit' ),
+			'style1' => __( 'Style 1: Stacked (default)', 'ds-toolkit' ),
+			'style2' => __( 'Style 2: Heading + separator rule', 'ds-toolkit' ),
 		);
 	}
 
@@ -221,82 +221,66 @@ class DS_Heading_Module extends FLBuilderModule {
 }
 
 FLBuilder::register_module( 'DS_Heading_Module', array(
+	// Content first (Alipio 2026-09-27: "content first, this options will confuse partners"). Reorganised only: every field
+	// keeps its key, type, default and options, so saved headings are untouched and render exactly as before.
 	'content' => array(
 		'title'    => __( 'Content', 'ds-toolkit' ),
 		'sections' => array(
 			'text' => array(
 				'title'  => __( 'Text', 'ds-toolkit' ),
 				'fields' => array(
-					'heading_style'       => array(
-						'type'    => 'select',
-						'label'   => __( 'Style', 'ds-toolkit' ),
-						'default' => 'style1',
-						'options' => DS_Heading_Module::styles(),
-						'toggle'  => array( 'style2' => array( 'fields' => array( 'style2_sep_style', 'style2_sep_gap', 'style2_sep_color1', 'style2_sep_color2', 'style2_image' ), 'sections' => array( 'endmark' ) ) ),
-						'help'    => __( 'Style 2 puts the heading on the left with a rule running through the remaining space, and an optional mark at the end. Existing modules stay on Style 1.', 'ds-toolkit' ),
-					),
-					'subheading'          => array( 'type' => 'text', 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'default' => 'Sub Heading', 'connections' => array( 'string' ) ),
-					'heading'             => array(
+					'heading' => array(
 						'type'        => 'textarea',
 						'label'       => __( 'Heading', 'ds-toolkit' ),
 						'rows'        => 2,
 						'default'     => 'Section {a}Heading{/a}',
 						'connections' => array( 'string' ),
-						'help'        => __( 'Wrap a word in {a}…{/a} to colour it with the accent, or in {g}…{/g} for a two-colour gradient (Colours section). Line breaks are kept. Use the connect (+) icon to pull a dynamic field (post title, ACF, etc.). {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting. Markers cannot be nested; wrap separate ranges.', 'ds-toolkit' ),
+						'help'        => __( 'Wrap a word in {a}…{/a} to colour it with the accent. Also: {g}…{/g} for a two-colour gradient and {outline}…{/outline} for outlined text (their colours are on the Style tab, under Gradient & Outline Text). Line breaks are kept; the connect (+) icon pulls in a dynamic field. Markers cannot be nested.', 'ds-toolkit' ),
 					),
-					'style2_sep_style' => array(
+					'subheading_show' => array(
 						'type'    => 'select',
-						'label'   => __( 'Separator Style', 'ds-toolkit' ),
-						'default' => 'single',
-						'options' => array( 'single' => __( 'Single Line', 'ds-toolkit' ), 'double' => __( 'Double Line', 'ds-toolkit' ) ),
-						'toggle'  => array( 'double' => array( 'fields' => array( 'style2_sep_gap', 'style2_sep_color1', 'style2_sep_color2' ) ) ),
-						'help'    => __( 'Double Line stacks two rules of the same thickness in the separator\'s place, each with its own colour (blank = the divider colour). Existing modules stay on Single Line.', 'ds-toolkit' ),
-					),
-					'style2_sep_color1' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Separator Line 1 Color', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = the divider colour (Rule > Colour), then the site accent.', 'ds-toolkit' ) ),
-					'style2_sep_color2' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Separator Line 2 Color', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = the divider colour (Rule > Colour), then the site accent.', 'ds-toolkit' ) ),
-					'style2_sep_gap' => array(
-						'type'        => 'unit',
-						'label'       => __( 'Space Between Lines', 'ds-toolkit' ),
-						'default'     => '4',
-						'description' => 'px',
-						'slider'      => array( 'min' => 1, 'max' => 24, 'step' => 1 ),
-					),
-					'style2_image'        => array(
-						'type'        => 'photo',
-						'label'       => __( 'End Mark (optional)', 'ds-toolkit' ),
-						'show_remove' => true,
-						'connections' => array( 'photo' ),
-						'help'        => __( 'Logo or graphic at the far end of the rule. Keeps its aspect ratio and is capped by the End Mark Height on the Style tab. Leave empty and the rule simply runs to the end.', 'ds-toolkit' ),
-					),
-					'subheading_show'     => array(
-						'type'    => 'select',
-						'label'   => __( 'Show Sub-heading', 'ds-toolkit' ),
+						'label'   => __( 'Sub-heading', 'ds-toolkit' ),
 						'default' => 'yes',
-						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'subheading', 'subheading_position' ) ) ),
-						'help'    => __( 'The sub-heading is always output as a <span> (never a heading tag), so it stays SEO-clean.', 'ds-toolkit' ),
+						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'subheading', 'subheading_position', 'subheading_tag' ) ) ),
+						'help'    => __( 'The small line above or below the heading (the eyebrow).', 'ds-toolkit' ),
 					),
+					'subheading' => array( 'type' => 'text', 'label' => __( 'Sub-heading Text', 'ds-toolkit' ), 'default' => 'Sub Heading', 'connections' => array( 'string' ) ),
 					'subheading_position' => array(
 						'type'    => 'select',
 						'label'   => __( 'Sub-heading Position', 'ds-toolkit' ),
 						'default' => 'above',
 						'options' => array( 'above' => __( 'Above heading', 'ds-toolkit' ), 'below' => __( 'Below heading', 'ds-toolkit' ) ),
 					),
-					'heading_tag'         => array(
+					'description_show' => array(
 						'type'    => 'select',
-						'label'   => __( 'Heading Tag (SEO)', 'ds-toolkit' ),
-						'default' => 'h2',
-						'options' => DS_Heading_Module::tags(),
-						'help'    => __( 'Pick the semantic tag. Use one H1 per page; H2 is the safe default for a section title.', 'ds-toolkit' ),
+						'label'   => __( 'Description', 'ds-toolkit' ),
+						'default' => 'no',
+						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'description' ) ) ),
 					),
-					'subheading_tag'      => array(
+					'description' => array( 'type' => 'editor', 'media_buttons' => false, 'wpautop' => false, 'label' => __( 'Description Text', 'ds-toolkit' ), 'rows' => 4, 'connections' => array( 'string' ), 'help' => __( 'Paragraph under the heading. Line breaks kept; basic inline HTML (e.g. <strong>, <a>) allowed. Use the connect (+) icon for a dynamic field.', 'ds-toolkit' ) ),
+				),
+			),
+			'layout' => array(
+				'title'  => __( 'Layout', 'ds-toolkit' ),
+				'fields' => array(
+					'heading_style' => array(
 						'type'    => 'select',
-						'label'   => __( 'Sub-heading Tag (SEO)', 'ds-toolkit' ),
-						'default' => 'span',
-						'options' => DS_Heading_Module::tags(),
-						'help'    => __( 'The element the sub-heading renders as. Defaults to Span, which is what it has always been — changing it alters the markup only, never the look.', 'ds-toolkit' ),
+						'label'   => __( 'Layout Style', 'ds-toolkit' ),
+						'default' => 'style1',
+						'options' => DS_Heading_Module::styles(),
+						'toggle'  => array( 'style2' => array( 'fields' => array( 'style2_image' ), 'sections' => array( 'endmark' ) ) ),
+						'help'    => __( 'Style 1 stacks the text. Style 2 puts the heading on the left with a line running to the edge, and an optional mark (logo) at its end; the line itself is styled on the Style tab.', 'ds-toolkit' ),
 					),
-					'alignment'           => array(
+					'style2_image' => array(
+						'type'        => 'photo',
+						'label'       => __( 'End Mark (optional)', 'ds-toolkit' ),
+						'show_remove' => true,
+						'connections' => array( 'photo' ),
+						'help'        => __( 'Logo or graphic at the end of the line. Keeps its aspect ratio; its size is on the Style tab. Leave empty and the line runs to the edge.', 'ds-toolkit' ),
+					),
+					'alignment' => array(
 						'type'       => 'select',
 						'label'      => __( 'Alignment', 'ds-toolkit' ),
 						'default'    => 'left',
@@ -305,17 +289,24 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 					),
 				),
 			),
-			'desc' => array(
-				'title'  => __( 'Description', 'ds-toolkit' ),
+			'seo' => array(
+				'title'  => __( 'SEO Tags', 'ds-toolkit' ),
+				'collapsed' => true,
 				'fields' => array(
-					'description_show' => array(
+					'heading_tag' => array(
 						'type'    => 'select',
-						'label'   => __( 'Show Description', 'ds-toolkit' ),
-						'default' => 'no',
-						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'description' ) ) ),
+						'label'   => __( 'Heading Tag (SEO)', 'ds-toolkit' ),
+						'default' => 'h2',
+						'options' => DS_Heading_Module::tags(),
+						'help'    => __( 'Pick the semantic tag. Use one H1 per page; H2 is the safe default for a section title.', 'ds-toolkit' ),
 					),
-					'description'      => array( 'type' => 'editor', 'media_buttons' => false, 'wpautop' => false, 'label' => __( 'Description', 'ds-toolkit' ), 'rows' => 4, 'connections' => array( 'string' ), 'help' => __( 'Paragraph under the heading. Line breaks kept; basic inline HTML (e.g. <strong>, <a>) allowed. Use the connect (+) icon for a dynamic field.', 'ds-toolkit' ) ),
+					'subheading_tag' => array(
+						'type'    => 'select',
+						'label'   => __( 'Sub-heading Tag (SEO)', 'ds-toolkit' ),
+						'default' => 'span',
+						'options' => DS_Heading_Module::tags(),
+						'help'    => __( 'The element the sub-heading renders as. Defaults to Span, which is what it has always been. Changing it alters the markup only, never the look.', 'ds-toolkit' ),
+					),
 				),
 			),
 		),
@@ -323,33 +314,68 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 	'style'   => array(
 		'title'    => __( 'Style', 'ds-toolkit' ),
 		'sections' => array(
-			'endmark' => array(
-				'title'  => __( 'End Mark (Style 2)', 'ds-toolkit' ),
+			'colors' => array(
+				'title'  => __( 'Colours', 'ds-toolkit' ),
 				'fields' => array(
-					'style2_mark_h'  => array(
+					'heading_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'heading_accent_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Accent {a}…{/a}', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'subheading_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'description_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Description', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+				),
+			),
+			'typography' => array(
+				'title'  => __( 'Typography', 'ds-toolkit' ),
+				'fields' => array(
+					'heading_typography' => array( 'type' => 'typography', 'label' => __( 'Heading', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-title' ) ),
+					'subheading_typography' => array( 'type' => 'typography', 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-sub' ) ),
+					'description_typography' => array( 'type' => 'typography', 'label' => __( 'Description', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-desc' ) ),
+				),
+			),
+			'endmark' => array(
+				'title'  => __( 'Style 2 Line & End Mark', 'ds-toolkit' ),
+				'fields' => array(
+					'style2_sep_style' => array(
+						'type'    => 'select',
+						'label'   => __( 'Line', 'ds-toolkit' ),
+						'default' => 'single',
+						'options' => array( 'single' => __( 'Single Line', 'ds-toolkit' ), 'double' => __( 'Double Line', 'ds-toolkit' ) ),
+						'toggle'  => array( 'double' => array( 'fields' => array( 'style2_sep_gap', 'style2_sep_color1', 'style2_sep_color2' ) ) ),
+						'help'    => __( 'Double Line stacks two rules of the same thickness in the separator\'s place, each with its own colour (blank = the divider colour). Existing modules stay on Single Line.', 'ds-toolkit' ),
+					),
+					'style2_sep_gap' => array(
 						'type'        => 'unit',
-						'label'       => __( 'Size', 'ds-toolkit' ),
+						'label'       => __( 'Space Between Lines', 'ds-toolkit' ),
+						'default'     => '4',
+						'description' => 'px',
+						'slider'      => array( 'min' => 1, 'max' => 24, 'step' => 1 ),
+					),
+					'style2_sep_color1' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Line Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = the divider colour (Rule > Colour), then the site accent.', 'ds-toolkit' ) ),
+					'style2_sep_color2' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Second Line Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = the divider colour (Rule > Colour), then the site accent.', 'ds-toolkit' ) ),
+					'style2_mark_h' => array(
+						'type'        => 'unit',
+						'label'       => __( 'End Mark Size', 'ds-toolkit' ),
 						'default'     => '',
 						'description' => 'px',
 						'responsive'  => true,
 						'slider'      => array( 'min' => 16, 'max' => 240, 'step' => 2 ),
-						'help'        => __( 'Height of the end mark; the width follows so the aspect ratio never changes. Use the responsive icon on this field for tablet and mobile sizes — leaving those blank keeps the desktop size. Blank everywhere tracks the heading size, which is what existing modules already do.', 'ds-toolkit' ),
+						'help'        => __( 'Height of the end mark; the width follows so the aspect ratio never changes. Use the responsive icon on this field for tablet and mobile sizes; leaving those blank keeps the desktop size. Blank everywhere tracks the heading size, which is what existing modules already do.', 'ds-toolkit' ),
 					),
 				),
 			),
 			'divider' => array(
-				'title'  => __( 'Divider / Eyebrow Rule', 'ds-toolkit' ),
+				'title'  => __( 'Divider', 'ds-toolkit' ),
+				'collapsed' => true,
 				'fields' => array(
-					'divider_show'      => array(
+					'divider_show' => array(
 						'type'    => 'select',
-						'label'   => __( 'Show Divider', 'ds-toolkit' ),
+						'label'   => __( 'Divider', 'ds-toolkit' ),
 						'default' => 'yes',
-						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
+						'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ),
 						'toggle'  => array( 'yes' => array( 'fields' => array( 'divider_type', 'divider_position', 'divider_style', 'divider_width', 'divider_width_unit', 'divider_thickness', 'divider_radius', 'divider_gap', 'divider_color', 'divider_image', 'divider_img_h' ) ) ),
 					),
-					'divider_type'      => array(
+					'divider_type' => array(
 						'type'    => 'select',
-						'label'   => __( 'Eyebrow Divider Type', 'ds-toolkit' ),
+						'label'   => __( 'Divider Type', 'ds-toolkit' ),
 						'default' => 'line',
 						'options' => array(
 							'line'  => __( 'Line', 'ds-toolkit' ),
@@ -361,23 +387,23 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 							'image' => array( 'fields' => array( 'divider_image', 'divider_img_h' ) ),
 						),
 					),
-					'divider_image'     => array(
+					'divider_image' => array(
 						'type'        => 'photo',
 						'label'       => __( 'Divider Image', 'ds-toolkit' ),
 						'show_remove' => true,
 						'connections' => array( 'photo' ),
 						'help'        => __( 'Blank keeps the line, so the heading never renders an empty gap.', 'ds-toolkit' ),
 					),
-					'divider_img_h'     => array(
+					'divider_img_h' => array(
 						'type'        => 'unit',
 						'label'       => __( 'Image Size', 'ds-toolkit' ),
 						'default'     => '',
 						'description' => 'px',
 						'responsive'  => true,
 						'slider'      => array( 'min' => 8, 'max' => 160, 'step' => 1 ),
-						'help'        => __( 'Height of the divider image; the width follows so the aspect ratio never changes. Use the responsive icon for tablet and mobile sizes — leaving those blank keeps the desktop size. Blank everywhere tracks the sub-heading size.', 'ds-toolkit' ),
+						'help'        => __( 'Height of the divider image; the width follows so the aspect ratio never changes. Use the responsive icon for tablet and mobile sizes; leaving those blank keeps the desktop size. Blank everywhere tracks the sub-heading size.', 'ds-toolkit' ),
 					),
-					'divider_position'  => array(
+					'divider_position' => array(
 						'type'    => 'select',
 						'label'   => __( 'Position', 'ds-toolkit' ),
 						'default' => 'sub',
@@ -390,9 +416,9 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 						),
 						'help'    => __( 'Eyebrow rule sits inline next to the sub-heading (falls back to “Above heading” if the sub-heading is hidden).', 'ds-toolkit' ),
 					),
-					'divider_style'     => array(
+					'divider_style' => array(
 						'type'    => 'select',
-						'label'   => __( 'Style', 'ds-toolkit' ),
+						'label'   => __( 'Line Style', 'ds-toolkit' ),
 						'default' => 'solid',
 						'options' => array(
 							'solid'    => __( 'Solid', 'ds-toolkit' ),
@@ -402,42 +428,32 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 							'gradient' => __( 'Gradient fade', 'ds-toolkit' ),
 						),
 					),
-					'divider_width'     => array( 'type' => 'unit', 'label' => __( 'Length', 'ds-toolkit' ), 'default' => '48', 'slider' => array( 'min' => 8, 'max' => 600, 'step' => 1 ) ),
-					'divider_width_unit'=> array( 'type' => 'select', 'label' => __( 'Length Unit', 'ds-toolkit' ), 'default' => 'px', 'options' => array( 'px' => 'px', '%' => '%' ), 'help' => __( '% is relative to the heading block width.', 'ds-toolkit' ) ),
+					'divider_width' => array( 'type' => 'unit', 'label' => __( 'Length', 'ds-toolkit' ), 'default' => '48', 'slider' => array( 'min' => 8, 'max' => 600, 'step' => 1 ) ),
+					'divider_width_unit' => array( 'type' => 'select', 'label' => __( 'Length Unit', 'ds-toolkit' ), 'default' => 'px', 'options' => array( 'px' => 'px', '%' => '%' ), 'help' => __( '% is relative to the heading block width.', 'ds-toolkit' ) ),
 					'divider_thickness' => array( 'type' => 'unit', 'label' => __( 'Thickness', 'ds-toolkit' ), 'default' => '3', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 16, 'step' => 1 ) ),
-					'divider_radius'    => array( 'type' => 'unit', 'label' => __( 'Rounded Ends', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 12, 'step' => 1 ) ),
-					'divider_gap'       => array( 'type' => 'unit', 'label' => __( 'Spacing', 'ds-toolkit' ), 'default' => '14', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ), 'help' => __( 'Gap between the rule and the adjacent text.', 'ds-toolkit' ) ),
-					'divider_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'divider_radius' => array( 'type' => 'unit', 'label' => __( 'Rounded Ends', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 12, 'step' => 1 ) ),
+					'divider_gap' => array( 'type' => 'unit', 'label' => __( 'Spacing', 'ds-toolkit' ), 'default' => '14', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ), 'help' => __( 'Gap between the rule and the adjacent text.', 'ds-toolkit' ) ),
+					'divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
 				),
 			),
-			'colors' => array(
-				'title'  => __( 'Colours', 'ds-toolkit' ),
+			'effects' => array(
+				'title'  => __( 'Gradient & Outline Text', 'ds-toolkit' ),
+				'collapsed' => true,
 				'fields' => array(
-					'subheading_color'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
-					'heading_color'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
-					'heading_accent_color'=> array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Heading Accent {a}…{/a}', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
 					'gradient_start_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient Start Colour {g}…{/g}', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Wrap text in {g}…{/g} to apply a left-to-right gradient. Set both gradient colours to control it; a blank value falls back to the Heading Accent colour, then the global accent.', 'ds-toolkit' ) ),
-					'gradient_end_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient End Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'gradient_end_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Gradient End Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'outline_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Outline Text Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Stroke colour for {outline}…{/outline} text in this module. Blank = the Theme Setting default.', 'ds-toolkit' ) ),
 					'outline_width' => array( 'type' => 'unit', 'label' => __( 'Outline Text Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Blank = the Theme Setting default.', 'ds-toolkit' ), 'slider' => array( 'min' => 1, 'max' => 8, 'step' => 1 ) ),
-					'description_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Description', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
-				),
-			),
-			'typography' => array(
-				'title'  => __( 'Typography', 'ds-toolkit' ),
-				'fields' => array(
-					'subheading_typography'  => array( 'type' => 'typography', 'label' => __( 'Sub-heading', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-sub' ) ),
-					'heading_typography'     => array( 'type' => 'typography', 'label' => __( 'Heading', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-title' ) ),
-					'description_typography' => array( 'type' => 'typography', 'label' => __( 'Description', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-heading-desc' ) ),
 				),
 			),
 			'spacing' => array(
 				'title'  => __( 'Spacing', 'ds-toolkit' ),
+				'collapsed' => true,
 				'fields' => array(
-					'gap'       => array( 'type' => 'unit', 'label' => __( 'Element Gap', 'ds-toolkit' ), 'default' => '12', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ), 'help' => __( 'Vertical spacing between sub-heading, heading and description.', 'ds-toolkit' ) ),
+					'gap' => array( 'type' => 'unit', 'label' => __( 'Element Gap', 'ds-toolkit' ), 'default' => '12', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ), 'help' => __( 'Vertical spacing between sub-heading, heading and description.', 'ds-toolkit' ) ),
 					'max_width' => array( 'type' => 'unit', 'label' => __( 'Max Width', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 200, 'max' => 1200, 'step' => 10 ), 'help' => __( 'Constrain the block width (great for centred headings). Blank = full width.', 'ds-toolkit' ) ),
-					'padding'   => array( 'type' => 'dimension', 'label' => __( 'Padding', 'ds-toolkit' ), 'default' => '0', 'units' => array( 'px' ), 'slider' => true, 'responsive' => true ),
-					'margin'    => array( 'type' => 'dimension', 'label' => __( 'Margin', 'ds-toolkit' ), 'default' => '0', 'units' => array( 'px' ), 'slider' => true, 'responsive' => true ),
+					'padding' => array( 'type' => 'dimension', 'label' => __( 'Padding', 'ds-toolkit' ), 'default' => '0', 'units' => array( 'px' ), 'slider' => true, 'responsive' => true ),
+					'margin' => array( 'type' => 'dimension', 'label' => __( 'Margin', 'ds-toolkit' ), 'default' => '0', 'units' => array( 'px' ), 'slider' => true, 'responsive' => true ),
 				),
 			),
 		),
