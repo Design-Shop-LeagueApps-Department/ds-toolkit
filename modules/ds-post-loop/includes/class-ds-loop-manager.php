@@ -285,7 +285,8 @@ class DS_Loop_Manager {
 			'post_type'        => $pt,
 			'post_status'      => array( 'publish', 'draft', 'pending', 'private' ),
 			'posts_per_page'   => self::MAX,
-			'orderby'          => array( $ob => self::ascending( $s ) ? 'ASC' : 'DESC', 'date' => 'DESC' ),
+			// Same order as the loop renders (DS_Post_Loop_Module::run_query): its field, then ID ascending for ties.
+			'orderby'          => array( $ob => self::ascending( $s ) ? 'ASC' : 'DESC', 'ID' => 'ASC' ),
 			'suppress_filters' => false,
 			'ignore_custom_sort' => 'menu_order' !== $ob,
 		);
