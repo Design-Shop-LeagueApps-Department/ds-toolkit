@@ -251,6 +251,10 @@ FLBuilder::register_settings_form( 'ds_cr_route_form', array(
 	),
 ) );
 
+// Routes by the current post type, so it only belongs in a Themer layout (or a saved template
+// those layouts insert). Hidden from the module list on ordinary pages; see offer_only_in_templates().
+DS_Module_UI::offer_only_in_templates( 'ds-content-router' );
+
 FLBuilder::register_module( 'DS_Content_Router_Module', array(
 	'routing' => array(
 		'title'    => __( 'Routing', 'ds-toolkit' ),

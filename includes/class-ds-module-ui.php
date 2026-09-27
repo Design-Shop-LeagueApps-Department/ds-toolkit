@@ -19,6 +19,21 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_Module_UI {
 
 	/**
+	 * Offer a module in the builder's module list only while editing a Beaver Themer layout
+	 * or a saved template, the only places a context-driven module makes sense. Beaver keeps
+	 * a disabled module registered and still builds its settings form, so an instance already
+	 * placed anywhere keeps rendering and still opens its settings; only the picker hides it.
+	 * The list is printed with the builder page, after the query is known, hence 'wp'.
+	 */
+	public static function offer_only_in_templates( $slug ) {
+		add_action( 'wp', function () use ( $slug ) {
+			if ( ! isset( $_GET['fl_builder'] ) || ! class_exists( 'FLBuilderModel' ) || ! isset( FLBuilderModel::$modules[ $slug ] ) ) { return; }
+			if ( in_array( get_post_type( get_queried_object_id() ), array( 'fl-theme-layout', 'fl-builder-template' ), true ) ) { return; }
+			FLBuilderModel::$modules[ $slug ]->enabled = false;
+		} );
+	}
+
+	/**
 	 * Normalise a colour for a CSS declaration: #hex (a bare hex gets its #), rgb[a]() /
 	 * hsl[a](), var(--name[, fallback]) or a colour keyword. Anything else returns '', so a
 	 * crafted setting ("#fff;}body{display:none") can never close the rule it is printed in.
