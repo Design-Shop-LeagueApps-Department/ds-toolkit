@@ -418,6 +418,32 @@ class DS_Tripwire {
      * Returns true ONLY on an exact path + md5 hit in the official manifest. See VENDOR_BASE above
      * for why this is hash equality and not a name or path exemption.
      */
+    /**
+     * One manifest GET. $canonical lifts pre_http_request for the call, which is how we reach
+     * wordpress.org itself on a host that redirects WP's HTTP layer to a lagging mirror. The filter
+     * set is restored in every exit path, including a thrown one.
+     */
+    private static function vendor_get( $url, $canonical ) {
+        $args = array(
+            'timeout'     => self::VENDOR_TIMEOUT,
+            'redirection' => 1,
+            'sslverify'   => true,
+            'user-agent'  => 'DS-Tripwire/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '?' ),
+        );
+        if ( ! $canonical ) {
+            return wp_remote_get( $url, $args );
+        }
+        $saved = isset( $GLOBALS['wp_filter']['pre_http_request'] ) ? $GLOBALS['wp_filter']['pre_http_request'] : null;
+        if ( null !== $saved ) { unset( $GLOBALS['wp_filter']['pre_http_request'] ); }
+        try {
+            return wp_remote_get( $url, $args );
+        } catch ( \Throwable $e ) {
+            return new \WP_Error( 'ds_vendor_canonical', $e->getMessage() );
+        } finally {
+            if ( null !== $saved ) { $GLOBALS['wp_filter']['pre_http_request'] = $saved; }
+        }
+    }
+
     private static function vendor_verified( $path, $md5 ) {
         try {
             if ( '' === (string) $path || '' === (string) $md5 ) { return false; }
@@ -453,15 +479,24 @@ class DS_Tripwire {
             self::$vendor_fetches++;
 
             if ( ! function_exists( 'wp_remote_get' ) ) { self::$vendor_stats['error']++; return false; }
-            $r = wp_remote_get( self::VENDOR_BASE . rawurlencode( $slug ) . '/' . rawurlencode( $ver ) . '.json', array(
-                'timeout'     => self::VENDOR_TIMEOUT,
-                'redirection' => 1,
-                'sslverify'   => true,
-                'user-agent'  => 'DS-Tripwire/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '?' ),
-            ) );
+            $url = self::VENDOR_BASE . rawurlencode( $slug ) . '/' . rawurlencode( $ver ) . '.json';
+            $r   = self::vendor_get( $url, false );
+            $code = is_wp_error( $r ) ? 0 : (int) wp_remote_retrieve_response_code( $r );
+            // WP ENGINE MIRROR LAG. WPE hooks pre_http_request and serves wordpress.org from its own
+            // artifact bucket (wpe-wp-updater-artifacts-*), which trails the real index: on
+            // 2026-09-28 google-site-kit 1.188.0, released 09-21, was still NoSuchKey there while
+            // wordpress.org had it, and every one of 20 pilot installs was on 1.186-1.188. Smart
+            // Plugin Manager keeps WPE sites on the newest release, so the mirror is most likely to
+            // be missing exactly the version installed - i.e. it fails where we need it most. So on
+            // a 404 only, ask the canonical host once with those filters lifted. Read-only, one
+            // small GET, and the answer is cached for a week.
+            if ( 200 !== $code ) {
+                $r2 = self::vendor_get( $url, true );
+                $c2 = is_wp_error( $r2 ) ? 0 : (int) wp_remote_retrieve_response_code( $r2 );
+                if ( 200 === $c2 ) { $r = $r2; $code = $c2; self::$vendor_stats['canonical']++; }
+            }
             if ( is_wp_error( $r ) ) { self::$vendor_stats['error']++; return false; }
-            $code = (int) wp_remote_retrieve_response_code( $r );
-            if ( 200 !== $code ) { self::$vendor_stats['no_manifest']++; return false; }  // 404 = premium or unpublished version
+            if ( 200 !== $code ) { self::$vendor_stats['no_manifest']++; return false; }  // premium, or a version nobody published
             $body = (string) wp_remote_retrieve_body( $r );
             if ( '' === $body || strlen( $body ) > self::VENDOR_MAX_BYTES ) { self::$vendor_stats['error']++; return false; }
             $d = json_decode( $body, true );
@@ -600,7 +635,7 @@ class DS_Tripwire {
     /** slug|version => true for manifests already fetched (or failed) this run, to fetch each once. */
     private static $vendor_tried = array();
     private static $vendor_fetches = 0;
-    private static $vendor_stats = array( 'verified' => 0, 'no_manifest' => 0, 'not_shipped' => 0, 'mismatch' => 0, 'error' => 0, 'budget' => 0 );
+    private static $vendor_stats = array( 'verified' => 0, 'no_manifest' => 0, 'not_shipped' => 0, 'mismatch' => 0, 'error' => 0, 'budget' => 0, 'canonical' => 0 );
 
     /**
      * Parse an md5 list body. PURE: no WordPress, no I/O, so the unit test can feed it garbage.

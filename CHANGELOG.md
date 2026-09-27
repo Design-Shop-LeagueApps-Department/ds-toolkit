@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.7] - 2026-09-28
+### Security
+- **The vendor check now works on WP Engine, where it was silently failing for the newest plugin version.** WP Engine hooks `pre_http_request` and answers WordPress's wordpress.org calls from its own artifact mirror, which trails the real index: on 2026-09-28 `google-site-kit` 1.188.0, published 09-21, was still `NoSuchKey` there while wordpress.org served it. Found in the 20-install pilot, where **every** install ran Site Kit 1.186-1.188 and the one on 1.188.0 did not verify. Smart Plugin Manager keeps WPE sites on the newest release, so the mirror is missing exactly the version installed - it failed precisely where it is needed most. On a 404 only, the manifest is now requested once from the canonical host with those filters lifted and restored in every exit path including a thrown one. Read-only, one small GET, cached a week. `content.vendor.canonical` counts how often the fallback was needed.
+
+---
+
 ## [1.10.6] - 2026-09-28
 ### Security
 - **DS Tripwire verifies a plugin's own files against the vendor, so a plugin update no longer mints a false alarm.** wordpress.org publishes per-file md5 for every plugin release (`downloads.wordpress.org/plugin-checksums/<slug>/<version>.json`). When a file scores, the content scan now asks whether the plugin that ships it declares that exact md5 at that exact path in the version installed, and clears it only on an exact hit.
