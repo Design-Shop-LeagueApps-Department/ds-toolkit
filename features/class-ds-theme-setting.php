@@ -1092,6 +1092,9 @@ CSS;
             'identity'    => array( 'Site Identity', 'dashicons-share' ),
             'code'        => array( 'Custom Code', 'dashicons-editor-code' ),
         );
+        // Other features add their own sections (Home page: DS_Home_Templates). Each one
+        // renders its markup on ds_theme_setting_extra_sections, after the built-in sections.
+        $sections = (array) apply_filters( 'ds_theme_setting_sections', $sections );
         ?>
         <div class="wrap dsts dsts-nojs" id="dsts">
         <form id="dsts-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" novalidate>
@@ -1309,6 +1312,8 @@ CSS;
                         <textarea class="dsts-code" id="dsts-js-code" name="general[js_code]" spellcheck="false" placeholder="// Custom JavaScript"><?php echo esc_textarea( $mod( 'fl-js-code' ) ); ?></textarea>
                     <?php $this->card_close(); ?>
                 </section>
+
+                <?php do_action( 'ds_theme_setting_extra_sections' ); ?>
 
                 </div><!-- .dsts-controls -->
 

@@ -96,6 +96,14 @@ class DS_Toolkit {
             'class'         => 'DS_Theme_Setting',
             'min_blueprint' => 6,
         ),
+        // Theme Setting > Home page: pick the home layout of a new build from the
+        // blueprint's "Home" BB templates. Blueprint 7+ only; the picker itself only
+        // runs on a development address until the site is marked launched.
+        'home_templates_enabled' => array(
+            'file'          => 'features/class-ds-home-templates.php',
+            'class'         => 'DS_Home_Templates',
+            'min_blueprint' => 7,
+        ),
         // Loads the Google font picked on Theme Setting -> Heading -> "All".
         // Beaver Builder renders that rule but never enqueues its font.
         'ds_global_heading_font_enabled' => array(
@@ -421,6 +429,9 @@ class DS_Toolkit {
         // the option keys (and therefore never show the toggles). On qualifying
         // sites they default ON — that's the "auto-enable on DSLP6+" behavior.
         $bp = self::blueprint_version();
+        if ( $bp >= 7 ) {
+            $defaults['home_templates_enabled'] = 1;
+        }
         if ( $bp >= 6 ) {
             $defaults['disable_comments_enabled']    = 1;
             $defaults['copyright_shortcode_enabled'] = 1;

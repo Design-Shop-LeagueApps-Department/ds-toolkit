@@ -1,0 +1,22 @@
+/* Theme Setting > Home page (DS_Home_Templates). Uses the Theme Setting tokens (--dsts-*). */
+.dsht-grid { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.dsht-card { margin: 0; background: #fff; border: 1px solid #e2e4e7; border-radius: var(--dsts-radius); overflow: hidden; display: flex; flex-direction: column; }
+.dsht-card.is-current { border-color: var(--dsts-ok); box-shadow: 0 0 0 1px var(--dsts-ok); }
+.dsht-card.is-previewing { border-color: var(--dsts-accent); box-shadow: 0 0 0 1px var(--dsts-accent); }
+.dsht-thumb { position: relative; aspect-ratio: 4 / 3; background: var(--dsts-bg); display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--dsts-line-soft); }
+.dsht-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+.dsht-thumb .dashicons { font-size: 40px; width: 40px; height: 40px; color: var(--dsts-faint); }
+.dsht-badge { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 999px; background: var(--dsts-ok); color: #fff; font-size: 11px; font-weight: 600; line-height: 18px; }
+.dsht-meta { flex: 1; padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 4px; }
+.dsht-title { font-size: 13px; font-weight: 600; line-height: 1.35; }
+.dsht-actions { margin-top: auto; padding-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } /* pinned to the card bottom: buttons line up across cards */
+.dsht-actions .button { min-height: 30px; line-height: 28px; padding: 0 8px; text-align: center; justify-content: center; }
+.dsht-edit { align-self: flex-start; font-size: 12px; }
+.dsht-revert { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; background: var(--dsts-accent-soft); border: 1px solid #c5d9ed; border-radius: var(--dsts-radius); }
+.dsht-revert p { margin: 0; font-size: 12.5px; }
+.dsht-note, .dsht-help { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--dsts-muted); }
+.dsht-launch { margin: 18px 0 0; padding-top: 12px; border-top: 1px solid var(--dsts-line-soft); }
+.dsht-launch .button-link { font-size: 12px; color: var(--dsts-muted); }
+.dsht-msg { margin: 0 0 12px; padding: 8px 12px; border-radius: var(--dsts-radius); font-size: 12.5px; background: var(--dsts-accent-soft); border: 1px solid #c5d9ed; }
+.dsht-msg[data-kind="ok"] { background: #edfaef; border-color: #b8e6c1; color: var(--dsts-ok); }
+.dsht-msg[data-kind="error"] { background: #fcf0f1; border-color: #f0c2c3; color: var(--dsts-danger); }
