@@ -30,6 +30,58 @@ class DS_Hero_Module extends FLBuilderModule {
 		) );
 	}
 
+	/** Elements the eyebrow and headline may render as (SEO Tags section). */
+	public static function seo_tags() {
+		return array(
+			'h1' => 'H1', 'h2' => 'H2', 'h3' => 'H3', 'h4' => 'H4', 'h5' => 'H5', 'h6' => 'H6',
+			'p' => __( 'Paragraph', 'ds-toolkit' ), 'div' => 'DIV', 'span' => 'Span',
+		);
+	}
+
+	/** A saved SEO tag, or $default when it is not one of seo_tags(). */
+	public static function seo_tag( $v, $default ) {
+		$v = strtolower( (string) $v );
+		return isset( self::seo_tags()[ $v ] ) ? $v : $default;
+	}
+
+	/**
+	 * What Global Styles gives an H1: the "All headings" typography (h_typography) with the
+	 * H1 typography over it, per breakpoint, plus the H1 colour. Beaver prints these as
+	 * `.fl-builder-content h1`, which outranks the headline's own class rules, so a headline
+	 * rendered as another tag gets them re-applied by frontend.css.php to look the same.
+	 * Returns false when there are no Global Styles.
+	 */
+	public static function h1_global_look() {
+		static $look = null;
+		if ( null !== $look ) { return $look; }
+		$look = false;
+		if ( ! class_exists( 'FLBuilderGlobalStyles' ) ) { return $look; }
+		$gs = FLBuilderGlobalStyles::get_settings( false );
+		if ( ! is_object( $gs ) && ! is_array( $gs ) ) { return $look; }
+		$gs   = (object) $gs;
+		$look = new stdClass();
+		foreach ( array( '', '_large', '_medium', '_responsive' ) as $sfx ) {
+			$look->{ 't' . $sfx } = self::merge_typo( $gs->{ 'h_typography' . $sfx } ?? array(), $gs->{ 'h1_typography' . $sfx } ?? array() );
+		}
+		$look->color = DS_Module_UI::color( ( $gs->h1_color ?? '' ) ?: ( $gs->h_color ?? '' ) );
+		return $look;
+	}
+
+	/** $over's set values on top of $base (a blank length, '' or "Default" counts as unset). */
+	private static function merge_typo( $base, $over ) {
+		$m = (array) $base;
+		foreach ( (array) $over as $k => $v ) {
+			if ( is_array( $v ) || is_object( $v ) ) {
+				$a = (array) $v;
+				if ( array_key_exists( 'length', $a ) ? '' === (string) $a['length'] : '' === implode( '', array_map( 'strval', array_filter( $a, 'is_scalar' ) ) ) ) { continue; }
+			} elseif ( '' === (string) $v || 'default' === strtolower( (string) $v ) ) {
+				continue;
+			}
+			$m[ $k ] = $v;
+		}
+		return $m;
+	}
+
 	/**
 	 * Heading markup: escape, {a}..{/a} -> accent span, {outline}..{/outline} -> outlined span,
 	 * {g}..{/g} -> gradient span (GH #200), newlines -> <br>.
@@ -302,11 +354,14 @@ class DS_Hero_Module extends FLBuilderModule {
 			$eb_alt = is_numeric( $s->eyebrow_image ) ? (string) get_post_meta( (int) $s->eyebrow_image, '_wp_attachment_image_alt', true ) : '';
 			echo '<div class="ds-hero-eyebrow-img"><img src="' . esc_url( $eb_img ) . '" alt="' . esc_attr( $eb_alt ) . '" loading="eager" decoding="async" /></div>';
 		}
+		// Tags from Content > SEO Tags; the look is the same whatever they are (see frontend.css).
+		$eb_tag = self::seo_tag( $s->eyebrow_tag ?? 'span', 'span' );
+		$ti_tag = self::seo_tag( $s->title_tag ?? 'h1', 'h1' );
 		if ( ! empty( $s->eyebrow ) ) {
-			echo '<span class="ds-hero-eyebrow">' . esc_html( $s->eyebrow ) . '</span>';
+			echo '<' . $eb_tag . ' class="ds-hero-eyebrow">' . esc_html( $s->eyebrow ) . '</' . $eb_tag . '>';
 		}
 		if ( ! empty( $s->heading ) ) {
-			echo '<h1 class="ds-hero-title">' . $this->heading_html( $s->heading ) . '</h1>';
+			echo '<' . $ti_tag . ' class="ds-hero-title">' . $this->heading_html( $s->heading ) . '</' . $ti_tag . '>';
 		}
 		if ( ! empty( $s->subtext ) ) {
 			echo '<div class="ds-hero-sub">' . wpautop( wp_kses_post( $s->subtext ) ) . '</div>';
@@ -443,8 +498,10 @@ class DS_Hero_Module extends FLBuilderModule {
 
 		echo '<div class="ds-hero-wrap"><div class="ds-hero-inner">';
 		if ( '' !== $crumbs && 'top' === $crumb_pos ) { echo $crumbs; }
-		if ( '' !== $eyebrow ) { echo '<span class="ds-banner-eyebrow">' . esc_html( $eyebrow ) . '</span>'; }
-		if ( '' !== $heading ) { echo '<h1 class="ds-hero-title">' . $this->heading_html( $heading ) . '</h1>'; }
+		$eb_tag = self::seo_tag( $s->eyebrow_tag ?? 'span', 'span' );
+		$ti_tag = self::seo_tag( $s->title_tag ?? 'h1', 'h1' );
+		if ( '' !== $eyebrow ) { echo '<' . $eb_tag . ' class="ds-banner-eyebrow">' . esc_html( $eyebrow ) . '</' . $eb_tag . '>'; }
+		if ( '' !== $heading ) { echo '<' . $ti_tag . ' class="ds-hero-title">' . $this->heading_html( $heading ) . '</' . $ti_tag . '>'; }
 		if ( '' !== $sub )     { echo '<div class="ds-hero-sub">' . wpautop( wp_kses_post( $sub ) ) . '</div>'; }
 		if ( '' !== $crumbs && 'below' === $crumb_pos ) { echo $crumbs; }
 		echo '</div></div></section>';
@@ -833,8 +890,8 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'help'    => __( 'Choose a hero layout. The options below change to match the style you pick.', 'ds-toolkit' ),
 						// Each style shows only its own sections. Add a key per style.
 						'toggle'  => array(
-							'style1' => array( 'sections' => array( 'text', 'buttons', 'bg', 'stats', 'layout', 'overlay', 'colors', 'typography', 'buttons_style', 'effects', 'spacing' ) ),
-							'style2' => array( 'sections' => array( 'banner', 'banner_media', 'banner_crumbs', 'banner_design', 'banner_shape', 'overlay', 'banner_scrim', 'banner_colors', 'typography', 'banner_nobg', 'effects', 'spacing' ) ),
+							'style1' => array( 'sections' => array( 'text', 'seo', 'buttons', 'bg', 'stats', 'layout', 'overlay', 'colors', 'typography', 'buttons_style', 'effects', 'spacing' ) ),
+							'style2' => array( 'sections' => array( 'banner', 'seo', 'banner_media', 'banner_crumbs', 'banner_design', 'banner_shape', 'overlay', 'banner_scrim', 'banner_colors', 'typography', 'banner_nobg', 'effects', 'spacing' ) ),
 							'style3' => array( 'sections' => array( 'peek_slides_sec', 'peek_behavior', 'peek_layout', 'peek_overlay', 'peek_text', 'peek_cta', 'peek_bg', 'peek_pattern_sec', 'spacing' ) ),
 						),
 						// Controls inside a shared section that do nothing in one style: the Page Banner
@@ -1018,6 +1075,28 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'options' => array( 'plain' => __( 'Plain text', 'ds-toolkit' ), 'pill' => __( 'Pill (glass)', 'ds-toolkit' ), 'tab' => __( 'Tab (slanted)', 'ds-toolkit' ) ),
 						'help'    => __( 'Pill sets the trail in a rounded, frosted capsule; Tab in a solid slanted tab with underlined links. Their colours are under Style > Colours.', 'ds-toolkit' ),
 						'toggle'  => array( 'pill' => array( 'fields' => array( 'breadcrumbs_pill_bg', 'breadcrumbs_pill_border' ) ), 'tab' => array( 'fields' => array( 'breadcrumbs_pill_bg' ) ) ),
+					),
+				),
+			),
+			// Which elements the eyebrow and headline are, for search engines. The Slider has its
+			// own per-slide Heading Tag.
+			'seo' => array(
+				'title'     => __( 'SEO Tags', 'ds-toolkit' ),
+				'collapsed' => true,
+				'fields'    => array(
+					'eyebrow_tag' => array(
+						'type'    => 'select',
+						'label'   => __( 'Eyebrow Tag (SEO)', 'ds-toolkit' ),
+						'default' => 'span',
+						'options' => DS_Hero_Module::seo_tags(),
+						'help'    => __( 'The element the eyebrow renders as. Span is what it has always been. When the eyebrow is the page title, make it H1 and set the Headline Tag below to H2 or Span. Changes the markup only, never the look.', 'ds-toolkit' ),
+					),
+					'title_tag' => array(
+						'type'    => 'select',
+						'label'   => __( 'Headline Tag (SEO)', 'ds-toolkit' ),
+						'default' => 'h1',
+						'options' => DS_Hero_Module::seo_tags(),
+						'help'    => __( 'Use one H1 per page. Changes the markup only, never the look: the headline keeps the H1 styling from Theme Setting whatever its tag.', 'ds-toolkit' ),
 					),
 				),
 			),

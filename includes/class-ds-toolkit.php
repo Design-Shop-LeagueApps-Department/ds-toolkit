@@ -426,6 +426,7 @@ class DS_Toolkit {
             'origin_guard_block_login'           => 1,
             'origin_guard_block_xmlrpc'          => 1,
             'partner_plugin_access'              => 0,
+            'theme_setting_all_users'            => 0,
             'design_academy_enabled'             => 1,
             'academy_pinned_url'                 => 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/',
             'academy_pinned_label'               => 'How to Edit Your Website: A Beginner\'s Guide to WordPress & Beaver Builder',

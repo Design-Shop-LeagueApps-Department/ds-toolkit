@@ -368,13 +368,23 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-admin-customizer"></span></div>
             <div class="dst-card-info">
-                <strong>Theme Setting (LeagueApps only)</strong>
-                <span>Registers the internal <strong>Theme Setting</strong> admin page directly below <strong>Partner Setting</strong>, visible only to LeagueApps email users. A synced surface for Beaver Builder &rsaquo; Global Styles (named global colors + Text/Heading/Link/Button defaults) reading/writing the same store, so edits here and in BB stay in sync. Auto-enabled on DSLP6 builds.</span>
+                <strong>Theme Setting</strong>
+                <span>Registers the internal <strong>Theme Setting</strong> admin page directly below <strong>Partner Setting</strong>, visible only to LeagueApps email users unless opened to others below. A synced surface for Beaver Builder &rsaquo; Global Styles (named global colors + Text/Heading/Link/Button defaults) reading/writing the same store, so edits here and in BB stay in sync. Auto-enabled on DSLP6 builds.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[theme_setting_enabled]" value="0">
                 <input type="checkbox" id="theme_setting_enabled" name="ds_toolkit_settings[theme_setting_enabled]" value="1" <?php checked( $theme_setting_enabled ); ?>>
                 <label for="theme_setting_enabled"></label>
+            </div>
+        </div>
+        <div class="dst-card-row" style="padding-top:0;">
+            <div class="dst-card-icon" aria-hidden="true"></div>
+            <div class="dst-card-info">
+                <label for="theme_setting_all_users" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <input type="hidden" name="ds_toolkit_settings[theme_setting_all_users]" value="0">
+                    <input type="checkbox" id="theme_setting_all_users" name="ds_toolkit_settings[theme_setting_all_users]" value="1" <?php checked( $theme_setting_all_users ); ?>>
+                    <span><strong>Open Theme Setting to other users</strong> — also shows the page to non-LeagueApps users who can change the site's design (Administrators and the Partner role). Home page templates stay LeagueApps-only. Off by default.</span>
+                </label>
             </div>
         </div>
     </div>

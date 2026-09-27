@@ -196,6 +196,10 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 	}
 }
 
+// Reads the current team's fields, so it only belongs in the Single Teams template (a saved
+// template the Content Router inserts) or a Themer layout. Hidden from the module list on ordinary pages.
+DS_Module_UI::offer_only_in_templates( 'ds-team-detail' );
+
 FLBuilder::register_module( 'DS_Team_Detail_Module', array(
 	'content' => array(
 		'title'    => __( 'Content', 'ds-toolkit' ),

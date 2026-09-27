@@ -360,6 +360,26 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	) );
 }
 
+// ---- Headline rendered as another tag (Content > SEO Tags) keeps its H1 look ----
+// As an H1 the headline takes Global Styles' `.fl-builder-content h1` rule (0,1,1) over its own
+// class rules. Re-apply that H1 typography here at (0,1,3): above the H2-H6 rules it would get
+// instead and the static guard in frontend.css (0,1,2), below the hero's own two-class rules
+// and this module's Typography settings (0,2,0), exactly the rank the H1 rule had.
+$ds_ti_tag = DS_Hero_Module::seo_tag( $settings->title_tag ?? 'h1', 'h1' );
+if ( 'h1' !== $ds_ti_tag && in_array( $settings->hero_style ?? 'style1', array( 'style1', 'style2' ), true ) ) {
+	$ds_ti_sel = "html body :where($node) .ds-hero-title:is(h2,h3,h4,h5,h6,p,div,span)";
+	$ds_look   = DS_Hero_Module::h1_global_look();
+	if ( $ds_look && class_exists( 'FLBuilderCSS' ) ) {
+		FLBuilderCSS::typography_field_rule( array( 'settings' => $ds_look, 'setting_name' => 't', 'selector' => $ds_ti_sel ) );
+		if ( '' !== $ds_look->color ) { echo "$ds_ti_sel { color: {$ds_look->color}; }\n"; }
+	}
+	// A heading font set only in the theme Customizer reaches H1-H6 but not P / DIV / Span.
+	if ( in_array( $ds_ti_tag, array( 'p', 'div', 'span' ), true ) && ( ! $ds_look || empty( $ds_look->t['font_family'] ) ) ) {
+		$ds_hf = preg_replace( '/[^\w \-]/', '', (string) get_theme_mod( 'fl-heading-font-family', '' ) );
+		if ( '' !== $ds_hf && 'Default' !== $ds_hf ) { echo "$ds_ti_sel { font-family: {$ds_hf}, Verdana, Arial, sans-serif; }\n"; }
+	}
+}
+
 // ---- Typography (deferred; flushed by FLBuilderCSS::render() after this file) ----
 if ( class_exists( 'FLBuilderCSS' ) ) {
 	$typo = array(

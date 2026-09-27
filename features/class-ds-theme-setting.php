@@ -363,15 +363,29 @@ CSS;
     /* ----------------------------------------------------------------- Menu */
 
     public function register_menu() {
-        if ( ! DS_Toolkit::is_leagueapps_user() ) {
+        if ( ! self::can_access() ) {
             return;
         }
-        add_menu_page( 'Theme Setting', 'Theme Setting', 'edit_posts', self::PAGE_SLUG, array( $this, 'render_page' ), 'dashicons-admin-customizer', '1.1' );
+        $cap = DS_Toolkit::is_leagueapps_user() ? 'edit_posts' : 'edit_theme_options';
+        add_menu_page( 'Theme Setting', 'Theme Setting', $cap, self::PAGE_SLUG, array( $this, 'render_page' ), 'dashicons-admin-customizer', '1.1' );
     }
 
-    /** Only LeagueApps users who can edit posts may use the page, its preview and its endpoints. */
+    /**
+     * Who may use the page, its preview and its endpoints: LeagueApps users who can edit
+     * posts, and, when Settings > DS Toolkit > "Open Theme Setting to other users" is on,
+     * anyone else who may change the site's design (edit_theme_options: Administrators and
+     * the Partner role). Off by default, so the page stays LeagueApps-only.
+     */
+    public static function can_access() {
+        if ( DS_Toolkit::is_leagueapps_user() ) {
+            return current_user_can( 'edit_posts' );
+        }
+        $o = get_option( 'ds_toolkit_settings', array() );
+        return is_array( $o ) && ! empty( $o['theme_setting_all_users'] ) && current_user_can( 'edit_theme_options' );
+    }
+
     private function allowed() {
-        return current_user_can( 'edit_posts' ) && DS_Toolkit::is_leagueapps_user();
+        return self::can_access();
     }
 
     private static function asset_ver( $rel ) {
