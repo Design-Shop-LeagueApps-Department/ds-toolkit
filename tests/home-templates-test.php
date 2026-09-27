@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over HTTP
 /**
  * DS_Home_Templates (Theme Setting > Home page): the development-site gate, Home templates hidden from
  * non-LeagueApps users, the hero carried into a new layout, Apply / Revert (backslashes kept, exact
