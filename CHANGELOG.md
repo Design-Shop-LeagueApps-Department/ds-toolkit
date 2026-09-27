@@ -5,6 +5,8 @@ All notable changes to DS Toolkit are documented here.
 ---
 
 ## [Unreleased]
+### Fixed
+- **Page Banner Image: the builder's asset cache is cleared with the right call** (`delete_all_asset_cache( $id )`; `delete_asset_cache()` takes a type, so it did nothing). Release note: the focal point this button saves is read by the Hero Banner in `feat/banner-shape-settings`; ship both together (pre-release audit 2026-09-27).
 ### Added
 - **Page Banner Image button in the Beaver Builder top bar.** Setting a page's banner photo meant leaving the builder for the WordPress editor (Alipio, 2026-09-27: "can we add featured image page banner upload option place in the beaver topbar ... so that no more editing a page to add featured image"). An image icon now sits in the builder's top bar between the cloud and the +. It opens a small panel with the current banner image, **Choose image / Change image** (the media library, opening on the library with the current image selected) and **Remove**. It saves straight away, like the editor's Featured Image box, and repaints the banner in the builder preview at once (the banner lives in the Themer layout, which the builder does not re-render).
 - **Focus point for the banner photo** (Alipio, 2026-09-27: "position control x and y ... so partner can adjust the cut off image"). With a photo set, the panel shows the whole photo: click or drag the spot that must stay in view, or use the Horizontal and Vertical sliders (Centre resets). The banner in the builder moves as you go and the point saves a moment after the last change, per page. The Hero Banner module applies it to the photo (or video) on every screen size. Removing the image clears the point.

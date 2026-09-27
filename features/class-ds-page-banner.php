@@ -177,7 +177,7 @@ class DS_Page_Banner {
 		}
 		$this->syncing = false;
 		clean_post_cache( $id );
-		if ( class_exists( 'FLBuilderModel' ) ) { FLBuilderModel::delete_asset_cache( $id ); }
+		if ( class_exists( 'FLBuilderModel' ) ) { FLBuilderModel::delete_all_asset_cache( $id ); }
 		// A Featured Image write is not a post save, so WP Engine would keep serving the old page.
 		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) { WpeCommon::purge_varnish_cache( $id ); }
 		wp_send_json_success( $this->state( $id ) );
