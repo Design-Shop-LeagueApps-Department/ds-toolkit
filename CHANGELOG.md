@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.5] - 2026-09-28
+### Changed
+- **Content Router and Team Detail are offered only where they work** (Alipio: "Content router and Team detail still showing even its not needed in simple internal pages"). Both read the current context (the post type being viewed, or the team's own fields), so they belong in a Beaver Themer layout or a saved template (the Single Teams template is a saved template the Content Router inserts). The builder's module list now leaves them out on ordinary pages and posts. Existing instances anywhere keep rendering and still open their settings. Checked on dslaunchpad7: About Us lists 16 LeagueApps modules without the two, the Base Themer layout and the Single Teams template list all 18, and the team and About pages render the same before and after.
+
 ## [1.10.4] - 2026-09-28
 ### Changed
 - **Post Loop: a newly dropped module fills its column, like other Beaver modules** (Alipio: "can we make the spacing content width fullwidth like other beaver modules ... deprecate that and other installation just retain the setting if it was build before"). Content Width has a new default, "Fill the column": the loop takes the column's width and its spacing comes from the Advanced tab, so a fresh module no longer needs anything on the Style tab to sit right. Boxed, Full width and Custom stay for modules already saved on them, in a "Width & Spacing (legacy)" block that only appears on those modules; choosing "Fill the column" retires it for that module. Modules saved before the setting existed keep rendering Boxed.
