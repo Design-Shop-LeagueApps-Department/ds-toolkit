@@ -4,7 +4,9 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
-## [1.9.167] - 2026-09-28
+## [1.10.0] - 2026-09-28
+First published as 1.9.167 the same day and renumbered to 1.10.0 for its new modules (Table, Device, Home templates, Pattern library, Loop manager) and security changes. The code is identical to 1.9.167 apart from the version number.
+
 ### Security
 - **Test scripts do nothing over HTTP** (pre-release audit 2026-09-27). `tests/` ships in the release zip, and a direct request to a test file could fatal with a server path in the error or run its own stub WordPress. Every test now exits unless it runs from the command line (`wp eval-file` or `php`).
 - **LeagueApps Table hardening from the pre-release audit (2026-09-27).**
