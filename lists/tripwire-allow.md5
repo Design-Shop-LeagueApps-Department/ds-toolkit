@@ -99,3 +99,8 @@ c1f2353438390926982bc2a9ae49e1b5  wp-file-manager 8.0.1 lib/php/elFinder.class.p
 # --- so both are byte-identical by construction. 11.4.2.1 ships the SAME file as 11.4.2.
 84e96086fae46baad557a51dcf24e3c4  pixelyoursite 11.4.2 AND 11.4.2.1 includes/class-pys.php - 69898b, byte-identical to both wordpress.org zips (the file is unchanged between the two releases). Site: brsoccer.org
 ac359df9a8f30f081ba7d00467848c5b  pixelyoursite 11.3.1 includes/class-pys.php - 61578b, byte-identical to the wordpress.org zip. Added ahead of need: the fleet runs several versions of this plugin and each one is a separate hash
+# --- 2026-09-28: a THIRD file-manager family. file-manager-advanced is a DIFFERENT plugin from
+# --- wp-file-manager (different slug, different path: application/library/php/), and it bundles its
+# --- own elFinder. somerssports.org emailed CRITICAL on it 09-27 09:18 UTC and would have again
+# --- every day. Plugin is INACTIVE on that site, which does not change the file's hash.
+4d8b0a0f6f8a2ea750cfbba9498436d2  file-manager-advanced 5.4.14 application/library/php/elFinder.class.php - 189995b, BYTE-IDENTICAL to the wordpress.org 5.4.14 zip. Same score-145 shape as wp-file-manager's copy: move_uploaded_file() with no nonce check plus split-literal stream wrappers in a file that include()s. That is elFinder. Site: somerssports.org
