@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.3] - 2026-09-28
+### Changed
+- **LeagueApps Heading: the Style tab is organised by element** (Alipio: "style tab is clunky ... I've already set sub heading hide but there's still [its styling] ... I need to set the divider hide also in style tab ... and I don't have option to change thickness of the divider if I set to hide"). Sections are now Heading, Sub-heading, Description, Style 2 Line & End Mark, Divider, Gradient & Outline Text, Spacing. The Sub-heading and Description sections show only when those elements are on, and the Divider on/off switch moved to Content > Text beside them, so hiding an element also clears its styling from the Style tab.
+### Added
+- **Style 2's line has its own Line Thickness and Line Colour.** It used to borrow the Divider's thickness and colour, which disappeared from the panel the moment the Divider was hidden. Both are blank by default and fall back to the Divider values, so every existing heading draws exactly the same line: the CSS of all 78 headings on dslaunchpad7 was byte-identical before and after, and the form keeps every existing key, type, default and option.
+
 ## [1.10.2] - 2026-09-28
 ### Changed
 - **Post Loop: the Query tab reads top-down** (Alipio: "taxonomy filter should be place above. its more usable"). Posts (Source, Post Type, Include / Exclude Specific, Number of Posts), then Filter by Taxonomy, then Sort (Order By, Custom Field Key, Order), then More Filters (From / To Date, Keyword, Offset, Exclude Current Post; collapsed), then When There Are No Results (collapsed). Date Format moved to Content > Layout and shows only for the layouts that print a date (News Featured, News Grid, Custom). With Source set to "Current archive" the taxonomy, sort and filter sections hide, since an archive ignores them. Order labels read "Descending (Z to A, newest first)" / "Ascending (A to Z, oldest first)" so they make sense for Title and Menu Order too. A pure reorganisation: all 290 fields keep their key, type, default and options (compared on dslaunchpad7 before and after), so every saved Post Loop renders exactly as before.
