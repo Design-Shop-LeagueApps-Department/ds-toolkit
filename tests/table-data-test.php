@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over HTTP
 /**
  * DS_Table_Data (modules/ds-table): storage, CSV parsing, column types, sort keys,
  * Google Sheets links and cell escaping. Needs WordPress (esc_html, wp_json_encode…):

@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over HTTP
 /**
  * ds-table upload endpoint (wp_ajax_ds_table_upload): importing rows into the editor
  * keeps no file, and who may read, store or replace a CSV. Drives the real handler

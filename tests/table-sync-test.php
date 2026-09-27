@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over HTTP
 /**
  * LeagueApps Table: keeping synced tables current behind a page cache. Publishing a layout
  * records its synced link; the ds_table_sync job clears the post's page cache once per data
