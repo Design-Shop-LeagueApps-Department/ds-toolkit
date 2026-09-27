@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.4] - 2026-09-28
+### Changed
+- **Post Loop: a newly dropped module fills its column, like other Beaver modules** (Alipio: "can we make the spacing content width fullwidth like other beaver modules ... deprecate that and other installation just retain the setting if it was build before"). Content Width has a new default, "Fill the column": the loop takes the column's width and its spacing comes from the Advanced tab, so a fresh module no longer needs anything on the Style tab to sit right. Boxed, Full width and Custom stay for modules already saved on them, in a "Width & Spacing (legacy)" block that only appears on those modules; choosing "Fill the column" retires it for that module. Modules saved before the setting existed keep rendering Boxed.
+- **Post Loop: header divider defaults** match the design standard: Solid, 2px, "Global - Line Color", 24px space below. The colour arrives connected to the site's Line Color global when the site has one; otherwise it uses var(--fl-global-line-color). Existing modules keep the divider they were saved with.
+- **Post Loop: the Style tab reads top to bottom** as the module renders: Header (heading colours, typography, button), the chosen layout's card sections, Card Typography, Card Border, Hover & Animation, Section (Section Background with the section border), then the legacy width block. The Section Background moved out of the header group.
+- Proof on dslaunchpad7 (files swapped in, backed up, restored): the CSS of all 42 existing Post Loops was byte-identical before and after, all 290 fields kept their keys, and in the builder a new module showed the new defaults and no legacy block, while a legacy Full-width module kept its padding controls.
+
 ## [1.10.3] - 2026-09-28
 ### Changed
 - **LeagueApps Heading: the Style tab is organised by element** (Alipio: "style tab is clunky ... I've already set sub heading hide but there's still [its styling] ... I need to set the divider hide also in style tab ... and I don't have option to change thickness of the divider if I set to hide"). Sections are now Heading, Sub-heading, Description, Style 2 Line & End Mark, Divider, Gradient & Outline Text, Spacing. The Sub-heading and Description sections show only when those elements are on, and the Divider on/off switch moved to Content > Text beside them, so hiding an element also clears its styling from the Style tab.
