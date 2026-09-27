@@ -190,8 +190,14 @@ class DS_Home_Templates {
 			if ( ! $from || ! $to ) { continue; }
 			$src = $current[ $from ]->settings;
 			$dst = $data[ $to ]->settings;
+			// Whether the hero shows a photo or video is the template's design: a template whose hero has none
+			// (text on a textured band) keeps it that way, and a page whose hero has none has no media to give
+			// (applying a photo template must not empty its photo). Media carries only between two media heroes;
+			// the words and buttons always carry.
+			$media = 'ds-hero' === $type && ( ! self::hero_has_media( $dst ) || ! self::hero_has_media( $src ) );
 			foreach ( get_object_vars( $src ) as $k => $v ) {
 				if ( ! preg_match( $pattern, $k ) || ! property_exists( $dst, $k ) ) { continue; }
+				if ( $media && preg_match( self::HERO_MEDIA, $k ) ) { continue; }
 				$dst->$k = self::copy( $v );
 				// Its connection (a field bound to dynamic data) follows it exactly: set where the current page has
 				// one, removed where it has none. Never an added empty entry.
@@ -203,6 +209,18 @@ class DS_Home_Templates {
 			}
 		}
 		return $data;
+	}
+
+	/** The hero fields that hold its photo / video. */
+	const HERO_MEDIA = '/^(bg_type|bg_photo(_src)?|bg_photos|mixed_slides|peek_slides|video_(media|url|poster)(_src)?)$/';
+
+	/** Does this ds-hero show a background photo or video? */
+	public static function hero_has_media( $s ) {
+		$t = (string) ( $s->bg_type ?? 'image' );
+		if ( 'slideshow' === $t ) { return ! empty( array_filter( (array) ( $s->bg_photos ?? array() ) ) ); }
+		if ( 'video' === $t ) { return '' !== (string) ( $s->video_media ?? '' ) || '' !== (string) ( $s->video_url ?? '' ); }
+		if ( 'mixed' === $t ) { return ! empty( array_filter( (array) ( $s->mixed_slides ?? array() ), function ( $x ) { $x = (array) $x; return ! empty( $x['photo'] ) || ! empty( $x['video_media'] ) || ! empty( $x['video_url'] ); } ) ); }
+		return '' !== (string) ( $s->bg_photo ?? '' ) && '0' !== (string) ( $s->bg_photo ?? '' );
 	}
 
 	/** ID of the first module of a type, in page order (row, column group, column, module positions). */
@@ -579,7 +597,17 @@ class DS_Home_Templates {
 		}
 		$st = $bundle['styles'] ?? null;
 		if ( ! is_array( $st ) ) { return; }
-		if ( null !== ( $st['styles'] ?? null ) ) { $g = $st['styles']; add_filter( 'pre_option__fl_builder_styles', function () use ( $g ) { return $g; }, 999 ); }
+		if ( null !== ( $st['styles'] ?? null ) ) {
+			$g = $st['styles'];
+			add_filter( 'pre_option__fl_builder_styles', function () use ( $g ) { return $g; }, 999 );
+			// BB keeps Global Styles in a static cache that may already hold the site's (read earlier in the request,
+			// e.g. for the heading font): empty it so the preview reads the template's (fonts, colours, buttons).
+			if ( class_exists( 'FLBuilderGlobalStyles' ) && property_exists( 'FLBuilderGlobalStyles', 'settings' ) ) {
+				$prop = new ReflectionProperty( 'FLBuilderGlobalStyles', 'settings' );
+				$prop->setAccessible( true );
+				$prop->setValue( null, null );
+			}
+		}
 		if ( null !== ( $st['button'] ?? null ) ) { $bt = $st['button']; add_filter( 'pre_option_ds_button_style', function () use ( $bt ) { return $bt; }, 999 ); }
 		foreach ( (array) ( $st['mods'] ?? array() ) as $k => $v ) {
 			if ( null !== $v ) { add_filter( 'theme_mod_' . $k, function () use ( $v ) { return $v; }, 999 ); }

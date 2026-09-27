@@ -80,6 +80,7 @@ if ( $h1 && $t_hero ) {
 	ht_is( 'the hero keeps the page\'s heading, text and button', array( $h1->settings->heading, $h1->settings->subtext, $h1->settings->btn1_text, $h1->settings->btn1_link ), array( 'Gold Rush {a}Hockey{/a}', 'Our own words', 'Register', 'https://example.com/register' ) );
 	ht_is( 'the hero keeps the template\'s styling (colour not carried)', $h1->settings->heading_color ?? null, $t_hero->settings->heading_color ?? null );
 }
+ht_is( 'hero media detection', array( DS_Home_Templates::hero_has_media( (object) array( 'bg_type' => 'image', 'bg_photo' => '12' ) ), DS_Home_Templates::hero_has_media( (object) array( 'bg_type' => 'image', 'bg_photo' => '' ) ), DS_Home_Templates::hero_has_media( (object) array( 'bg_type' => 'video', 'video_url' => 'https://x.org/a.mp4' ) ), DS_Home_Templates::hero_has_media( (object) array( 'bg_type' => 'slideshow', 'bg_photos' => array() ) ) ), array( true, false, true, false ) );
 ht_is( 'the template itself is unchanged', get_post_meta( $tpl, '_fl_builder_data', true ) == $tdata, true );
 $ps = get_post_meta( $page, '_fl_builder_data_settings', true );
 $ts = FLBuilderModel::get_layout_settings( 'published', $tpl );
