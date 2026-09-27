@@ -121,7 +121,11 @@ class DS_Page_Cards {
 		if ( ! $id || 'page' !== get_post_type( $id ) || ! current_user_can( 'publish_pages' ) || ! current_user_can( 'edit_post', $id ) ) {
 			wp_send_json_error( array( 'message' => __( 'You cannot publish that page.', 'ds-toolkit' ) ), 403 );
 		}
-		wp_publish_post( $id );
+		// Publish the way the editor does, not with wp_publish_post(): that only flips the status, so a draft made here went
+		// live with no slug (its card linked to the parent page and its own URL was a 404) and an empty GMT date. Publishing
+		// through wp_update_post() gives it a unique slug from its title and today's date.
+		$r = wp_update_post( array( 'ID' => $id, 'post_status' => 'publish', 'post_date' => current_time( 'mysql' ), 'post_date_gmt' => current_time( 'mysql', true ), 'edit_date' => true ), true );
+		if ( is_wp_error( $r ) ) { wp_send_json_error( array( 'message' => $r->get_error_message() ), 500 ); }
 		$host = absint( $_POST['post_id'] ?? 0 );
 		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) && $host ) { WpeCommon::purge_varnish_cache( $host ); }
 		wp_send_json_success( self::row( get_post( $id ) ) );
