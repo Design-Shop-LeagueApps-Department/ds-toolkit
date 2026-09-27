@@ -56,6 +56,8 @@ class DS_Global_Heading_Font {
 	 *
 	 * Responsive variants (`*_typography_large|medium|responsive`) are skipped —
 	 * they only carry size/line-height overrides, never a family.
+	 *
+	 * The body text font (`text_typography`) also gets its bold (700) face.
 	 */
 	public function register() {
 		if ( ! class_exists( 'FLBuilderFonts' ) || ! class_exists( 'FLBuilderGlobalStyles' ) ) {
@@ -89,6 +91,28 @@ class DS_Global_Heading_Font {
 				'family' => $family,
 				'weight' => $weight,
 			) );
+
+			// Body text is set in one weight, but <strong> and the eyebrows, dates, roles,
+			// buttons and table headings of the LeagueApps modules are bold in the same
+			// font. BB requests only the weight above, so the browser fakes the bold by
+			// thickening the regular face. Request the real bold face as well.
+			if ( 'text_typography' === $key && (int) $weight < 700 ) {
+				$this->add_bold( $family );
+			}
 		}
+	}
+
+	/** The 700 face of a font, unless it is a Google family that has none. */
+	private function add_bold( $family ) {
+		if ( class_exists( 'FLBuilderFontFamilies' ) ) {
+			$google = FLBuilderFontFamilies::google();
+			if ( isset( $google[ $family ] ) && ! in_array( '700', (array) $google[ $family ], true ) ) {
+				return;
+			}
+		}
+		FLBuilderFonts::add_font( array(
+			'family' => $family,
+			'weight' => '700',
+		) );
 	}
 }
