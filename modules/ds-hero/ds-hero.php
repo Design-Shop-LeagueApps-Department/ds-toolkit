@@ -407,10 +407,17 @@ class DS_Hero_Module extends FLBuilderModule {
 
 		$mods = 'ds-hero ds-hero--style2 ds-hero--banner ds-banner--' . $align . ( $has_bg ? ' ds-banner--has-bg' : ' ds-banner--no-bg' ) . ( $parallax ? ' ds-banner--parallax' : '' ) . $vmod;
 		echo '<section class="' . esc_attr( $mods ) . '"' . ( $parallax ? ' data-parallax="1"' : '' ) . '>';
+		// The page's focal point for its banner photo or video (the Page Banner Image panel in the builder, meta
+		// _ds_banner_focal = "x y" in percent): the spot that stays in view however the banner crops it. Centre = none.
+		$focal = '';
+		if ( ! $is_arch && $pid && preg_match( '/^(\d{1,3}) (\d{1,3})$/', (string) get_post_meta( $pid, '_ds_banner_focal', true ), $fm ) ) {
+			$fx = min( 100, (int) $fm[1] ); $fy = min( 100, (int) $fm[2] );
+			if ( 50 !== $fx || 50 !== $fy ) { $focal = $fx . '% ' . $fy . '%'; }
+		}
 		if ( '' !== $video ) {
-			echo '<div class="ds-hero-bg"><video class="ds-hero-video" autoplay muted loop playsinline src="' . esc_url( $video ) . '"></video></div>';
+			echo '<div class="ds-hero-bg"><video class="ds-hero-video" autoplay muted loop playsinline src="' . esc_url( $video ) . '"' . ( $focal ? ' style="object-position:' . esc_attr( $focal ) . '"' : '' ) . '></video></div>';
 		} elseif ( '' !== $img ) {
-			echo '<div class="ds-hero-bg" style="background-image:url(' . esc_url( $img ) . ')"></div>';
+			echo '<div class="ds-hero-bg" style="background-image:url(' . esc_url( $img ) . ')' . ( $focal ? ';background-position:' . esc_attr( $focal ) : '' ) . '"></div>';
 		}
 		// Designed darkening preset over the photo, for legibility (Image Scrim).
 		$scrim = preg_replace( '/[^a-z]/', '', (string) ( $s->scrim_preset ?? 'none' ) );
