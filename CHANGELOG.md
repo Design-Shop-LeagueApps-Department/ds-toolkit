@@ -433,6 +433,13 @@ Every hash added carries evidence, recorded per line in `fleet-audit/bin/gen-kno
 - **PHP 7.4 stays supported.** 98 fleet sites still run 7.4. The changed files were syntax-checked on a live 7.4 container before this release; a release-workflow lint job on 7.4, 8.2 and 8.4 (a parse error would leave the release without its zip, which the updater never offers) follows with the workflow PR above.
 - Manual run for a support session or a canary: `wp eval 'DS_Tripwire::content_scan_now( 60 );'`, then read `wp option get ds_tripwire_state --format=json` (`content` key).
 - Kill switches that need no deploy: `define( 'DS_TRIPWIRE_CONTENT_OFF', true );` in wp-config, or per site `wp option patch update ds_toolkit_settings tripwire_content_enabled 0`, or the `ds_tripwire_content_enabled` filter. The daily IOC check is unaffected by any of them.
+## [1.9.131] - 2026-09-17
+### Fixed
+- **Hero Banner Style 3 (Peek Slider) went blank when you navigated faster than one transition.** The loop keeps a single clone at each end and only pulled `active` back onto the matching real slide inside the `transitionend` handler. Any input arriving before that fired (rapid arrow clicks, a held ArrowRight, autoplay landing on top of a drag) incremented `active` again from an already out-of-range value, so the track translated past the clone into empty space and the hero showed white until the visitor stopped touching it. Measured on inspireclvb: 9 blank frames out of 12 clicks at a 200 ms gap against a 525 ms transition, and blank after 15 fast ArrowRight presses. `go()`, `next()` and `prev()` now re-seat first, so `active` never leaves `[-1, n]`. Same run after the fix: 0 blank frames.
+- **Style 3 arrows and play button rendered near-black on their own dark scrim.** The glyphs are `stroke`/`fill:currentColor`, and the theme-proofing block reset every other property the global Button imposes but left `color` alone. BB Theme ships `.fl-page .fl-builder-content button:not(.fl-content-ui-button)` at specificity 0-3-1, which outranks the module's 0-2-0 rule, so a site whose Button text colour is dark (inspireclvb: `#111111`) painted the chevrons `rgb(17,17,17)` on a 50% dark disc. That BB selector also carries a `… *` arm that paints the `<svg>` directly, so pinning the button alone leaves the glyph dark: the fix covers the button **and** its descendants.
+- **Style 3 arrow scrim raised from 50% to 62% opacity.** White on a 50% scrim over a bright photo computes to about 2.6:1, under the WCAG 1.4.11 non-text minimum of 3:1. At 62% the worst case any photo can produce is 5.26:1. Measured on the three live slides after the change: 10.67:1, 18.70:1, 14.72:1.
+
+---
 
 ## [1.9.130] - 2026-09-16
 ### Fixed
