@@ -328,7 +328,7 @@ if ( ( $settings->last_item_button ?? 'no' ) === 'yes' ) {
 	if ( $gs && ( $settings->button_global ?? 'yes' ) === 'yes' ) {
 		$cta_global = true;
 		// FULL theme Button sync (bg, text, hover, border + radius + shadow, typography).
-		DS_Module_UI::global_button_css( $cta, $cta_hover );
+		DS_Module_UI::global_button_css( $cta, $cta_hover, false ); // the CTA keeps the bar typography it inherits
 		echo "$cta { padding:0.6em {$bpad}px; }\n";
 	} else {
 		$bbg    = $col( $settings->button_bg ?? '' ) ?: 'var(--fl-global-button)';

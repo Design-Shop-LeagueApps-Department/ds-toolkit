@@ -251,7 +251,8 @@ if ( $gs ) {
 if ( $btn_global && $gs ) {
 	// FULL theme Button sync (bg, text, hover, border + radius + shadow, typography).
 	DS_Module_UI::global_button_css( "$node .ds-hero .ds-hero-btn--primary" );
-	// Corner radius + typography on the GHOST button too so it matches the theme.
+	// Corner radius + typography (with the theme's size where Theme Setting leaves it blank) on the GHOST button too.
+	DS_Module_UI::button_base_css( "$node .ds-hero .ds-hero-btn--ghost" );
 	if ( '' !== $gradius ) { echo "$node .ds-hero .ds-hero-btn--ghost { border-radius: {$gradius}; }\n"; }
 	if ( class_exists( 'FLBuilderCSS' ) && ! empty( $gs->button_typography ) ) {
 		$gt = (object) array(
@@ -522,7 +523,7 @@ if ( 'style3' === $style ) {
 	echo "$peek .ds-peek-cta { " . ( $sizes[ $bsize ] ?? $sizes['medium'] ) . " }\n";
 
 	if ( ( $settings->peek_btn_global ?? 'yes' ) === 'yes' ) {
-		DS_Module_UI::global_button_css( "$peek .ds-peek-cta" );
+		DS_Module_UI::global_button_css( "$peek .ds-peek-cta", null, false ); // keeps the Button Size above
 	} else {
 		$b = '';
 		$bbg = DS_Module_UI::color( $settings->peek_btn_bg ?? '' );
