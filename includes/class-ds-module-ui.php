@@ -18,11 +18,21 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  */
 class DS_Module_UI {
 
-	/** Normalise a colour: pass through rgb()/#hex/var(); else prefix #. Blank -> ''. */
+	/**
+	 * Normalise a colour for a CSS declaration: #hex (a bare hex gets its #), rgb[a]() /
+	 * hsl[a](), var(--name[, fallback]) or a colour keyword. Anything else returns '', so a
+	 * crafted setting ("#fff;}body{display:none") can never close the rule it is printed in.
+	 */
 	public static function color( $v ) {
 		$v = trim( (string) $v );
 		if ( '' === $v ) { return ''; }
-		return ( 0 === strpos( $v, 'rgb' ) || 0 === strpos( $v, '#' ) || 0 === strpos( $v, 'var' ) ) ? $v : '#' . $v;
+		$fn  = '(?:rgba?|hsla?)\(\s*[-+0-9.,%\s\/a-z]*\)';
+		$hex = '#?[0-9a-f]{3,8}';
+		if ( preg_match( '/^' . $hex . '$/i', $v ) ) { return '#' === $v[0] ? $v : '#' . $v; }
+		if ( preg_match( '/^' . $fn . '$/i', $v ) ) { return $v; }
+		if ( preg_match( '/^var\(\s*--[\w-]+\s*(?:,\s*(?:#[0-9a-f]{3,8}|' . $fn . '|[a-z]+)\s*)?\)$/i', $v ) ) { return $v; }
+		if ( preg_match( '/^[a-z]{3,20}$/i', $v ) ) { return $v; } // transparent, currentColor, white
+		return '';
 	}
 
 	/** Unit int-or-default: unset/blank -> $d, else (int) $v. */
@@ -74,13 +84,18 @@ class DS_Module_UI {
 	 *
 	 * @param string      $selector       Full selector (already node-scoped).
 	 * @param string|null $hover_selector Hover selector; null derives ":hover".
+	 * @param bool        $base           Also emit the theme's base button size/weight/line height (button_base_css).
+	 *                                    False for callers that size the button themselves on the same selector
+	 *                                    (the Hero slider's Button Size, the Menu's CTA, which inherits the bar typography).
 	 * @return bool True when global styles existed and something was emitted.
 	 */
-	public static function global_button_css( $selector, $hover_selector = null ) {
+	public static function global_button_css( $selector, $hover_selector = null, $base = true ) {
 		if ( ! class_exists( 'FLBuilderGlobalStyles' ) ) { return false; }
 		$gs = FLBuilderGlobalStyles::get_settings( false );
 		if ( ! $gs ) { return false; }
 		if ( null === $hover_selector ) { $hover_selector = $selector . ':hover'; }
+
+		if ( $base ) { self::button_base_css( $selector ); }
 
 		$bg    = self::color( $gs->button_background ?? '' );
 		$text  = self::color( $gs->button_color ?? '' );
@@ -121,6 +136,43 @@ class DS_Module_UI {
 			FLBuilderCSS::typography_field_rule( array( 'settings' => $gt, 'setting_name' => 'gbtypo', 'selector' => $selector ) );
 		}
 		return true;
+	}
+
+	/**
+	 * What a site Button looks like wherever the global Button settings are blank: the theme's own button size, weight and
+	 * line height (Customizer, per breakpoint), plus the Theme Setting button padding where it is set. Without this a module
+	 * "matching the site Button" kept its own hard-coded size where Theme Setting leaves the size blank: the Hero Banner's
+	 * buttons were 13px bold beside the site's 16px regular buttons. Echoed BEFORE the deferred typography rules, so the
+	 * global Button typography and any module's own button typography field still win wherever they set a value.
+	 *
+	 * @param string $selector Full selector (already node-scoped).
+	 */
+	public static function button_base_css( $selector ) {
+		$num  = function ( $v, $d ) { return ( is_numeric( $v ) && (float) $v > 0 ) ? (float) $v : $d; };
+		$size = $num( get_theme_mod( 'fl-button-font-size', '' ), 16 );
+		$w    = (string) get_theme_mod( 'fl-button-font-weight', '' );
+		$w    = preg_match( '/^([1-9]00|normal|bold)$/', $w ) ? $w : '400';
+		$lh   = $num( get_theme_mod( 'fl-button-line-height', '' ), 1.2 );
+		echo "{$selector} { font-size:{$size}px; font-weight:{$w}; line-height:{$lh}; }\n";
+		list( $md, $sm ) = self::breakpoints();
+		foreach ( array( '_medium' => $md, '_mobile' => $sm ) as $suffix => $bp ) {
+			$s = get_theme_mod( 'fl-button-font-size' . $suffix, '' );
+			if ( is_numeric( $s ) && (float) $s > 0 && (float) $s !== $size ) { echo "@media (max-width:{$bp}px){ {$selector} { font-size:" . (float) $s . "px; } }\n"; }
+		}
+		if ( ! class_exists( 'FLBuilderGlobalStyles' ) ) { return; }
+		$gs = FLBuilderGlobalStyles::get_settings( false );
+		if ( ! $gs ) { return; }
+		$g  = class_exists( 'FLBuilderModel' ) ? FLBuilderModel::get_global_settings() : null;
+		$lg = ( $g && ! empty( $g->large_breakpoint ) ) ? (int) $g->large_breakpoint : 1200;
+		foreach ( array( '' => 0, '_large' => $lg, '_medium' => $md, '_responsive' => $sm ) as $suffix => $bp ) {
+			$css = '';
+			foreach ( array( 'top', 'right', 'bottom', 'left' ) as $side ) {
+				$v = $gs->{ "button_padding_{$side}{$suffix}" } ?? '';
+				if ( '' !== $v && null !== $v && is_numeric( $v ) ) { $css .= "padding-{$side}:" . (float) $v . 'px;'; }
+			}
+			if ( '' === $css ) { continue; }
+			echo $bp ? "@media (max-width:{$bp}px){ {$selector} { {$css} } }\n" : "{$selector} { {$css} }\n";
+		}
 	}
 
 	/** [ medium, responsive ] global breakpoints in px, with Beaver Builder defaults. */

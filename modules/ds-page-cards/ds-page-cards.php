@@ -36,7 +36,7 @@ class DS_Page_Cards_Module extends FLBuilderModule {
 
 	/** Saved Beaver Builder templates for the "card" picker (layout / row types). */
 	public static function template_options() {
-		$out  = array( '0' => __( '— Select a saved card template —', 'ds-toolkit' ) );
+		$out  = array( '0' => __( 'Select a saved card template', 'ds-toolkit' ) );
 		$tpls = get_posts( array(
 			'post_type'      => 'fl-builder-template',
 			'posts_per_page' => -1,
@@ -297,12 +297,15 @@ class DS_Page_Cards_Module extends FLBuilderModule {
 }
 
 FLBuilder::register_module( 'DS_Page_Cards_Module', array(
+	// Reorganised (Alipio 2026-09-27: "simplify it ... study that module reorganize and improve it, make sure doesnt affect the old
+	// version"): content first, sorting tucked away, the card's look under Style. Every field keeps its key, type, default and
+	// option values. New: Page Images (pc_images_ui, a display-only panel) sets each child page's featured image from here.
 	'content' => array(
-		'title'    => __( 'Pages', 'ds-toolkit' ),
+		'title'    => __( 'Content', 'ds-toolkit' ),
 		'sections' => array(
 			'source_sec' => array(
-				'title'  => __( 'Which Pages', 'ds-toolkit' ),
-				'fields' => array(
+				'title'       => __( 'Cards From', 'ds-toolkit' ),
+				'fields'      => array(
 					'list_source' => array(
 						'type'    => 'select',
 						'label'   => __( 'Cards From', 'ds-toolkit' ),
@@ -313,8 +316,8 @@ FLBuilder::register_module( 'DS_Page_Cards_Module', array(
 							'manual'   => __( 'My own cards only', 'ds-toolkit' ),
 						),
 						'toggle'  => array(
-							'children' => array( 'fields' => array( 'source', 'limit', 'order_by', 'order' ) ),
-							'both'     => array( 'fields' => array( 'source', 'limit', 'order_by', 'order', 'manual_position' ), 'sections' => array( 'manual_sec' ) ),
+							'children' => array( 'fields' => array( 'source' ), 'sections' => array( 'images_sec', 'sort_sec' ) ),
+							'both'     => array( 'fields' => array( 'source', 'manual_position' ), 'sections' => array( 'manual_sec', 'images_sec', 'sort_sec' ) ),
 							'manual'   => array( 'sections' => array( 'manual_sec' ) ),
 						),
 						'help'    => __( 'Add your own cards alongside the automatic ones for anything that is not a child page: an external registration link, a sponsor, or a "Coming Soon" placeholder.', 'ds-toolkit' ),
@@ -331,25 +334,18 @@ FLBuilder::register_module( 'DS_Page_Cards_Module', array(
 						'help'    => __( 'On a parent page, leave as "The current page" so it lists that page\'s children automatically.', 'ds-toolkit' ),
 					),
 					'parent_page' => array( 'type' => 'suggest', 'label' => __( 'Parent Page', 'ds-toolkit' ), 'action' => 'fl_as_posts', 'data' => 'page', 'limit' => 1 ),
-					'limit'       => array( 'type' => 'unit', 'label' => __( 'Max Pages', 'ds-toolkit' ), 'default' => '50', 'slider' => array( 'min' => 1, 'max' => 200, 'step' => 1 ), 'help' => __( 'Capped at 200 to keep the per-card render from exhausting memory.', 'ds-toolkit' ) ),
-					'order_by'    => array(
-						'type'    => 'select',
-						'label'   => __( 'Order By', 'ds-toolkit' ),
-						'default' => 'menu_order title',
-						'options' => array(
-							'menu_order title' => __( 'Page Order, then Title', 'ds-toolkit' ),
-							'menu_order'       => __( 'Page Order', 'ds-toolkit' ),
-							'title'            => __( 'Title', 'ds-toolkit' ),
-							'date'             => __( 'Date Published', 'ds-toolkit' ),
-							'modified'         => __( 'Last Modified', 'ds-toolkit' ),
-						),
-					),
-					'order'       => array( 'type' => 'select', 'label' => __( 'Order', 'ds-toolkit' ), 'default' => 'ASC', 'options' => array( 'ASC' => __( 'Ascending', 'ds-toolkit' ), 'DESC' => __( 'Descending', 'ds-toolkit' ) ) ),
+				),
+			),
+			'images_sec' => array(
+				'title'       => __( 'Child Pages', 'ds-toolkit' ),
+				'description' => __( 'The pages these cards come from. Set each card\'s image (saved to that page straight away and used for its page banner too), open a page to edit it, or add a new page: it starts as a draft and gets its card when you publish it.', 'ds-toolkit' ),
+				'fields'      => array(
+					'pc_images_ui' => array( 'type' => 'raw', 'label' => '', 'content' => '<div class="ds-pci" data-ds-page-images><p class="ds-pci-msg">' . esc_html__( 'Loading pages…', 'ds-toolkit' ) . '</p></div>' ),
 				),
 			),
 			'manual_sec' => array(
-				'title'  => __( 'My Cards', 'ds-toolkit' ),
-				'fields' => array(
+				'title'       => __( 'My Cards', 'ds-toolkit' ),
+				'fields'      => array(
 					'manual_position' => array(
 						'type'    => 'select',
 						'label'   => __( 'Where To Put Them', 'ds-toolkit' ),
@@ -370,8 +366,43 @@ FLBuilder::register_module( 'DS_Page_Cards_Module', array(
 				),
 			),
 			'card_sec' => array(
-				'title'  => __( 'Card', 'ds-toolkit' ),
-				'fields' => array(
+				'title'       => __( 'What Each Card Shows', 'ds-toolkit' ),
+				'fields'      => array(
+					'show_image'     => array( 'type' => 'select', 'label' => __( 'Show Image', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'image_position' ) ) ), 'help' => __( 'Uses the page\'s featured image, or the brand social card when it has none.', 'ds-toolkit' ) ),
+					'show_excerpt'   => array( 'type' => 'select', 'label' => __( 'Show Excerpt', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'excerpt_length' ) ) ), 'help' => __( 'Shows the child page\'s manual excerpt (auto-hides if it has none). Descriptions you type on your own cards always show, whatever this is set to.', 'ds-toolkit' ) ),
+					'excerpt_length' => array( 'type' => 'unit', 'label' => __( 'Excerpt Length', 'ds-toolkit' ), 'default' => '18', 'description' => __( 'words', 'ds-toolkit' ), 'slider' => array( 'min' => 4, 'max' => 60, 'step' => 1 ) ),
+					'show_button'    => array( 'type' => 'select', 'label' => __( 'Show Link', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'button_text', 'button_style' ) ) ) ),
+					'button_text'    => array( 'type' => 'text', 'label' => __( 'Link Text', 'ds-toolkit' ), 'default' => 'View page' ),
+				),
+			),
+			'sort_sec' => array(
+				'title'       => __( 'Sorting', 'ds-toolkit' ),
+				'collapsed'   => true,
+				'fields'      => array(
+					'limit'       => array( 'type' => 'unit', 'label' => __( 'Max Pages', 'ds-toolkit' ), 'default' => '50', 'slider' => array( 'min' => 1, 'max' => 200, 'step' => 1 ), 'help' => __( 'Capped at 200 to keep the per-card render from exhausting memory.', 'ds-toolkit' ) ),
+					'order_by'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Order By', 'ds-toolkit' ),
+						'default' => 'menu_order title',
+						'options' => array(
+							'menu_order title' => __( 'Page Order, then Title', 'ds-toolkit' ),
+							'menu_order'       => __( 'Page Order', 'ds-toolkit' ),
+							'title'            => __( 'Title', 'ds-toolkit' ),
+							'date'             => __( 'Date Published', 'ds-toolkit' ),
+							'modified'         => __( 'Last Modified', 'ds-toolkit' ),
+						),
+					),
+					'order'       => array( 'type' => 'select', 'label' => __( 'Order', 'ds-toolkit' ), 'default' => 'ASC', 'options' => array( 'ASC' => __( 'Ascending', 'ds-toolkit' ), 'DESC' => __( 'Descending', 'ds-toolkit' ) ) ),
+				),
+			),
+		),
+	),
+	'style' => array(
+		'title'    => __( 'Style', 'ds-toolkit' ),
+		'sections' => array(
+			'design_sec' => array(
+				'title'       => __( 'Card Design', 'ds-toolkit' ),
+				'fields'      => array(
 					'card_source'    => array(
 						'type'    => 'select',
 						'label'   => __( 'Card', 'ds-toolkit' ),
@@ -383,7 +414,7 @@ FLBuilder::register_module( 'DS_Page_Cards_Module', array(
 						'toggle'  => array(
 							'default'  => array(
 								'fields'   => array( 'show_image', 'show_excerpt', 'excerpt_length', 'show_button', 'button_text', 'button_style' ),
-								'sections' => array( 'cardstyle_sec', 'image_sec', 'text_sec' ),
+								'sections' => array( 'card_sec', 'cardstyle_sec', 'image_sec', 'text_sec' ),
 							),
 							'template' => array( 'fields' => array( 'template' ) ),
 						),
@@ -395,19 +426,9 @@ FLBuilder::register_module( 'DS_Page_Cards_Module', array(
 						'options' => DS_Page_Cards_Module::template_options(),
 						'help'    => __( 'Each child page is rendered with this saved Beaver Builder template.', 'ds-toolkit' ),
 					),
-					'show_image'     => array( 'type' => 'select', 'label' => __( 'Show Image', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'image_position' ) ) ), 'help' => __( 'Uses the page\'s featured image, or the brand social card when it has none.', 'ds-toolkit' ) ),
-					'show_excerpt'   => array( 'type' => 'select', 'label' => __( 'Show Excerpt', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'excerpt_length' ) ) ), 'help' => __( 'Shows the child page\'s manual excerpt (auto-hides if it has none). Descriptions you type on your own cards always show, whatever this is set to.', 'ds-toolkit' ) ),
-					'excerpt_length' => array( 'type' => 'unit', 'label' => __( 'Excerpt Length', 'ds-toolkit' ), 'default' => '18', 'description' => __( 'words', 'ds-toolkit' ), 'slider' => array( 'min' => 4, 'max' => 60, 'step' => 1 ) ),
-					'show_button'    => array( 'type' => 'select', 'label' => __( 'Show Link', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'button_text', 'button_style' ) ) ) ),
-					'button_text'    => array( 'type' => 'text', 'label' => __( 'Link Text', 'ds-toolkit' ), 'default' => 'View page' ),
 					'button_style'   => array( 'type' => 'select', 'label' => __( 'Link Style', 'ds-toolkit' ), 'default' => 'link', 'options' => array( 'link' => __( 'Text link', 'ds-toolkit' ), 'button' => __( 'Button (follows theme)', 'ds-toolkit' ) ) ),
 				),
 			),
-		),
-	),
-	'style' => array(
-		'title'    => __( 'Style', 'ds-toolkit' ),
-		'sections' => array(
 			'grid_sec' => array(
 				'title'  => __( 'Grid', 'ds-toolkit' ),
 				'fields' => array(

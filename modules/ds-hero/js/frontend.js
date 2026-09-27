@@ -246,9 +246,22 @@
 			else if (active > n - 1) { active = 0; setX(false); }
 		});
 
-		function go(to)  { active = to; setX(true); syncDots(); }
-		function next()  { if (!loop && active >= n - 1) return; go(active + 1); }
-		function prev()  { if (!loop && active <= 0)     return; go(active - 1); }
+		// The transitionend handler above is the only thing that pulls `active` back
+		// off a clone. Any input faster than one transition (rapid arrow clicks, a held
+		// ArrowRight, autoplay firing into a drag) lands here while it is still pending,
+		// so `active` would keep climbing past the single clone and the track would
+		// translate into empty space, and the slider goes blank until the input stops.
+		// Re-seat first, then move, so `active` never leaves [-1, n].
+		function reseat() {
+			if (!loop || (active >= 0 && active <= n - 1)) { return; }
+			active = ((active % n) + n) % n;
+			setX(false);
+			void track.offsetWidth; // flush, so the next move animates from the seated slide
+		}
+
+		function go(to)  { reseat(); active = to; setX(true); syncDots(); }
+		function next()  { reseat(); if (!loop && active >= n - 1) return; go(active + 1); }
+		function prev()  { reseat(); if (!loop && active <= 0)     return; go(active - 1); }
 
 		function stop()  { if (timer) { clearInterval(timer); timer = null; } syncPlay(); }
 		function start() {

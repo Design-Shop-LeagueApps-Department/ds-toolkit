@@ -96,6 +96,14 @@ class DS_Toolkit {
             'class'         => 'DS_Theme_Setting',
             'min_blueprint' => 6,
         ),
+        // Theme Setting > Home page: pick the home layout of a new build from the
+        // blueprint's "Home" BB templates. Blueprint 7+ only; the picker itself only
+        // runs on a development address until the site is marked launched.
+        'home_templates_enabled' => array(
+            'file'          => 'features/class-ds-home-templates.php',
+            'class'         => 'DS_Home_Templates',
+            'min_blueprint' => 7,
+        ),
         // Loads the Google font picked on Theme Setting -> Heading -> "All".
         // Beaver Builder renders that rule but never enqueues its font.
         'ds_global_heading_font_enabled' => array(
@@ -168,6 +176,11 @@ class DS_Toolkit {
             'class'         => 'DS_Divider',
             'min_blueprint' => 6,
         ),
+        'ds_device_module_enabled' => array(
+            'file'          => 'features/class-ds-device.php',
+            'class'         => 'DS_Device',
+            'min_blueprint' => 6,
+        ),
         'image_optimization_enabled' => array(
             'file'          => 'features/class-ds-image-optimization.php',
             'class'         => 'DS_Image_Optimization',
@@ -176,6 +189,13 @@ class DS_Toolkit {
         'page_banner_sync_enabled' => array(
             'file'          => 'features/class-ds-page-banner.php',
             'class'         => 'DS_Page_Banner',
+            'min_blueprint' => 6,
+        ),
+        // Theme Setting "Browse patterns": 330 tileable SVG patterns (pattern.monster, MIT) previewed in the site
+        // palette; a pick is written to uploads/ds-patterns/ and its URL goes in the field an uploaded image uses.
+        'ds_pattern_library_enabled' => array(
+            'file'          => 'features/class-ds-pattern-library.php',
+            'class'         => 'DS_Pattern_Library',
             'min_blueprint' => 6,
         ),
         'ds_content_router_module_enabled' => array(
@@ -189,6 +209,11 @@ class DS_Toolkit {
         'ds_programs_module_enabled' => array(
             'file'          => 'features/class-ds-programs.php',
             'class'         => 'DS_Programs',
+            'min_blueprint' => 6,
+        ),
+        'ds_table_module_enabled' => array(
+            'file'          => 'features/class-ds-table.php',
+            'class'         => 'DS_Table',
             'min_blueprint' => 6,
         ),
         'ds_info_list_module_enabled' => array(
@@ -295,9 +320,11 @@ class DS_Toolkit {
             'ds_cta_module_enabled'            => array( 'label' => 'CTA',             'desc' => 'A call-to-action band with a heading, text, and buttons.' ),
             'ds_heading_module_enabled'        => array( 'label' => 'Heading',         'desc' => 'A styled section heading with an eyebrow line and accent options.' ),
             'ds_divider_module_enabled'        => array( 'label' => 'Divider',         'desc' => 'A horizontal or vertical divider with gradient-fade, running-light, glow, and dashed effects.' ),
+            'ds_device_module_enabled'         => array( 'label' => 'Device',          'desc' => 'Images and videos inside a phone, tablet or desktop frame: one image, a slideshow, a video, or a mix.' ),
             'ds_team_detail_module_enabled'    => array( 'label' => 'Team Detail',     'desc' => 'A single-team layout: roster, schedule, and coaches.' ),
             'ds_content_router_module_enabled' => array( 'label' => 'Content Router',  'desc' => 'Renders the right body layout for each page type (single vs. archive) from one Themer template.' ),
             'ds_social_module_enabled'         => array( 'label' => 'Partner Social',  'desc' => "A row of the partner's social-media links." ),
+            'ds_table_module_enabled'          => array( 'label' => 'Table',           'desc' => 'A sortable, searchable table typed in the builder, uploaded as a CSV, or kept in sync with a CSV file or a Google Sheet.' ),
             'ds_programs_module_enabled'       => array( 'label' => 'LeagueApps Programs', 'desc' => 'Live tournament, league, camp and clinic listings from LeagueApps as a filterable table. Needs a site ID and API key on the LeagueApps tab.' ),
         );
     }
@@ -421,6 +448,9 @@ class DS_Toolkit {
         // the option keys (and therefore never show the toggles). On qualifying
         // sites they default ON — that's the "auto-enable on DSLP6+" behavior.
         $bp = self::blueprint_version();
+        if ( $bp >= 7 ) {
+            $defaults['home_templates_enabled'] = 1;
+        }
         if ( $bp >= 6 ) {
             $defaults['disable_comments_enabled']    = 1;
             $defaults['copyright_shortcode_enabled'] = 1;
@@ -440,14 +470,21 @@ class DS_Toolkit {
             $defaults['ds_carousel_module_enabled']   = 1;
             $defaults['ds_heading_module_enabled']    = 1;
             $defaults['ds_divider_module_enabled']    = 1;
+            $defaults['ds_device_module_enabled']     = 1;
             $defaults['image_optimization_enabled']   = 1;
             $defaults['page_banner_sync_enabled']     = 1;
+            $defaults['ds_pattern_library_enabled']   = 1;
             $defaults['ds_content_router_module_enabled'] = 1;
             $defaults['ds_info_list_module_enabled']  = 1;
             $defaults['ds_page_cards_module_enabled'] = 1;
             $defaults['ds_team_detail_module_enabled'] = 1;
             $defaults['ds_builder_defaults_enabled']   = 1;
             $defaults['ds_admin_bar_links_enabled']    = 1;
+        }
+        // New modules default ON for new builds only (Launchpad 7+); older sites opt in on the Features tab, so a release
+        // adds nothing to a live site's builder, AJAX or cron (pre-release audit 2026-09-27).
+        if ( $bp >= 7 ) {
+            $defaults['ds_table_module_enabled'] = 1;
         }
 
         return $defaults;
@@ -537,6 +574,9 @@ class DS_Toolkit {
             // it handles install, version refresh, and removal-on-disable.
             require_once DS_TOOLKIT_PATH . 'includes/class-ds-origin-guard-installer.php';
             ( new DS_Origin_Guard_Installer( $settings ) )->sync();
+
+            // The Table module's 5-minute sync job stops with the module (its handler only loads while it is on).
+            if ( empty( $settings['ds_table_module_enabled'] ) && wp_next_scheduled( 'ds_table_sync' ) ) { wp_clear_scheduled_hook( 'ds_table_sync' ); }
         }
 
         $blueprint    = self::blueprint_version();

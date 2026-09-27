@@ -89,7 +89,8 @@
    colours emitted at (0,2,0) from includes/frontend.css.php. */
 .ds-cta--style3 .ds-cta-bento-cell--dark .ds-cta-bento-title,.ds-cta--style3 .ds-cta-bento-cell--dark .ds-cta-bento-celldesc,
 .ds-cta--style3 .ds-cta-bento-cell--light .ds-cta-bento-title,.ds-cta--style3 .ds-cta-bento-cell--light .ds-cta-bento-celldesc,
-.ds-cta--style3 .ds-cta-bento-cell--accent .ds-cta-bento-title,.ds-cta--style3 .ds-cta-bento-cell--accent .ds-cta-bento-celldesc{color:inherit;}
+.ds-cta--style3 .ds-cta-bento-cell--accent .ds-cta-bento-title,.ds-cta--style3 .ds-cta-bento-cell--accent .ds-cta-bento-celldesc,
+.ds-cta--style3 .ds-cta-bento-cell--ctext .ds-cta-bento-title,.ds-cta--style3 .ds-cta-bento-cell--ctext .ds-cta-bento-celldesc{color:inherit;}
 
 /* Overlay behind the content of an image card, so a title stays readable. */
 .ds-cta--style3 .ds-cta-bento-ov{position:absolute;inset:0;z-index:0;pointer-events:none;background:var(--ds-bento-ovc,#101631);opacity:var(--ds-bento-ov,0);transition:opacity .3s ease;}

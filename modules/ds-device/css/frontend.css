@@ -1,0 +1,87 @@
+/* LeagueApps Device: a CSS-drawn phone / tablet / desktop frame around images and videos.
+   Every size inside the frame is in container units (cqw) of .ds-device-stage, so the device keeps its proportions from
+   160px to 1400px wide. Colours come in as custom properties from includes/frontend.css.php. */
+.ds-device { --dsd-frame: #111; --dsd-screen: #000; --dsd-dot: currentColor; --dsd-dot-on: var(--fl-global-primary, #069e33); --dsd-tilt: 0deg; width: 100%; }
+.ds-device-stage { container-type: inline-size; width: 100%; max-width: var(--dsd-w, 320px); margin-left: auto; margin-right: auto; }
+.ds-device-body { position: relative; transform: rotate(var(--dsd-tilt)); transform-origin: 50% 50%; }
+.ds-device-frame { position: relative; background: var(--dsd-frame); padding: var(--dsd-bezel); border-radius: var(--dsd-radius); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.12); }
+.ds-device-screen { position: relative; overflow: hidden; background: var(--dsd-screen); border-radius: var(--dsd-screen-radius); aspect-ratio: var(--dsd-ratio); isolation: isolate; touch-action: pan-y; } /* vertical scroll stays native; horizontal swipes reach the script */
+
+/* Shadows (on the frame, so the tilt carries them). */
+.ds-device--shadow-soft .ds-device-frame { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.12), 0 24px 50px -18px rgba(0,0,0,.45), 0 8px 18px -8px rgba(0,0,0,.3); }
+.ds-device--shadow-strong .ds-device-frame { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.12), 0 40px 80px -20px rgba(0,0,0,.65), 0 14px 28px -10px rgba(0,0,0,.45); }
+
+/* Phone */
+.ds-device--phone { --dsd-w: 320px; --dsd-bezel: 3.4cqw; --dsd-radius: 14cqw; --dsd-screen-radius: 10.8cqw; --dsd-ratio: 9 / 19.5; }
+.ds-device--phone.ds-device--landscape { --dsd-w: 600px; --dsd-bezel: 1.8cqw; --dsd-radius: 7.4cqw; --dsd-screen-radius: 5.7cqw; --dsd-ratio: 19.5 / 9; }
+.ds-device--phone .ds-device-frame::before, .ds-device--phone .ds-device-frame::after { content: ""; position: absolute; background: var(--dsd-frame); border-radius: 2px; filter: brightness(1.35); }
+.ds-device--phone.ds-device--portrait .ds-device-frame::before { left: -0.9cqw; top: 22%; width: 1.1cqw; height: 13%; } /* volume */
+.ds-device--phone.ds-device--portrait .ds-device-frame::after { right: -0.9cqw; top: 27%; width: 1.1cqw; height: 18%; } /* power */
+.ds-device--phone.ds-device--landscape .ds-device-frame::before { top: -0.5cqw; left: 22%; height: 0.6cqw; width: 13%; }
+.ds-device--phone.ds-device--landscape .ds-device-frame::after { bottom: -0.5cqw; left: 27%; height: 0.6cqw; width: 18%; }
+.ds-device-cam { position: absolute; z-index: 3; background: #000; pointer-events: none; }
+.ds-device--cam-island.ds-device--portrait .ds-device-cam { top: calc(var(--dsd-bezel) + 2.6cqw); left: 50%; width: 28cqw; height: 8cqw; margin-left: -14cqw; border-radius: 99px; }
+.ds-device--cam-notch.ds-device--portrait .ds-device-cam { top: var(--dsd-bezel); left: 50%; width: 44cqw; height: 7.6cqw; margin-left: -22cqw; border-radius: 0 0 5cqw 5cqw; }
+.ds-device--cam-island.ds-device--landscape .ds-device-cam { left: calc(var(--dsd-bezel) + 1.4cqw); top: 50%; height: 15cqw; width: 4.2cqw; margin-top: -7.5cqw; border-radius: 99px; }
+.ds-device--cam-notch.ds-device--landscape .ds-device-cam { left: var(--dsd-bezel); top: 50%; height: 24cqw; width: 4cqw; margin-top: -12cqw; border-radius: 0 2.6cqw 2.6cqw 0; }
+.ds-device--cam-none .ds-device-cam { display: none; }
+
+/* Tablet */
+.ds-device--tablet { --dsd-w: 520px; --dsd-bezel: 3.2cqw; --dsd-radius: 6cqw; --dsd-screen-radius: 3cqw; --dsd-ratio: 3 / 4; }
+.ds-device--tablet.ds-device--landscape { --dsd-w: 680px; --dsd-bezel: 2.6cqw; --dsd-radius: 4.6cqw; --dsd-screen-radius: 2.2cqw; --dsd-ratio: 4 / 3; }
+
+/* Desktop: a browser window, or a monitor with a stand */
+.ds-device--desktop { --dsd-w: 760px; --dsd-ratio: 16 / 10; }
+.ds-device--browser { --dsd-bezel: 0px; --dsd-radius: 1.6cqw; --dsd-screen-radius: 0 0 1.6cqw 1.6cqw; }
+.ds-device--browser .ds-device-frame { overflow: hidden; }
+.ds-device-bar { display: flex; align-items: center; gap: 2.2cqw; height: 5.6cqw; min-height: 22px; padding: 0 2cqw; background: #eceef1; border-bottom: 1px solid rgba(0,0,0,.08); }
+.ds-device--bar-dark .ds-device-bar { background: #26282c; border-bottom-color: rgba(255,255,255,.06); }
+.ds-device-lights { display: flex; gap: 0.9cqw; flex: none; }
+.ds-device-lights i { display: block; width: 1.5cqw; height: 1.5cqw; min-width: 7px; min-height: 7px; border-radius: 50%; background: #ff5f57; }
+.ds-device-lights i:nth-child(2) { background: #febc2e; }
+.ds-device-lights i:nth-child(3) { background: #28c840; }
+.ds-device-url { flex: 1; max-width: 58%; margin: 0 auto; padding: 0.5cqw 2cqw; border-radius: 99px; background: #fff; color: #5f6368; font: 500 clamp(9px, 1.6cqw, 14px)/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transform: translateX(-3cqw); }
+.ds-device--bar-dark .ds-device-url { background: #3a3d42; color: #d7d9dc; }
+.ds-device--monitor { --dsd-bezel: 1.8cqw; --dsd-radius: 1.8cqw; --dsd-screen-radius: 0.4cqw; --dsd-ratio: 16 / 9; }
+.ds-device--monitor .ds-device-frame { padding-bottom: 4.2cqw; } /* the chin */
+.ds-device-stand { position: relative; margin: 0 auto; width: 14cqw; height: 9cqw; background: linear-gradient(90deg, rgba(0,0,0,.18), rgba(255,255,255,.1) 50%, rgba(0,0,0,.18)), var(--dsd-frame); clip-path: polygon(12% 0, 88% 0, 100% 100%, 0 100%); }
+.ds-device-stand i { position: absolute; left: 50%; bottom: -1.4cqw; width: 30cqw; height: 1.6cqw; margin-left: -15cqw; background: var(--dsd-frame); border-radius: 1cqw 1cqw 0.4cqw 0.4cqw; }
+
+/* Media: stacked items; the active one is in view. */
+.ds-device-item { position: absolute; inset: 0; z-index: 0; transform: translateX(100%); transition: transform .7s cubic-bezier(.65,0,.35,1), opacity .7s ease; }
+.ds-device-item.is-active { z-index: 1; transform: none; }
+.ds-device-item.is-prev { transform: translateX(-100%); }
+.ds-device-item:only-child { transform: none; transition: none; }
+.ds-device--fade .ds-device-item { transform: none; opacity: 0; }
+.ds-device--fade .ds-device-item.is-active { opacity: 1; }
+.ds-device-media { display: block; width: 100%; height: 100%; max-width: none; object-fit: cover; object-position: var(--dsd-focus, 50% 50%); border: 0; border-radius: 0; }
+.ds-device--contain .ds-device-media { object-fit: contain; }
+.ds-device-media { -webkit-user-drag: none; user-select: none; }
+.ds-device-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 12%; color: rgba(255,255,255,.7); font: 500 13px/1.4 system-ui, sans-serif; text-align: center; }
+
+/* Pause / play: inside the screen, bottom-right, clear of the phone's home area.
+   The site's global Button rule (.fl-builder-content .fl-module-content:not(...) button:not(...), 4 classes + element)
+   paints every <button> in a module. No Style field owns these properties, so !important holds them. */
+.ds-device .ds-device-screen .ds-device-toggle { position: absolute; z-index: 4; right: 6%; bottom: 5%; display: flex; align-items: center; justify-content: center; width: 36px !important; height: 36px !important; min-width: 0 !important; padding: 0 !important; margin: 0; border: 1px solid rgba(255,255,255,.55) !important; border-radius: 50% !important; background: rgba(0,0,0,.5) !important; color: #fff !important; box-shadow: none !important; text-shadow: none !important; letter-spacing: 0 !important; line-height: 0; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); clip-path: none !important; transition: background-color .2s ease; }
+.ds-device .ds-device-screen .ds-device-toggle:hover { background: rgba(0,0,0,.72) !important; }
+.ds-device .ds-device-screen .ds-device-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ds-device-toggle svg { width: 14px; height: 14px; fill: currentColor; }
+.ds-device-toggle .ds-device-ico-play, .ds-device.is-paused .ds-device-toggle .ds-device-ico-pause { display: none; }
+.ds-device.is-paused .ds-device-toggle .ds-device-ico-play { display: block; }
+
+/* Dots: 24px targets around an 8px dot; the current one stretches into a pill. */
+.ds-device .ds-device-dots { display: flex; justify-content: center; gap: 2px; margin-top: 18px; }
+.ds-device .ds-device-dots .ds-device-dot, .ds-device .ds-device-dots .ds-device-dot:hover, .ds-device .ds-device-dots .ds-device-dot:focus { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px !important; min-width: 0 !important; padding: 0 !important; margin: 0; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; text-shadow: none !important; clip-path: none !important; cursor: pointer; }
+.ds-device-dot span { display: block; width: 8px; height: 8px; border-radius: 99px; background: var(--dsd-dot); opacity: .55; /* 35% read 2.4:1 on white; controls need 3:1 */ transition: width .3s ease, opacity .3s ease, background-color .3s ease; }
+.ds-device-dot.is-active span { width: 22px; opacity: 1; background: var(--dsd-dot-on); }
+.ds-device .ds-device-dots .ds-device-dot.is-active { width: 34px; }
+.ds-device .ds-device-dots .ds-device-dot:focus-visible { outline: 2px solid var(--dsd-dot-on); outline-offset: 1px; border-radius: 6px; }
+
+/* Gentle float */
+@keyframes ds-device-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+.ds-device--float .ds-device-body { animation: ds-device-float 6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+	.ds-device--float .ds-device-body { animation: none; }
+	.ds-device-item, .ds-device-dot span { transition: none; }
+}

@@ -23,7 +23,7 @@ if ( $dst_bp6 ) {
 	$dst_grp_security[] = $admin_menu_tidy_enabled;
 }
 $dst_grp_partner = array( $enabled, $design_academy_enabled );
-$dst_grp_site    = $dst_bp6 ? array( $theme_setting_enabled, $image_optimization_enabled ) : array();
+$dst_grp_site    = $dst_bp6 ? array( $theme_setting_enabled, $image_optimization_enabled, $pattern_library_enabled ) : array();
 $dst_grp_site[]  = $nested_order_enabled;
 $dst_grp_dev     = array( $uabb_post_loop_fix_enabled, $defender_flywheel_reset_fix_enabled, $acf_css_vars_enabled, $getsubmenu_enabled, $current_year_enabled, $overlay_nav_enabled, $forminator_email_partner_enabled, $child_pages_enabled );
 
@@ -379,6 +379,24 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
         </div>
     </div>
 
+    <?php if ( DS_Toolkit::blueprint_version() >= 7 ) : $ht_on = ! empty( $opts['home_templates_enabled'] ); ?>
+    <!-- Home page templates in Theme Setting (blueprint generation 7+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-layout"></span></div>
+            <div class="dst-card-info">
+                <strong>Home Page Templates (LeagueApps only)</strong>
+                <span>The <strong>Home page</strong> section of Theme Setting: apply, preview, revert and save home layouts (header, footer, page and archive banners and site styles) on a development copy. Home templates are hidden from non-LeagueApps users. Turning this off removes the section and the hiding, and changes no page. Auto-enabled on DSLP7 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[home_templates_enabled]" value="0">
+                <input type="checkbox" id="home_templates_enabled" name="ds_toolkit_settings[home_templates_enabled]" value="1" <?php checked( $ht_on ); ?>>
+                <label for="home_templates_enabled"></label>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Image Optimization on Upload (blueprint generation 6+) -->
     <div class="dst-card">
         <div class="dst-card-row">
@@ -391,6 +409,22 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                 <input type="hidden" name="ds_toolkit_settings[image_optimization_enabled]" value="0">
                 <input type="checkbox" id="image_optimization_enabled" name="ds_toolkit_settings[image_optimization_enabled]" value="1" <?php checked( $image_optimization_enabled ); ?>>
                 <label for="image_optimization_enabled"></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pattern Library in Theme Setting (blueprint generation 6+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-screenoptions"></span></div>
+            <div class="dst-card-info">
+                <strong>Pattern Library</strong>
+                <span>Adds <strong>Browse patterns</strong> beside the image button of every background in Theme Setting: 330 tileable SVG patterns (from pattern.monster, MIT) previewed in the site&#8217;s palette, with colour, opacity, size and line weight. A pick is saved as a small file in <code>uploads/ds-patterns/</code>, never the Media Library, and goes in the same field an uploaded image does, so turning this off leaves every chosen pattern in place. Auto-enabled on DSLP6 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[ds_pattern_library_enabled]" value="0">
+                <input type="checkbox" id="ds_pattern_library_enabled" name="ds_toolkit_settings[ds_pattern_library_enabled]" value="1" <?php checked( $pattern_library_enabled ); ?>>
+                <label for="ds_pattern_library_enabled"></label>
             </div>
         </div>
     </div>
