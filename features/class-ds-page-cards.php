@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_Page_Cards {
 	const AJAX_LIST = 'ds_pc_images';
 	const AJAX_SET  = 'ds_pc_set_image';
+	const AJAX_NEW  = 'ds_pc_create_page';
+	const AJAX_PUB  = 'ds_pc_publish_page';
 
 	private $settings;
 	public function __construct( $settings = array() ) { $this->settings = $settings; }
@@ -24,6 +26,8 @@ class DS_Page_Cards {
 		add_action( 'fl_builder_ui_enqueue_scripts', array( $this, 'builder_assets' ) );
 		add_action( 'wp_ajax_' . self::AJAX_LIST, array( $this, 'ajax_list' ) );
 		add_action( 'wp_ajax_' . self::AJAX_SET, array( $this, 'ajax_set' ) );
+		add_action( 'wp_ajax_' . self::AJAX_NEW, array( $this, 'ajax_create' ) );
+		add_action( 'wp_ajax_' . self::AJAX_PUB, array( $this, 'ajax_publish' ) );
 	}
 	public function register_module() {
 		if ( class_exists( 'FLBuilder' ) && class_exists( 'FLBuilderModule' ) ) {
@@ -42,16 +46,24 @@ class DS_Page_Cards {
 		) );
 	}
 
-	/** The child pages the module shows, chosen exactly as DS_Page_Cards_Module::render() chooses them. */
+	/** The page whose children the module lists: the chosen parent, else the page being edited. */
+	private static function parent_of( $post_id, array $q ) {
+		return ( 'specific' === ( $q['source'] ?? 'current' ) && absint( $q['parent_page'] ?? 0 ) ) ? absint( $q['parent_page'] ) : (int) $post_id;
+	}
+
+	/**
+	 * The child pages the module shows, chosen exactly as DS_Page_Cards_Module::render() chooses them, plus the drafts
+	 * made here (they get no card until published, and the panel says so).
+	 */
 	private static function children( $post_id, array $q ) {
 		if ( 'manual' === ( $q['list_source'] ?? 'children' ) ) { return array(); }
-		$parent = ( 'specific' === ( $q['source'] ?? 'current' ) && absint( $q['parent_page'] ?? 0 ) ) ? absint( $q['parent_page'] ) : (int) $post_id;
+		$parent = self::parent_of( $post_id, $q );
 		if ( ! $parent ) { return array(); }
 		$orderby = (string) ( $q['order_by'] ?? 'menu_order title' );
 		if ( ! in_array( $orderby, array( 'menu_order title', 'menu_order', 'title', 'date', 'modified' ), true ) ) { $orderby = 'menu_order title'; }
 		return get_posts( array(
 			'post_type'      => 'page',
-			'post_status'    => 'publish',
+			'post_status'    => array( 'publish', 'draft' ),
 			'post_parent'    => $parent,
 			'orderby'        => $orderby,
 			'order'          => ( 'DESC' === strtoupper( (string) ( $q['order'] ?? 'ASC' ) ) ) ? 'DESC' : 'ASC',
@@ -67,17 +79,65 @@ class DS_Page_Cards {
 			'img'     => $img,
 			'thumb'   => $img ? (string) wp_get_attachment_image_url( $img, 'medium' ) : '',
 			'canEdit' => current_user_can( 'edit_post', $p->ID ),
+			'draft'   => 'publish' !== $p->post_status,
+			'canPub'  => 'publish' !== $p->post_status && current_user_can( 'publish_pages' ),
+			'edit'    => current_user_can( 'edit_post', $p->ID ) ? add_query_arg( 'fl_builder', '', get_permalink( $p ) ) : '',
 		);
+	}
+
+	/** The query the panel sent, with the module's defaults filled in. */
+	private static function query() {
+		$q = array();
+		foreach ( array( 'list_source', 'source', 'parent_page', 'limit', 'order_by', 'order' ) as $k ) { $q[ $k ] = sanitize_text_field( wp_unslash( $_POST['q'][ $k ] ?? '' ) ); }
+		foreach ( array( 'list_source' => 'children', 'source' => 'current', 'limit' => '50', 'order_by' => 'menu_order title', 'order' => 'ASC' ) as $k => $d ) { if ( '' === $q[ $k ] ) { $q[ $k ] = $d; } }
+		return $q;
+	}
+
+	/**
+	 * Create page (Alipio 2026-09-27: "add create page option ... create page under that child page where the module is
+	 * located"): a new child page of the page the module lists, as a DRAFT placed last, so no visitor meets a card to an
+	 * empty page. It gets its card once published (Publish in the panel, or from the page itself).
+	 */
+	public function ajax_create() {
+		check_ajax_referer( self::AJAX_LIST, 'nonce' );
+		$post_id = absint( $_POST['post_id'] ?? 0 );
+		$parent  = self::parent_of( $post_id, self::query() );
+		$title   = trim( sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) ) );
+		if ( '' === $title ) { wp_send_json_error( array( 'message' => __( 'Give the new page a title.', 'ds-toolkit' ) ), 400 ); }
+		if ( ! $parent || 'page' !== get_post_type( $parent ) || ! current_user_can( 'edit_post', $parent ) || ! current_user_can( 'edit_pages' ) ) {
+			wp_send_json_error( array( 'message' => __( 'You cannot add pages here.', 'ds-toolkit' ) ), 403 );
+		}
+		global $wpdb;
+		$last = (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(menu_order) FROM $wpdb->posts WHERE post_type = 'page' AND post_parent = %d AND post_status IN ('publish','draft','pending','private')", $parent ) );
+		$id = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_parent' => $parent, 'post_title' => $title, 'menu_order' => $last + 1, 'post_author' => get_current_user_id() ), true );
+		if ( is_wp_error( $id ) ) { wp_send_json_error( array( 'message' => $id->get_error_message() ), 500 ); }
+		wp_send_json_success( self::row( get_post( $id ) ) );
+	}
+
+	/** Publish a draft child page from the panel, so its card appears. */
+	public function ajax_publish() {
+		check_ajax_referer( self::AJAX_LIST, 'nonce' );
+		$id = absint( $_POST['page_id'] ?? 0 );
+		if ( ! $id || 'page' !== get_post_type( $id ) || ! current_user_can( 'publish_pages' ) || ! current_user_can( 'edit_post', $id ) ) {
+			wp_send_json_error( array( 'message' => __( 'You cannot publish that page.', 'ds-toolkit' ) ), 403 );
+		}
+		wp_publish_post( $id );
+		$host = absint( $_POST['post_id'] ?? 0 );
+		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) && $host ) { WpeCommon::purge_varnish_cache( $host ); }
+		wp_send_json_success( self::row( get_post( $id ) ) );
 	}
 
 	public function ajax_list() {
 		check_ajax_referer( self::AJAX_LIST, 'nonce' );
 		$post_id = absint( $_POST['post_id'] ?? 0 );
 		if ( ! $post_id || ! current_user_can( 'edit_post', $post_id ) ) { wp_send_json_error( array( 'message' => __( 'You cannot edit this page.', 'ds-toolkit' ) ), 403 ); }
-		$q = array();
-		foreach ( array( 'list_source', 'source', 'parent_page', 'limit', 'order_by', 'order' ) as $k ) { $q[ $k ] = sanitize_text_field( wp_unslash( $_POST['q'][ $k ] ?? '' ) ); }
-		foreach ( array( 'list_source' => 'children', 'source' => 'current', 'limit' => '50', 'order_by' => 'menu_order title', 'order' => 'ASC' ) as $k => $d ) { if ( '' === $q[ $k ] ) { $q[ $k ] = $d; } }
-		wp_send_json_success( array( 'pages' => array_map( array( __CLASS__, 'row' ), self::children( $post_id, $q ) ) ) );
+		$q      = self::query();
+		$parent = self::parent_of( $post_id, $q );
+		wp_send_json_success( array(
+			'pages'     => array_map( array( __CLASS__, 'row' ), self::children( $post_id, $q ) ),
+			'canCreate' => $parent && 'page' === get_post_type( $parent ) && current_user_can( 'edit_post', $parent ) && current_user_can( 'edit_pages' ),
+			'parent'    => $parent ? wp_strip_all_tags( get_the_title( $parent ) ) : '',
+		) );
 	}
 
 	public function ajax_set() {

@@ -27,7 +27,9 @@
 			e.preventDefault();
 			var id = +$( this ).closest( '.ds-pci-row' ).attr( 'data-id' ), act = this.getAttribute( 'data-act' );
 			if ( 'change' === act ) { self.pick( id ); } else if ( 'remove' === act ) { self.set( id, 0 ); }
+			else if ( 'publish' === act ) { self.publish( id ); } else if ( 'create' === act ) { self.create(); }
 		} );
+		this.$el.on( 'keydown', '.ds-pci-newtitle', function ( e ) { if ( 'Enter' === e.key ) { e.preventDefault(); self.create(); } } );
 		this.load();
 	}
 	Panel.prototype.val = function ( n ) { var f = this.form.find( '[name="' + n + '"]' ).first(); return f.length ? String( f.val() || '' ) : ''; };
@@ -38,21 +40,29 @@
 		q.parent_page = ( self.val( 'parent_page' ).match( /\d+/ ) || [ '' ] )[0];
 		if ( 'manual' === q.list_source ) { return; }
 		this.msg( 'Loading pages…' );
-		post( 'ds_pc_images', { q: q } ).then( function ( d ) { self.pages = d.pages; self.render(); }, function ( e ) { self.msg( e.message ); } );
+		this.q = q;
+		post( 'ds_pc_images', { q: q } ).then( function ( d ) { self.pages = d.pages; self.canCreate = d.canCreate; self.parent = d.parent; self.render(); }, function ( e ) { self.msg( e.message ); } );
 	};
 	Panel.prototype.rowHtml = function ( p ) {
 		return '<li class="ds-pci-row" data-id="' + p.id + '">' +
 			'<span class="ds-pci-thumb' + ( p.thumb ? '' : ' is-empty' ) + '"' + ( p.thumb ? ' style="background-image:url(&quot;' + esc( p.thumb ) + '&quot;)"' : '' ) + '>' + ( p.thumb ? '' : 'No image' ) + '</span>' +
-			'<span class="ds-pci-main"><span class="ds-pci-title">' + esc( p.title ) + '</span>' +
+			'<span class="ds-pci-main"><span class="ds-pci-title">' + esc( p.title ) + ( p.draft ? ' <span class="ds-pci-badge">Draft</span>' : '' ) + '</span>' +
 			( p.canEdit
-				? '<span class="ds-pci-acts"><button type="button" class="ds-pci-btn" data-act="change">' + ( p.img ? 'Change image' : 'Add image' ) + '</button>' + ( p.img ? '<button type="button" class="ds-pci-link" data-act="remove">Remove</button>' : '' ) + '</span>'
+				? '<span class="ds-pci-acts"><button type="button" class="ds-pci-btn" data-act="change">' + ( p.img ? 'Change image' : 'Add image' ) + '</button>' + ( p.img ? '<button type="button" class="ds-pci-link ds-pci-danger" data-act="remove">Remove</button>' : '' ) +
+					( p.draft && p.canPub ? '<button type="button" class="ds-pci-link" data-act="publish">Publish</button>' : '' ) +
+					( p.edit ? '<a class="ds-pci-link" href="' + esc( p.edit ) + '" target="_blank" rel="noopener">Edit \u2197</a>' : '' ) + '</span>'
 				: '<span class="ds-pci-note">You cannot edit this page.</span>' ) +
+			( p.draft ? '<span class="ds-pci-note">No card until it is published.</span>' : '' ) +
 			'<span class="ds-pci-status" role="status"></span></span></li>';
 	};
 	Panel.prototype.render = function () {
-		if ( ! this.pages || ! this.pages.length ) { this.msg( 'This page has no published child pages yet.' ); return; }
-		var off = 'template' !== this.val( 'card_source' ) && 'yes' !== this.val( 'show_image' );
-		this.$el.html( ( off ? '<p class="ds-pci-note ds-pci-off">These cards hide images. Turn on Show Image (What Each Card Shows) to show them.</p>' : '' ) + '<ul class="ds-pci-list">' + this.pages.map( this.rowHtml ).join( '' ) + '</ul>' );
+		var off = 'template' !== this.val( 'card_source' ) && 'yes' !== this.val( 'show_image' ), pages = this.pages || [];
+		var create = this.canCreate
+			? '<div class="ds-pci-new"><input type="text" class="ds-pci-newtitle" placeholder="New page title" aria-label="New page title"><button type="button" class="ds-pci-btn ds-pci-primary" data-act="create">Create page</button></div>' +
+				'<p class="ds-pci-note ds-pci-newhint">Adds a draft page under ' + esc( this.parent || 'this page' ) + '. Publish it to give it a card.</p><p class="ds-pci-status ds-pci-newstatus" role="status"></p>'
+			: '';
+		this.$el.html( ( off && pages.length ? '<p class="ds-pci-note ds-pci-off">These cards hide images. Turn on Show Image (What Each Card Shows) to show them.</p>' : '' ) +
+			( pages.length ? '<ul class="ds-pci-list">' + pages.map( this.rowHtml ).join( '' ) + '</ul>' : '<p class="ds-pci-msg">No child pages yet.</p>' ) + create );
 	};
 	Panel.prototype.pick = function ( id ) {
 		var self = this, page = ( this.pages || [] ).filter( function ( p ) { return p.id === id; } )[0];
@@ -73,7 +83,30 @@
 			self.pages = self.pages.map( function ( x ) { return x.id === id ? p : x; } );
 			var $new = $( self.rowHtml( p ) ); $row.replaceWith( $new ); $new.find( '.ds-pci-status' ).text( img ? 'Saved to the page' : 'Image removed' );
 			// Show the new card image in the builder right away (the image is not a module setting, so nothing else would).
-			if ( window.FLBuilder && FLBuilder.preview && 'function' === typeof FLBuilder.preview.preview ) { FLBuilder.preview.preview(); }
+			self.refresh();
+		}, function ( e ) { $row.removeClass( 'is-busy' ).find( '.ds-pci-status' ).addClass( 'is-error' ).text( e.message ); } );
+	};
+
+	Panel.prototype.refresh = function () {
+		if ( window.FLBuilder && FLBuilder.preview && 'function' === typeof FLBuilder.preview.preview ) { FLBuilder.preview.preview(); }
+	};
+	Panel.prototype.create = function () {
+		var self = this, $in = this.$el.find( '.ds-pci-newtitle' ), title = $.trim( $in.val() || '' ), $st = this.$el.find( '.ds-pci-newstatus' );
+		if ( ! title ) { $st.addClass( 'is-error' ).text( 'Give the new page a title.' ); $in.trigger( 'focus' ); return; }
+		this.$el.find( '.ds-pci-new' ).addClass( 'is-busy' ); $st.removeClass( 'is-error' ).text( 'Creating…' );
+		post( 'ds_pc_create_page', { title: title, q: this.q || {} } ).then( function ( p ) {
+			self.pages = ( self.pages || [] ).concat( [ p ] ); self.render();
+			self.$el.find( '.ds-pci-row[data-id="' + p.id + '"] .ds-pci-status' ).text( 'Draft created' );
+			self.$el.find( '.ds-pci-newtitle' ).trigger( 'focus' );
+		}, function ( e ) { self.$el.find( '.ds-pci-new' ).removeClass( 'is-busy' ); $st.addClass( 'is-error' ).text( e.message ); } );
+	};
+	Panel.prototype.publish = function ( id ) {
+		var self = this, $row = this.$el.find( '.ds-pci-row[data-id="' + id + '"]' );
+		$row.addClass( 'is-busy' ).find( '.ds-pci-status' ).text( 'Publishing…' );
+		post( 'ds_pc_publish_page', { page_id: id } ).then( function ( p ) {
+			self.pages = self.pages.map( function ( x ) { return x.id === id ? p : x; } );
+			var $new = $( self.rowHtml( p ) ); $row.replaceWith( $new ); $new.find( '.ds-pci-status' ).text( 'Published: its card is live' );
+			self.refresh();
 		}, function ( e ) { $row.removeClass( 'is-busy' ).find( '.ds-pci-status' ).addClass( 'is-error' ).text( e.message ); } );
 	};
 

@@ -10,7 +10,16 @@
 .fl-builder-settings .ds-pci-acts { display: flex; align-items: center; gap: 10px; }
 .fl-builder-settings button.ds-pci-btn { min-height: 26px !important; padding: 0 10px !important; border: 1px solid #0077a3 !important; border-radius: 3px !important; background: #fff !important; color: #0077a3 !important; font-size: 12px !important; font-weight: 600; cursor: pointer; box-shadow: none !important; line-height: 24px !important; }
 .fl-builder-settings button.ds-pci-btn:hover, .fl-builder-settings button.ds-pci-btn:focus-visible { background: #0077a3 !important; color: #fff !important; }
-.fl-builder-settings button.ds-pci-link { padding: 0 !important; border: 0 !important; background: none !important; color: #b42318 !important; font-size: 12px !important; text-decoration: underline; cursor: pointer; box-shadow: none !important; min-height: 0 !important; height: auto !important; }
+.fl-builder-settings button.ds-pci-link { padding: 0 !important; border: 0 !important; background: none !important; font-size: 12px !important; text-decoration: underline; cursor: pointer; box-shadow: none !important; min-height: 0 !important; height: auto !important; }
 .fl-builder-settings .ds-pci-status, .fl-builder-settings .ds-pci-note { font-size: 11px; color: #5b636b; }
 .fl-builder-settings .ds-pci-status.is-error { color: #b42318; }
 .fl-builder-settings .ds-pci-off { display: block; margin: 0 0 8px; padding: 6px 8px; border-radius: 4px; background: #fff7e6; color: #7a4b00; font-size: 12px; }
+.fl-builder-settings .ds-pci-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 3px; background: #fff7e6; color: #7a4b00; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; vertical-align: middle; }
+.fl-builder-settings a.ds-pci-link, .fl-builder-settings button.ds-pci-link { color: #0077a3 !important; font-size: 12px; text-decoration: underline; }
+.fl-builder-settings button.ds-pci-danger { color: #b42318 !important; }
+.fl-builder-settings .ds-pci-new { display: flex; gap: 8px; margin: 12px 0 4px; }
+.fl-builder-settings .ds-pci-new.is-busy { opacity: .6; pointer-events: none; }
+.fl-builder-settings .ds-pci-new input.ds-pci-newtitle { flex: 1 1 auto; min-width: 0; min-height: 30px; }
+.fl-builder-settings button.ds-pci-primary { background: #0077a3 !important; color: #fff !important; }
+.fl-builder-settings button.ds-pci-primary:hover, .fl-builder-settings button.ds-pci-primary:focus-visible { background: #006088 !important; border-color: #006088 !important; }
+.fl-builder-settings .ds-pci-newhint { display: block; margin: 0; }

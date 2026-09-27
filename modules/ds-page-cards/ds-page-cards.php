@@ -337,8 +337,8 @@ FLBuilder::register_module( 'DS_Page_Cards_Module', array(
 				),
 			),
 			'images_sec' => array(
-				'title'       => __( 'Page Images', 'ds-toolkit' ),
-				'description' => __( 'Each card shows its page\'s featured image. Change it here: it is saved to that page straight away (no Publish needed) and used wherever the page\'s image shows, including its page banner.', 'ds-toolkit' ),
+				'title'       => __( 'Child Pages', 'ds-toolkit' ),
+				'description' => __( 'The pages these cards come from. Set each card\'s image (saved to that page straight away and used for its page banner too), open a page to edit it, or add a new page: it starts as a draft and gets its card when you publish it.', 'ds-toolkit' ),
 				'fields'      => array(
 					'pc_images_ui' => array( 'type' => 'raw', 'label' => '', 'content' => '<div class="ds-pci" data-ds-page-images><p class="ds-pci-msg">' . esc_html__( 'Loading pages…', 'ds-toolkit' ) . '</p></div>' ),
 				),
