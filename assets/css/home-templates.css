@@ -18,7 +18,7 @@
 .dsht-save.button-link:hover { color: var(--dsts-accent); }
 .dsht-new { margin: 0 0 10px; }
 .dsht-new .button { display: inline-flex; align-items: center; gap: 4px; }
-.dsht-new .dashicons { font-size: 16px; width: 16px; height: 16px; }
+.dsht-new .dashicons { font-size: 16px; width: 16px; height: 16px; line-height: 16px; margin-top: -1px; } /* the glyph sits low on the text baseline otherwise */
 .dsht-revert { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; background: var(--dsts-accent-soft); border: 1px solid #c5d9ed; border-radius: var(--dsts-radius); }
 .dsht-revert p { margin: 0; font-size: 12.5px; }
 .dsht-note, .dsht-help { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--dsts-muted); }
