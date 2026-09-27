@@ -368,6 +368,7 @@ class DS_Hero_Module extends FLBuilderModule {
 		}
 
 		// Module overrides (connectable to dynamic fields).
+		$own_media = '' === (string) $this->photo_url( $s->banner_image ?? '' ) && '' === trim( (string) ( $s->banner_video ?? '' ) );
 		if ( '' !== trim( (string) ( $s->banner_heading ?? '' ) ) )  { $heading = trim( (string) $s->banner_heading ); }
 		if ( '' !== trim( (string) ( $s->banner_subtitle ?? '' ) ) ) { $sub = trim( (string) $s->banner_subtitle ); }
 		$ov_img = $this->photo_url( $s->banner_image ?? '' );
@@ -407,10 +408,17 @@ class DS_Hero_Module extends FLBuilderModule {
 
 		$mods = 'ds-hero ds-hero--style2 ds-hero--banner ds-banner--' . $align . ( $has_bg ? ' ds-banner--has-bg' : ' ds-banner--no-bg' ) . ( $parallax ? ' ds-banner--parallax' : '' ) . $vmod;
 		echo '<section class="' . esc_attr( $mods ) . '"' . ( $parallax ? ' data-parallax="1"' : '' ) . '>';
+		// The page's focal point for its banner photo or video (the Page Banner Image panel in the builder, meta
+		// _ds_banner_focal = "x y" in percent): the spot that stays in view however the banner crops it. Centre = none.
+		$focal = '';
+		if ( $own_media && ! $is_arch && $pid && preg_match( '/^(\d{1,3}) (\d{1,3})$/', (string) get_post_meta( $pid, '_ds_banner_focal', true ), $fm ) ) {
+			$fx = min( 100, (int) $fm[1] ); $fy = min( 100, (int) $fm[2] );
+			if ( 50 !== $fx || 50 !== $fy ) { $focal = $fx . '% ' . $fy . '%'; }
+		}
 		if ( '' !== $video ) {
-			echo '<div class="ds-hero-bg"><video class="ds-hero-video" autoplay muted loop playsinline src="' . esc_url( $video ) . '"></video></div>';
+			echo '<div class="ds-hero-bg"><video class="ds-hero-video" autoplay muted loop playsinline src="' . esc_url( $video ) . '"' . ( $focal ? ' style="object-position:' . esc_attr( $focal ) . '"' : '' ) . '></video></div>';
 		} elseif ( '' !== $img ) {
-			echo '<div class="ds-hero-bg" style="background-image:url(' . esc_url( $img ) . ')"></div>';
+			echo '<div class="ds-hero-bg" style="background-image:url(' . esc_url( $img ) . ')' . ( $focal ? ';background-position:' . esc_attr( $focal ) : '' ) . '"></div>';
 		}
 		// Designed darkening preset over the photo, for legibility (Image Scrim).
 		$scrim = preg_replace( '/[^a-z]/', '', (string) ( $s->scrim_preset ?? 'none' ) );
@@ -427,9 +435,11 @@ class DS_Hero_Module extends FLBuilderModule {
 		// Yoast breadcrumbs (optional, top or below the text).
 		$crumbs = '';
 		if ( ( $s->show_breadcrumbs ?? 'no' ) === 'yes' && function_exists( 'yoast_breadcrumb' ) ) {
-			$crumbs = yoast_breadcrumb( '<nav class="ds-banner-crumbs" aria-label="' . esc_attr__( 'Breadcrumb', 'ds-toolkit' ) . '">', '</nav>', false );
+			$cstyle = (string) ( $s->breadcrumbs_style ?? 'plain' );
+			$pill   = in_array( $cstyle, array( 'pill', 'tab' ), true ) ? ' ds-banner-crumbs--' . $cstyle : '';
+			$crumbs = yoast_breadcrumb( '<nav class="ds-banner-crumbs' . $pill . '" aria-label="' . esc_attr__( 'Breadcrumb', 'ds-toolkit' ) . '">', '</nav>', false );
 		}
-		$crumb_pos = in_array( $s->breadcrumbs_position ?? 'top', array( 'top', 'below' ), true ) ? ( $s->breadcrumbs_position ?? 'top' ) : 'top';
+		$crumb_pos = in_array( $s->breadcrumbs_position ?? 'top', array( 'top', 'below', 'edge' ), true ) ? ( $s->breadcrumbs_position ?? 'top' ) : 'top';
 
 		echo '<div class="ds-hero-wrap"><div class="ds-hero-inner">';
 		if ( '' !== $crumbs && 'top' === $crumb_pos ) { echo $crumbs; }
@@ -438,6 +448,12 @@ class DS_Hero_Module extends FLBuilderModule {
 		if ( '' !== $sub )     { echo '<div class="ds-hero-sub">' . wpautop( wp_kses_post( $sub ) ) . '</div>'; }
 		if ( '' !== $crumbs && 'below' === $crumb_pos ) { echo $crumbs; }
 		echo '</div></div></section>';
+		// On the bottom edge: drawn after the banner, so a shaped or clipped banner edge never cuts it; lifted back over
+		// the edge by Breadcrumbs Lift (Style > Colours), and it takes no space of its own.
+		if ( '' !== $crumbs && 'edge' === $crumb_pos ) {
+			// Plain and Pill sit wholly on the photo (anchored by their bottom), so they take the banner's light-on-photo colour.
+			echo '<div class="ds-banner-edge' . ( $has_bg ? ' ds-banner-edge--on-bg' : '' ) . '">' . $crumbs . '</div>';
+		}
 	}
 	/* ------------------------------------------- Style 3 — Peek Slider (GH #160) */
 
@@ -818,7 +834,7 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						// Each style shows only its own sections. Add a key per style.
 						'toggle'  => array(
 							'style1' => array( 'sections' => array( 'text', 'buttons', 'bg', 'stats', 'layout', 'overlay', 'colors', 'typography', 'buttons_style', 'effects', 'spacing' ) ),
-							'style2' => array( 'sections' => array( 'banner', 'banner_media', 'banner_crumbs', 'banner_design', 'overlay', 'banner_scrim', 'banner_colors', 'typography', 'banner_nobg', 'effects', 'spacing' ) ),
+							'style2' => array( 'sections' => array( 'banner', 'banner_media', 'banner_crumbs', 'banner_design', 'banner_shape', 'overlay', 'banner_scrim', 'banner_colors', 'typography', 'banner_nobg', 'effects', 'spacing' ) ),
 							'style3' => array( 'sections' => array( 'peek_slides_sec', 'peek_behavior', 'peek_layout', 'peek_overlay', 'peek_text', 'peek_cta', 'peek_bg', 'peek_pattern_sec', 'spacing' ) ),
 						),
 						// Controls inside a shared section that do nothing in one style: the Page Banner
@@ -992,9 +1008,17 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'default' => 'no',
 						'options' => array( 'no' => __( 'Hide', 'ds-toolkit' ), 'yes' => __( 'Show (Yoast)', 'ds-toolkit' ) ),
 						'help'    => __( 'Shows the Yoast SEO breadcrumb trail. Enable Yoast breadcrumbs under SEO → Settings → Breadcrumbs.', 'ds-toolkit' ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'breadcrumbs_position' ) ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'breadcrumbs_position', 'breadcrumbs_style' ) ) ),
 					),
-					'breadcrumbs_position' => array( 'type' => 'select', 'label' => __( 'Breadcrumbs Position', 'ds-toolkit' ), 'default' => 'top', 'options' => array( 'top' => __( 'Top (above heading)', 'ds-toolkit' ), 'below' => __( 'Below (under description)', 'ds-toolkit' ) ) ),
+					'breadcrumbs_position' => array( 'type' => 'select', 'label' => __( 'Breadcrumbs Position', 'ds-toolkit' ), 'default' => 'top', 'options' => array( 'top' => __( 'Top (above heading)', 'ds-toolkit' ), 'below' => __( 'Below (under description)', 'ds-toolkit' ), 'edge' => __( 'On the bottom edge', 'ds-toolkit' ) ), 'toggle' => array( 'edge' => array( 'fields' => array( 'breadcrumbs_edge_lift' ) ) ) ),
+					'breadcrumbs_style'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Breadcrumbs Style', 'ds-toolkit' ),
+						'default' => 'plain',
+						'options' => array( 'plain' => __( 'Plain text', 'ds-toolkit' ), 'pill' => __( 'Pill (glass)', 'ds-toolkit' ), 'tab' => __( 'Tab (slanted)', 'ds-toolkit' ) ),
+						'help'    => __( 'Pill sets the trail in a rounded, frosted capsule; Tab in a solid slanted tab with underlined links. Their colours are under Style > Colours.', 'ds-toolkit' ),
+						'toggle'  => array( 'pill' => array( 'fields' => array( 'breadcrumbs_pill_bg', 'breadcrumbs_pill_border' ) ), 'tab' => array( 'fields' => array( 'breadcrumbs_pill_bg' ) ) ),
+					),
 				),
 			),
 			'peek_slides_sec' => array(
@@ -1148,6 +1172,15 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 						'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes (photo scrolls slower)', 'ds-toolkit' ) ),
 						'help'    => __( 'Background photo moves slower than the page on scroll. Photo banners only; disabled for reduced-motion visitors.', 'ds-toolkit' ),
 					),
+				),
+			),
+			'banner_shape' => array(
+				'title'       => __( 'Shape & Accent Line', 'ds-toolkit' ),
+				'fields'      => array(
+					'banner_radius'         => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 80, 'step' => 1 ), 'help' => __( 'Rounds the banner. Blank = square. Use the device icon for tablet and phone values.', 'ds-toolkit' ) ),
+					'banner_radius_corners' => array( 'type' => 'select', 'label' => __( 'Rounded Corners', 'ds-toolkit' ), 'default' => 'bottom', 'options' => array( 'bottom' => __( 'Bottom corners', 'ds-toolkit' ), 'all' => __( 'All corners', 'ds-toolkit' ) ) ),
+					'banner_line_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Accent Line Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'A line along the banner\'s lower edge that follows its rounded corners. Blank = no line.', 'ds-toolkit' ) ),
+					'banner_line_width'     => array( 'type' => 'unit', 'label' => __( 'Accent Line Thickness', 'ds-toolkit' ), 'default' => '6', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 20, 'step' => 1 ) ),
 				),
 			),
 			'peek_layout' => array(
@@ -1391,6 +1424,9 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'banner_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = automatic: light on a photo, dark on a plain background.', 'ds-toolkit' ) , 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero--banner .ds-hero-title', 'property' => 'color' ) ),
 					'banner_sub_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Subtitle Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true , 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero--banner .ds-hero-sub', 'property' => 'color' ) ),
 					'breadcrumbs_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = automatic (light on a photo, muted on a plain background).', 'ds-toolkit' ) , 'preview' => array( 'type' => 'css', 'selector' => '.ds-banner-crumbs, .ds-banner-crumbs a, .ds-banner-crumbs .breadcrumb_last', 'property' => 'color' ) ),
+					'breadcrumbs_pill_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Pill / Tab Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = frosted glass (white at 10%) for the pill, the Dark Background colour for the tab.', 'ds-toolkit' ) ),
+					'breadcrumbs_edge_lift'   => array( 'type' => 'unit', 'label' => __( 'Breadcrumbs Lift', 'ds-toolkit' ), 'default' => '30', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 120, 'step' => 1 ), 'help' => __( 'On the bottom edge. Tab: how far it rises over the banner\'s lower edge (0 hangs it just below). Plain and Pill: how far above the edge they sit, always on the banner.', 'ds-toolkit' ) ),
+					'breadcrumbs_pill_border' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Pill Border', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = white at 28%.', 'ds-toolkit' ) ),
 				),
 			),
 			'peek_text' => array(
