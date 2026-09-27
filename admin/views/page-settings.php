@@ -379,6 +379,24 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
         </div>
     </div>
 
+    <?php if ( DS_Toolkit::blueprint_version() >= 7 ) : $ht_on = ! empty( $opts['home_templates_enabled'] ); ?>
+    <!-- Home page templates in Theme Setting (blueprint generation 7+) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-layout"></span></div>
+            <div class="dst-card-info">
+                <strong>Home Page Templates (LeagueApps only)</strong>
+                <span>The <strong>Home page</strong> section of Theme Setting: apply, preview, revert and save home layouts (header, footer, page and archive banners and site styles) on a development copy. Home templates are hidden from non-LeagueApps users. Turning this off removes the section and the hiding, and changes no page. Auto-enabled on DSLP7 builds.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[home_templates_enabled]" value="0">
+                <input type="checkbox" id="home_templates_enabled" name="ds_toolkit_settings[home_templates_enabled]" value="1" <?php checked( $ht_on ); ?>>
+                <label for="home_templates_enabled"></label>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Image Optimization on Upload (blueprint generation 6+) -->
     <div class="dst-card">
         <div class="dst-card-row">

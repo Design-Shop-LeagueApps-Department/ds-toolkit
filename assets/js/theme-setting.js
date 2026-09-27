@@ -871,6 +871,15 @@
 	Save.init();
 	State.init();
 	if (/[?&]updated=1/.test(location.search)) { Status.set('saved'); }
+	// For sections other features add (Home page): drive the preview without reaching into this closure.
+	window.dsTsApi = {
+		homeUrl: (cfg.pages && cfg.pages[0]) ? cfg.pages[0].url : '',
+		load: function (url) {
+			var sel = $('#dsts-preview-page'); if (sel) { sel.value = '0'; }
+			if (Preview.visible && !Preview.visible()) { var t = $('#dsts-preview-toggle'); if (t) { t.click(); } }
+			Preview.load(url); Preview.fit();
+		}
+	};
 	// Booted: the page is now driven by this script (sections as tabs, Save enabled when dirty).
 	root.classList.remove('dsts-nojs');
 
