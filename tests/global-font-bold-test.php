@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over HTTP
 /**
  * DS_Global_Heading_Font: the body text font also gets its bold (700) face in the
  * Google Fonts request, only when the family has one, and nothing else changes.
