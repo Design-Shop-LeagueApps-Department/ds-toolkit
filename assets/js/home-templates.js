@@ -47,7 +47,8 @@
 			return;
 		}
 		if (b.hasAttribute('data-dsht-apply')) {
-			if (!window.confirm('Apply "' + title + '"?\n\nThe home page, header, footer and design options change to this template\'s. The hero keeps its heading, text, buttons and photos. Everything now is kept, so Revert brings it all back.')) { return; }
+			if (b.hasAttribute('data-reapply') && !window.confirm('"' + title + '" is already this site\'s look. Apply it again (for example after editing the template)? The current version is kept for Revert.')) { return; }
+			if (!b.hasAttribute('data-reapply') && !window.confirm('Apply "' + title + '"?\n\nThe home page, header, footer and design options change to this template\'s. The hero keeps its heading, text, buttons and photos. Everything now is kept, so Revert brings it all back.')) { return; }
 			busy(true); say('Applying "' + title + '"…', 'busy');
 			post(cfg.apply, { template: id }).then(function (d) { box.innerHTML = d.html; say('"' + title + '" is now this site\'s look.', 'ok'); showHome(); })
 				.catch(function (err) { busy(false); say(err.message, 'error'); });

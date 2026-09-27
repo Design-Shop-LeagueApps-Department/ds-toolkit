@@ -177,8 +177,11 @@ class DS_Home_Templates {
 	 * (.fl-node-<id>) keeps working, and applying the template a page was made from is
 	 * a no-op. A page's node IDs only need to be unique within that page.
 	 */
-	public static function build( $tpl, $current ) {
-		$data = self::copy( FLBuilderModel::get_layout_data( 'published', $tpl ) );
+	public static function build( $tpl, $current, $key = '_fl_builder_data' ) {
+		// The layout exactly as stored: get_layout_data() fills in module defaults on the way out (a module
+		// that gained settings since would gain keys), and a template applied back must be byte-identical.
+		$data = self::copy( get_post_meta( $tpl, $key, true ) );
+		if ( '_fl_builder_data' !== $key && ( ! is_array( $data ) || ! $data ) ) { $data = self::copy( get_post_meta( $tpl, '_fl_builder_data', true ) ); }
 		if ( ! is_array( $data ) || ! $data ) { return array(); }
 		$current = is_array( $current ) ? $current : array();
 		foreach ( self::carry_fields() as $type => $pattern ) {
@@ -190,12 +193,13 @@ class DS_Home_Templates {
 			foreach ( get_object_vars( $src ) as $k => $v ) {
 				if ( ! preg_match( $pattern, $k ) || ! property_exists( $dst, $k ) ) { continue; }
 				$dst->$k = self::copy( $v );
-				// A field connected to dynamic data on the current page keeps that connection.
-				if ( isset( $src->connections ) ) {
-					$sc = (array) $src->connections;
-					if ( ! isset( $dst->connections ) ) { $dst->connections = array(); }
-					if ( is_object( $dst->connections ) ) { $dst->connections->$k = $sc[ $k ] ?? ''; } else { $dst->connections[ $k ] = $sc[ $k ] ?? ''; }
-				}
+				// Its connection (a field bound to dynamic data) follows it exactly: set where the current page has
+				// one, removed where it has none. Never an added empty entry.
+				$sc = isset( $src->connections ) ? (array) $src->connections : array();
+				if ( ! isset( $dst->connections ) ) { $dst->connections = array(); }
+				$dc = (array) $dst->connections;
+				if ( array_key_exists( $k, $sc ) ) { $dc[ $k ] = self::copy( $sc[ $k ] ); } else { unset( $dc[ $k ] ); }
+				$dst->connections = is_object( $dst->connections ) ? (object) $dc : $dc;
 			}
 		}
 		return $data;
@@ -350,10 +354,12 @@ class DS_Home_Templates {
 		$data    = self::build( $tpl, $current );
 		if ( ! $data ) { return 'That template has no layout yet. Open it in Beaver Builder and publish it first.'; }
 		self::backup_to( $target );
-		$settings = self::merged_settings( $tpl, $target );
-		foreach ( array( 'published', 'draft' ) as $status ) {
-			FLBuilderModel::update_layout_data( self::copy( $data ), $status, $target );
-			FLBuilderModel::update_layout_settings( self::copy( $settings ), $status, $target );
+		// Each copy from its own: the template's draft is the page's draft as it was saved (they can differ, e.g.
+		// in how BB ordered an empty repeater row), so applying a template saved from a page restores it exactly.
+		$draft = self::build( $tpl, get_post_meta( $target, '_fl_builder_draft', true ) ?: $current, '_fl_builder_draft' );
+		foreach ( array( 'published' => array( $data, '_fl_builder_data_settings' ), 'draft' => array( $draft, '_fl_builder_draft_settings' ) ) as $status => $x ) {
+			FLBuilderModel::update_layout_data( self::copy( $x[0] ), $status, $target );
+			self::store( $target, $x[1], self::merged_settings( $tpl, $target, $x[1] ) );
 		}
 		update_post_meta( $target, '_fl_builder_enabled', true );
 		$bundle = get_post_meta( $tpl, self::BUNDLE_META, true );
@@ -374,9 +380,11 @@ class DS_Home_Templates {
 	 * layout settings also hold page settings (title, slug, status, template), and a template
 	 * saved from another page carries that page's, which BB would write to the home page.
 	 */
-	private static function merged_settings( $tpl, $target ) {
-		$page = (object) (array) FLBuilderModel::get_layout_settings( 'published', $target );
-		$from = (object) (array) FLBuilderModel::get_layout_settings( 'published', $tpl );
+	private static function merged_settings( $tpl, $target, $key = '_fl_builder_data_settings' ) {
+		// Raw, not get_layout_settings(): that merges in defaults and reorders the keys.
+		$raw  = get_post_meta( $target, $key, true );
+		$page = $raw ? self::copy( (object) (array) $raw ) : (object) (array) FLBuilderModel::get_layout_settings( 'published', $target );
+		$from = (object) (array) get_post_meta( $tpl, '_fl_builder_data_settings', true );
 		$page->css = (string) ( $from->css ?? '' );
 		$page->js  = (string) ( $from->js ?? '' );
 		return $page;
@@ -450,8 +458,10 @@ class DS_Home_Templates {
 	 * design options go into its bundle. Returns the template ID or a WP_Error.
 	 */
 	public static function save_site( $target, $tpl = 0, $name = '' ) {
-		$home = get_post_meta( $target, '_fl_builder_data', true );
+		$home  = get_post_meta( $target, '_fl_builder_data', true );
 		if ( ! is_array( $home ) || ! $home ) { return new WP_Error( 'empty', 'The home page has no Beaver Builder layout to save.' ); }
+		$draft = get_post_meta( $target, '_fl_builder_draft', true );
+		$draft = is_array( $draft ) && $draft ? $draft : $home;
 		if ( ! $tpl ) {
 			$tpl = wp_insert_post( array( 'post_title' => $name, 'post_type' => 'fl-builder-template', 'post_status' => 'publish', 'menu_order' => count( self::templates() ) + 1, 'ping_status' => 'closed', 'comment_status' => 'closed' ), true );
 			if ( is_wp_error( $tpl ) ) { return $tpl; }
@@ -460,13 +470,14 @@ class DS_Home_Templates {
 			if ( ! $term ) { $r = wp_insert_term( 'Home', 'fl-builder-template-category', array( 'slug' => self::CATEGORY ) ); $term = is_wp_error( $r ) ? null : get_term( $r['term_id'] ); }
 			if ( $term ) { wp_set_object_terms( $tpl, (int) $term->term_id, 'fl-builder-template-category' ); }
 		}
-		$settings = (object) (array) FLBuilderModel::get_layout_settings( 'published', $tpl );
-		$page     = (object) (array) FLBuilderModel::get_layout_settings( 'published', $target );
+		$raw      = get_post_meta( $tpl, '_fl_builder_data_settings', true );
+		$settings = $raw ? self::copy( (object) (array) $raw ) : (object) (array) FLBuilderModel::get_layout_settings( 'published', $tpl );
+		$page     = (object) (array) get_post_meta( $target, '_fl_builder_data_settings', true );
 		$settings->css = (string) ( $page->css ?? '' );
 		$settings->js  = (string) ( $page->js ?? '' );
-		foreach ( array( 'published', 'draft' ) as $status ) {
-			FLBuilderModel::update_layout_data( self::copy( $home ), $status, $tpl );
-			FLBuilderModel::update_layout_settings( self::copy( $settings ), $status, $tpl );
+		foreach ( array( 'published' => array( $home, '_fl_builder_data_settings' ), 'draft' => array( $draft, '_fl_builder_draft_settings' ) ) as $status => $x ) {
+			FLBuilderModel::update_layout_data( self::copy( $x[0] ), $status, $tpl );
+			self::store( $tpl, $x[1], $settings );
 		}
 		update_post_meta( $tpl, '_fl_builder_enabled', true );
 		$site = self::capture_site( $target );
@@ -636,7 +647,8 @@ class DS_Home_Templates {
 				echo '<span class="dsht-links"><a class="dsht-edit" href="' . esc_url( $t['edit'] ) . '" target="_blank" rel="noopener">Edit layout<span class="screen-reader-text"> (opens Beaver Builder in a new tab)</span></a>';
 				echo '<button type="button" class="button-link dsht-save" data-dsht-save>Save site here</button></span>';
 				echo '<div class="dsht-actions"><button type="button" class="button" data-dsht-preview>Preview</button>';
-				echo '<button type="button" class="button button-primary" data-dsht-apply' . ( $is ? ' disabled' : '' ) . '>' . ( $is ? 'In use' : 'Apply' ) . '</button></div></div></li>';
+				// The template in use can be applied again: after it was edited in the builder, that is how the site gets the edit.
+				echo '<button type="button" class="button ' . ( $is ? '' : 'button-primary' ) . '" data-dsht-apply' . ( $is ? ' data-reapply="1"' : '' ) . '>' . ( $is ? 'Re-apply' : 'Apply' ) . '</button></div></div></li>';
 			}
 			echo '</ul>';
 		}

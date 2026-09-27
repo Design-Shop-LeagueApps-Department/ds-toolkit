@@ -124,7 +124,10 @@ $bun = get_post_meta( $t2, DS_Home_Templates::BUNDLE_META, true );
 ht_is( 'the saved header keeps its backslashes and its sticky / overlay settings', array( $bun['header']['_fl_builder_data']['m1']->settings->html ?? null, $bun['header']['_fl_theme_layout_settings']['sticky'] ?? null ), array( 'Header A <style>.a:before{content:"\2014"}</style>', '1' ) );
 ht_is( 'the template\'s own layout is the home page\'s', array_keys( get_post_meta( $t2, '_fl_builder_data', true ) ), array_keys( get_post_meta( $page, '_fl_builder_data', true ) ) );
 
-// The site moves on: another header (overlaid), another footer, other design options.
+$page_at_save = array( get_post_meta( $page, '_fl_builder_data', true ), get_post_meta( $page, '_fl_builder_draft', true ), get_post_meta( $page, '_fl_builder_data_settings', true ) );
+// The site moves on: the page's HTML module, another header (overlaid), another footer, other design options.
+$l = get_post_meta( $page, '_fl_builder_data', true ); $l['tsthtmlnode1']->settings->html = 'Changed later';
+foreach ( array( 'published', 'draft' ) as $st ) { FLBuilderModel::update_layout_data( $l, $st, $page ); }
 $l = get_post_meta( $hdr, '_fl_builder_data', true ); $l['m1']->settings->html = 'Header B';
 foreach ( array( 'published', 'draft' ) as $st ) { FLBuilderModel::update_layout_data( $l, $st, $hdr ); }
 update_post_meta( $hdr, '_fl_theme_layout_settings', array( 'sticky' => '0', 'shrink' => '0', 'overlay' => '1', 'overlay_bg' => 'transparent' ) );
@@ -141,6 +144,7 @@ ht_is( 'apply brings the template\'s header back (text, backslash, sticky, not o
 ht_is( '...its footer', get_post_meta( $ftr, '_fl_builder_data', true )['m1']->settings->html, 'Footer A' );
 ht_is( '...and its design options (corner radius, button style)', array( get_theme_mod( 'ds-corner-radius', null ), get_option( 'ds_button_style', null ) ), array( $styles_before['mods']['ds-corner-radius'], $styles_before['button'] ) );
 ht_is( 'the header is byte-identical to when the template was saved', serialize( get_post_meta( $hdr, '_fl_builder_data', true ) ) === serialize( $hdr_a ), true );
+ht_is( 'the page (live copy, draft copy, layout settings) is byte-identical to when the template was saved from it', serialize( array( get_post_meta( $page, '_fl_builder_data', true ), get_post_meta( $page, '_fl_builder_draft', true ), get_post_meta( $page, '_fl_builder_data_settings', true ) ) ) === serialize( $page_at_save ), true );
 
 $err = DS_Home_Templates::revert( $page );
 ht_is( 'one-click revert succeeds', $err, '' );
