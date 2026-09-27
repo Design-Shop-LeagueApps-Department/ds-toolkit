@@ -74,11 +74,47 @@ class DS_Social_Card {
 	 * save and by the seeder.
 	 */
 	public static function set_card( $id, $url ) {
-		$id  = (int) $id;
-		$url = esc_url_raw( (string) $url );
+		list( $id, $url ) = self::reconcile( (int) $id, esc_url_raw( (string) $url ) );
 		update_option( self::OPT_ID, $id );
 		update_option( self::OPT_URL, $url );
 		self::sync_yoast( $id, $url );
+	}
+
+	/**
+	 * Make the id and the URL name the same image. The URL is what the partner sees (Theme Setting shows it as the
+	 * thumbnail), so it wins: its attachment id replaces a different one, and an id whose file is not that URL is dropped.
+	 * Without this a stale id (a card URL set by a script while the id still named the blueprint placeholder, seen on
+	 * oyo 2026-09-27) is re-saved on EVERY Theme Setting save and mirrored into Yoast, which outputs by id, so the site's
+	 * share image silently turns into the placeholder.
+	 */
+	public static function reconcile( $id, $url ) {
+		if ( '' === $url ) {
+			$url = $id ? (string) wp_get_attachment_url( $id ) : '';
+			return array( $url ? $id : 0, $url );
+		}
+		$from_url = (int) attachment_url_to_postid( $url );
+		if ( $from_url ) { return array( $from_url, $url ); }
+		// A URL on another host (a site moved from its temp/dev domain, www vs bare) does not resolve,
+		// but its uploads path still names the file: look it up on this site's uploads URL.
+		$rel = self::uploads_path( $url );
+		if ( '' !== $rel ) {
+			$here = trailingslashit( wp_get_upload_dir()['baseurl'] ) . $rel;
+			$from_path = (int) attachment_url_to_postid( $here );
+			if ( $from_path ) { return array( $from_path, (string) wp_get_attachment_url( $from_path ) ); }
+		}
+		// Drop the id only when it names a different file, never just because the host differs.
+		if ( $id ) {
+			$own = (string) wp_get_attachment_url( $id );
+			if ( $own !== $url && ( '' === $rel || self::uploads_path( $own ) !== $rel ) ) { $id = 0; }
+		}
+		return array( $id, $url );
+	}
+
+	/** The part of an uploads URL after "/uploads/" ("2026/06/card.png"), or '' when it is not one. */
+	private static function uploads_path( $url ) {
+		$path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
+		$at   = strpos( $path, '/uploads/' );
+		return false === $at ? '' : ltrim( substr( $path, $at + 9 ), '/' );
 	}
 
 	/** Push the card into Yoast's default OG image option (no-op without Yoast). */
