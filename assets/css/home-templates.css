@@ -11,7 +11,14 @@
 .dsht-title { font-size: 13px; font-weight: 600; line-height: 1.35; }
 .dsht-actions { margin-top: auto; padding-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; } /* pinned to the card bottom: buttons line up across cards */
 .dsht-actions .button { min-height: 30px; line-height: 28px; padding: 0 8px; text-align: center; justify-content: center; }
-.dsht-edit { align-self: flex-start; font-size: 12px; }
+.dsht-parts { font-size: 11.5px; color: var(--dsts-muted); line-height: 1.4; }
+.dsht-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 2px; }
+.dsht-edit, .dsht-save.button-link { font-size: 12px; }
+.dsht-save.button-link { color: var(--dsts-muted); text-decoration: underline; }
+.dsht-save.button-link:hover { color: var(--dsts-accent); }
+.dsht-new { margin: 0 0 10px; }
+.dsht-new .button { display: inline-flex; align-items: center; gap: 4px; }
+.dsht-new .dashicons { font-size: 16px; width: 16px; height: 16px; }
 .dsht-revert { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 14px; background: var(--dsts-accent-soft); border: 1px solid #c5d9ed; border-radius: var(--dsts-radius); }
 .dsht-revert p { margin: 0; font-size: 12.5px; }
 .dsht-note, .dsht-help { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--dsts-muted); }

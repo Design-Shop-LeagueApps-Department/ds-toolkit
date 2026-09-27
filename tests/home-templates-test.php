@@ -86,7 +86,7 @@ $ts = FLBuilderModel::get_layout_settings( 'published', $tpl );
 ht_is( 'the page keeps its own title and slug settings; layout CSS comes from the template', array( $ps->title, $ps->slug, $ps->css ), array( 'Test page title', 'test-page-slug', (string) ( $ts->css ?? '' ) ) );
 ht_is( 'marked as set from the template', (int) get_post_meta( $page, DS_Home_Templates::CURRENT_META, true ), $tpl );
 $bk = get_post_meta( $page, DS_Home_Templates::BACKUP_META, true );
-ht_is( 'the backup keeps the backslashes of the old layout', $bk['data']['tsthtmlnode1']->settings->html ?? null, '<style>.q:before{content:"\201C"}</style>' );
+ht_is( 'the backup keeps the backslashes of the old layout', $bk['home']['_fl_builder_data']['tsthtmlnode1']->settings->html ?? null, '<style>.q:before{content:"\201C"}</style>' );
 
 $err = DS_Home_Templates::revert( $page );
 ht_is( 'revert succeeds', $err, '' );
@@ -100,6 +100,57 @@ update_post_meta( $page, '_edit_lock', time() . ':' . $partner );
 ht_is( 'apply refuses while another user has the page open', false !== strpos( DS_Home_Templates::apply( $tpl, $page ), 'is editing the home page' ), true );
 ht_is( '...and writes nothing', get_post_meta( $page, '_fl_builder_data', true ) == $before[0], true );
 delete_post_meta( $page, '_edit_lock' );
+
+/* ---- whole-site templates: header, footer and design go with the template ---- */
+$mkl = function ( $type, $text, $ts ) {
+	$id = wp_insert_post( array( 'post_type' => 'fl-theme-layout', 'post_status' => 'publish', 'post_title' => "HT test $type (temporary)" ) );
+	update_post_meta( $id, '_fl_theme_layout_type', $type );
+	$l = array( 'r1' => (object) array( 'node' => 'r1', 'type' => 'row', 'parent' => null, 'position' => 0, 'settings' => (object) array( 'type' => 'row' ) ),
+		'm1' => (object) array( 'node' => 'm1', 'type' => 'module', 'parent' => 'r1', 'position' => 0, 'settings' => (object) array( 'type' => 'html', 'html' => $text ) ) );
+	foreach ( array( 'published', 'draft' ) as $st ) { FLBuilderModel::update_layout_data( unserialize( serialize( $l ) ), $st, $id ); }
+	delete_post_meta( $id, '_fl_theme_layout_settings' ); add_post_meta( $id, '_fl_theme_layout_settings', $ts, true );
+	return $id;
+};
+$hdr = $mkl( 'header', 'Header A <style>.a:before{content:"\2014"}</style>', array( 'sticky' => '1', 'shrink' => '1', 'overlay' => '0', 'overlay_bg' => 'transparent' ) );
+$ftr = $mkl( 'footer', 'Footer A', array( 'sticky' => '0', 'shrink' => '0', 'overlay' => '0', 'overlay_bg' => 'transparent' ) );
+$parts = function () use ( $hdr, $ftr ) { return array( 'header' => $hdr, 'footer' => $ftr ); };
+add_filter( 'ds_home_templates_part_ids', $parts );
+$styles_before = DS_Home_Templates::capture_styles();
+$hdr_a = get_post_meta( $hdr, '_fl_builder_data', true );
+
+$t2 = DS_Home_Templates::save_site( $page, 0, 'HT test template (temporary)' );
+ht_is( 'save the site as a new template: a Home template holding home, header, footer and design', array( is_int( $t2 ), DS_Home_Templates::is_home_template( $t2 ), DS_Home_Templates::parts_of( $t2 ) ), array( true, true, array( 'home', 'header', 'footer', 'styles' ) ) );
+$bun = get_post_meta( $t2, DS_Home_Templates::BUNDLE_META, true );
+ht_is( 'the saved header keeps its backslashes and its sticky / overlay settings', array( $bun['header']['_fl_builder_data']['m1']->settings->html ?? null, $bun['header']['_fl_theme_layout_settings']['sticky'] ?? null ), array( 'Header A <style>.a:before{content:"\2014"}</style>', '1' ) );
+ht_is( 'the template\'s own layout is the home page\'s', array_keys( get_post_meta( $t2, '_fl_builder_data', true ) ), array_keys( get_post_meta( $page, '_fl_builder_data', true ) ) );
+
+// The site moves on: another header (overlaid), another footer, other design options.
+$l = get_post_meta( $hdr, '_fl_builder_data', true ); $l['m1']->settings->html = 'Header B';
+foreach ( array( 'published', 'draft' ) as $st ) { FLBuilderModel::update_layout_data( $l, $st, $hdr ); }
+update_post_meta( $hdr, '_fl_theme_layout_settings', array( 'sticky' => '0', 'shrink' => '0', 'overlay' => '1', 'overlay_bg' => 'transparent' ) );
+$l = get_post_meta( $ftr, '_fl_builder_data', true ); $l['m1']->settings->html = 'Footer B';
+foreach ( array( 'published', 'draft' ) as $st ) { FLBuilderModel::update_layout_data( $l, $st, $ftr ); }
+$radius_before = get_theme_mod( 'ds-corner-radius', null );
+set_theme_mod( 'ds-corner-radius', 33 );
+update_option( 'ds_button_style', 'pill-test' );
+$site_b = DS_Home_Templates::capture_site( $page );
+
+$err = DS_Home_Templates::apply( $t2, $page );
+ht_is( 'apply succeeds', $err, '' );
+ht_is( 'apply brings the template\'s header back (text, backslash, sticky, not overlaid)', array( get_post_meta( $hdr, '_fl_builder_data', true )['m1']->settings->html, get_post_meta( $hdr, '_fl_theme_layout_settings', true )['overlay'] ), array( 'Header A <style>.a:before{content:"\2014"}</style>', '0' ) );
+ht_is( '...its footer', get_post_meta( $ftr, '_fl_builder_data', true )['m1']->settings->html, 'Footer A' );
+ht_is( '...and its design options (corner radius, button style)', array( get_theme_mod( 'ds-corner-radius', null ), get_option( 'ds_button_style', null ) ), array( $styles_before['mods']['ds-corner-radius'], $styles_before['button'] ) );
+ht_is( 'the header is byte-identical to when the template was saved', serialize( get_post_meta( $hdr, '_fl_builder_data', true ) ) === serialize( $hdr_a ), true );
+
+$err = DS_Home_Templates::revert( $page );
+ht_is( 'one-click revert succeeds', $err, '' );
+ht_is( 'revert brings EVERYTHING back exactly: home, header, footer, design', DS_Home_Templates::capture_site( $page ) == $site_b, true );
+
+// Leave the real design options exactly as they were.
+DS_Home_Templates::write_styles( $styles_before );
+ht_is( 'the site\'s real design options are as they were before the test', DS_Home_Templates::capture_styles() == $styles_before, true );
+remove_filter( 'ds_home_templates_part_ids', $parts );
+foreach ( array( $hdr, $ftr, $t2 ) as $id ) { wp_delete_post( $id, true ); }
 
 /* ---- tidy up ---- */
 remove_filter( 'ds_home_templates_target', $to_page );

@@ -62,6 +62,7 @@ class DS_Home_Templates {
 			add_action( 'wp_ajax_' . self::APPLY_AJAX, array( $this, 'ajax_apply' ) );
 			add_action( 'wp_ajax_' . self::REVERT_AJAX, array( $this, 'ajax_revert' ) );
 			add_action( 'wp_ajax_' . self::LAUNCH_AJAX, array( $this, 'ajax_launched' ) );
+			add_action( 'wp_ajax_' . self::SAVE_AJAX, array( $this, 'ajax_save' ) );
 		} elseif ( isset( $_GET[ self::QUERY ] ) ) {
 			// Early (the user is known at init): nothing may have read the front page's layout
 			// into Beaver Builder's per-request cache before the preview filter is in place.
@@ -212,6 +213,108 @@ class DS_Home_Templates {
 		return $best;
 	}
 
+	/* ---------------------------------------------------- Site snapshots */
+
+	/**
+	 * A template is the whole look of a site: its own layout is the home page, and its
+	 * BUNDLE_META holds the site header and footer layouts and the Theme Setting design
+	 * options as they were when it was saved. Apply writes all of them; Revert puts all of
+	 * them back. Partner identity (favicon, social card) and custom JavaScript are never part
+	 * of a template.
+	 */
+	const BUNDLE_META = '_ds_home_bundle';
+	const SAVE_AJAX   = 'ds_home_tpl_save';
+	const POST_KEYS   = array( '_fl_builder_data', '_fl_builder_draft', '_fl_builder_data_settings', '_fl_builder_draft_settings', '_fl_theme_layout_settings' );
+
+	/** Theme Setting's design options (theme mods) a template carries. */
+	public static function style_mods() {
+		return apply_filters( 'ds_home_templates_style_mods', array(
+			'fl-body-bg-color', 'fl-body-bg-image', 'fl-body-bg-repeat', 'fl-body-bg-position', 'fl-body-bg-attachment', 'fl-body-bg-size', 'fl-body-bg-overlay', 'fl-body-bg-blend',
+			'fl-content-bg-color', 'fl-content-bg-image', 'fl-content-bg-repeat', 'fl-content-bg-position', 'fl-content-bg-attachment', 'fl-content-bg-size', 'fl-content-bg-overlay', 'fl-content-bg-blend',
+			'ds-banner-photo-title', 'ds-banner-photo-title-color', 'ds-banner-nobg-title-color', 'ds-banner-nobg-color', 'ds-banner-nobg-image', 'ds-banner-nobg-repeat', 'ds-banner-nobg-position', 'ds-banner-nobg-attachment', 'ds-banner-nobg-size', 'ds-banner-nobg-overlay', 'ds-banner-nobg-blend', 'ds-banner-featured-types',
+			'ds-corner-radius', 'ds-outline-color', 'ds-outline-width', 'fl-css-code',
+		) );
+	}
+
+	/** The site-wide Themer header / footer layout the site uses, or 0. */
+	public static function part_ids() {
+		$ids = array( 'header' => 0, 'footer' => 0 );
+		foreach ( array_keys( $ids ) as $type ) {
+			foreach ( get_posts( array( 'post_type' => 'fl-theme-layout', 'post_status' => 'publish', 'posts_per_page' => 20, 'fields' => 'ids', 'orderby' => 'menu_order date', 'order' => 'ASC', 'meta_key' => '_fl_theme_layout_type', 'meta_value' => $type ) ) as $id ) { // phpcs:ignore WordPress.DB.SlowDBQuery
+				if ( in_array( 'general:site', (array) get_post_meta( $id, '_fl_theme_builder_locations', true ), true ) ) { $ids[ $type ] = (int) $id; break; }
+			}
+		}
+		return apply_filters( 'ds_home_templates_part_ids', $ids );
+	}
+
+	/** A post's builder layout, layout settings and Themer settings, exactly as stored. */
+	private static function capture_post( $id ) {
+		$out = array();
+		foreach ( self::POST_KEYS as $k ) { $out[ $k ] = metadata_exists( 'post', $id, $k ) ? get_post_meta( $id, $k, true ) : null; }
+		return $out;
+	}
+
+	/**
+	 * Write a captured post back. Every key is deleted and added (never update_post_meta():
+	 * see backup_to), so the stored values come back byte for byte, backslashes included.
+	 */
+	private static function write_post( $id, array $snap ) {
+		foreach ( self::POST_KEYS as $k ) {
+			if ( ! array_key_exists( $k, $snap ) ) { continue; }
+			delete_post_meta( $id, $k );
+			if ( null !== $snap[ $k ] ) { add_post_meta( $id, $k, FLBuilderModel::slash_settings( self::copy( $snap[ $k ] ) ), true ); }
+		}
+		update_post_meta( $id, '_fl_builder_enabled', true );
+		FLBuilderModel::delete_all_asset_cache( $id );
+		clean_post_cache( $id );
+	}
+
+	/** Theme Setting's design: BB Global Styles, the design theme mods and the button shape. */
+	public static function capture_styles() {
+		$mods = get_theme_mods();
+		$mods = is_array( $mods ) ? $mods : array();
+		$out  = array( 'styles' => get_option( '_fl_builder_styles', null ), 'mods' => array(), 'button' => get_option( 'ds_button_style', null ) );
+		foreach ( self::style_mods() as $k ) { $out['mods'][ $k ] = array_key_exists( $k, $mods ) ? $mods[ $k ] : null; }
+		return $out;
+	}
+
+	public static function write_styles( array $s ) {
+		if ( array_key_exists( 'styles', $s ) ) {
+			if ( null === $s['styles'] ) { delete_option( '_fl_builder_styles' ); } else { update_option( '_fl_builder_styles', $s['styles'], true ); }
+		}
+		foreach ( (array) ( $s['mods'] ?? array() ) as $k => $v ) {
+			if ( null === $v ) { remove_theme_mod( $k ); } else { set_theme_mod( $k, $v ); }
+		}
+		if ( array_key_exists( 'button', $s ) ) {
+			if ( null === $s['button'] ) { delete_option( 'ds_button_style' ); } else { update_option( 'ds_button_style', $s['button'] ); }
+		}
+	}
+
+	/** Everything a template sets, as the site has it now. */
+	public static function capture_site( $target ) {
+		$ids = self::part_ids();
+		return array(
+			'home'   => $target ? self::capture_post( $target ) : null,
+			'header' => $ids['header'] ? self::capture_post( $ids['header'] ) : null,
+			'footer' => $ids['footer'] ? self::capture_post( $ids['footer'] ) : null,
+			'styles' => self::capture_styles(),
+		);
+	}
+
+	/** Store a value holding BB layouts under a meta key, backslashes intact (delete + add: see backup_to). */
+	private static function store( $id, $key, $value ) {
+		delete_post_meta( $id, $key );
+		add_post_meta( $id, $key, FLBuilderModel::slash_settings( self::copy( $value ) ), true );
+	}
+
+	/** Which parts a template carries, for its card. */
+	public static function parts_of( $tpl ) {
+		$b = get_post_meta( $tpl, self::BUNDLE_META, true );
+		$p = array( 'home' );
+		if ( is_array( $b ) ) { foreach ( array( 'header', 'footer', 'styles' ) as $k ) { if ( ! empty( $b[ $k ] ) ) { $p[] = $k; } } }
+		return $p;
+	}
+
 	/* ---------------------------------------------------------- Apply */
 
 	public function ajax_apply() {
@@ -224,21 +327,43 @@ class DS_Home_Templates {
 		wp_send_json_success( array( 'html' => $this->section_html() ) );
 	}
 
-	/** Set the page's layout from a template (backing the page up first). Returns an error message or ''. */
+	/** Refuse while anyone else has the home page, header or footer open in the builder. */
+	private static function busy( $target ) {
+		$names = array( 'home page' => $target ) + array_filter( self::part_ids() );
+		foreach ( $names as $what => $id ) {
+			$who = $id ? self::locked_by( $id ) : '';
+			if ( $who ) { return sprintf( '%s is editing the %s in Beaver Builder. Try again when they close it.', $who, is_string( $what ) && 'home page' !== $what ? $what : 'home page' ); }
+		}
+		return '';
+	}
+
+	/**
+	 * Set the site from a template: the home page layout (keeping its hero content), and the
+	 * header, footer and design options the template was saved with. Everything is backed up
+	 * first, as one set. Returns an error message or ''.
+	 */
 	public static function apply( $tpl, $target ) {
 		if ( ! $target || 'page' !== get_post_type( $target ) ) { return 'Set a static front page first (Settings > Reading).'; }
-		$busy = self::locked_by( $target );
-		if ( $busy ) { return sprintf( '%s is editing the home page in Beaver Builder. Try again when they close it.', $busy ); }
+		$busy = self::busy( $target );
+		if ( $busy ) { return $busy; }
 		$current = FLBuilderModel::get_layout_data( 'published', $target );
 		$data    = self::build( $tpl, $current );
 		if ( ! $data ) { return 'That template has no layout yet. Open it in Beaver Builder and publish it first.'; }
-		self::backup( $target );
+		self::backup_to( $target );
 		$settings = self::merged_settings( $tpl, $target );
 		foreach ( array( 'published', 'draft' ) as $status ) {
 			FLBuilderModel::update_layout_data( self::copy( $data ), $status, $target );
 			FLBuilderModel::update_layout_settings( self::copy( $settings ), $status, $target );
 		}
 		update_post_meta( $target, '_fl_builder_enabled', true );
+		$bundle = get_post_meta( $tpl, self::BUNDLE_META, true );
+		if ( is_array( $bundle ) ) {
+			$ids = self::part_ids();
+			foreach ( array( 'header', 'footer' ) as $part ) {
+				if ( ! empty( $bundle[ $part ] ) && $ids[ $part ] ) { self::write_post( $ids[ $part ], $bundle[ $part ] ); }
+			}
+			if ( ! empty( $bundle['styles'] ) ) { self::write_styles( $bundle['styles'] ); }
+		}
 		update_post_meta( $target, self::CURRENT_META, (int) $tpl );
 		self::flush( $target );
 		return '';
@@ -257,7 +382,7 @@ class DS_Home_Templates {
 		return $page;
 	}
 
-	/** Who holds the builder / edit lock on the page (another user, in the last 150 seconds), or ''. */
+	/** Who holds the builder / edit lock on a post (another user, in the last 150 seconds), or ''. */
 	private static function locked_by( $id ) {
 		if ( ! function_exists( 'wp_check_post_lock' ) ) { require_once ABSPATH . 'wp-admin/includes/post.php'; }
 		$uid = wp_check_post_lock( $id );
@@ -267,24 +392,15 @@ class DS_Home_Templates {
 	}
 
 	/**
-	 * Keep the page's layout as it is before Apply (one level). Written slashed with
-	 * add_post_meta(), which unslashes once. Not update_post_meta(): for a key the post does
-	 * not have yet it unslashes the value, which changes the layout's objects in place, then
-	 * passes those same objects to add_metadata(), which unslashes them again, so every
-	 * module would lose a level of backslashes ("\201C" -> "201C").
+	 * Keep the whole site look as it is before Apply (one level): home page, header, footer,
+	 * design options. Written slashed with add_post_meta(), which unslashes once. Not
+	 * update_post_meta(): for a key the post does not have yet it unslashes the value, which
+	 * changes the layout's objects in place, then passes those same objects to add_metadata(),
+	 * which unslashes them again, so every module would lose a level of backslashes.
 	 */
-	private static function backup( $id ) {
-		$b = array(
-			'time'     => time(),
-			'user'     => get_current_user_id(),
-			'from'     => (int) get_post_meta( $id, self::CURRENT_META, true ),
-			'data'     => get_post_meta( $id, '_fl_builder_data', true ),
-			'draft'    => get_post_meta( $id, '_fl_builder_draft', true ),
-			'settings' => get_post_meta( $id, '_fl_builder_data_settings', true ),
-			'draft_settings' => get_post_meta( $id, '_fl_builder_draft_settings', true ),
-		);
-		delete_post_meta( $id, self::BACKUP_META );
-		add_post_meta( $id, self::BACKUP_META, FLBuilderModel::slash_settings( self::copy( $b ) ), true );
+	private static function backup_to( $target ) {
+		$b = array_merge( array( 'time' => time(), 'user' => get_current_user_id(), 'from' => (int) get_post_meta( $target, self::CURRENT_META, true ), 'ids' => self::part_ids() ), self::capture_site( $target ) );
+		self::store( $target, self::BACKUP_META, $b );
 	}
 
 	public function ajax_revert() {
@@ -294,31 +410,83 @@ class DS_Home_Templates {
 		wp_send_json_success( array( 'html' => $this->section_html() ) );
 	}
 
-	/** Put the page back as it was before the last Apply. Returns an error message or ''. */
+	/** Put the home page, header, footer and design options back as they were before the last Apply. */
 	public static function revert( $target ) {
 		$b = get_post_meta( $target, self::BACKUP_META, true );
-		if ( ! is_array( $b ) || ! isset( $b['data'] ) ) { return 'There is no earlier home page to go back to.'; }
-		$busy = self::locked_by( $target );
-		if ( $busy ) { return sprintf( '%s is editing the home page in Beaver Builder. Try again when they close it.', $busy ); }
-		// Back through Beaver Builder's own writers (slash-safe, and they add or update as needed).
-		foreach ( array( 'published' => array( 'data', 'settings', '_fl_builder_data', '_fl_builder_data_settings' ), 'draft' => array( 'draft', 'draft_settings', '_fl_builder_draft', '_fl_builder_draft_settings' ) ) as $status => $m ) {
-			if ( is_array( $b[ $m[0] ] ) ) { FLBuilderModel::update_layout_data( self::copy( $b[ $m[0] ] ), $status, $target ); } else { delete_post_meta( $target, $m[2] ); }
-			// Settings exactly as they were (update_layout_settings() would merge and reorder them).
-			delete_post_meta( $target, $m[3] );
-			if ( $b[ $m[1] ] ) { add_post_meta( $target, $m[3], FLBuilderModel::slash_settings( self::copy( $b[ $m[1] ] ) ), true ); }
+		if ( ! is_array( $b ) || empty( $b['home'] ) ) { return 'There is no earlier version to go back to.'; }
+		$busy = self::busy( $target );
+		if ( $busy ) { return $busy; }
+		$from = (int) ( $b['from'] ?? 0 );
+		self::write_post( $target, $b['home'] );
+		foreach ( array( 'header', 'footer' ) as $part ) {
+			$id = (int) ( $b['ids'][ $part ] ?? 0 );
+			if ( $id && ! empty( $b[ $part ] ) && get_post( $id ) ) { self::write_post( $id, $b[ $part ] ); }
 		}
-		if ( $b['from'] ) { update_post_meta( $target, self::CURRENT_META, (int) $b['from'] ); } else { delete_post_meta( $target, self::CURRENT_META ); }
+		if ( ! empty( $b['styles'] ) ) { self::write_styles( $b['styles'] ); }
+		if ( $from ) { update_post_meta( $target, self::CURRENT_META, $from ); } else { delete_post_meta( $target, self::CURRENT_META ); }
 		delete_post_meta( $target, self::BACKUP_META );
 		self::flush( $target );
 		return '';
 	}
 
-	/** New layout CSS/JS for the page, and no cached copy of the old one. */
+	/* ------------------------------------------------ Save the site into a template */
+
+	public function ajax_save() {
+		$this->guard();
+		$target = self::target();
+		if ( ! $target ) { wp_send_json_error( array( 'message' => 'Set a static front page first (Settings > Reading).' ) ); }
+		$tpl  = isset( $_POST['template'] ) ? absint( $_POST['template'] ) : 0;
+		$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+		if ( $tpl && ! self::is_home_template( $tpl ) ) { wp_send_json_error( array( 'message' => 'That template is not in the Home category.' ) ); }
+		if ( ! $tpl && '' === $name ) { wp_send_json_error( array( 'message' => 'Give the new template a name.' ) ); }
+		$id = self::save_site( $target, $tpl, $name );
+		if ( is_wp_error( $id ) ) { wp_send_json_error( array( 'message' => $id->get_error_message() ) ); }
+		wp_send_json_success( array( 'html' => $this->section_html(), 'id' => $id ) );
+	}
+
+	/**
+	 * Save the site as it is now into a Home template (a new one when $tpl is 0): the home
+	 * page layout becomes the template's layout (node IDs kept), and the header, footer and
+	 * design options go into its bundle. Returns the template ID or a WP_Error.
+	 */
+	public static function save_site( $target, $tpl = 0, $name = '' ) {
+		$home = get_post_meta( $target, '_fl_builder_data', true );
+		if ( ! is_array( $home ) || ! $home ) { return new WP_Error( 'empty', 'The home page has no Beaver Builder layout to save.' ); }
+		if ( ! $tpl ) {
+			$tpl = wp_insert_post( array( 'post_title' => $name, 'post_type' => 'fl-builder-template', 'post_status' => 'publish', 'menu_order' => count( self::templates() ) + 1, 'ping_status' => 'closed', 'comment_status' => 'closed' ), true );
+			if ( is_wp_error( $tpl ) ) { return $tpl; }
+			wp_set_post_terms( $tpl, 'layout', 'fl-builder-template-type' );
+			$term = get_term_by( 'slug', self::CATEGORY, 'fl-builder-template-category' );
+			if ( ! $term ) { $r = wp_insert_term( 'Home', 'fl-builder-template-category', array( 'slug' => self::CATEGORY ) ); $term = is_wp_error( $r ) ? null : get_term( $r['term_id'] ); }
+			if ( $term ) { wp_set_object_terms( $tpl, (int) $term->term_id, 'fl-builder-template-category' ); }
+		}
+		$settings = (object) (array) FLBuilderModel::get_layout_settings( 'published', $tpl );
+		$page     = (object) (array) FLBuilderModel::get_layout_settings( 'published', $target );
+		$settings->css = (string) ( $page->css ?? '' );
+		$settings->js  = (string) ( $page->js ?? '' );
+		foreach ( array( 'published', 'draft' ) as $status ) {
+			FLBuilderModel::update_layout_data( self::copy( $home ), $status, $tpl );
+			FLBuilderModel::update_layout_settings( self::copy( $settings ), $status, $tpl );
+		}
+		update_post_meta( $tpl, '_fl_builder_enabled', true );
+		$site = self::capture_site( $target );
+		self::store( $tpl, self::BUNDLE_META, array( 'version' => 1, 'saved' => time(), 'by' => get_current_user_id(), 'header' => $site['header'], 'footer' => $site['footer'], 'styles' => $site['styles'] ) );
+		FLBuilderModel::delete_all_asset_cache( $tpl );
+		update_post_meta( $target, self::CURRENT_META, (int) $tpl );
+		return (int) $tpl;
+	}
+
+	/** New layout CSS/JS everywhere (the header, footer and global styles are on every page), and no cached copies. */
 	private static function flush( $id ) {
 		FLBuilderModel::delete_all_asset_cache( $id );
+		FLBuilderModel::delete_asset_cache_for_all_posts();
+		if ( class_exists( 'FLCustomizer' ) && method_exists( 'FLCustomizer', 'refresh_css' ) ) { FLCustomizer::refresh_css(); }
 		clean_post_cache( $id );
-		wp_cache_delete( $id, 'post_meta' );
-		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) { WpeCommon::purge_varnish_cache( $id ); }
+		wp_cache_flush();
+		if ( class_exists( 'WpeCommon' ) ) {
+			if ( method_exists( 'WpeCommon', 'purge_memcached' ) ) { WpeCommon::purge_memcached(); }
+			if ( method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) { WpeCommon::purge_varnish_cache(); }
+		}
 		do_action( 'ds_home_templates_applied', $id );
 	}
 
@@ -365,7 +533,46 @@ class DS_Home_Templates {
 		add_filter( 'fl_builder_layout_settings', function ( $s, $status, $post_id ) use ( $settings, $target ) {
 			return (int) $post_id === $target ? $settings : $s;
 		}, 999, 3 );
+		self::preview_bundle( get_post_meta( $tpl, self::BUNDLE_META, true ) );
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) { define( 'DONOTCACHEPAGE', true ); }
+	}
+
+	/** The template's header, footer (layout, settings, sticky / overlay) and design options, for this request. */
+	private static function preview_bundle( $bundle ) {
+		if ( ! is_array( $bundle ) ) { return; }
+		$ids = self::part_ids();
+		foreach ( array( 'header', 'footer' ) as $part ) {
+			$pid  = (int) $ids[ $part ];
+			$snap = $bundle[ $part ] ?? null;
+			if ( ! $pid || ! is_array( $snap ) ) { continue; }
+			if ( is_array( $snap['_fl_builder_data'] ?? null ) ) {
+				$data = $snap['_fl_builder_data'];
+				$swap = function ( $d, $status, $post_id ) use ( $data, $pid ) {
+					if ( (int) $post_id !== $pid || 'draft' === $status ) { return $d; }
+					return array_map( function ( $n ) { return is_object( $n ) ? clone $n : $n; }, $data );
+				};
+				add_filter( 'fl_builder_get_layout_metadata', $swap, 999, 3 );
+				add_filter( 'fl_builder_layout_data', $swap, 999, 3 );
+			}
+			if ( isset( $snap['_fl_builder_data_settings'] ) && $snap['_fl_builder_data_settings'] ) {
+				$ls = $snap['_fl_builder_data_settings'];
+				add_filter( 'fl_builder_layout_settings', function ( $s, $status, $post_id ) use ( $ls, $pid ) { return (int) $post_id === $pid ? $ls : $s; }, 999, 3 );
+			}
+			if ( array_key_exists( '_fl_theme_layout_settings', $snap ) ) {
+				$ts = $snap['_fl_theme_layout_settings'];
+				add_filter( 'get_post_metadata', function ( $v, $oid, $key, $single ) use ( $ts, $pid ) {
+					if ( (int) $oid !== $pid || '_fl_theme_layout_settings' !== $key ) { return $v; }
+					return $single ? array( null === $ts ? '' : $ts ) : ( null === $ts ? array() : array( $ts ) );
+				}, 999, 4 );
+			}
+		}
+		$st = $bundle['styles'] ?? null;
+		if ( ! is_array( $st ) ) { return; }
+		if ( null !== ( $st['styles'] ?? null ) ) { $g = $st['styles']; add_filter( 'pre_option__fl_builder_styles', function () use ( $g ) { return $g; }, 999 ); }
+		if ( null !== ( $st['button'] ?? null ) ) { $bt = $st['button']; add_filter( 'pre_option_ds_button_style', function () use ( $bt ) { return $bt; }, 999 ); }
+		foreach ( (array) ( $st['mods'] ?? array() ) as $k => $v ) {
+			if ( null !== $v ) { add_filter( 'theme_mod_' . $k, function () use ( $v ) { return $v; }, 999 ); }
+		}
 	}
 
 	/* ------------------------------------------------------ Admin UI */
@@ -386,6 +593,7 @@ class DS_Home_Templates {
 			'apply'   => self::APPLY_AJAX,
 			'revert'  => self::REVERT_AJAX,
 			'launch'  => self::LAUNCH_AJAX,
+			'save'    => self::SAVE_AJAX,
 			'query'   => self::QUERY,
 		) );
 	}
@@ -393,7 +601,7 @@ class DS_Home_Templates {
 	public function render_section() {
 		if ( ! self::can_use() ) { return; }
 		echo '<section class="dsts-section" id="dsts-sec-home" data-section="home" hidden>';
-		echo '<div class="dsts-sec-head"><h2>Home page</h2><p>Start the home page from a layout. Preview shows it with this site\'s colours, logo and hero content; Apply replaces the home page layout and keeps its hero content (the current layout is kept for Revert). Development sites only, and gone once the site launches.</p></div>';
+		echo '<div class="dsts-sec-head"><h2>Home page</h2><p>Each template is a whole site look: the home page, header, footer and the design options on this page (colours, fonts, buttons, backgrounds). Preview shows it on this site; Apply sets all of it and keeps the hero\'s text and photos; Revert puts everything back in one click. Development sites only, and gone once the site launches.</p></div>';
 		echo '<div id="dsht" data-dsht>' . $this->section_html() . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in section_html()
 		echo '</section>';
 	}
@@ -410,7 +618,7 @@ class DS_Home_Templates {
 		$b = $target ? get_post_meta( $target, self::BACKUP_META, true ) : null;
 		if ( is_array( $b ) && ! empty( $b['time'] ) ) {
 			$from = $b['from'] ? get_the_title( $b['from'] ) : '';
-			echo '<div class="dsht-revert"><p><strong>Previous home page kept.</strong> ' . esc_html( sprintf( 'Saved %s ago%s.', human_time_diff( (int) $b['time'] ), '' !== $from ? ', from "' . $from . '"' : '' ) ) . '</p>';
+			echo '<div class="dsht-revert"><p><strong>The previous site look is kept</strong> (home page, header, footer, design). ' . esc_html( sprintf( 'Saved %s ago%s.', human_time_diff( (int) $b['time'] ), '' !== $from ? ', from "' . $from . '"' : '' ) ) . '</p>';
 			echo '<button type="button" class="button" data-dsht-revert>Revert to it</button></div>';
 		}
 		if ( ! $tpls ) {
@@ -421,14 +629,19 @@ class DS_Home_Templates {
 				$is = $current === $t['id'];
 				echo '<li class="dsht-card' . ( $is ? ' is-current' : '' ) . '" data-id="' . esc_attr( $t['id'] ) . '">';
 				echo '<div class="dsht-thumb">' . ( $t['thumb'] ? '<img src="' . esc_url( $t['thumb'] ) . '" alt="" loading="lazy">' : '<span class="dashicons dashicons-admin-home" aria-hidden="true"></span>' ) . ( $is ? '<span class="dsht-badge">Current</span>' : '' ) . '</div>';
+				$labels = array( 'home' => 'Home', 'header' => 'Header', 'footer' => 'Footer', 'styles' => 'Design' );
+				$parts  = array_map( function ( $k ) use ( $labels ) { return $labels[ $k ]; }, self::parts_of( $t['id'] ) );
 				echo '<div class="dsht-meta"><strong class="dsht-title">' . esc_html( $t['title'] ) . '</strong>';
-				echo '<a class="dsht-edit" href="' . esc_url( $t['edit'] ) . '" target="_blank" rel="noopener">Edit template<span class="screen-reader-text"> (opens Beaver Builder in a new tab)</span></a>';
+				echo '<span class="dsht-parts">' . esc_html( implode( ' · ', $parts ) ) . '</span>';
+				echo '<span class="dsht-links"><a class="dsht-edit" href="' . esc_url( $t['edit'] ) . '" target="_blank" rel="noopener">Edit layout<span class="screen-reader-text"> (opens Beaver Builder in a new tab)</span></a>';
+				echo '<button type="button" class="button-link dsht-save" data-dsht-save>Save site here</button></span>';
 				echo '<div class="dsht-actions"><button type="button" class="button" data-dsht-preview>Preview</button>';
 				echo '<button type="button" class="button button-primary" data-dsht-apply' . ( $is ? ' disabled' : '' ) . '>' . ( $is ? 'In use' : 'Apply' ) . '</button></div></div></li>';
 			}
 			echo '</ul>';
 		}
-		echo '<p class="dsht-help">Add a template: build the page in Beaver Builder, then Save As &gt; Template, category <strong>Home</strong>. Give it a featured image for its card. Only LeagueApps users can see Home templates.</p>';
+		echo '<p class="dsht-new"><button type="button" class="button" data-dsht-save-new><span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span> Save the current site as a new template</button></p>';
+		echo '<p class="dsht-help">To make a template: build the look on this site (home page, header in Themer, design options here), then save it with the button above, or into an existing card with <em>Save site here</em>. Set a featured image on the template (Templates list) for its card. Only LeagueApps users can see Home templates.</p>';
 		echo '<p class="dsht-launch"><button type="button" class="button-link" data-dsht-launch>This site has launched: remove the picker</button></p>';
 		return ob_get_clean();
 	}

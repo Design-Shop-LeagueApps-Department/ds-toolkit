@@ -47,16 +47,31 @@
 			return;
 		}
 		if (b.hasAttribute('data-dsht-apply')) {
-			if (!window.confirm('Replace the home page layout with "' + title + '"?\n\nThe hero keeps its heading, text, buttons and photos. The current layout is kept, so you can revert.')) { return; }
+			if (!window.confirm('Apply "' + title + '"?\n\nThe home page, header, footer and design options change to this template\'s. The hero keeps its heading, text, buttons and photos. Everything now is kept, so Revert brings it all back.')) { return; }
 			busy(true); say('Applying "' + title + '"…', 'busy');
-			post(cfg.apply, { template: id }).then(function (d) { box.innerHTML = d.html; say('"' + title + '" is now the home page layout.', 'ok'); showHome(); })
+			post(cfg.apply, { template: id }).then(function (d) { box.innerHTML = d.html; say('"' + title + '" is now this site\'s look.', 'ok'); showHome(); })
 				.catch(function (err) { busy(false); say(err.message, 'error'); });
 			return;
 		}
 		if (b.hasAttribute('data-dsht-revert')) {
-			if (!window.confirm('Put the previous home page layout back?')) { return; }
+			if (!window.confirm('Put the previous home page, header, footer and design back?')) { return; }
 			busy(true); say('Reverting…', 'busy');
-			post(cfg.revert).then(function (d) { box.innerHTML = d.html; say('The previous home page is back.', 'ok'); showHome(); })
+			post(cfg.revert).then(function (d) { box.innerHTML = d.html; say('The previous site look is back.', 'ok'); showHome(); })
+				.catch(function (err) { busy(false); say(err.message, 'error'); });
+			return;
+		}
+		if (b.hasAttribute('data-dsht-save')) {
+			if (!window.confirm('Save the current site into "' + title + '"?\n\nIts home page, header, footer and design options are replaced with what this site has now.')) { return; }
+			busy(true); say('Saving the site into "' + title + '"…', 'busy');
+			post(cfg.save, { template: id }).then(function (d) { box.innerHTML = d.html; say('"' + title + '" now holds this site\'s home page, header, footer and design.', 'ok'); })
+				.catch(function (err) { busy(false); say(err.message, 'error'); });
+			return;
+		}
+		if (b.hasAttribute('data-dsht-save-new')) {
+			var name = window.prompt('Name for the new template (for example "Home 3 · Split hero"):', '');
+			if (!name || !name.trim()) { return; }
+			busy(true); say('Saving the site as "' + name.trim() + '"…', 'busy');
+			post(cfg.save, { name: name.trim() }).then(function (d) { box.innerHTML = d.html; say('"' + name.trim() + '" saved: this site\'s home page, header, footer and design. Give it a featured image in the Templates list for its card.', 'ok'); })
 				.catch(function (err) { busy(false); say(err.message, 'error'); });
 			return;
 		}
