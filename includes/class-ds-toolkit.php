@@ -176,6 +176,11 @@ class DS_Toolkit {
             'class'         => 'DS_Divider',
             'min_blueprint' => 6,
         ),
+        'ds_device_module_enabled' => array(
+            'file'          => 'features/class-ds-device.php',
+            'class'         => 'DS_Device',
+            'min_blueprint' => 6,
+        ),
         'image_optimization_enabled' => array(
             'file'          => 'features/class-ds-image-optimization.php',
             'class'         => 'DS_Image_Optimization',
@@ -308,6 +313,7 @@ class DS_Toolkit {
             'ds_cta_module_enabled'            => array( 'label' => 'CTA',             'desc' => 'A call-to-action band with a heading, text, and buttons.' ),
             'ds_heading_module_enabled'        => array( 'label' => 'Heading',         'desc' => 'A styled section heading with an eyebrow line and accent options.' ),
             'ds_divider_module_enabled'        => array( 'label' => 'Divider',         'desc' => 'A horizontal or vertical divider with gradient-fade, running-light, glow, and dashed effects.' ),
+            'ds_device_module_enabled'         => array( 'label' => 'Device',          'desc' => 'Images and videos inside a phone, tablet or desktop frame: one image, a slideshow, a video, or a mix.' ),
             'ds_team_detail_module_enabled'    => array( 'label' => 'Team Detail',     'desc' => 'A single-team layout: roster, schedule, and coaches.' ),
             'ds_content_router_module_enabled' => array( 'label' => 'Content Router',  'desc' => 'Renders the right body layout for each page type (single vs. archive) from one Themer template.' ),
             'ds_social_module_enabled'         => array( 'label' => 'Partner Social',  'desc' => "A row of the partner's social-media links." ),
@@ -457,6 +463,7 @@ class DS_Toolkit {
             $defaults['ds_carousel_module_enabled']   = 1;
             $defaults['ds_heading_module_enabled']    = 1;
             $defaults['ds_divider_module_enabled']    = 1;
+            $defaults['ds_device_module_enabled']     = 1;
             $defaults['image_optimization_enabled']   = 1;
             $defaults['page_banner_sync_enabled']     = 1;
             $defaults['ds_content_router_module_enabled'] = 1;
