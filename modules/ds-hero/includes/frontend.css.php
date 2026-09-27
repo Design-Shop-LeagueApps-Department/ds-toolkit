@@ -214,9 +214,9 @@ if ( 'style2' === $style ) {
 	if ( ( $settings->breadcrumbs_style ?? 'plain' ) === 'pill' ) {
 		$pbg = $col( $settings->breadcrumbs_pill_bg ?? '' );
 		$pbd = $col( $settings->breadcrumbs_pill_border ?? '' );
-		echo "$node .ds-hero .ds-banner-crumbs--pill { display: inline-block; padding: 8px 20px; border-radius: 999px; background: " . ( '' !== $pbg ? $pbg : 'rgba(255, 255, 255, .1)' ) . '; border: 1px solid ' . ( '' !== $pbd ? $pbd : 'rgba(255, 255, 255, .28)' ) . "; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }\n";
+		echo "$node .ds-banner-crumbs--pill { display: inline-block; padding: 8px 20px; border-radius: 999px; background: " . ( '' !== $pbg ? $pbg : 'rgba(255, 255, 255, .1)' ) . '; border: 1px solid ' . ( '' !== $pbd ? $pbd : 'rgba(255, 255, 255, .28)' ) . "; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }\n";
 		// Clear of the title it sits under (Position = Below) or over (Top).
-		echo "$node .ds-hero .ds-banner-crumbs--pill { " . ( ( $settings->breadcrumbs_position ?? 'top' ) === 'below' ? 'margin-top: 24px' : 'margin-bottom: 20px' ) . "; }\n";
+		if ( ( $settings->breadcrumbs_position ?? 'top' ) !== 'edge' ) { echo "$node .ds-hero .ds-banner-crumbs--pill { " . ( ( $settings->breadcrumbs_position ?? 'top' ) === 'below' ? 'margin-top: 24px' : 'margin-bottom: 20px' ) . "; }\n"; }
 	}
 	if ( ( $settings->breadcrumbs_style ?? 'plain' ) === 'tab' ) {
 		$tbg = $col( $settings->breadcrumbs_pill_bg ?? '' );
@@ -233,6 +233,9 @@ if ( 'style2' === $style ) {
 			$rule = "$node .ds-banner-edge > .ds-banner-crumbs { margin-top: -" . max( 0, (int) $lv ) . 'px; align-self: flex-start; }';
 			echo ( '' === $sfx ) ? "$rule\n" : "@media (max-width:{$bp}px){ $rule }\n";
 		}
+		// Plain and Pill have no solid background of their own, so they must stay on the photo however many lines they
+		// wrap to: anchored by their bottom, Lift above the edge. The Tab straddles the edge (its top sits Lift above it).
+		if ( ( $settings->breadcrumbs_style ?? 'plain' ) !== 'tab' ) { echo "$node .ds-banner-edge > .ds-banner-crumbs { transform: translateY(-100%); }\n"; }
 	}
 
 	// Default the banner text to the Theme Setting global typography (heading + body),

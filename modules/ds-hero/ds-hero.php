@@ -368,6 +368,7 @@ class DS_Hero_Module extends FLBuilderModule {
 		}
 
 		// Module overrides (connectable to dynamic fields).
+		$own_media = '' === (string) $this->photo_url( $s->banner_image ?? '' ) && '' === trim( (string) ( $s->banner_video ?? '' ) );
 		if ( '' !== trim( (string) ( $s->banner_heading ?? '' ) ) )  { $heading = trim( (string) $s->banner_heading ); }
 		if ( '' !== trim( (string) ( $s->banner_subtitle ?? '' ) ) ) { $sub = trim( (string) $s->banner_subtitle ); }
 		$ov_img = $this->photo_url( $s->banner_image ?? '' );
@@ -410,7 +411,7 @@ class DS_Hero_Module extends FLBuilderModule {
 		// The page's focal point for its banner photo or video (the Page Banner Image panel in the builder, meta
 		// _ds_banner_focal = "x y" in percent): the spot that stays in view however the banner crops it. Centre = none.
 		$focal = '';
-		if ( ! $is_arch && $pid && preg_match( '/^(\d{1,3}) (\d{1,3})$/', (string) get_post_meta( $pid, '_ds_banner_focal', true ), $fm ) ) {
+		if ( $own_media && ! $is_arch && $pid && preg_match( '/^(\d{1,3}) (\d{1,3})$/', (string) get_post_meta( $pid, '_ds_banner_focal', true ), $fm ) ) {
 			$fx = min( 100, (int) $fm[1] ); $fy = min( 100, (int) $fm[2] );
 			if ( 50 !== $fx || 50 !== $fy ) { $focal = $fx . '% ' . $fy . '%'; }
 		}
@@ -449,7 +450,10 @@ class DS_Hero_Module extends FLBuilderModule {
 		echo '</div></div></section>';
 		// On the bottom edge: drawn after the banner, so a shaped or clipped banner edge never cuts it; lifted back over
 		// the edge by Breadcrumbs Lift (Style > Colours), and it takes no space of its own.
-		if ( '' !== $crumbs && 'edge' === $crumb_pos ) { echo '<div class="ds-banner-edge">' . $crumbs . '</div>'; }
+		if ( '' !== $crumbs && 'edge' === $crumb_pos ) {
+			// Plain and Pill sit wholly on the photo (anchored by their bottom), so they take the banner's light-on-photo colour.
+			echo '<div class="ds-banner-edge' . ( $has_bg ? ' ds-banner-edge--on-bg' : '' ) . '">' . $crumbs . '</div>';
+		}
 	}
 	/* ------------------------------------------- Style 3 — Peek Slider (GH #160) */
 
@@ -1421,7 +1425,7 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'banner_sub_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Subtitle Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true , 'preview' => array( 'type' => 'css', 'selector' => '.ds-hero--banner .ds-hero-sub', 'property' => 'color' ) ),
 					'breadcrumbs_color'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank = automatic (light on a photo, muted on a plain background).', 'ds-toolkit' ) , 'preview' => array( 'type' => 'css', 'selector' => '.ds-banner-crumbs, .ds-banner-crumbs a, .ds-banner-crumbs .breadcrumb_last', 'property' => 'color' ) ),
 					'breadcrumbs_pill_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Pill / Tab Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = frosted glass (white at 10%) for the pill, the Dark Background colour for the tab.', 'ds-toolkit' ) ),
-					'breadcrumbs_edge_lift'   => array( 'type' => 'unit', 'label' => __( 'Breadcrumbs Lift', 'ds-toolkit' ), 'default' => '30', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 120, 'step' => 1 ), 'help' => __( 'On the bottom edge: how far the breadcrumbs rise over the banner\'s lower edge. 0 hangs them just below it.', 'ds-toolkit' ) ),
+					'breadcrumbs_edge_lift'   => array( 'type' => 'unit', 'label' => __( 'Breadcrumbs Lift', 'ds-toolkit' ), 'default' => '30', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 120, 'step' => 1 ), 'help' => __( 'On the bottom edge. Tab: how far it rises over the banner\'s lower edge (0 hangs it just below). Plain and Pill: how far above the edge they sit, always on the banner.', 'ds-toolkit' ) ),
 					'breadcrumbs_pill_border' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Breadcrumbs Pill Border', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = white at 28%.', 'ds-toolkit' ) ),
 				),
 			),
