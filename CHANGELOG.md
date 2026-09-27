@@ -6,6 +6,8 @@ All notable changes to DS Toolkit are documented here.
 
 ## [Unreleased]
 ### Fixed
+- **Social card: a site moved from another domain keeps its card.** When the stored card URL is on an old host (temp or dev domain, www vs bare), it is now matched by its uploads path and rewritten to the current URL, instead of the correct image id being zeroed and the home page's Yoast share image being cleared on the next Theme Setting save (pre-release audit 2026-09-27). `tests/social-card-reconcile-test.php`: 6 checks.
+### Fixed
 - **Saving Theme Setting could silently swap the site's share image for the Design Shop placeholder.** The social card is stored twice, as an attachment id and as a URL, and Theme Setting re-submits both on every save; `DS_Social_Card::set_card()` stored them as given and mirrored them into Yoast, which outputs the image by id. On a site where the two disagreed (oyo.local: URL = the club's own card, id = 56525, the blueprint placeholder, from a card set by script on 2026-09-24), any Theme Setting save, even one only touching a background, turned every page's `og:image` into the placeholder. `set_card()` now reconciles them first: the URL is what the partner sees, so its attachment id wins, a stale id is dropped when the URL is not a library file, and a blank URL is filled from a valid id. Verified on oyo: the same save keeps the club card on the home page and inner pages; 7 of 7 reconcile cases (matching, stale id, id only, blank, external URL with and without a stale id, deleted attachment).
 
 ## [1.9.166] - 2026-09-27

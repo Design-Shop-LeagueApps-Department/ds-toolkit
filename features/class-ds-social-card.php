@@ -94,8 +94,27 @@ class DS_Social_Card {
 		}
 		$from_url = (int) attachment_url_to_postid( $url );
 		if ( $from_url ) { return array( $from_url, $url ); }
-		if ( $id && (string) wp_get_attachment_url( $id ) !== $url ) { $id = 0; }
+		// A URL on another host (a site moved from its temp/dev domain, www vs bare) does not resolve,
+		// but its uploads path still names the file: look it up on this site's uploads URL.
+		$rel = self::uploads_path( $url );
+		if ( '' !== $rel ) {
+			$here = trailingslashit( wp_get_upload_dir()['baseurl'] ) . $rel;
+			$from_path = (int) attachment_url_to_postid( $here );
+			if ( $from_path ) { return array( $from_path, (string) wp_get_attachment_url( $from_path ) ); }
+		}
+		// Drop the id only when it names a different file, never just because the host differs.
+		if ( $id ) {
+			$own = (string) wp_get_attachment_url( $id );
+			if ( $own !== $url && ( '' === $rel || self::uploads_path( $own ) !== $rel ) ) { $id = 0; }
+		}
 		return array( $id, $url );
+	}
+
+	/** The part of an uploads URL after "/uploads/" ("2026/06/card.png"), or '' when it is not one. */
+	private static function uploads_path( $url ) {
+		$path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
+		$at   = strpos( $path, '/uploads/' );
+		return false === $at ? '' : ltrim( substr( $path, $at + 9 ), '/' );
 	}
 
 	/** Push the card into Yoast's default OG image option (no-op without Yoast). */
