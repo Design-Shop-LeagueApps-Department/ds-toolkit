@@ -272,9 +272,9 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 		'feature_title_typography' => '.ds-news-feature-title',
 		'excerpt_typography'       => '.ds-news-feature-excerpt',
 		'badge_typography'         => '.ds-news-badge',
-		'card_title_typography'    => '.ds-news-card-title',
-		'card_cat_typography'      => '.ds-news-card-cat',
-		'card_date_typography'     => '.ds-news-card-date',
+		'card_title_typography'    => '.ds-news-card-title, .ds-news-card2-title',
+		'card_cat_typography'      => '.ds-news-card-cat, .ds-news-card2-pill',
+		'card_date_typography'     => '.ds-news-card-date, .ds-news-card2-date',
 		// People / Team (Staff, Commitments, Team layouts)
 		'staff_name_typo'          => '.ds-people-name',
 		'staff_role_typo'          => '.ds-people-role',

@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [Unreleased]
+### Fixed
+- **Post Loop: Card Title, Card Category and Card Date typography did nothing on the "News grid" cards.** The fields show for that layout, but their CSS only targeted the other card style's classes (`.ds-news-card-title` / `-cat` / `-date`), while News grid renders `.ds-news-card2-title`, `.ds-news-card2-pill` and `.ds-news-card2-date`. Found when a 20 px Card Title set in the builder on ds-launchpad-7's home page (2026-09-27) never showed; it now does (18.4 px became 20 px), in the page CSS and in the builder's live preview. Only modules that set these fields change.
+
 ## [1.9.166] - 2026-09-27
 ### Fixed
 - **The `.htaccess` allow-list finding named innocent WordPress files when run from the CLI on Flywheel.** The rule counts allow-listed filenames that are not present on disk, and Flywheel symlinks core: `wp-config.php` sits at `/www` while `ABSPATH` is `/www/.wordpress`. In-plugin that is covered, because `ABSPATH` is defined, which is why the real scan on shoreshots.org correctly reported 30. From the CLI (`fw-clean-site`, or a manual run) `ABSPATH` is undefined, only `$dir/wp-admin` was tried, nothing resolved, and southorlandobaberuth.com reported *"93 of them are not present on disk (admin-ajax.php, admin-footer.php, admin-functions.php, ...)"* - naming the genuine WordPress files, which is the same misleading-message failure this rule had already been corrected for once. It now also tries `$dir/.wordpress`, and the same file reports **"32 of them are not present on disk (adminfuns.php, chtmlfuns.php, cjfuns.php, ...)"**, which is the attacker's appended set and matches a hand count exactly.
