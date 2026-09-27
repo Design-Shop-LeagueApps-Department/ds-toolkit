@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over HTTP
 define('ABSPATH', '/tmp/fake-wp/');
 define('HOUR_IN_SECONDS',3600); define('DAY_IN_SECONDS',86400);
 $GLOBALS['opts']=array(); $GLOBALS['mailed']=array(); $GLOBALS['acts']=array(); $GLOBALS['fail']=false;

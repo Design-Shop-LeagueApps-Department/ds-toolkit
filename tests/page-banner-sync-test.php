@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over HTTP
 /**
  * DS_Page_Banner: the Featured Image and the Banner "Background Photo" follow
  * whichever one the partner changed, including a removal.
