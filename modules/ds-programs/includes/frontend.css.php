@@ -179,7 +179,7 @@ if ( 'custom' !== ( $settings->btn_global ?? 'global' ) ) {
    so the static stylesheet can never win this - it has to be emitted here,
    after them, at the same specificity. The sold-out "Own colours" block below
    comes later still, so a partner who set those keeps overriding both. */
-echo "$node .ds-programs-btn--canceled{background:#e9e9ea !important;background-color:#e9e9ea !important;color:#3a3a3f !important;opacity:1;cursor:default;}\n";
+echo "$node .ds-programs-btn--canceled{background:#e9e9ea !important;background-color:#e9e9ea !important;color:#3a3a3f !important;opacity:1;cursor:default;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18);}\n";
 echo "$node .ds-programs-full--canceled{color:#3a3a3f !important;opacity:1;}\n";
 
 /* sold-out */

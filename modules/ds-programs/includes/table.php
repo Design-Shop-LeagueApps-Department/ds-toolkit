@@ -58,6 +58,11 @@ $cell = function ( $key, $r ) use ( $btn_text, $btn_full, $btn_canc, $full_mode 
 		return '<a class="ds-programs-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $btn_text ) . '</a>';
 	}
 	$v = trim( (string) ( $r[ $key ] ?? '' ) );
+	// A cancelled session has no places to take, so never print "15 spots left"
+	// beside a Cancelled label - that is the same false advertisement as the button.
+	if ( 'spots' === $key && ! empty( $r['canceled'] ) ) {
+		return '<span class="ds-programs-dash" aria-label="' . esc_attr__( 'Not applicable', 'ds-toolkit' ) . '">&mdash;</span>';
+	}
 	// LeagueApps leaves spots blank when a program has no cap; say so rather
 	// than leaving a hole next to rows that show a number.
 	if ( '' === $v && 'spots' === $key ) {

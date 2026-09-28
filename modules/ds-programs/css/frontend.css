@@ -175,6 +175,10 @@
 	background-color: #e9e9ea;
 	color: #3a3a3f;
 	cursor: default;
+	/* The plate alone can land within ~1.1:1 of the row behind it, so the chip
+	   vanishes and the action column loses the rhythm the live buttons set.
+	   An inset shadow draws the edge without adding to the box height. */
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18);
 }
 .ds-programs-full--canceled { opacity: 1; color: #3a3a3f; }
 
