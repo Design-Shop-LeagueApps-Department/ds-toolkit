@@ -1,0 +1,5 @@
+/* LeagueApps Drop Area: builder-only guide. Visitors get no markup. */
+.ds-drop-area{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:96px;padding:18px;border:2px dashed rgba(0,0,0,.28);border-radius:10px;background:rgba(0,0,0,.025);color:rgba(0,0,0,.62);text-align:center;font-size:14px;line-height:1.35;}
+.ds-drop-area-icon{font-size:22px;line-height:1;font-weight:700;opacity:.55;}
+.ds-drop-area-text{font-weight:600;}
+.ds-drop-area-hint{font-size:12px;opacity:.8;}

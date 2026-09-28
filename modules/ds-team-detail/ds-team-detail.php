@@ -45,121 +45,6 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 		return $this->filter_raw_settings_defaults( $settings, null );
 	}
 
-	/*
-	 * Editing a team's content in Beaver Builder (Content Router route "Edit each post's content").
-	 * On a team open in the builder, the "This team" section edits that team's own fields: photo
-	 * (featured image), roster, schedule and coaches. The panel is pre-filled from those fields,
-	 * edits stay in the builder draft (tc_pending) so the preview shows them, and publishing writes
-	 * them to the same fields the dashboard edits (publish_team_content). Discard throws them away.
-	 */
-
-	/** The team open in Beaver Builder (page load or builder AJAX), or 0. */
-	public static function editing_team_id() {
-		if ( ! class_exists( 'FLBuilderModel' ) ) { return 0; }
-		$active = FLBuilderModel::is_builder_active() || ( wp_doing_ajax() && isset( $_POST['fl_builder_data'] ) );
-		if ( ! $active ) { return 0; }
-		$pid = class_exists( 'DS_Content_Router_Module' ) ? DS_Content_Router_Module::builder_post_id() : (int) FLBuilderModel::get_post_id();
-		return ( $pid && 'teams' === get_post_type( $pid ) && current_user_can( 'edit_post', $pid ) ) ? $pid : 0;
-	}
-
-	/** The ACF field names this module reads (its Content settings, with the defaults). */
-	private static function team_fields( $s ) {
-		$f = function ( $k, $d ) use ( $s ) { $v = trim( (string) ( $s->$k ?? '' ) ); return '' !== $v ? $v : $d; };
-		return array( 'roster' => $f( 'roster_field', 'team_roster' ), 'sched' => $f( 'sched_field', 'schedule' ), 'coach' => $f( 'coach_field', 'team_coach' ) );
-	}
-
-	/** Raw (unformatted) field value, so shortcodes such as [ninja_tables] stay as typed. */
-	private static function raw_field( $name, $pid ) {
-		return function_exists( 'get_field' ) ? get_field( $name, $pid, false ) : get_post_meta( $pid, $name, true );
-	}
-
-	public function filter_settings( $settings, $helper ) {
-		$pid = self::editing_team_id();
-		if ( ! $pid || ! is_object( $settings ) || '1' === (string) ( $settings->tc_pending ?? '' ) ) { return $settings; }
-		$f = self::team_fields( $settings );
-		$settings->tc_roster = (string) self::raw_field( $f['roster'], $pid );
-		$settings->tc_sched  = (string) self::raw_field( $f['sched'], $pid );
-		$ids = array_filter( array_map( 'intval', (array) self::raw_field( $f['coach'], $pid ) ) );
-		$settings->tc_coaches = implode( ',', $ids );
-		$thumb = (int) get_post_thumbnail_id( $pid );
-		$settings->tc_photo     = $thumb ? (string) $thumb : '';
-		$settings->tc_photo_src = $thumb ? (string) wp_get_attachment_image_url( $thumb, 'large' ) : '';
-		return $settings;
-	}
-
-	/**
-	 * Writes a published team's "This team" edits to its fields, then clears them from the layout
-	 * so the fields stay the one source. Hooked to fl_builder_after_save_layout.
-	 */
-	public static function publish_team_content( $post_id, $publish, $data, $settings ) {
-		if ( ! $publish || 'teams' !== get_post_type( $post_id ) || ! current_user_can( 'edit_post', $post_id ) ) { return; }
-		$touched = false;
-		foreach ( (array) $data as $node ) {
-			if ( ! is_object( $node ) || 'ds-team-detail' !== ( $node->settings->type ?? '' ) || '1' !== (string) ( $node->settings->tc_pending ?? '' ) ) { continue; }
-			$s = $node->settings; $f = self::team_fields( $s ); $touched = true;
-			$save = function ( $name, $value ) use ( $post_id ) {
-				if ( function_exists( 'update_field' ) ) { update_field( $name, $value, $post_id ); } else { update_post_meta( $post_id, $name, $value ); }
-			};
-			// Write only what was changed, so an untouched field keeps its exact stored markup (the
-			// editor drops <p> tags the dashboard kept, which would otherwise rewrite every field).
-			$same_text = function ( $a, $b ) { $n = function ( $v ) { return trim( preg_replace( '/\s+/', ' ', wpautop( trim( (string) $v ) ) ) ); }; return $n( $a ) === $n( $b ); };
-			foreach ( array( 'roster' => 'tc_roster', 'sched' => 'tc_sched' ) as $k => $prop ) {
-				$new = wp_kses_post( (string) ( $s->$prop ?? '' ) );
-				if ( ! $same_text( $new, self::raw_field( $f[ $k ], $post_id ) ) ) { $save( $f[ $k ], $new ); }
-			}
-			$ids = array_values( array_filter( array_map( 'intval', explode( ',', (string) ( $s->tc_coaches ?? '' ) ) ), function ( $id ) { return $id > 0 && 'staff' === get_post_type( $id ); } ) );
-			if ( $ids !== array_values( array_filter( array_map( 'intval', (array) self::raw_field( $f['coach'], $post_id ) ) ) ) ) { $save( $f['coach'], $ids ); }
-			$photo = (int) ( $s->tc_photo ?? 0 );
-			if ( $photo !== (int) get_post_thumbnail_id( $post_id ) ) {
-				if ( $photo && wp_attachment_is_image( $photo ) ) { set_post_thumbnail( $post_id, $photo ); } elseif ( ! $photo ) { delete_post_thumbnail( $post_id ); }
-			}
-			break; // one Team Detail per team page
-		}
-		if ( ! $touched ) { return; }
-		foreach ( array( 'published', 'draft' ) as $status ) {
-			$layout = FLBuilderModel::get_layout_data( $status, $post_id );
-			$clean  = array();
-			foreach ( (array) $layout as $id => $node ) {
-				$node = unserialize( serialize( $node ) );
-				if ( is_object( $node ) && 'ds-team-detail' === ( $node->settings->type ?? '' ) ) {
-					foreach ( array( 'tc_pending', 'tc_roster', 'tc_sched', 'tc_coaches', 'tc_photo', 'tc_photo_src' ) as $k ) { unset( $node->settings->$k ); }
-				}
-				$clean[ $id ] = $node;
-			}
-			FLBuilderModel::update_layout_data( $clean, $status, $post_id );
-		}
-	}
-
-	/** Marks "This team" edits as pending when the panel is saved on a team page (all BB versions). */
-	public function update( $settings ) {
-		if ( self::editing_team_id() && is_object( $settings ) ) { $settings->tc_pending = '1'; }
-		return $settings;
-	}
-
-	/**
-	 * What the page shows for one of the team's fields: while the team is open in the builder, the
-	 * panel's values (so an unpublished edit previews); otherwise the saved field.
-	 */
-	private function team_value( $what, $pid ) {
-		$s = $this->settings;
-		if ( self::editing_team_id() === (int) $pid && property_exists( $s, 'tc_roster' ) ) {
-			switch ( $what ) {
-				case 'roster': return (string) ( $s->tc_roster ?? '' );
-				case 'sched':  return (string) ( $s->tc_sched ?? '' );
-				case 'coach':  return array_filter( array_map( 'intval', explode( ',', (string) ( $s->tc_coaches ?? '' ) ) ) );
-				case 'photo':  return (int) ( $s->tc_photo ?? 0 );
-			}
-		}
-		$f = self::team_fields( $s );
-		switch ( $what ) {
-			case 'roster': return function_exists( 'get_field' ) ? (string) get_field( $f['roster'], $pid ) : (string) get_post_meta( $pid, $f['roster'], true );
-			case 'sched':  return function_exists( 'get_field' ) ? (string) get_field( $f['sched'], $pid ) : (string) get_post_meta( $pid, $f['sched'], true );
-			case 'coach':  return function_exists( 'get_field' ) ? get_field( $f['coach'], $pid ) : get_post_meta( $pid, $f['coach'], true );
-			case 'photo':  return (int) get_post_thumbnail_id( $pid );
-		}
-		return '';
-	}
-
 	/** True when a wysiwyg/text value carries real, visible content. */
 	private function has_content( $raw ) {
 		$raw = (string) $raw;
@@ -185,7 +70,9 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 	private function wysiwyg_section( $key, $def_title, $def_field, $tag, $pid ) {
 		$s = $this->settings;
 		if ( ( $s->{ $key . '_show' } ?? 'yes' ) !== 'yes' ) { return ''; }
-		$raw = (string) $this->team_value( $key, $pid );
+		$field = trim( (string) ( $s->{ $key . '_field' } ?? '' ) );
+		if ( '' === $field ) { $field = $def_field; }
+		$raw = function_exists( 'get_field' ) ? (string) get_field( $field, $pid ) : (string) get_post_meta( $pid, $field, true );
 		if ( ! $this->has_content( $raw ) ) { return ''; }
 		$title = (string) ( $s->{ $key . '_title' } ?? $def_title );
 		return $this->section_html( $title, $tag, apply_filters( 'the_content', $raw ) );
@@ -195,7 +82,8 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 	private function coaches_section( $tag, $pid ) {
 		$s = $this->settings;
 		if ( ( $s->coach_show ?? 'yes' ) !== 'yes' ) { return ''; }
-		$rel = $this->team_value( 'coach', $pid );
+		$field = trim( (string) ( $s->coach_field ?? '' ) ); if ( '' === $field ) { $field = 'team_coach'; }
+		$rel = function_exists( 'get_field' ) ? get_field( $field, $pid ) : get_post_meta( $pid, $field, true );
 
 		$ids = array();
 		if ( is_array( $rel ) ) {
@@ -267,9 +155,8 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 
 		$tag = in_array( $s->heading_tag ?? 'h3', array( 'h2', 'h3', 'h4', 'h5' ), true ) ? ( $s->heading_tag ?? 'h3' ) : 'h3';
 
-		$thumb   = (int) $this->team_value( 'photo', $pid );
-		$has_img = $thumb > 0;
-		$img     = $has_img ? (string) wp_get_attachment_image_url( $thumb, 'large' ) : '';
+		$has_img = has_post_thumbnail( $pid );
+		$img     = $has_img ? get_the_post_thumbnail_url( $pid, 'large' ) : '';
 
 		$out  = $this->wysiwyg_section( 'roster', __( 'Team Roster', 'ds-toolkit' ), 'team_roster', $tag, $pid );
 		$out .= $this->wysiwyg_section( 'sched', __( 'Schedule', 'ds-toolkit' ), 'schedule', $tag, $pid );
@@ -328,33 +215,10 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 // template the Content Router inserts) or a Themer layout. Hidden from the module list on ordinary pages.
 DS_Module_UI::offer_only_in_templates( 'ds-team-detail' );
 
-// "This team" is only meaningful with a team open in the builder: drop it from the form everywhere
-// else. Beaver Builder loads the forms in a separate request (the post URL + fl_builder_load_settings_config,
-// served on 'wp' at 10), so this runs before it and decides by the queried post.
-add_action( 'wp', function () {
-	if ( ( ! isset( $_GET['fl_builder'] ) && ! isset( $_GET['fl_builder_load_settings_config'] ) ) || ! class_exists( 'FLBuilderModel' ) || ! isset( FLBuilderModel::$modules['ds-team-detail'] ) ) { return; }
-	$pid = is_singular() ? (int) get_queried_object_id() : 0;
-	if ( $pid && 'teams' === get_post_type( $pid ) && current_user_can( 'edit_post', $pid ) ) { return; }
-	unset( FLBuilderModel::$modules['ds-team-detail']->form['content']['sections']['team_content'] );
-}, 5 );
-add_action( 'fl_builder_after_save_layout', array( 'DS_Team_Detail_Module', 'publish_team_content' ), 10, 4 );
-
 FLBuilder::register_module( 'DS_Team_Detail_Module', array(
 	'content' => array(
 		'title'    => __( 'Content', 'ds-toolkit' ),
 		'sections' => array(
-			// Only while a team is open in Beaver Builder (removed from the form everywhere else,
-			// see below). Pre-filled from the team's own fields; Publish writes them back.
-			'team_content' => array(
-				'title'       => __( 'This team', 'ds-toolkit' ),
-				'description' => __( 'This team’s own photo, roster, schedule and coaches: the same fields as the Teams screen in the dashboard. Changes show here straight away and go live when you Publish.', 'ds-toolkit' ),
-				'fields'      => array(
-					'tc_photo'   => array( 'type' => 'photo', 'label' => __( 'Team Photo', 'ds-toolkit' ), 'show_remove' => true, 'help' => __( 'The team’s featured image. Remove it and the roster spans the full width.', 'ds-toolkit' ) ),
-					'tc_roster'  => array( 'type' => 'editor', 'label' => __( 'Roster', 'ds-toolkit' ), 'media_buttons' => true, 'wpautop' => false, 'rows' => 8 ),
-					'tc_sched'   => array( 'type' => 'editor', 'label' => __( 'Schedule', 'ds-toolkit' ), 'media_buttons' => false, 'wpautop' => false, 'rows' => 6, 'help' => __( 'Paste a Ninja Tables shortcode (e.g. [ninja_tables id="12"]) or type the schedule.', 'ds-toolkit' ) ),
-					'tc_coaches' => array( 'type' => 'suggest', 'label' => __( 'Coaches', 'ds-toolkit' ), 'action' => 'fl_as_posts', 'data' => 'staff', 'help' => __( 'Type a staff name; picks show as pills, in this order.', 'ds-toolkit' ) ),
-				),
-			),
 			'layout' => array(
 				'title'  => __( 'Layout', 'ds-toolkit' ),
 				'fields' => array(
