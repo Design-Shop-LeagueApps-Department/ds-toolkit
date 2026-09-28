@@ -683,7 +683,7 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					),
 					'btn_text'        => array( 'type' => 'text', 'label' => __( 'Button text', 'ds-toolkit' ), 'default' => __( 'Register', 'ds-toolkit' ) ),
 					'btn_full_text'   => array( 'type' => 'text', 'label' => __( 'Text when sold out', 'ds-toolkit' ), 'default' => __( 'Sold Out', 'ds-toolkit' ) ),
-					'btn_cancel_text' => array( 'type' => 'text', 'label' => __( 'Text when cancelled', 'ds-toolkit' ), 'default' => __( 'Cancelled', 'ds-toolkit' ), 'help' => __( 'Cancelled programs use the sold-out look below, with a line through the label.', 'ds-toolkit' ) ),
+					'btn_cancel_text' => array( 'type' => 'text', 'label' => __( 'Text when cancelled', 'ds-toolkit' ), 'default' => __( 'Cancelled', 'ds-toolkit' ), 'help' => __( 'Cancelled programs show a neutral, non-clickable chip in place of the register button. Pick "Own colours" below to restyle it.', 'ds-toolkit' ) ),
 					'btn_bg'          => $ds_prg_colour( __( 'Background', 'ds-toolkit' ) ),
 					'btn_color'       => $ds_prg_colour( __( 'Text', 'ds-toolkit' ) ),
 					'btn_bg_hover'    => $ds_prg_colour( __( 'Background hover', 'ds-toolkit' ) ),

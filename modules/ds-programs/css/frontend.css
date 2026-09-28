@@ -165,10 +165,18 @@
 
 .ds-programs-btn--full { opacity: .55; cursor: default; }
 .ds-programs-full { font-weight: 700; opacity: .7; white-space: nowrap; }
-/* Cancelled reuses the sold-out colours and adds the struck-through cue, so a
-   called-off session never reads as merely full. */
-.ds-programs-btn--canceled,
-.ds-programs-full--canceled { text-decoration: line-through; }
+/* A cancelled session must NOT keep the live CTA's colour. Faded brand yellow still
+   reads as a button, and on phones the register cell goes full width, so a called-off
+   session became the loudest thing on the card. Neutral, inert and legible instead.
+   Two classes so this beats .ds-programs-btn--full, which the same span also carries.
+   A partner who picked "Own colours" still wins: those rules are emitted !important. */
+.ds-programs-btn--full.ds-programs-btn--canceled {
+	opacity: 1;
+	background-color: #e9e9ea;
+	color: #3a3a3f;
+	cursor: default;
+}
+.ds-programs-full--canceled { opacity: 1; color: #3a3a3f; }
 
 .ds-programs-empty,
 .ds-programs-none { margin: 16px 0; font-style: italic; }
@@ -251,7 +259,6 @@
 .ds-programs-card .ds-programs-btn { display: inline-block; }
 .ds-programs-card.is-soldout .ds-programs-card-price,
 .ds-programs-card.is-canceled .ds-programs-card-price { opacity: .6; }
-.ds-programs-card.is-canceled .ds-programs-card-price { text-decoration: line-through; }
 /* cards have no column headings, so the Sort-by dropdown is always in the bar */
 .ds-programs--cards .ds-programs-field--sort { display: flex; }
 
