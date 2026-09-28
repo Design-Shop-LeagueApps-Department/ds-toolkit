@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.14] - 2026-09-29
+### Fixed
+- **The cancelled chip's neutral colours now actually reach the page.** 1.10.13 put them in the module's static stylesheet, where they could never win: the register button's colours are emitted per node with `!important` (from Global Styles, the bb-theme Customizer button/accent mods, or the module's own Custom colours), so on dsstormbasketball.com the cancelled label kept rendering in full brand yellow. Verified against the live cascade, not assumed. The chip is now emitted in the same per-node CSS, immediately after the button rules and before the sold-out block, overriding the `background` shorthand as well as `background-color`. A partner who picked **Own colours** is emitted later still and keeps winning.
+
+---
+
 ## [1.10.13] - 2026-09-29
 ### Changed
 - **A cancelled program now looks inert instead of like a live button.** Following 1.10.11, the cancelled label kept the site's button colour at 55% opacity. On dsstormbasketball.com that made the called-off session the loudest element on the phone card, a full-width bright yellow bar that still read as a call to action, and the line through bold uppercase letterforms read as defacement rather than a state. The cancelled label is now a neutral inert chip (`#e9e9ea` / `#3a3a3f`, 9.3:1) with no strikethrough. The struck-through card price went too: a line through a price reads as a discount, so cancelled rows just fade it, matching sold out. Sold-out styling is unchanged, and a partner who picked **Own colours** still overrides both (those rules are emitted `!important`).

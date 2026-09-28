@@ -173,6 +173,15 @@ if ( 'custom' !== ( $settings->btn_global ?? 'global' ) ) {
 	}
 }
 
+/* Cancelled chip: neutral and inert, never the live button's colour.
+   The register-button rules above are emitted at NODE level with !important
+   (Global Styles, the bb-theme Customizer mods, or the module's own colours),
+   so the static stylesheet can never win this - it has to be emitted here,
+   after them, at the same specificity. The sold-out "Own colours" block below
+   comes later still, so a partner who set those keeps overriding both. */
+echo "$node .ds-programs-btn--canceled{background:#e9e9ea !important;background-color:#e9e9ea !important;color:#3a3a3f !important;opacity:1;cursor:default;}\n";
+echo "$node .ds-programs-full--canceled{color:#3a3a3f !important;opacity:1;}\n";
+
 /* sold-out */
 $fm = (string) ( $settings->btn_full_style ?? 'fade' );
 if ( 'colors' === $fm ) {
