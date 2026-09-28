@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.16] - 2026-09-29
+### Fixed
+- **A background image whose address holds a bracket, quote or space no longer wipes the theme's CSS.** Same failure as the synced-colour fix in 1.10.12: the Beaver Builder theme writes each `fl-*-bg-image` into its skin LESS as an unquoted `url(...)`, so `photo (1).png` or `o'brien.png` (plain or `%20`-encoded) failed the whole compile and every page lost the theme CSS (builder pages boxed at 1140px). A space compiled, but into CSS that browsers drop. The theme is now handed the URL with `(`, `)`, `'`, `"` and spaces percent-encoded, which serves the same file (checked on ethosvolleybal: plain and encoded address return the same bytes). The stored value is not changed. Media-library uploads never contain these characters (WordPress strips them), so this covers addresses that arrive another way. `tests/theme-skin-color-test.php` grows to 48 assertions: 48/48 on BB theme 1.7.20, and its new control (a `( )` URL with the filter off) fails the compile.
+
+---
+
 ## [1.10.15] - 2026-09-29
 ### Fixed
 - **A cancelled program no longer prints "spots left".** The row said `SPOTS LEFT 15` next to the Cancelled label on dsstormbasketball.com, which is the same false advertisement as the register button was: there are no places to take. Cancelled rows now show the neutral dash, labelled "Not applicable" for screen readers. Sorting is unaffected (it reads the underlying value, not the rendered cell).
