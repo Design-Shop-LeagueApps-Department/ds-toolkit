@@ -223,7 +223,8 @@ class DS_Content_Router_Module extends FLBuilderModule {
 			$val = function_exists( 'get_field' ) ? get_field( $field, $pid, false ) : get_post_meta( $pid, $field, true );
 			if ( ! is_string( $val ) || '' === trim( wp_strip_all_tags( $val, true ) ) && ! preg_match( '/\[[a-z_-]+|<(img|iframe|table)/i', (string) $val ) ) { continue; }
 			foreach ( $data as $sib ) { if ( is_object( $sib ) && $sib->parent === $node->parent && $sib->position >= $node->position ) { $sib->position++; } }
-			$t = FLBuilderModel::get_module_defaults( 'rich-text' ); $t->type = 'rich-text'; $t->text = $val;
+			// A copy: BB hands back its cached defaults object, so two seeded areas would share one text.
+			$t = unserialize( serialize( FLBuilderModel::get_module_defaults( 'rich-text' ) ) ); $t->type = 'rich-text'; $t->text = $val;
 			$nid = FLBuilderModel::generate_node_id();
 			$data[ $nid ] = (object) array( 'node' => $nid, 'type' => 'module', 'parent' => $node->parent, 'position' => $node->position - 1, 'settings' => $t, 'global' => false );
 		}

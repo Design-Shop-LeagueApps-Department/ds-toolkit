@@ -13,6 +13,11 @@ All notable changes to DS Toolkit are documented here.
   - In the dashboard, a built team's Roster and Schedule boxes say "This team is built in Beaver Builder, so this content is edited on the page" with an Open in Beaver Builder button (Update keeps the stored values). Coaches stay a dashboard relationship field.
   - Default for every route stays **Always use this template**, so nothing changes until a route is switched. The post type must be ticked in Settings > Beaver Builder > Post Types.
   - Tested on ds-launchpad-7.local: every public page identical until a team was built; a real builder session seeded the starter (photo, three areas, roster copied, coach card), publishing switched only that team to its own layout, the empty Schedule area and an empty Coaches area hid on the live page and showed again once filled, photo and headings share one edge at 1440/768/390, the dashboard notice showed only on the built team, and the contrast gate matched the untouched template page.
+### Fixed (QA pass)
+- Seeding a team with both a Roster and a Schedule put the Schedule text in both areas (Beaver Builder hands back one shared defaults object). Each area now gets its own copy; checked with a team holding both.
+- Post Loop "Related to this page" in a page column: on tablets (481px up to the phone breakpoint) the cards keep the Tablet column count, so one coach is no longer a page-tall card. Phones keep their own count.
+- Post Loop settings: with Show Header = No, Button Text/Link and the divider width, colour and gap no longer show (Beaver Builder does not cascade toggles).
+- Post Loop builder hint for an empty related loop names the field to fill ("Nothing is linked to this page yet. Pick entries in its "Team Coaches" field") instead of "No Staff entries published yet".
 
 ## [1.10.9] - 2026-09-28
 ### Fixed

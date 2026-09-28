@@ -275,6 +275,13 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '</div>';
 		}
 
+		// A related loop is empty because nothing is linked on this page, not because nothing is published.
+		if ( 'related' === ( $s->source ?? '' ) ) {
+			$rf    = (string) ( $s->related_field ?? '' );
+			$field = ( '' !== $rf && function_exists( 'acf_get_field' ) ) ? acf_get_field( $rf ) : null;
+			/* translators: %s: ACF relationship field label */
+			$hint = sprintf( __( 'Nothing is linked to this page yet. Pick entries in its "%s" field in the dashboard.', 'ds-toolkit' ), ! empty( $field['label'] ) ? $field['label'] : $rf );
+		}
 		if ( '' !== $hint && class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active() ) {
 			echo '<p class="ds-loop-empty-hint" style="padding:14px;opacity:.7">' . esc_html( $hint ) . '</p>';
 		}
