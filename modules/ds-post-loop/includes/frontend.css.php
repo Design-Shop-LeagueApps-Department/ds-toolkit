@@ -364,6 +364,12 @@ if ( ( $settings->card_layout ?? '' ) === 'staff_card' ) {
 	echo "@media (max-width:{$bpm}px){ $node .ds-people-grid { grid-template-columns: repeat({$scolsM},1fr); } }\n";
 	$scolsR = max( 1, $u( $settings->staff_cols_responsive ?? '', 1 ) );
 	echo "@media (max-width:{$bpr}px){ $node .ds-people-grid { grid-template-columns: repeat({$scolsR},1fr); } }\n";
+	// "Related to this page" lists a handful of people inside a page column that goes full width on
+	// tablets, where one card per row makes a single coach a page-tall poster. Keep the tablet column
+	// count down to 481px (cards stay about 200px wide); the phone count takes over below that.
+	if ( 'related' === ( $settings->source ?? '' ) && $scolsR < $scolsM && $bpr > 480 ) {
+		echo "@media (min-width:481px) and (max-width:{$bpr}px){ $node .ds-people-grid { grid-template-columns: repeat({$scolsM},1fr); } }\n";
+	}
 
 	$sratio = preg_replace( '/[^0-9 \/]/', '', (string) ( $settings->staff_photo_ratio ?? '3 / 4' ) ) ?: '3 / 4';
 	echo "$node .ds-people-photo { aspect-ratio: {$sratio}; }\n";

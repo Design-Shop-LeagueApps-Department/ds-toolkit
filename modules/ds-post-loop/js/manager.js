@@ -394,10 +394,26 @@
 
 	/* ---------------------------------------------------------------- boot */
 
+	// BB toggles do not cascade: Show Header = No hides Show Button and Header Divider, but their
+	// own toggles still show Button Text/Link and the divider fields. Follow the parent here.
+	function headerToggles(form) {
+		var sh = form.find('select[name=show_header]');
+		if (!sh.length || !form.find('select[name=card_layout]').length || sh.data('dsHdr')) { return; }
+		sh.data('dsHdr', 1);
+		var apply = function () {
+			var on = sh.val() !== 'no';
+			form.find('#fl-field-button_text, #fl-field-button_link').toggle(on && form.find('select[name=show_button]').val() !== 'no');
+			form.find('#fl-field-header_divider_w, #fl-field-header_divider_color, #fl-field-header_divider_gap').toggle(on && form.find('select[name=header_divider]').val() !== 'none');
+		};
+		form.on('change', 'select[name=show_header], select[name=show_button], select[name=header_divider]', function () { setTimeout(apply, 0); });
+		apply();
+	}
+
 	function boot() {
 		$('.fl-builder-settings:visible').each(function () {
 			var form = $(this);
 			form.find('[data-ds-loop-manager]').each(function () { if (!this.dsLm) { this.dsLm = new Manager(form, this); } });
+			headerToggles(form);
 		});
 	}
 	// FLBuilder is defined after this script runs; wait for it before registering the hook.

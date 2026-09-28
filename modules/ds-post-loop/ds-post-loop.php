@@ -275,6 +275,13 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			echo '</div>';
 		}
 
+		// A related loop is empty because nothing is linked on this page, not because nothing is published.
+		if ( 'related' === ( $s->source ?? '' ) ) {
+			$rf    = (string) ( $s->related_field ?? '' );
+			$field = ( '' !== $rf && function_exists( 'acf_get_field' ) ) ? acf_get_field( $rf ) : null;
+			/* translators: %s: ACF relationship field label */
+			$hint = sprintf( __( 'Nothing is linked to this page yet. Pick entries in its "%s" field in the dashboard.', 'ds-toolkit' ), ! empty( $field['label'] ) ? $field['label'] : $rf );
+		}
 		if ( '' !== $hint && class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active() ) {
 			echo '<p class="ds-loop-empty-hint" style="padding:14px;opacity:.7">' . esc_html( $hint ) . '</p>';
 		}
@@ -377,6 +384,22 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 	private function run_query() {
 		$s     = $this->settings;
+
+		// Related source: the posts an ACF relationship / post-object field on the page being viewed
+		// points to, in the order they were picked (e.g. a team's coaches via team_coach).
+		if ( ( $s->source ?? 'custom' ) === 'related' ) {
+			$field = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) ( $s->related_field ?? '' ) ) ?: 'team_coach';
+			$pid   = is_singular() ? (int) get_queried_object_id() : (int) get_the_ID();
+			$ids   = $pid ? self::related_ids( $field, $pid ) : array();
+			return new WP_Query( array(
+				'post_type'           => 'any',
+				'post__in'            => $ids ?: array( 0 ),
+				'orderby'             => 'post__in',
+				'posts_per_page'      => max( 1, count( $ids ) ),
+				'post_status'         => 'publish',
+				'ignore_sticky_posts' => true,
+			) );
+		}
 
 		// Archive source: render whatever the CURRENT archive query returns (taxonomy
 		// term, category, tag, CPT archive) so ONE loop powers any archive — the engine
@@ -1849,7 +1872,8 @@ $ds_pl_form = array(
 			'query' => array(
 				'title'  => __( 'Posts', 'ds-toolkit' ),
 				'fields' => array(
-					'source'         => array( 'type' => 'select', 'label' => __( 'Source', 'ds-toolkit' ), 'default' => 'custom', 'options' => array( 'custom' => __( 'This query (below)', 'ds-toolkit' ), 'archive' => __( 'Current archive (main query)', 'ds-toolkit' ) ), 'help' => __( 'On an archive template choose “Current archive” to loop whatever the archive shows (team-category term, category, tag, CPT archive). Otherwise build a custom query below.', 'ds-toolkit' ), 'hide' => array( 'archive' => array( 'sections' => array( 'query_filter', 'query_sort', 'query_more' ) ) ), 'toggle' => array( 'custom' => array( 'fields' => array( 'post_type', 'posts_per_page', 'order_by', 'order', 'offset', 'exclude_current', 'date_after', 'date_before', 'keyword' ) ) ) ),
+					'source'         => array( 'type' => 'select', 'label' => __( 'Source', 'ds-toolkit' ), 'default' => 'custom', 'options' => array( 'custom' => __( 'This query (below)', 'ds-toolkit' ), 'archive' => __( 'Current archive (main query)', 'ds-toolkit' ), 'related' => __( 'Related to this page (ACF relationship)', 'ds-toolkit' ) ), 'help' => __( 'On an archive template choose “Current archive” to loop whatever the archive shows (team-category term, category, tag, CPT archive). “Related to this page” loops the posts a relationship field on the page being viewed points to, in the order they were picked (a team’s coaches). Otherwise build a custom query below.', 'ds-toolkit' ), 'hide' => array( 'archive' => array( 'sections' => array( 'query_filter', 'query_sort', 'query_more' ) ), 'related' => array( 'sections' => array( 'query_filter', 'query_sort', 'query_more' ) ) ), 'toggle' => array( 'custom' => array( 'fields' => array( 'post_type', 'posts_per_page', 'order_by', 'order', 'offset', 'exclude_current', 'date_after', 'date_before', 'keyword' ) ), 'related' => array( 'fields' => array( 'related_field' ) ) ) ),
+					'related_field'  => array( 'type' => 'text', 'label' => __( 'Relationship Field', 'ds-toolkit' ), 'default' => 'team_coach', 'help' => __( 'The ACF relationship / post-object field name on the page being viewed (team_coach = a team’s coaches).', 'ds-toolkit' ) ),
 					'post_type'      => array( 'type' => 'select', 'label' => __( 'Post Type', 'ds-toolkit' ), 'default' => 'post', 'options' => DS_Post_Loop_Module::post_type_options() ),
 					'posts_per_page' => array( 'type' => 'unit', 'label' => __( 'Number of Posts', 'ds-toolkit' ), 'default' => '5', 'slider' => array( 'min' => 1, 'max' => 12, 'step' => 1 ), 'help' => __( 'Total posts pulled. The first one becomes the large featured card; the rest fill the loop.', 'ds-toolkit' ) ),
 				),

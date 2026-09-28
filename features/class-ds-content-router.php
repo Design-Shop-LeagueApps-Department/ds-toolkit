@@ -18,6 +18,8 @@ class DS_Content_Router {
 	public function register_module() {
 		if ( class_exists( 'FLBuilder' ) && class_exists( 'FLBuilderModule' ) ) {
 			require_once DS_TOOLKIT_PATH . 'modules/ds-content-router/ds-content-router.php';
+			// The builder-only guide used in build-mode starter templates (see the router's "Each post can be built").
+			require_once DS_TOOLKIT_PATH . 'modules/ds-drop-area/ds-drop-area.php';
 		}
 	}
 

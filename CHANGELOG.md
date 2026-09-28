@@ -4,6 +4,21 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.10] - 2026-09-28
+### Added
+- **Team pages built in Beaver Builder, with guided drop areas** (Alipio: "able to partner drag and drop module but we need them have a guide that this is part that they will drag and drop it. and coach when they click a query loop module will show ... empty section they showing during beaver builder mode so that they can add module"). A Content Router route can be set to **Each post can be built in Beaver Builder**, with a **Starter Template**:
+  - The first time a team is opened in Beaver Builder it starts from the starter (no Themer "Override" prompt), with its current Roster and Schedule copied in as Text Editor modules, so nothing is lost. Partners drag modules into each area; teams nobody has built keep the shared template.
+  - **Drop Area (guide)**, a new builder-only module: a dashed "Drag your schedule here" box that visitors never see. On the live page an area holding only its heading and guide (or a loop with no results) is hidden with its heading; in the builder every area stays visible.
+  - **Post Loop > Source > Related to this page (ACF relationship)**: loops the posts a relationship field on the page points to, in the order picked. The starter's Coaches area uses it with the staff cards (team_coach).
+  - In the dashboard, a built team's Roster and Schedule boxes say "This team is built in Beaver Builder, so this content is edited on the page" with an Open in Beaver Builder button (Update keeps the stored values). Coaches stay a dashboard relationship field.
+  - Default for every route stays **Always use this template**, so nothing changes until a route is switched. The post type must be ticked in Settings > Beaver Builder > Post Types.
+  - Tested on ds-launchpad-7.local: every public page identical until a team was built; a real builder session seeded the starter (photo, three areas, roster copied, coach card), publishing switched only that team to its own layout, the empty Schedule area and an empty Coaches area hid on the live page and showed again once filled, photo and headings share one edge at 1440/768/390, the dashboard notice showed only on the built team, and the contrast gate matched the untouched template page.
+### Fixed (QA pass)
+- Seeding a team with both a Roster and a Schedule put the Schedule text in both areas (Beaver Builder hands back one shared defaults object). Each area now gets its own copy; checked with a team holding both.
+- Post Loop "Related to this page" in a page column: on tablets (481px up to the phone breakpoint) the cards keep the Tablet column count, so one coach is no longer a page-tall card. Phones keep their own count.
+- Post Loop settings: with Show Header = No, Button Text/Link and the divider width, colour and gap no longer show (Beaver Builder does not cascade toggles).
+- Post Loop builder hint for an empty related loop names the field to fill ("Nothing is linked to this page yet. Pick entries in its "Team Coaches" field") instead of "No Staff entries published yet".
+
 ## [1.10.9] - 2026-09-28
 ### Fixed
 - **"Open in new window" now opens a new tab on every card and link module.** A Beaver Builder link field with the new-window tick saves it in a sibling key (`prog_url_target`, `link_target`, `button_link_target`, ...), never inside the URL, and every `link_parts()` helper only looked inside the URL. So the tick was silently ignored on LeagueApps CTA (cards, grid cells, hero button, program cards), Post Loop (programs, sponsors, "see all" button), Carousel slides, Marquee items, Page Cards and Pathway stages, including where the field help text promises a new tab. Found on inspireclvb: the partner ticked it on the tryout "Register now" cards and they still opened in the same tab. Links saved without the tick are unchanged (`_self`), and the array/object link form still wins when it carries its own target. `tests/link-target-test.php` (8 assertions, no WordPress needed) passes here and fails 3 of 8 against 1.10.8.
