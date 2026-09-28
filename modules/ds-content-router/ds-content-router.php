@@ -122,11 +122,29 @@ class DS_Content_Router_Module extends FLBuilderModule {
 			$val  = ( 'self' === $tpl ) ? 'self' : (int) $tpl;
 			if ( 'default' === $cond )         { $default = $val; continue; }
 			if ( 'archive:default' === $cond ) { $arch_default = $val; continue; }
-			if ( $cond === $ctx && ( 'self' === $val || $val ) ) { return $val; }
+			if ( $cond === $ctx && ( 'self' === $val || $val ) ) {
+				// Opt-in per route: a post built in Beaver Builder shows its own layout instead.
+				if ( 'yes' === (string) ( $r->cr_own_layout ?? 'no' ) && self::post_has_own_layout() ) { return 'self'; }
+				return $val;
+			}
 		}
 		// Any archive with no specific route falls back to the archive default, then the global default.
 		if ( 0 === strpos( $ctx, 'archive:' ) && ( 'self' === $arch_default || $arch_default ) ) { return $arch_default; }
 		return $default;
+	}
+
+	/**
+	 * For a route set to "show the post's own layout": true when the single post being viewed
+	 * has been built in Beaver Builder (its post type is enabled in BB and the post uses the
+	 * builder), or is open in the builder right now, so a first edit starts on the post's own
+	 * canvas instead of the shared template. Archives and non-singular views never qualify.
+	 */
+	private static function post_has_own_layout() {
+		if ( ! is_singular() || ! class_exists( 'FLBuilderModel' ) ) { return false; }
+		$pid = (int) get_queried_object_id();
+		if ( ! $pid ) { return false; }
+		if ( FLBuilderModel::is_builder_active() && (int) FLBuilderModel::get_post_id() === $pid ) { return true; }
+		return FLBuilderModel::is_builder_enabled( $pid );
 	}
 
 	/**
@@ -238,6 +256,16 @@ FLBuilder::register_settings_form( 'ds_cr_route_form', array(
 							'default' => '0',
 							'options' => DS_Content_Router_Module::template_options(),
 							'help'    => __( 'Build each body once as a Beaver Builder saved template, then map it here.', 'ds-toolkit' ),
+						),
+						'cr_own_layout' => array(
+							'type'    => 'select',
+							'label'   => __( 'Posts built in Beaver Builder', 'ds-toolkit' ),
+							'default' => 'no',
+							'options' => array(
+								'no'  => __( 'Always use this template', 'ds-toolkit' ),
+								'yes' => __( 'Show the post’s own layout when it has one', 'ds-toolkit' ),
+							),
+							'help'    => __( 'With "own layout", a post opened in Beaver Builder shows that layout; every other post of this type keeps the template. Needs the post type ticked in Settings > Beaver Builder > Post Types. The dashboard fields stay.', 'ds-toolkit' ),
 						),
 						'cr_edit_btn' => array(
 							'type'    => 'raw',
