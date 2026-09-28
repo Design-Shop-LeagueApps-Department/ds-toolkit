@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.9] - 2026-09-28
+### Fixed
+- **"Open in new window" now opens a new tab on every card and link module.** A Beaver Builder link field with the new-window tick saves it in a sibling key (`prog_url_target`, `link_target`, `button_link_target`, ...), never inside the URL, and every `link_parts()` helper only looked inside the URL. So the tick was silently ignored on LeagueApps CTA (cards, grid cells, hero button, program cards), Post Loop (programs, sponsors, "see all" button), Carousel slides, Marquee items, Page Cards and Pathway stages, including where the field help text promises a new tab. Found on inspireclvb: the partner ticked it on the tryout "Register now" cards and they still opened in the same tab. Links saved without the tick are unchanged (`_self`), and the array/object link form still wins when it carries its own target. `tests/link-target-test.php` (8 assertions, no WordPress needed) passes here and fails 3 of 8 against 1.10.8.
+
+---
+
 ## [1.10.8] - 2026-09-28
 ### Changed
 - **Line thickness defaults to 2px** (Alipio: "update toolkit to default thickness of line is 2px"). A newly dropped LeagueApps Heading (Divider thickness), LeagueApps Divider (Thickness) and Team Detail (Divider thickness) starts at 2px instead of 3px, matching the Post Loop header divider, Pathway and OrgStats. Existing modules keep their line: every saved module stores its own value (on dslaunchpad7 all 81 do), and a module saved before the field existed is pinned to the old 3px, so nothing already on a site changes.

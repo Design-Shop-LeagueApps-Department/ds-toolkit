@@ -33,10 +33,12 @@ class DS_Pathway_Module extends FLBuilderModule {
 	}
 
 	/** Normalise a BB link field (string URL or {url,target} object/array). */
-	private function link_parts( $link ) {
-		$url = ''; $target = '_self';
-		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? '_self'; }
-		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? '_self'; }
+	private function link_parts( $link, $target_field = '' ) {
+		// A BB link field with show_target stores the tick in a SIBLING key
+		// (<field>_target), not inside the URL string; callers pass it in.
+		$url = ''; $target = (string) $target_field;
+		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? $target; }
+		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? $target; }
 		else { $url = (string) $link; }
 		return array( esc_url( $url ), '_blank' === $target ? '_blank' : '_self' );
 	}
@@ -54,7 +56,7 @@ class DS_Pathway_Module extends FLBuilderModule {
 			$title   = trim( (string) ( $stage->title ?? '' ) );
 			$text    = trim( (string) ( $stage->text ?? '' ) );
 			$eyebrow = trim( (string) ( $stage->eyebrow ?? '' ) );
-			list( $url, $target ) = $this->link_parts( $stage->link ?? '' );
+			list( $url, $target ) = $this->link_parts( $stage->link ?? '', $stage->link_target ?? '' );
 			if ( '' === $title && '' === $text && '' === $eyebrow ) { continue; }
 			$out[] = array(
 				'eyebrow' => $eyebrow,
