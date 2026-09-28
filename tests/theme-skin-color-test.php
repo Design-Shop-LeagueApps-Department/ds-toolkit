@@ -76,6 +76,16 @@ if ( class_exists( 'FLCustomizer' ) && class_exists( 'FLCSS' ) ) {
 	$compile = function ( $key, $value, $with_fix ) use ( $private, $ts ) {
 		$raw = function ( $mods ) use ( $key, $value ) { $mods[ $key ] = $value; return $mods; };
 		add_filter( 'fl_theme_mods', $raw, 1 );
+		// With ds-toolkit active its own instance has the filter too: take every copy out for a run without the fix.
+		$held = array();
+		if ( ! $with_fix && isset( $GLOBALS['wp_filter']['fl_theme_mods'] ) ) {
+			foreach ( $GLOBALS['wp_filter']['fl_theme_mods']->callbacks as $prio => $cbs ) {
+				foreach ( $cbs as $cb ) {
+					if ( is_array( $cb['function'] ) && $cb['function'][0] instanceof DS_Theme_Setting ) { $held[] = array( $cb['function'], $prio ); }
+				}
+			}
+			foreach ( $held as $h ) { remove_filter( 'fl_theme_mods', $h[0], $h[1] ); }
+		}
 		if ( $with_fix ) { add_filter( 'fl_theme_mods', array( $ts, 'less_safe_theme_mods' ), 10 ); }
 		$less = FLCSS::replace_tokens( apply_filters( 'fl_theme_compile_less', FLCSS::paths_get_contents( $private( '_get_less_paths' )->invoke( null ) ) ) );
 		ob_start();
@@ -83,6 +93,7 @@ if ( class_exists( 'FLCustomizer' ) && class_exists( 'FLCSS' ) ) {
 		ob_end_clean();
 		remove_filter( 'fl_theme_mods', $raw, 1 );
 		remove_filter( 'fl_theme_mods', array( $ts, 'less_safe_theme_mods' ), 10 );
+		foreach ( $held as $h ) { add_filter( 'fl_theme_mods', $h[0], $h[1] ); }
 		return is_wp_error( $out ) ? 'LESS error' : 'compiled';
 	};
 	// Control: without the filter the synced value breaks the compile, so the checks below can fail.
