@@ -3,7 +3,8 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
 /**
  * DS_Theme_Setting::less_safe_theme_mods(): every colour format Theme Setting can save into
  * an fl-* mod (synced var(--fl-global-*), rgb(), rgba(), #rgba, #rrggbbaa) reaches the BB
- * theme as a hex its LESS can compile, so uploads/bb-theme/skin-*.css is still written.
+ * theme as a hex its LESS can compile, and a background image URL holding ( ) ' " or a space
+ * is percent-encoded, so uploads/bb-theme/skin-*.css is still written.
  * Swaps Beaver Builder's cached Global Styles in memory and compiles the skin in memory
  * (nothing is saved, no file is written):
  *   wp eval-file tests/theme-skin-color-test.php
@@ -45,6 +46,20 @@ foreach ( $cases as $in => $want ) {
 	tsc_is( "less_hex('$in')", DS_Theme_Setting::less_hex( $in, $globals ), $want );
 }
 
+// less_url(): what the theme's LESS is given for a background image URL.
+$u    = 'https://example.com/wp-content/uploads/2026/06/';
+$urls = array(
+	$u . 'pattern.png'           => $u . 'pattern.png',
+	$u . 'photo (1).png'         => $u . 'photo%20%281%29.png',
+	$u . "o'brien.png"           => $u . 'o%27brien.png',
+	$u . 'say "hi".png'          => $u . 'say%20%22hi%22.png',
+	'  ' . $u . 'x.png?v=1&y=2 ' => $u . 'x.png?v=1&y=2',
+	''                           => '',
+);
+foreach ( $urls as $in => $want ) {
+	tsc_is( "less_url('" . str_replace( $u, '…/', $in ) . "')", DS_Theme_Setting::less_url( $in ), $want );
+}
+
 // less_safe_theme_mods(): resolves through the live palette, leaves everything else alone.
 $gs = new ReflectionProperty( 'FLBuilderGlobalStyles', 'settings' );
 $gs->setAccessible( true );
@@ -61,12 +76,13 @@ $in   = array(
 	'fl-content-bg-color' => 'rgba(255,255,255,0.9)',
 	'fl-accent'           => '2b7bb9',
 	'fl-body-bg-image'    => 'https://example.com/a.png',
+	'fl-header-bg-image'  => "https://example.com/o'brien (1).png",
 	'fl-css-code'         => 'var(--x)',
 	'ds-banner-nobg-color' => 'var(--fl-global-base-page-background-color)',
 	'fl-heading-font-size' => 30,
 );
-$want = array_merge( $in, array( 'fl-body-bg-color' => '#f4f4f4', 'fl-content-bg-color' => '#ffffff' ) );
-tsc_is( 'mods: var() and rgba() become hex; other fl-*, code and ds-* mods are untouched', $ts->less_safe_theme_mods( $in ), $want );
+$want = array_merge( $in, array( 'fl-body-bg-color' => '#f4f4f4', 'fl-content-bg-color' => '#ffffff', 'fl-header-bg-image' => 'https://example.com/o%27brien%20%281%29.png' ) );
+tsc_is( 'mods: var() and rgba() become hex, bg image URLs are encoded; other fl-*, code and ds-* mods are untouched', $ts->less_safe_theme_mods( $in ), $want );
 tsc_is( 'mods: a non-array passes through', $ts->less_safe_theme_mods( false ), false );
 
 // The real compile: the skin LESS the BB theme builds from these mods, compiled in memory.
@@ -101,6 +117,13 @@ if ( class_exists( 'FLCustomizer' ) && class_exists( 'FLCSS' ) ) {
 	foreach ( array( 'fl-body-bg-color', 'fl-content-bg-color' ) as $key ) {
 		foreach ( array( 'var(--fl-global-base-page-background-color)', 'var(--fl-global-gone)', 'rgb(244, 244, 244)', 'rgba(244,244,244,0.5)', '#ffffff00', '#fff8', '#f4f4f4' ) as $value ) {
 			tsc_is( "compile: $key = $value", $compile( $key, $value, true ), 'compiled' );
+		}
+	}
+	$img = home_url( '/wp-content/uploads/' );
+	tsc_is( 'control: without the filter a ( ) image URL fails the skin compile', $compile( 'fl-body-bg-image', $img . 'photo (1).png', false ), 'LESS error' );
+	foreach ( array( 'fl-body-bg-image', 'fl-content-bg-image' ) as $key ) {
+		foreach ( array( 'photo (1).png', "o'brien.png", 'say "hi".png', 'pattern.png' ) as $file ) {
+			tsc_is( "compile: $key = …/$file", $compile( $key, $img . $file, true ), 'compiled' );
 		}
 	}
 } else {

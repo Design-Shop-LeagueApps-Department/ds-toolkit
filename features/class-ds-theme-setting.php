@@ -541,13 +541,18 @@ CSS;
      * content box stops being full width). This page saves richer values on purpose (a
      * synced var(--fl-global-*) and colours with opacity, GH #80), so the theme is given a
      * plain hex here while the stored mod, which the page and its CSS read, keeps what was
-     * picked. Found on ethosvolleybal 2026-09-29.
+     * picked. Found on ethosvolleybal 2026-09-29. fl-*-bg-image URLs go through less_url()
+     * for the same reason.
      */
     public function less_safe_theme_mods( $mods ) {
         if ( ! is_array( $mods ) ) { return $mods; }
         $globals = null;
         foreach ( $mods as $key => $value ) {
             if ( ! is_string( $value ) || 0 !== strpos( (string) $key, 'fl-' ) || in_array( $key, array( 'fl-css-code', 'fl-js-code' ), true ) ) { continue; }
+            if ( '-bg-image' === substr( (string) $key, -9 ) ) {
+                $mods[ $key ] = self::less_url( $value );
+                continue;
+            }
             if ( ! preg_match( '/^\s*(?:var\(|rgba?\(|#[0-9a-f]{4}\s*$|#[0-9a-f]{8}\s*$)/i', $value ) ) { continue; }
             if ( null === $globals ) { $globals = $this->global_color_map(); }
             $mods[ $key ] = self::less_hex( $value, $globals );
@@ -573,6 +578,16 @@ CSS;
             }
         }
         return $map;
+    }
+
+    /**
+     * A background image URL as the BB theme's LESS can read it. The theme writes
+     * url(<value>) without quotes, so a ( ) ' or " in the URL fails the whole skin compile
+     * (tested on 1.7.20: "photo (1).png", "o'brien.png"), and a space compiles into CSS that
+     * browsers drop. Percent-encoding them points at the same file.
+     */
+    public static function less_url( $url ) {
+        return str_replace( array( '(', ')', "'", '"', ' ' ), array( '%28', '%29', '%27', '%22', '%20' ), trim( (string) $url ) );
     }
 
     /**
