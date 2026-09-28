@@ -36,9 +36,6 @@ class DS_Theme_Setting {
     }
 
     public function init() {
-        // The BB theme compiles its skin CSS from the same fl-* mods this page saves, and
-        // its LESS only reads #rgb / #rrggbb. Hand it a plain hex (see less_safe_theme_mods).
-        add_filter( 'fl_theme_mods', array( $this, 'less_safe_theme_mods' ) );
         if ( is_admin() ) {
             add_action( 'admin_menu', array( $this, 'register_menu' ) );
             add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
@@ -531,75 +528,6 @@ CSS;
         }
         $this->globals_cache = array( 'list' => $list, 'byvar' => $byvar );
         return $this->globals_cache;
-    }
-
-    /**
-     * fl_theme_mods filter. The BB theme compiles uploads/bb-theme/skin-*.css from its fl-*
-     * mods with LESS, which only reads #rgb / #rrggbb: it puts '#' in front of anything else
-     * ("#var(--fl-global-...)"), the compile fails, no skin is written, and BB theme 1.7.20+
-     * keeps linking the deleted file, so every page loses the theme CSS (a builder page's
-     * content box stops being full width). This page saves richer values on purpose (a
-     * synced var(--fl-global-*) and colours with opacity, GH #80), so the theme is given a
-     * plain hex here while the stored mod, which the page and its CSS read, keeps what was
-     * picked. Found on ethosvolleybal 2026-09-29.
-     */
-    public function less_safe_theme_mods( $mods ) {
-        if ( ! is_array( $mods ) ) { return $mods; }
-        $globals = null;
-        foreach ( $mods as $key => $value ) {
-            if ( ! is_string( $value ) || 0 !== strpos( (string) $key, 'fl-' ) || in_array( $key, array( 'fl-css-code', 'fl-js-code' ), true ) ) { continue; }
-            if ( ! preg_match( '/^\s*(?:var\(|rgba?\(|#[0-9a-f]{4}\s*$|#[0-9a-f]{8}\s*$)/i', $value ) ) { continue; }
-            if ( null === $globals ) { $globals = $this->global_color_map(); }
-            $mods[ $key ] = self::less_hex( $value, $globals );
-        }
-        return $mods;
-    }
-
-    /**
-     * var(--prefix-slug) => the colour it holds, read fresh on every call: save() writes the
-     * palette and then rebuilds the skin in the same request, so a cached map would be stale.
-     */
-    private function global_color_map() {
-        $map = array();
-        if ( ! $this->available() ) { return $map; }
-        $s      = FLBuilderGlobalStyles::get_settings( false );
-        $prefix = $this->prefix_key( isset( $s->prefix ) ? (string) $s->prefix : '' );
-        foreach ( (array) ( $s->colors ?? array() ) as $c ) {
-            $c     = (array) $c;
-            $label = isset( $c['label'] ) ? trim( $c['label'] ) : '';
-            $color = isset( $c['color'] ) ? trim( $c['color'] ) : '';
-            if ( '' !== $label && '' !== $color ) {
-                $map[ 'var(--' . $prefix . '-' . $this->color_slug( $label ) . ')' ] = $color;
-            }
-        }
-        return $map;
-    }
-
-    /**
-     * A stored colour as the BB theme's LESS can read it: '#rrggbb' or '#rgb'. A synced
-     * var() resolves through $globals; opacity is dropped (the skin has no alpha), and a
-     * fully transparent colour or one that cannot be read gives '' so the theme falls
-     * back to its own default.
-     */
-    public static function less_hex( $value, $globals = array(), $depth = 0 ) {
-        $v = trim( (string) $value );
-        if ( preg_match( '/^var\(\s*(--[A-Za-z0-9_-]+)\s*\)$/', $v, $m ) ) {
-            $key = 'var(' . $m[1] . ')';
-            return ( $depth < 3 && isset( $globals[ $key ] ) ) ? self::less_hex( $globals[ $key ], $globals, $depth + 1 ) : '';
-        }
-        if ( preg_match( '/^#?([0-9a-f]{3}|[0-9a-f]{6})$/i', $v, $m ) ) { return '#' . strtolower( $m[1] ); }
-        if ( preg_match( '/^#?([0-9a-f]{3})([0-9a-f])$/i', $v, $m ) ) { return '0' === $m[2] ? '' : '#' . strtolower( $m[1] ); }
-        if ( preg_match( '/^#?([0-9a-f]{6})([0-9a-f]{2})$/i', $v, $m ) ) { return '00' === $m[2] ? '' : '#' . strtolower( $m[1] ); }
-        if ( preg_match( '/^rgba?\(\s*([\d.]+%?)[\s,]+([\d.]+%?)[\s,]+([\d.]+%?)(?:\s*[,\/]\s*([\d.]+%?))?\s*\)$/i', $v, $m ) ) {
-            if ( isset( $m[4] ) && '' !== $m[4] && 0.0 === (float) $m[4] ) { return ''; }
-            $hex = '#';
-            foreach ( array( $m[1], $m[2], $m[3] ) as $c ) {
-                $n    = '%' === substr( $c, -1 ) ? (float) $c * 2.55 : (float) $c;
-                $hex .= sprintf( '%02x', max( 0, min( 255, (int) round( $n ) ) ) );
-            }
-            return $hex;
-        }
-        return '';
     }
 
     /** How a stored colour value presents: swatch fill, label and state (default / global / custom / missing). */
