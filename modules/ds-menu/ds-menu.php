@@ -499,6 +499,17 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 						),
 						'help'    => __( 'Show a link to the parent item above its child links in drilled panels. Hide lists child links only and also omits a duplicate Overview menu item that points back to the parent. Desktop is unaffected.', 'ds-toolkit' ),
 					),
+					'drill_logo_show'   => array(
+						'type'    => 'select',
+						'label'   => __( 'Drawer Logo', 'ds-toolkit' ),
+						'default' => 'show',
+						'options' => array( 'show' => __( 'Show', 'ds-toolkit' ), 'hide' => __( 'Hide', 'ds-toolkit' ) ),
+						'toggle'  => array( 'show' => array( 'fields' => array( 'drill_logo', 'drill_logo_align', 'drill_logo_height' ) ) ),
+						'help'    => __( 'Shows the site logo at the top of the drill-down drawer (drill style only). Blank image = the Partner Logo from Partner Setting, then the site logo.', 'ds-toolkit' ),
+					),
+					'drill_logo'        => array( 'type' => 'photo', 'label' => __( 'Drawer Logo Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Override image. Blank = Partner Logo → site logo.', 'ds-toolkit' ) ),
+					'drill_logo_align'  => array( 'type' => 'select', 'label' => __( 'Drawer Logo Position', 'ds-toolkit' ), 'default' => 'right', 'options' => array( 'right' => __( 'Top Right (beside the close X)', 'ds-toolkit' ), 'left' => __( 'Top Left', 'ds-toolkit' ) ) ),
+					'drill_logo_height' => array( 'type' => 'unit', 'label' => __( 'Drawer Logo Height', 'ds-toolkit' ), 'default' => '30', 'description' => 'px', 'slider' => array( 'min' => 16, 'max' => 64, 'step' => 1 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-drill-brand img', 'property' => 'height', 'unit' => 'px' ) ),
 					'breakpoint'   => array(
 						'type'        => 'unit',
 						'label'       => __( 'Mobile Breakpoint', 'ds-toolkit' ),
@@ -519,31 +530,14 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 	'style'   => array(
 		'title'    => __( 'Style', 'ds-toolkit' ),
 		'sections' => array(
-			'bar'  => array(
-				'title'  => __( 'Menu Bar', 'ds-toolkit' ),
+			// Most-used first: the colours and font size of each menu part lead its section; the fine
+			// tuning (hover effect, pill, spacing, hamburger) starts collapsed. Keys unchanged.
+			'bar' => array(
+				'title'  => __( 'Menu Text', 'ds-toolkit' ),
 				'fields' => array(
 					'text_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
 					'hover_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Hover / Active Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
-					'bar_divider_style'  => array(
-						'type'    => 'select',
-						'label'   => __( 'Item Divider', 'ds-toolkit' ),
-						'default' => 'none',
-						'options' => array(
-							'none'   => __( 'None', 'ds-toolkit' ),
-							'solid'  => __( 'Solid', 'ds-toolkit' ),
-							'dashed' => __( 'Dashed', 'ds-toolkit' ),
-							'dotted' => __( 'Dotted', 'ds-toolkit' ),
-						),
-						'help'    => __( 'A small vertical divider between top-level items on the desktop bar — pairs nicely with the Justify alignment. Hidden in the mobile overlay and never shown before the CTA button.', 'ds-toolkit' ),
-						'toggle'  => array(
-							'solid'  => array( 'fields' => array( 'bar_divider_color', 'bar_divider_height', 'bar_divider_width' ) ),
-							'dashed' => array( 'fields' => array( 'bar_divider_color', 'bar_divider_height', 'bar_divider_width' ) ),
-							'dotted' => array( 'fields' => array( 'bar_divider_color', 'bar_divider_height', 'bar_divider_width' ) ),
-						),
-					),
-					'bar_divider_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider Color', 'ds-toolkit' ), 'default' => 'var(--fl-global-line-color)', 'show_reset' => true, 'show_alpha' => true ),
-					'bar_divider_height' => array( 'type' => 'unit', 'label' => __( 'Divider Height', 'ds-toolkit' ), 'default' => '18', 'description' => 'px', 'slider' => array( 'min' => 6, 'max' => 60, 'step' => 1 ) ),
-					'bar_divider_width'  => array( 'type' => 'unit', 'label' => __( 'Divider Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
+					'typography'   => array( 'type' => 'typography', 'label' => __( 'Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-menu > .ds-menu-item > a' ) ),
 					'hover_weight' => array(
 						'type'    => 'select',
 						'label'   => __( 'Hover Font Weight', 'ds-toolkit' ),
@@ -559,11 +553,67 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 						),
 						'help'    => __( 'Make top-level links heavier on hover and for the current page. Their width is pre-reserved so the bar never shifts when the weight changes.', 'ds-toolkit' ),
 					),
-					'typography'   => array( 'type' => 'typography', 'label' => __( 'Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-menu > .ds-menu-item > a' ) ),
+				),
+			),
+			'drop' => array(
+				'title'  => __( 'Dropdown / Mega Menu', 'ds-toolkit' ),
+				'fields' => array(
+					'dropdown_text'          => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
+					'dropdown_text_hover'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Hover Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
+					'dropdown_typography'    => array( 'type' => 'typography', 'label' => __( 'Submenu Label Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-submenu a, .ds-mega a' ) ),
+					'dropdown_bg'            => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true, 'show_alpha' => true ),
+					'dropdown_hover_bg'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Item Hover Background', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Background highlight behind a dropdown / mega link on hover (desktop).', 'ds-toolkit' ) ),
+					'dropdown_hover_radius'  => array( 'type' => 'unit', 'label' => __( 'Item Hover Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Corner rounding of the hover highlight. Blank = square.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 20, 'step' => 1 ) ),
+					'dropdown_radius'        => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'description' => 'px', 'help' => __( 'Rounding of the dropdown & mega panel corners. Blank keeps the default.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+					'dropdown_gap'           => array( 'type' => 'unit', 'label' => __( 'Gap From Menu Bar', 'ds-toolkit' ), 'default' => '0', 'description' => 'px', 'help' => __( 'Vertical space between the menu bar and the dropdown / mega panel (desktop). A transparent bridge keeps it open while moving the cursor across the gap.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+					'dropdown_pad_v'         => array( 'type' => 'unit', 'label' => __( 'Item Padding — Vertical', 'ds-toolkit' ), 'description' => 'px', 'help' => __( 'Top/bottom padding of dropdown & mega links (desktop). Blank keeps the default.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+					'dropdown_pad_h'         => array( 'type' => 'unit', 'label' => __( 'Item Padding — Horizontal', 'ds-toolkit' ), 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+					'dropdown_divider_style' => array(
+						'type'    => 'select',
+						'label'   => __( 'Divider Style', 'ds-toolkit' ),
+						'default' => 'none',
+						'options' => array(
+							'none'   => __( 'None', 'ds-toolkit' ),
+							'solid'  => __( 'Solid', 'ds-toolkit' ),
+							'dashed' => __( 'Dashed', 'ds-toolkit' ),
+							'dotted' => __( 'Dotted', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Line between dropdown / mega submenu items.', 'ds-toolkit' ),
+						'toggle'  => array(
+							'solid'  => array( 'fields' => array( 'dropdown_divider_color', 'dropdown_divider_width' ) ),
+							'dashed' => array( 'fields' => array( 'dropdown_divider_color', 'dropdown_divider_width' ) ),
+							'dotted' => array( 'fields' => array( 'dropdown_divider_color', 'dropdown_divider_width' ) ),
+						),
+					),
+					'dropdown_divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider Color', 'ds-toolkit' ), 'default' => 'eeeeee', 'show_reset' => true, 'show_alpha' => true ),
+					'dropdown_divider_width' => array( 'type' => 'unit', 'label' => __( 'Divider Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
+					'mega_head_color'         => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Mega Heading Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Color of the bold column-heading links inside a mega panel.', 'ds-toolkit' ) ),
+					'mega_head_hover_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Mega Heading Hover Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
+					'mega_head_typography'    => array( 'type' => 'typography', 'label' => __( 'Mega Heading Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-mega-col .ds-mega-head' ) ),
+					'mega_head_divider'       => array(
+						'type'    => 'select',
+						'label'   => __( 'Mega Heading Underline', 'ds-toolkit' ),
+						'default' => 'none',
+						'options' => array(
+							'none'   => __( 'None', 'ds-toolkit' ),
+							'solid'  => __( 'Solid', 'ds-toolkit' ),
+							'dashed' => __( 'Dashed', 'ds-toolkit' ),
+							'dotted' => __( 'Dotted', 'ds-toolkit' ),
+						),
+						'help'    => __( 'Optional underline below each mega column heading.', 'ds-toolkit' ),
+						'toggle'  => array(
+							'solid'  => array( 'fields' => array( 'mega_head_divider_color' ) ),
+							'dashed' => array( 'fields' => array( 'mega_head_divider_color' ) ),
+							'dotted' => array( 'fields' => array( 'mega_head_divider_color' ) ),
+						),
+					),
+					'mega_head_divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Underline Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
+					'mega_sub_indent'         => array( 'type' => 'unit', 'label' => __( 'Mega Sub-item Indent', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Left indent for the links under each mega column heading (e.g. the teams under a "U16" heading). Applies to mega panels only.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
 				),
 			),
 			'hover' => array(
 				'title'  => __( 'Hover Effect', 'ds-toolkit' ),
+				'collapsed' => true,
 				'fields' => array(
 					'hover_anim'   => array(
 						'type'    => 'select',
@@ -588,16 +638,9 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 					'hover_anim_size'  => array( 'type' => 'unit', 'label' => __( 'Underline Thickness', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
 				),
 			),
-			'space' => array(
-				'title'  => __( 'Item Size & Spacing', 'ds-toolkit' ),
-				'fields' => array(
-					'item_spacing' => array( 'type' => 'unit', 'label' => __( 'Item Spacing', 'ds-toolkit' ), 'default' => '20', 'description' => 'px', 'help' => __( 'Gap between top-level items (sets the default left / right link padding).', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 80, 'step' => 1 ) ),
-					'bar_pad_v'    => array( 'type' => 'unit', 'label' => __( 'Item Vertical Padding', 'ds-toolkit' ), 'default' => '10', 'description' => 'px', 'help' => __( 'Top / bottom padding inside each top-level link — sets the compact item height. The link is vertically centred in the bar; the dropdown still opens from the bar bottom.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
-					'bar_pad_h'    => array( 'type' => 'unit', 'label' => __( 'Item Horizontal Padding', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Left / right padding inside each top-level link. Blank = derived from Item Spacing.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
-				),
-			),
 			'pill' => array(
 				'title'  => __( 'Item Background (Pill)', 'ds-toolkit' ),
+				'collapsed' => true,
 				'fields' => array(
 					'pill_enabled' => array(
 						'type'    => 'select',
@@ -616,22 +659,16 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 					'pill_pad_h'       => array( 'type' => 'unit', 'label' => __( 'Padding — Horizontal', 'ds-toolkit' ), 'default' => '16', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
 				),
 			),
-			'drop' => array(
-				'title'  => __( 'Dropdown / Mega', 'ds-toolkit' ),
+			'space' => array(
+				'title'  => __( 'Spacing & Dividers', 'ds-toolkit' ),
+				'collapsed' => true,
 				'fields' => array(
-					'dropdown_bg'            => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true, 'show_alpha' => true ),
-					'dropdown_text'          => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
-					'dropdown_text_hover'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Hover Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
-					'dropdown_hover_bg'      => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Item Hover Background', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Background highlight behind a dropdown / mega link on hover (desktop).', 'ds-toolkit' ) ),
-					'dropdown_hover_radius'  => array( 'type' => 'unit', 'label' => __( 'Item Hover Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Corner rounding of the hover highlight. Blank = square.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 20, 'step' => 1 ) ),
-					'dropdown_radius'        => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'description' => 'px', 'help' => __( 'Rounding of the dropdown & mega panel corners. Blank keeps the default.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
-					'dropdown_gap'           => array( 'type' => 'unit', 'label' => __( 'Gap From Menu Bar', 'ds-toolkit' ), 'default' => '0', 'description' => 'px', 'help' => __( 'Vertical space between the menu bar and the dropdown / mega panel (desktop). A transparent bridge keeps it open while moving the cursor across the gap.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
-					'dropdown_pad_v'         => array( 'type' => 'unit', 'label' => __( 'Item Padding — Vertical', 'ds-toolkit' ), 'description' => 'px', 'help' => __( 'Top/bottom padding of dropdown & mega links (desktop). Blank keeps the default.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
-					'dropdown_pad_h'         => array( 'type' => 'unit', 'label' => __( 'Item Padding — Horizontal', 'ds-toolkit' ), 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
-					'dropdown_typography'    => array( 'type' => 'typography', 'label' => __( 'Submenu Label Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-submenu a, .ds-mega a' ) ),
-					'dropdown_divider_style' => array(
+					'item_spacing' => array( 'type' => 'unit', 'label' => __( 'Item Spacing', 'ds-toolkit' ), 'default' => '20', 'description' => 'px', 'help' => __( 'Gap between top-level items (sets the default left / right link padding).', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 80, 'step' => 1 ) ),
+					'bar_pad_v'    => array( 'type' => 'unit', 'label' => __( 'Item Vertical Padding', 'ds-toolkit' ), 'default' => '10', 'description' => 'px', 'help' => __( 'Top / bottom padding inside each top-level link — sets the compact item height. The link is vertically centred in the bar; the dropdown still opens from the bar bottom.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
+					'bar_pad_h'    => array( 'type' => 'unit', 'label' => __( 'Item Horizontal Padding', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Left / right padding inside each top-level link. Blank = derived from Item Spacing.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+					'bar_divider_style'  => array(
 						'type'    => 'select',
-						'label'   => __( 'Divider Style', 'ds-toolkit' ),
+						'label'   => __( 'Item Divider', 'ds-toolkit' ),
 						'default' => 'none',
 						'options' => array(
 							'none'   => __( 'None', 'ds-toolkit' ),
@@ -639,40 +676,19 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 							'dashed' => __( 'Dashed', 'ds-toolkit' ),
 							'dotted' => __( 'Dotted', 'ds-toolkit' ),
 						),
-						'help'    => __( 'Line between dropdown / mega submenu items.', 'ds-toolkit' ),
+						'help'    => __( 'A small vertical divider between top-level items on the desktop bar — pairs nicely with the Justify alignment. Hidden in the mobile overlay and never shown before the CTA button.', 'ds-toolkit' ),
 						'toggle'  => array(
-							'solid'  => array( 'fields' => array( 'dropdown_divider_color', 'dropdown_divider_width' ) ),
-							'dashed' => array( 'fields' => array( 'dropdown_divider_color', 'dropdown_divider_width' ) ),
-							'dotted' => array( 'fields' => array( 'dropdown_divider_color', 'dropdown_divider_width' ) ),
+							'solid'  => array( 'fields' => array( 'bar_divider_color', 'bar_divider_height', 'bar_divider_width' ) ),
+							'dashed' => array( 'fields' => array( 'bar_divider_color', 'bar_divider_height', 'bar_divider_width' ) ),
+							'dotted' => array( 'fields' => array( 'bar_divider_color', 'bar_divider_height', 'bar_divider_width' ) ),
 						),
 					),
-					'dropdown_divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider Color', 'ds-toolkit' ), 'default' => 'eeeeee', 'show_reset' => true, 'show_alpha' => true ),
-					'dropdown_divider_width' => array( 'type' => 'unit', 'label' => __( 'Divider Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
-						'mega_head_color'         => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Mega Heading Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Color of the bold column-heading links inside a mega panel.', 'ds-toolkit' ) ),
-						'mega_head_hover_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Mega Heading Hover Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
-						'mega_head_typography'    => array( 'type' => 'typography', 'label' => __( 'Mega Heading Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-mega-col .ds-mega-head' ) ),
-						'mega_head_divider'       => array(
-							'type'    => 'select',
-							'label'   => __( 'Mega Heading Underline', 'ds-toolkit' ),
-							'default' => 'none',
-							'options' => array(
-								'none'   => __( 'None', 'ds-toolkit' ),
-								'solid'  => __( 'Solid', 'ds-toolkit' ),
-								'dashed' => __( 'Dashed', 'ds-toolkit' ),
-								'dotted' => __( 'Dotted', 'ds-toolkit' ),
-							),
-							'help'    => __( 'Optional underline below each mega column heading.', 'ds-toolkit' ),
-							'toggle'  => array(
-								'solid'  => array( 'fields' => array( 'mega_head_divider_color' ) ),
-								'dashed' => array( 'fields' => array( 'mega_head_divider_color' ) ),
-								'dotted' => array( 'fields' => array( 'mega_head_divider_color' ) ),
-							),
-						),
-						'mega_head_divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Underline Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
-						'mega_sub_indent'         => array( 'type' => 'unit', 'label' => __( 'Mega Sub-item Indent', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'help' => __( 'Left indent for the links under each mega column heading (e.g. the teams under a "U16" heading). Applies to mega panels only.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+					'bar_divider_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider Color', 'ds-toolkit' ), 'default' => 'var(--fl-global-line-color)', 'show_reset' => true, 'show_alpha' => true ),
+					'bar_divider_height' => array( 'type' => 'unit', 'label' => __( 'Divider Height', 'ds-toolkit' ), 'default' => '18', 'description' => 'px', 'slider' => array( 'min' => 6, 'max' => 60, 'step' => 1 ) ),
+					'bar_divider_width'  => array( 'type' => 'unit', 'label' => __( 'Divider Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
 				),
 			),
-			'btn'  => array(
+			'btn' => array(
 				'title'  => __( 'CTA Button (Last Item)', 'ds-toolkit' ),
 				'fields' => array(
 					'last_item_button'  => array(
@@ -698,43 +714,20 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 					'button_mobile_text_hover' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Mobile Text Hover', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
 				),
 			),
-			'ham'  => array(
-				'title'  => __( 'Hamburger Button', 'ds-toolkit' ),
+			'mob' => array(
+				'title'  => __( 'Mobile Menu', 'ds-toolkit' ),
 				'fields' => array(
-					'toggle_color'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Icon / Label Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
-					'toggle_bg'           => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Background', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Leave blank for no background.', 'ds-toolkit' ) ),
-					'toggle_border_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
-					'toggle_border_width' => array( 'type' => 'unit', 'label' => __( 'Border Width', 'ds-toolkit' ), 'default' => '0', 'description' => 'px', 'help' => __( 'Set to 0 for no border.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 6, 'step' => 1 ) ),
-					'toggle_radius'       => array( 'type' => 'unit', 'label' => __( 'Border Radius', 'ds-toolkit' ), 'default' => '0', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
-					'toggle_icon_size'        => array( 'type' => 'unit', 'label' => __( 'Icon Size', 'ds-toolkit' ), 'default' => '26', 'description' => 'px', 'slider' => array( 'min' => 16, 'max' => 44, 'step' => 1 ) ),
-					'toggle_label_typography' => array( 'type' => 'typography', 'label' => __( 'Label Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-menu-toggle-label' ) ),
-				),
-			),
-			'mob'  => array(
-				'title'  => __( 'Mobile Overlay', 'ds-toolkit' ),
-				'fields' => array(
-					'drill_logo_show'   => array(
-						'type'    => 'select',
-						'label'   => __( 'Drawer Logo', 'ds-toolkit' ),
-						'default' => 'show',
-						'options' => array( 'show' => __( 'Show', 'ds-toolkit' ), 'hide' => __( 'Hide', 'ds-toolkit' ) ),
-						'toggle'  => array( 'show' => array( 'fields' => array( 'drill_logo', 'drill_logo_align', 'drill_logo_height' ) ) ),
-						'help'    => __( 'Shows the site logo at the top of the drill-down drawer (drill style only). Blank image = the Partner Logo from Partner Setting, then the site logo.', 'ds-toolkit' ),
-					),
-					'drill_logo'        => array( 'type' => 'photo', 'label' => __( 'Drawer Logo Image', 'ds-toolkit' ), 'show_remove' => true, 'connections' => array( 'photo' ), 'help' => __( 'Override image. Blank = Partner Logo → site logo.', 'ds-toolkit' ) ),
-					'drill_logo_align'  => array( 'type' => 'select', 'label' => __( 'Drawer Logo Position', 'ds-toolkit' ), 'default' => 'right', 'options' => array( 'right' => __( 'Top Right (beside the close X)', 'ds-toolkit' ), 'left' => __( 'Top Left', 'ds-toolkit' ) ) ),
-					'drill_logo_height' => array( 'type' => 'unit', 'label' => __( 'Drawer Logo Height', 'ds-toolkit' ), 'default' => '30', 'description' => 'px', 'slider' => array( 'min' => 16, 'max' => 64, 'step' => 1 ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-drill-brand img', 'property' => 'height', 'unit' => 'px' ) ),
-					'overlay_bg'           => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Overlay Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true, 'show_alpha' => true ),
-					// --- Menu items (top level) in the overlay ---
 					'overlay_text'          => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Menu Item Color', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true, 'show_alpha' => true ),
 					'overlay_text_hover'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Menu Item Hover / Active Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
-					'overlay_item_bg'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Menu Item Background', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
 					'mobile_typography'     => array( 'type' => 'typography', 'label' => __( 'Menu Label Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-menu-wrap.ds-menu-open .ds-menu > .ds-menu-item > a' ) ),
 					// --- Submenu / mega items in the overlay ---
 					'overlay_subtext'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Submenu Item Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Sub-item / mega link color in the overlay. Defaults to the menu item color.', 'ds-toolkit' ) ),
 					'overlay_subtext_hover' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Submenu Item Hover Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
-					'overlay_sub_bg'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Submenu Item Background', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
 					'mobile_subtypography'  => array( 'type' => 'typography', 'label' => __( 'Submenu Label Typography', 'ds-toolkit' ), 'responsive' => true, 'help' => __( 'Font for sub / mega links in the overlay. Falls back to the desktop Submenu Label Typography.', 'ds-toolkit' ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-menu-wrap.ds-menu-open .ds-submenu a, .ds-menu-wrap.ds-menu-open .ds-mega a' ) ),
+					'overlay_bg'           => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Overlay Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true, 'show_alpha' => true ),
+					// --- Menu items (top level) in the overlay ---
+					'overlay_item_bg'       => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Menu Item Background', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
+					'overlay_sub_bg'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Submenu Item Background', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
 					'mobile_divider_style' => array(
 						'type'    => 'select',
 						'label'   => __( 'Divider Style', 'ds-toolkit' ),
@@ -754,6 +747,19 @@ FLBuilder::register_module( 'DS_Menu_Module', array(
 					),
 					'mobile_divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
 					'mobile_divider_width' => array( 'type' => 'unit', 'label' => __( 'Divider Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ) ),
+				),
+			),
+			'ham' => array(
+				'title'  => __( 'Hamburger Button', 'ds-toolkit' ),
+				'collapsed' => true,
+				'fields' => array(
+					'toggle_color'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Icon / Label Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
+					'toggle_bg'           => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Background', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Leave blank for no background.', 'ds-toolkit' ) ),
+					'toggle_border_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Color', 'ds-toolkit' ), 'show_reset' => true, 'show_alpha' => true ),
+					'toggle_border_width' => array( 'type' => 'unit', 'label' => __( 'Border Width', 'ds-toolkit' ), 'default' => '0', 'description' => 'px', 'help' => __( 'Set to 0 for no border.', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 6, 'step' => 1 ) ),
+					'toggle_radius'       => array( 'type' => 'unit', 'label' => __( 'Border Radius', 'ds-toolkit' ), 'default' => '0', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ) ),
+					'toggle_icon_size'        => array( 'type' => 'unit', 'label' => __( 'Icon Size', 'ds-toolkit' ), 'default' => '26', 'description' => 'px', 'slider' => array( 'min' => 16, 'max' => 44, 'step' => 1 ) ),
+					'toggle_label_typography' => array( 'type' => 'typography', 'label' => __( 'Label Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-menu-toggle-label' ) ),
 				),
 			),
 		),
