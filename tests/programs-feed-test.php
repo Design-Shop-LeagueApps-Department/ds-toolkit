@@ -112,6 +112,38 @@ chk('camp: button goes to the program page too', DS_Programs_Data::button_url($c
 chk('no page URL: falls back to the registration link', DS_Programs_Data::button_url(array('programUrl'=>'','registerUrl'=>'https://x/reg')), 'https://x/reg');
 chk('neither: empty', DS_Programs_Data::button_url(array()), '');
 
+echo "cancelled programs (dsstormbasketball, 2026-09-29)\n"
+;
+// A cancelled session keeps its programUrl, so button_url() still returns a link and
+// the renderer MUST gate on the flag instead. That is the whole bug: the live site
+// showed a blue Register button on a session the partner had called off.
+$canc_feed = json_encode(array(
+  array('programId'=>9,'name'=>'5th/6th grade girls (7pm-8pm)','type'=>'CAMP','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1790000000000,'endTime'=>1791000000000,'registrationStatus'=>'CANCELED',
+        'registerUrlHtml'=>'',
+        'programUrlHtml'=>'//dsstormbasketball.leagueapps.com/camps/5094563-5th6th-grade-girls-7pm-8pm'),
+  array('programId'=>10,'name'=>'Double-L spelling','type'=>'CAMP','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1790000000000,'endTime'=>1791000000000,'registrationStatus'=>'cancelled',
+        'registerUrlHtml'=>'','programUrlHtml'=>'//x.leagueapps.com/camps/10-x'),
+  array('programId'=>11,'name'=>'Open one','type'=>'CAMP','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1790000000000,'endTime'=>1791000000000,'registrationStatus'=>'OPEN',
+        'registerUrlHtml'=>'//x.leagueapps.com/registration/init?bid=11','programUrlHtml'=>'//x.leagueapps.com/camps/11-x'),
+));
+$GLOBALS['http']=array(array('code'=>200,'body'=>$canc_feed,'headers'=>array()));
+delete_transient($key);
+$cr = DS_Programs_Data::get(array($site))['programs'];
+$by = array(); foreach ($cr as $row) { $by[$row['program']] = $row; }
+$c = $by['5th/6th grade girls (7pm-8pm)'];
+chk('CANCELED sets the canceled flag', $c['canceled'], true);
+chk('CANCELED is NOT reported as sold out', $c['soldOut'], false);
+chk('CANCELED gets a human label', $c['status'], 'Cancelled');
+chk('button_url STILL returns a link (why the renderer must gate on the flag)', DS_Programs_Data::button_url($c) !== '', true);
+chk('the double-L spelling is normalised too', $by['Double-L spelling']['canceled'], true);
+chk('an OPEN program is not flagged cancelled', $by['Open one']['canceled'], false);
+chk('an OPEN program is not flagged sold out', $by['Open one']['soldOut'], false);
+// Put the two-program fixture back: the checks below share the fresh AND stale copies.
+$GLOBALS['http']=array($ok200); delete_transient($key); DS_Programs_Data::get(array($site));
+
 echo "warm cache\n";
 $GLOBALS['calls']=0;
 DS_Programs_Data::get(array($site));

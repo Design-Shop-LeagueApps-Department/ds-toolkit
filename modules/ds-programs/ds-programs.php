@@ -113,13 +113,15 @@ class DS_Programs_Module extends FLBuilderModule {
 		if ( '' === $sport ) { $sport = trim( (string) ( $s->sport_text ?? '' ) ); }
 		$hide_sold   = 'yes' === ( $s->hide_sold_out ?? 'no' );
 		$hide_closed = 'yes' === ( $s->hide_closed ?? 'no' );
+		$hide_canc   = 'yes' === ( $s->hide_canceled ?? 'no' );
 
-		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $state, $sport, $hide_sold, $hide_closed ) {
+		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $state, $sport, $hide_sold, $hide_closed, $hide_canc ) {
 			if ( $types && ! in_array( $r['typeRaw'], $types, true ) ) { return false; }
 			if ( $mode && $r['modeRaw'] !== $mode ) { return false; }
 			if ( $state && $r['stateRaw'] !== $state ) { return false; }
 			if ( '' !== $sport && 0 !== strcasecmp( $r['sport'], $sport ) ) { return false; }
 			if ( $hide_sold && $r['soldOut'] ) { return false; }
+			if ( $hide_canc && ! empty( $r['canceled'] ) ) { return false; }
 			if ( $hide_closed && 'CLOSED' === $r['statusRaw'] ) { return false; }
 			return true;
 		} ) );
@@ -421,6 +423,7 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 						'options' => array( '' => __( 'Upcoming and in season', 'ds-toolkit' ), 'UPCOMING' => __( 'Upcoming only', 'ds-toolkit' ), 'LIVE' => __( 'In season only', 'ds-toolkit' ) ),
 					),
 					'hide_sold_out' => array( 'type' => 'select', 'label' => __( 'Hide sold-out programs', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ) ),
+					'hide_canceled' => array( 'type' => 'select', 'label' => __( 'Hide cancelled programs', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them marked cancelled', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ), 'help' => __( 'Cancelled programs never show a register button either way.', 'ds-toolkit' ) ),
 					'hide_closed'   => array( 'type' => 'select', 'label' => __( 'Hide programs whose registration has closed', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ) ),
 					'sort_by'       => array( 'type' => 'select', 'label' => __( 'Order', 'ds-toolkit' ), 'default' => 'date_asc', 'options' => array( 'date_asc' => __( 'Soonest first', 'ds-toolkit' ), 'date_desc' => __( 'Latest first', 'ds-toolkit' ), 'name' => __( 'Program name A to Z', 'ds-toolkit' ) ), 'help' => __( 'Age groups always sort youngest to oldest within a program.', 'ds-toolkit' ) ),
 					'max_rows'      => array( 'type' => 'unit', 'label' => __( 'Maximum rows', 'ds-toolkit' ), 'default' => '', 'placeholder' => __( 'all', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 200, 'step' => 5 ) ),
@@ -680,6 +683,7 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					),
 					'btn_text'        => array( 'type' => 'text', 'label' => __( 'Button text', 'ds-toolkit' ), 'default' => __( 'Register', 'ds-toolkit' ) ),
 					'btn_full_text'   => array( 'type' => 'text', 'label' => __( 'Text when sold out', 'ds-toolkit' ), 'default' => __( 'Sold Out', 'ds-toolkit' ) ),
+					'btn_cancel_text' => array( 'type' => 'text', 'label' => __( 'Text when cancelled', 'ds-toolkit' ), 'default' => __( 'Cancelled', 'ds-toolkit' ), 'help' => __( 'Cancelled programs use the sold-out look below, with a line through the label.', 'ds-toolkit' ) ),
 					'btn_bg'          => $ds_prg_colour( __( 'Background', 'ds-toolkit' ) ),
 					'btn_color'       => $ds_prg_colour( __( 'Text', 'ds-toolkit' ) ),
 					'btn_bg_hover'    => $ds_prg_colour( __( 'Background hover', 'ds-toolkit' ) ),
