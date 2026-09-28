@@ -97,7 +97,7 @@ class DS_CTA_Module extends FLBuilderModule {
 			$card = (object) $card;
 			$img  = ! empty( $card->image ) ? $this->photo_url( $card->image ) : '';
 			$logo = ! empty( $card->logo ) ? $this->photo_url( $card->logo, 'medium' ) : '';
-			list( $url, $target ) = $this->link_parts( $card->link ?? '' );
+			list( $url, $target ) = $this->link_parts( $card->link ?? '', $card->link_target ?? '' );
 			$rel  = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 
 			// Skip stray blank repeater rows: they rendered as full-size empty cards,
@@ -140,10 +140,12 @@ class DS_CTA_Module extends FLBuilderModule {
 	}
 
 	/** Normalise a BB link field (string URL or {url,target} object/array). */
-	private function link_parts( $link ) {
-		$url = ''; $target = '_self';
-		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? '_self'; }
-		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? '_self'; }
+	private function link_parts( $link, $target_field = '' ) {
+		// A BB link field with show_target stores the tick in a SIBLING key
+		// (<field>_target), not inside the URL string; callers pass it in.
+		$url = ''; $target = (string) $target_field;
+		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? $target; }
+		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? $target; }
 		else { $url = (string) $link; }
 		return array( esc_url( $url ?: '#' ), $target === '_blank' ? '_blank' : '_self' );
 	}
@@ -193,7 +195,7 @@ class DS_CTA_Module extends FLBuilderModule {
 		foreach ( $cards as $card ) {
 			$card  = (object) $card;
 			$img   = ! empty( $card->image ) ? $this->photo_url( $card->image ) : '';
-			list( $url, $target ) = $this->link_parts( $card->link ?? '' );
+			list( $url, $target ) = $this->link_parts( $card->link ?? '', $card->link_target ?? '' );
 			$rel   = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 
 			echo '<a class="ds-cta-card" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>';
@@ -243,7 +245,7 @@ class DS_CTA_Module extends FLBuilderModule {
 		foreach ( $cards as $card ) {
 			$card = (object) $card;
 			$img  = ! empty( $card->image ) ? $this->photo_url( $card->image ) : '';
-			list( $url, $target ) = $this->link_parts( $card->link ?? '' );
+			list( $url, $target ) = $this->link_parts( $card->link ?? '', $card->link_target ?? '' );
 			$rel = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 			$lt  = trim( (string) ( $card->link_text ?? '' ) );
 
@@ -293,7 +295,7 @@ class DS_CTA_Module extends FLBuilderModule {
 			$cs   = max( 1, (int) ( $cell->col_span ?? 1 ) );
 			$rs   = max( 1, (int) ( $cell->row_span ?? 1 ) );
 			$type = ( ( $cell->type ?? 'image' ) === 'text' ) ? 'text' : 'image';
-			list( $url, $target ) = $this->link_parts( $cell->link ?? '' );
+			list( $url, $target ) = $this->link_parts( $cell->link ?? '', $cell->link_target ?? '' );
 			$rel = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 
 			$eyebrow = trim( (string) ( $cell->eyebrow ?? '' ) );
@@ -503,7 +505,7 @@ class DS_CTA_Module extends FLBuilderModule {
 
 		// Big button.
 		if ( ( $s->hero_btn_show ?? 'yes' ) === 'yes' && '' !== trim( (string) ( $s->hero_btn_text ?? '' ) ) ) {
-			list( $url, $target ) = $this->link_parts( $s->hero_btn_link ?? '' );
+			list( $url, $target ) = $this->link_parts( $s->hero_btn_link ?? '', $s->hero_btn_link_target ?? '' );
 			$rel   = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 			$arrow = ( $s->hero_btn_arrow ?? 'yes' ) === 'yes' ? '<span class="ds-cta-hero-btn-arrow">' . self::ui_svg( 'arrow' ) . '</span>' : '';
 			echo '<div class="ds-cta-hero-btnwrap"><a class="ds-cta-hero-btn" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>'

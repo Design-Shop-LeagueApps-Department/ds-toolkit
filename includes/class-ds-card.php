@@ -56,10 +56,12 @@ class DS_Card {
 	}
 
 	/** Resolve a BB link field (string | array | object) to array( esc_url($url|'#'), '_self'|'_blank' ). */
-	public static function link_parts( $link ) {
-		$url = ''; $target = '_self';
-		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? '_self'; }
-		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? '_self'; }
+	public static function link_parts( $link, $target_field = '' ) {
+		// A BB link field with show_target stores the tick in a SIBLING key
+		// (<field>_target), not inside the URL string; callers pass it in.
+		$url = ''; $target = (string) $target_field;
+		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? $target; }
+		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? $target; }
 		else { $url = (string) $link; }
 		return array( esc_url( $url ?: '#' ), $target === '_blank' ? '_blank' : '_self' );
 	}

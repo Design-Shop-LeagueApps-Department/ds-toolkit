@@ -106,7 +106,7 @@ class DS_Program_Cards {
 		if ( $show_btn ) {
 			$txt = trim( (string) ( $s->button_text ?? '' ) );
 			if ( '' !== $txt ) {
-				list( $url, $target ) = DS_Card::link_parts( $s->button_link ?? '' );
+				list( $url, $target ) = DS_Card::link_parts( $s->button_link ?? '', $s->button_link_target ?? '' );
 				$rel = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 				echo '<a class="ds-news-seeall" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>' . esc_html( $txt ) . '</a>';
 			}
@@ -210,7 +210,7 @@ class DS_Program_Cards {
 			$sub   = trim( (string) ( $it->prog_subheading ?? '' ) );
 			$title = trim( (string) ( $it->prog_title ?? '' ) );
 			$desc  = trim( (string) ( $it->prog_desc ?? '' ) );
-			list( $url, $target ) = DS_Card::link_parts( $it->prog_url ?? '' );
+			list( $url, $target ) = DS_Card::link_parts( $it->prog_url ?? '', $it->prog_url_target ?? '' );
 			$hasurl = ( '' !== $url && '#' !== $url );
 			$tgt    = ( '_blank' === $target ) ? ' target="_blank" rel="noopener"' : '';
 			$btn    = trim( (string) ( $it->prog_btn ?? '' ) );

@@ -45,10 +45,12 @@ class DS_Marquee_Module extends FLBuilderModule {
 	}
 
 	/** Normalise a BB link field (string URL or {url,target} object/array) -> array(url,target). */
-	private function link_parts( $link ) {
-		$url = ''; $target = '_self';
-		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? '_self'; }
-		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? '_self'; }
+	private function link_parts( $link, $target_field = '' ) {
+		// A BB link field with show_target stores the tick in a SIBLING key
+		// (<field>_target), not inside the URL string; callers pass it in.
+		$url = ''; $target = (string) $target_field;
+		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? $target; }
+		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? $target; }
 		else { $url = (string) $link; }
 		$url = trim( (string) $url );
 		return array( $url, '_blank' === $target ? '_blank' : '_self' );
@@ -95,7 +97,7 @@ class DS_Marquee_Module extends FLBuilderModule {
 		}
 		$cls = 'ds-marquee-item' . ( $img ? ' ds-marquee-item--img' : '' );
 
-		list( $url, $target ) = $this->link_parts( $item->link ?? '' );
+		list( $url, $target ) = $this->link_parts( $item->link ?? '', $item->link_target ?? '' );
 		if ( '' !== $url && '#' !== $url ) {
 			$rel = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 			return sprintf(

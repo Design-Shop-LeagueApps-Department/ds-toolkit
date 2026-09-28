@@ -67,10 +67,12 @@ class DS_Page_Cards_Module extends FLBuilderModule {
 	}
 
 	/** Normalise a BB link field (string URL or {url,target} object/array). */
-	private function link_parts( $link ) {
-		$url = ''; $target = '_self';
-		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? '_self'; }
-		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? '_self'; }
+	private function link_parts( $link, $target_field = '' ) {
+		// A BB link field with show_target stores the tick in a SIBLING key
+		// (<field>_target), not inside the URL string; callers pass it in.
+		$url = ''; $target = (string) $target_field;
+		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? $target; }
+		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? $target; }
 		else { $url = (string) $link; }
 		$url = trim( (string) $url );
 		return array( '' === $url ? '' : esc_url( $url ), '_blank' === $target ? '_blank' : '_self' );
@@ -124,7 +126,7 @@ class DS_Page_Cards_Module extends FLBuilderModule {
 			$title = trim( (string) ( $row->title ?? '' ) );
 			$desc  = trim( (string) ( $row->description ?? '' ) );
 			$img   = $this->photo_url( $row->image ?? '', 'large' );
-			list( $url, $target ) = $this->link_parts( $row->link ?? '' );
+			list( $url, $target ) = $this->link_parts( $row->link ?? '', $row->link_target ?? '' );
 
 			if ( '' === $title && '' === $desc && '' === $img && '' === $url ) {
 				continue;

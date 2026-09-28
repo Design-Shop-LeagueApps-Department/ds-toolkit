@@ -103,10 +103,12 @@ class DS_Carousel_Module extends FLBuilderModule {
 	}
 
 	/** Normalise a BB link field (string URL or {url,target} object/array). */
-	private function link_parts( $link ) {
-		$url = ''; $target = '_self';
-		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? '_self'; }
-		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? '_self'; }
+	private function link_parts( $link, $target_field = '' ) {
+		// A BB link field with show_target stores the tick in a SIBLING key
+		// (<field>_target), not inside the URL string; callers pass it in.
+		$url = ''; $target = (string) $target_field;
+		if ( is_array( $link ) )      { $url = $link['url'] ?? ''; $target = $link['target'] ?? $target; }
+		elseif ( is_object( $link ) ) { $url = $link->url ?? '';  $target = $link->target ?? $target; }
 		else { $url = (string) $link; }
 		return array( esc_url( $url ), '_blank' === $target ? '_blank' : '_self' );
 	}
@@ -131,7 +133,7 @@ class DS_Carousel_Module extends FLBuilderModule {
 			$row = (object) $row;
 			$img = $this->photo_url( $row->image ?? '' );
 			if ( '' === $img ) { $img = $ph; }
-			list( $url, $target ) = $this->link_parts( $row->link ?? '' );
+			list( $url, $target ) = $this->link_parts( $row->link ?? '', $row->link_target ?? '' );
 			$caption = trim( (string) ( $row->caption ?? '' ) );
 			// 'medium' rather than 'large': the caption image is a badge/logo a few
 			// dozen pixels tall, so shipping the full-size file would be wasteful.
@@ -394,7 +396,7 @@ class DS_Carousel_Module extends FLBuilderModule {
 				}
 				echo '</div>';
 			} else {
-				list( $url, $target ) = $this->link_parts( $slide->link ?? '' );
+				list( $url, $target ) = $this->link_parts( $slide->link ?? '', $slide->link_target ?? '' );
 				if ( $url && '#' !== $url ) {
 					$rel = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 					echo '<a class="ds-reel-card" href="' . esc_url( $url ) . '" target="' . esc_attr( $target ) . '"' . $rel . $bg . '></a>';

@@ -317,8 +317,8 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	}
 
 	/** Normalise a BB link field (string URL or {url,target} object/array). */
-	private function link_parts( $link ) {
-		return DS_Card::link_parts( $link );
+	private function link_parts( $link, $target = '' ) {
+		return DS_Card::link_parts( $link, $target );
 	}
 
 	/**
@@ -974,7 +974,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		if ( $show_btn ) {
 			$txt = trim( (string) ( $s->button_text ?? '' ) );
 			if ( '' !== $txt ) {
-				list( $url, $target ) = $this->link_parts( $s->button_link ?? '' );
+				list( $url, $target ) = $this->link_parts( $s->button_link ?? '', $s->button_link_target ?? '' );
 				$rel = '_blank' === $target ? ' rel="noopener noreferrer"' : '';
 				echo '<a class="ds-news-seeall" href="' . $url . '" target="' . esc_attr( $target ) . '"' . $rel . '>' . esc_html( $txt ) . '</a>';
 			}
@@ -1306,7 +1306,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 			$img  = $this->acf_image_url( $it->sponsor_image ?? '' ) ?: self::placeholder_image();
 			$cap  = trim( (string) ( $it->sponsor_caption ?? '' ) );
 			$desc = trim( (string) ( $it->sponsor_desc ?? '' ) );
-			list( $url, $target ) = $this->link_parts( $it->sponsor_url ?? '' );
+			list( $url, $target ) = $this->link_parts( $it->sponsor_url ?? '', $it->sponsor_url_target ?? '' );
 			$has = ( '' !== $url && '#' !== $url );
 			echo '<div class="ds-sponsor-card">';
 			if ( $has ) { echo '<a class="ds-card-link" href="' . esc_url( $url ) . '"' . ( '_blank' === $target ? ' target="_blank" rel="noopener"' : '' ) . ' aria-label="' . esc_attr( $cap ) . '"></a>'; }
