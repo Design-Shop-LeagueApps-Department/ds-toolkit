@@ -30,6 +30,21 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 		) );
 	}
 
+	/**
+	 * Line thickness defaults to 2px since 1.10.8 (it was 3). A module saved before the
+	 * field existed has no value, and Beaver would fill it from the new default; pin those
+	 * to the old 3 so nothing already on a site changes. Saved modules store their own value.
+	 */
+	public function filter_raw_settings_defaults( $settings, $defaults ) {
+		if ( is_object( $settings ) && ! property_exists( $settings, 'divider_thickness' ) ) { $settings->divider_thickness = '3'; }
+		return $settings;
+	}
+
+	/** Beaver Builder before 2.9 calls this one instead. */
+	public function filter_raw_settings( $settings ) {
+		return $this->filter_raw_settings_defaults( $settings, null );
+	}
+
 	/** True when a wysiwyg/text value carries real, visible content. */
 	private function has_content( $raw ) {
 		$raw = (string) $raw;
@@ -290,7 +305,7 @@ FLBuilder::register_module( 'DS_Team_Detail_Module', array(
 				'title'  => __( 'Divider', 'ds-toolkit' ),
 				'fields' => array(
 					'divider_width'     => array( 'type' => 'unit', 'label' => __( 'Length', 'ds-toolkit' ), 'default' => '48', 'description' => 'px', 'slider' => array( 'min' => 8, 'max' => 300, 'step' => 1 ) ),
-					'divider_thickness' => array( 'type' => 'unit', 'label' => __( 'Thickness', 'ds-toolkit' ), 'default' => '3', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 12, 'step' => 1 ) ),
+					'divider_thickness' => array( 'type' => 'unit', 'label' => __( 'Thickness', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 12, 'step' => 1 ) ),
 				),
 			),
 			'spacing' => array(

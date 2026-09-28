@@ -27,6 +27,21 @@ class DS_Heading_Module extends FLBuilderModule {
 		) );
 	}
 
+	/**
+	 * Line thickness defaults to 2px since 1.10.8 (it was 3). A module saved before the
+	 * field existed has no value, and Beaver would fill it from the new default; pin those
+	 * to the old 3 so nothing already on a site changes. Saved modules store their own value.
+	 */
+	public function filter_raw_settings_defaults( $settings, $defaults ) {
+		if ( is_object( $settings ) && ! property_exists( $settings, 'divider_thickness' ) ) { $settings->divider_thickness = '3'; }
+		return $settings;
+	}
+
+	/** Beaver Builder before 2.9 calls this one instead. */
+	public function filter_raw_settings( $settings ) {
+		return $this->filter_raw_settings_defaults( $settings, null );
+	}
+
 	/** Allowed heading tags (SEO). Keys are the rendered tag. */
 	public static function tags() {
 		return array(
@@ -437,7 +452,7 @@ FLBuilder::register_module( 'DS_Heading_Module', array(
 					),
 					'divider_width' => array( 'type' => 'unit', 'label' => __( 'Length', 'ds-toolkit' ), 'default' => '48', 'slider' => array( 'min' => 8, 'max' => 600, 'step' => 1 ) ),
 					'divider_width_unit' => array( 'type' => 'select', 'label' => __( 'Length Unit', 'ds-toolkit' ), 'default' => 'px', 'options' => array( 'px' => 'px', '%' => '%' ), 'help' => __( '% is relative to the heading block width.', 'ds-toolkit' ) ),
-					'divider_thickness' => array( 'type' => 'unit', 'label' => __( 'Thickness', 'ds-toolkit' ), 'default' => '3', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 16, 'step' => 1 ) ),
+					'divider_thickness' => array( 'type' => 'unit', 'label' => __( 'Thickness', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 16, 'step' => 1 ) ),
 					'divider_radius' => array( 'type' => 'unit', 'label' => __( 'Rounded Ends', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 12, 'step' => 1 ) ),
 					'divider_gap' => array( 'type' => 'unit', 'label' => __( 'Spacing', 'ds-toolkit' ), 'default' => '14', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ), 'help' => __( 'Gap between the rule and the adjacent text.', 'ds-toolkit' ) ),
 					'divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
