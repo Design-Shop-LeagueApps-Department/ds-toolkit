@@ -22,6 +22,7 @@ $layout  = ( 'cards' === ( $s->layout ?? 'table' ) ) ? 'cards' : 'table';
 
 $btn_text  = trim( (string) ( $s->btn_text ?? '' ) ) ?: __( 'Register', 'ds-toolkit' );
 $btn_full  = trim( (string) ( $s->btn_full_text ?? '' ) ) ?: __( 'Sold Out', 'ds-toolkit' );
+$btn_canc  = trim( (string) ( $s->btn_cancel_text ?? '' ) ) ?: __( 'Cancelled', 'ds-toolkit' );
 $full_mode = (string) ( $s->btn_full_style ?? 'fade' );
 $show_cnt  = 'no' !== ( $s->show_count ?? 'yes' );
 $show_clr  = 'no' !== ( $s->show_clear ?? 'yes' );
@@ -39,10 +40,16 @@ $empty_txt = trim( (string) ( $s->empty_text ?? '' ) ) ?: __( 'No programs are o
 $none_txt  = trim( (string) ( $s->none_text ?? '' ) ) ?: __( 'No programs match those filters.', 'ds-toolkit' );
 
 /** Cell content for one column. Everything is escaped here. */
-$cell = function ( $key, $r ) use ( $btn_text, $btn_full, $full_mode ) {
+$cell = function ( $key, $r ) use ( $btn_text, $btn_full, $btn_canc, $full_mode ) {
 	if ( 'register' === $key ) {
 		// The program's LeagueApps page, not the checkout form. See DS_Programs_Data::button_url().
 		$url = DS_Programs_Data::button_url( $r );
+		// A cancelled session outranks every other state: LeagueApps keeps serving its
+		// register URL after it is called off, so never render it as a live button.
+		if ( ! empty( $r['canceled'] ) ) {
+			$cls = ( 'text' === $full_mode ) ? 'ds-programs-full ds-programs-full--canceled' : 'ds-programs-btn ds-programs-btn--full ds-programs-btn--canceled';
+			return '<span class="' . $cls . '">' . esc_html( $btn_canc ) . '</span>';
+		}
 		if ( ! empty( $r['soldOut'] ) ) {
 			$cls = ( 'text' === $full_mode ) ? 'ds-programs-full' : 'ds-programs-btn ds-programs-btn--full';
 			return '<span class="' . $cls . '">' . esc_html( $btn_full ) . '</span>';
@@ -76,12 +83,12 @@ $sort_val = function ( $key, $r ) {
 		case 'days':      return array( '' === $r['days'] ? 99 : DS_Programs_Data::day_rank( explode( ',', $r['days'] )[0] ), 'num' );
 		case 'price':     return array( '' === $r['price'] ? 0 : (float) preg_replace( '/[^\d.]/', '', $r['price'] ), 'num' );
 		case 'spots':     return array( '' === $r['spots'] ? 999999 : (int) $r['spots'], 'num' );
-		case 'register':  return array( ! empty( $r['soldOut'] ) ? 1 : 0, 'num' );
+		case 'register':  return array( ! empty( $r['canceled'] ) ? 2 : ( ! empty( $r['soldOut'] ) ? 1 : 0 ), 'num' );
 		default:          return array( strtolower( trim( (string) ( $r[ $key ] ?? '' ) ) ), 'text' );
 	}
 };
 $col_types = array();
-foreach ( $cols as $ckey => $c ) { $col_types[ $ckey ] = $sort_val( $ckey, array( 'startTs' => 0, 'endTs' => 0, 'month' => '', 'ageGroup' => '', 'days' => '', 'price' => '', 'spots' => '', 'soldOut' => false ) )[1]; }
+foreach ( $cols as $ckey => $c ) { $col_types[ $ckey ] = $sort_val( $ckey, array( 'startTs' => 0, 'endTs' => 0, 'month' => '', 'ageGroup' => '', 'days' => '', 'price' => '', 'spots' => '', 'soldOut' => false, 'canceled' => false ) )[1]; }
 
 /** The attributes every row element carries, in either layout. */
 $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val ) {
@@ -162,7 +169,7 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val ) {
 		?>
 	<div class="ds-programs-grid" data-ds-programs-list>
 		<?php foreach ( $rows as $i => $r ) : ?>
-			<article class="ds-programs-row ds-programs-card<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
+			<article class="ds-programs-row ds-programs-card<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
 				<div class="ds-programs-card-head">
 					<<?php echo $head_tag; ?> class="ds-programs-card-title"><?php echo $cell( 'program', $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell ?></<?php echo $head_tag; ?>>
 					<?php if ( $has_badge && '' !== trim( (string) $r['ageGroup'] ) ) : ?>
@@ -219,7 +226,7 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val ) {
 			</thead>
 			<tbody data-ds-programs-list>
 				<?php foreach ( $rows as $i => $r ) : ?>
-					<tr class="ds-programs-row<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
+					<tr class="ds-programs-row<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
 						<?php foreach ( $cols as $ckey => $c ) : ?>
 							<td class="ds-programs-td ds-programs-td--<?php echo esc_attr( $ckey ); ?>" data-label="<?php echo esc_attr( 'register' === $ckey ? '' : $c['label'] ); ?>"><?php
 								echo $cell( $ckey, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell

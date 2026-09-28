@@ -450,12 +450,15 @@ class DS_Programs_Data {
 		$type_map   = array( 'TOURNAMENT' => __( 'Tournament', 'ds-toolkit' ), 'LEAGUE' => __( 'League', 'ds-toolkit' ), 'CLASS' => __( 'Class', 'ds-toolkit' ), 'CAMP' => __( 'Camp', 'ds-toolkit' ), 'CLINIC' => __( 'Clinic', 'ds-toolkit' ), 'EVENT' => __( 'Event', 'ds-toolkit' ), 'CLUBTEAM' => __( 'Club Team', 'ds-toolkit' ) );
 		$mode_map   = array( 'YOUTH' => __( 'Youth', 'ds-toolkit' ), 'ADULT' => __( 'Adult', 'ds-toolkit' ) );
 		$state_map  = array( 'UPCOMING' => __( 'Upcoming', 'ds-toolkit' ), 'LIVE' => __( 'In Season', 'ds-toolkit' ), 'ARCHIVED' => __( 'Past', 'ds-toolkit' ) );
-		$stat_map   = array( 'OPEN' => __( 'Open', 'ds-toolkit' ), 'OPENS_SOON' => __( 'Opens Soon', 'ds-toolkit' ), 'SOLD_OUT' => __( 'Sold Out', 'ds-toolkit' ), 'CLOSED' => __( 'Closed', 'ds-toolkit' ), 'WAITLIST' => __( 'Waitlist', 'ds-toolkit' ) );
+		$stat_map   = array( 'OPEN' => __( 'Open', 'ds-toolkit' ), 'OPENS_SOON' => __( 'Opens Soon', 'ds-toolkit' ), 'SOLD_OUT' => __( 'Sold Out', 'ds-toolkit' ), 'CLOSED' => __( 'Closed', 'ds-toolkit' ), 'WAITLIST' => __( 'Waitlist', 'ds-toolkit' ), 'CANCELED' => __( 'Cancelled', 'ds-toolkit' ) );
 
 		$type_raw  = strtoupper( (string) ( $row['type'] ?? '' ) );
 		$mode_raw  = strtoupper( (string) ( $row['mode'] ?? '' ) );
 		$state_raw = strtoupper( (string) ( $row['state'] ?? '' ) );
 		$stat_raw  = strtoupper( (string) ( $row['registrationStatus'] ?? '' ) );
+		// LeagueApps spells it CANCELED; accept the double-L spelling too so a partner
+		// who cancels a session never has it advertised as bookable.
+		if ( 'CANCELLED' === $stat_raw ) { $stat_raw = 'CANCELED'; }
 		$spots     = self::spots( $row );
 
 		// registrationStatus is blank on most programs (189 of 226 on the
@@ -503,6 +506,7 @@ class DS_Programs_Data {
 			'registerUrl'=> self::url( (string) ( $row['registerUrlHtml'] ?? '' ) ) ?: self::url( (string) ( $row['programUrlHtml'] ?? '' ) ),
 			'programUrl' => self::url( (string) ( $row['programUrlHtml'] ?? '' ) ),
 			'soldOut'    => ( 'SOLD_OUT' === $stat_raw ),
+			'canceled'   => ( 'CANCELED' === $stat_raw ),
 		);
 
 		// Field mapping: a partner's typed convention replaces the derived value.

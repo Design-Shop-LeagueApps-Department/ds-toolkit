@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.11] - 2026-09-29
+### Fixed
+- **A cancelled LeagueApps program no longer shows a live Register button.** Found on dsstormbasketball.com: the partner cancelled "5th/6th grade girls (7pm-8pm)" in LeagueApps and the Programs module kept advertising it with a blue **Register** button into the LeagueApps booking page. LeagueApps returns `registrationStatus: CANCELED` on that row but keeps serving its `programUrl`, and the module read only `SOLD_OUT`, so every other state fell through to the button. Cancelled rows now render a non-clickable, struck-through **Cancelled** label instead (the wording is a new **Text when cancelled** setting), carry `is-canceled` on the row, and sort last in the Register column. They reuse the existing sold-out look settings, so there is no second colour pair to configure, and a new **Hide cancelled programs** filter can drop them entirely (default: show them, marked). The `CANCELLED` spelling is accepted too. Cancelled outranks sold out. `tests/programs-feed-test.php` covers it (7 new assertions, no WordPress needed): all pass here, 4 of the 7 fail against 1.10.10.
+
+---
+
 ## [1.10.10] - 2026-09-28
 ### Added
 - **Team pages built in Beaver Builder, with guided drop areas** (Alipio: "able to partner drag and drop module but we need them have a guide that this is part that they will drag and drop it. and coach when they click a query loop module will show ... empty section they showing during beaver builder mode so that they can add module"). A Content Router route can be set to **Each post can be built in Beaver Builder**, with a **Starter Template**:

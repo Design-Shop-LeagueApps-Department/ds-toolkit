@@ -165,6 +165,10 @@
 
 .ds-programs-btn--full { opacity: .55; cursor: default; }
 .ds-programs-full { font-weight: 700; opacity: .7; white-space: nowrap; }
+/* Cancelled reuses the sold-out colours and adds the struck-through cue, so a
+   called-off session never reads as merely full. */
+.ds-programs-btn--canceled,
+.ds-programs-full--canceled { text-decoration: line-through; }
 
 .ds-programs-empty,
 .ds-programs-none { margin: 16px 0; font-style: italic; }
@@ -245,7 +249,9 @@
 .ds-programs-card-price { font-size: 20px; font-weight: 800; line-height: 1; }
 .ds-programs-card-action { margin-left: auto; }
 .ds-programs-card .ds-programs-btn { display: inline-block; }
-.ds-programs-card.is-soldout .ds-programs-card-price { opacity: .6; }
+.ds-programs-card.is-soldout .ds-programs-card-price,
+.ds-programs-card.is-canceled .ds-programs-card-price { opacity: .6; }
+.ds-programs-card.is-canceled .ds-programs-card-price { text-decoration: line-through; }
 /* cards have no column headings, so the Sort-by dropdown is always in the bar */
 .ds-programs--cards .ds-programs-field--sort { display: flex; }
 
