@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.8] - 2026-09-28
+### Changed
+- **Line thickness defaults to 2px** (Alipio: "update toolkit to default thickness of line is 2px"). A newly dropped LeagueApps Heading (Divider thickness), LeagueApps Divider (Thickness) and Team Detail (Divider thickness) starts at 2px instead of 3px, matching the Post Loop header divider, Pathway and OrgStats. Existing modules keep their line: every saved module stores its own value (on dslaunchpad7 all 81 do), and a module saved before the field existed is pinned to the old 3px, so nothing already on a site changes.
+
 ## [1.10.7] - 2026-09-28
 ### Security
 - **The vendor check now works on WP Engine, where it was silently failing for the newest plugin version.** WP Engine hooks `pre_http_request` and answers WordPress's wordpress.org calls from its own artifact mirror, which trails the real index: on 2026-09-28 `google-site-kit` 1.188.0, published 09-21, was still `NoSuchKey` there while wordpress.org served it. Found in the 20-install pilot, where **every** install ran Site Kit 1.186-1.188 and the one on 1.188.0 did not verify. Smart Plugin Manager keeps WPE sites on the newest release, so the mirror is missing exactly the version installed - it failed precisely where it is needed most. On a 404 only, the manifest is now requested once from the canonical host with those filters lifted and restored in every exit path including a thrown one. Read-only, one small GET, cached a week. `content.vendor.canonical` counts how often the fallback was needed.
