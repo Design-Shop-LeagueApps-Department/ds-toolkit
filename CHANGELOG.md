@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.13] - 2026-09-29
+### Changed
+- **A cancelled program now looks inert instead of like a live button.** Following 1.10.11, the cancelled label kept the site's button colour at 55% opacity. On dsstormbasketball.com that made the called-off session the loudest element on the phone card, a full-width bright yellow bar that still read as a call to action, and the line through bold uppercase letterforms read as defacement rather than a state. The cancelled label is now a neutral inert chip (`#e9e9ea` / `#3a3a3f`, 9.3:1) with no strikethrough. The struck-through card price went too: a line through a price reads as a discount, so cancelled rows just fade it, matching sold out. Sold-out styling is unchanged, and a partner who picked **Own colours** still overrides both (those rules are emitted `!important`).
+
+---
+
 ## [1.10.12] - 2026-09-29
 ### Fixed
 - **Saving a synced colour on Theme Setting no longer wipes the theme's CSS from every page.** Found on ethosvolleybal: every Beaver Builder page (home included) sat in a 1140px box with white gutters instead of running full width, and the "Skip to content" link showed at the top. The Base Page Background was set to the synced global colour, which Theme Setting stores as `var(--fl-global-base-page-background-color)` in the Beaver Builder theme's `fl-body-bg-color`. The theme compiles `uploads/bb-theme/skin-*.css` from that mod with LESS, which only reads `#rgb`/`#rrggbb`: it wrote `#var(...)`, the compile failed, no skin file was written, and BB theme 1.7.20 keeps linking the deleted file. The same happened with `rgb()`, `rgba()`, `#rgba` and `#rrggbbaa` (colours with opacity, GH #80) in `fl-body-bg-color` and `fl-content-bg-color`. The theme is now handed a plain hex through its `fl_theme_mods` filter (a synced colour resolves through the live palette, opacity is dropped, a fully transparent or unknown colour falls back to the theme default), while the stored value, which Theme Setting and its page-band CSS read, keeps what was picked. A site already in this state rebuilds its skin on the next page view after updating. `tests/theme-skin-color-test.php` compiles the real skin in memory for every format: 33/33 pass on BB theme 1.7.20, and its control run (same value, filter off) fails the compile.
