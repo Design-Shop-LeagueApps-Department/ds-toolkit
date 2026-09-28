@@ -123,8 +123,10 @@ class DS_Content_Router_Module extends FLBuilderModule {
 			if ( 'default' === $cond )         { $default = $val; continue; }
 			if ( 'archive:default' === $cond ) { $arch_default = $val; continue; }
 			if ( $cond === $ctx && ( 'self' === $val || $val ) ) {
-				// Opt-in per route: a post built in Beaver Builder shows its own layout instead.
-				if ( 'yes' === (string) ( $r->cr_own_layout ?? 'no' ) && self::post_has_own_layout() ) { return 'self'; }
+				// "Edit content in Beaver Builder" routes: while this post is open in the builder, render
+				// its own (seeded) copy of the template so the modules can be clicked; visitors always get
+				// the template itself, so every post of the type keeps one design.
+				if ( 'content' === (string) ( $r->cr_own_layout ?? 'no' ) && self::editing_this_post() ) { return 'self'; }
 				return $val;
 			}
 		}
@@ -133,18 +135,75 @@ class DS_Content_Router_Module extends FLBuilderModule {
 		return $default;
 	}
 
+	/** True while the single post being viewed is the one open in Beaver Builder. */
+	private static function editing_this_post() {
+		// The builder always edits the queried post. FLBuilderModel::get_post_id() is not usable
+		// here: while the router renders inside a Themer layout it returns the layout's id.
+		return is_singular() && class_exists( 'FLBuilderModel' ) && FLBuilderModel::is_builder_active()
+			&& current_user_can( 'edit_post', (int) get_queried_object_id() );
+	}
+
+	/** The post open in Beaver Builder: the queried post on a page load, BB's post id on builder AJAX. */
+	public static function builder_post_id() {
+		if ( ! class_exists( 'FLBuilderModel' ) ) { return 0; }
+		if ( ! wp_doing_ajax() && did_action( 'wp' ) && is_singular() ) { return (int) get_queried_object_id(); }
+		return (int) FLBuilderModel::get_post_id();
+	}
+
 	/**
-	 * For a route set to "show the post's own layout": true when the single post being viewed
-	 * has been built in Beaver Builder (its post type is enabled in BB and the post uses the
-	 * builder), or is open in the builder right now, so a first edit starts on the post's own
-	 * canvas instead of the shared template. Archives and non-singular views never qualify.
+	 * The saved template a post type is routed to with "Edit each post's content in Beaver
+	 * Builder", or 0. Read from the Content Router modules in the Themer layouts.
 	 */
-	private static function post_has_own_layout() {
-		if ( ! is_singular() || ! class_exists( 'FLBuilderModel' ) ) { return false; }
+	public static function content_edit_template( $post_type ) {
+		static $map = null;
+		if ( null === $map ) {
+			$map = array();
+			$layouts = get_posts( array( 'post_type' => 'fl-theme-layout', 'post_status' => 'publish', 'numberposts' => 50, 'fields' => 'ids' ) );
+			foreach ( $layouts as $lid ) {
+				foreach ( (array) get_post_meta( $lid, '_fl_builder_data', true ) as $node ) {
+					if ( ! is_object( $node ) || 'ds-content-router' !== ( $node->settings->type ?? '' ) ) { continue; }
+					foreach ( (array) ( $node->settings->routes ?? array() ) as $r ) {
+						$r = (object) $r;
+						if ( 'content' === (string) ( $r->cr_own_layout ?? 'no' ) && is_numeric( $r->cr_template ?? '' ) && (int) $r->cr_template ) {
+							$map[ (string) ( $r->cr_when ?? '' ) ] = (int) $r->cr_template;
+						}
+					}
+				}
+			}
+		}
+		return (int) ( $map[ (string) $post_type ] ?? 0 );
+	}
+
+	/**
+	 * When a post whose type uses "Edit each post's content" opens in Beaver Builder: keep the
+	 * Themer layout around it ("Edit Content Only", so no Override prompt) and, if the post has
+	 * no builder draft yet, seed the draft with a copy of the template. The copy is only the
+	 * editing surface; the live page keeps rendering the template.
+	 */
+	public static function seed_content_edit() {
+		if ( ! is_singular() || ! class_exists( 'FLBuilderModel' ) || ! FLBuilderModel::is_builder_active() ) { return; }
 		$pid = (int) get_queried_object_id();
-		if ( ! $pid ) { return false; }
-		if ( FLBuilderModel::is_builder_active() && (int) FLBuilderModel::get_post_id() === $pid ) { return true; }
-		return FLBuilderModel::is_builder_enabled( $pid );
+		if ( ! $pid || ! current_user_can( 'edit_post', $pid ) ) { return; }
+		$tpl = self::content_edit_template( get_post_type( $pid ) );
+		if ( ! $tpl ) { return; }
+		if ( 'content' !== get_post_meta( $pid, '_fl_theme_builder_edit_mode', true ) ) {
+			update_post_meta( $pid, '_fl_theme_builder_edit_mode', 'content' );
+		}
+		$draft = get_post_meta( $pid, '_fl_builder_draft', true );
+		if ( empty( $draft ) ) {
+			$data = get_post_meta( $tpl, '_fl_builder_data', true );
+			if ( is_array( $data ) && $data ) {
+				FLBuilderModel::update_layout_data( $data, 'draft', $pid );
+				$ls = get_post_meta( $tpl, '_fl_builder_data_settings', true );
+				if ( $ls ) { update_post_meta( $pid, '_fl_builder_draft_settings', $ls ); }
+			}
+		}
+	}
+
+	/** True when the builder is open on a post whose type uses "Edit each post's content". */
+	public static function is_content_edit_session() {
+		$pid = self::builder_post_id();
+		return $pid && self::content_edit_template( get_post_type( $pid ) ) > 0;
 	}
 
 	/**
@@ -223,6 +282,30 @@ class DS_Content_Router_Module extends FLBuilderModule {
    renders a page's own content (see DS_Content_Router_Module::gate_nested_content). */
 add_filter( 'fl_themer_is_content_building_enabled', array( 'DS_Content_Router_Module', 'gate_nested_content' ), 99, 2 );
 
+add_action( 'wp', array( 'DS_Content_Router_Module', 'seed_content_edit' ), 0 );
+
+/* Content-edit sessions: the layout is the shared template, so structure edits are switched off in
+   the builder UI (the live page ignores this copy's structure anyway). Module settings stay open. */
+$ds_cr_lock_structure = function () {
+	if ( ! DS_Content_Router_Module::is_content_edit_session() ) { return; }
+	if ( 'wp_enqueue_scripts' === current_action() && ! FLBuilderModel::is_builder_active() ) { return; }
+	$css = '.fl-builder-content-panel-button,.fl-builder-content-panel,.fl-builder--content-library-panel,'
+		. '[data-type="add-content"],.fl-builder-button-add,.fl-builder-block-add,'
+		. '.fl-block-move,.fl-block-remove,.fl-block-copy,.fl-block-duplicate,.fl-block-col-resize,'
+		. '.fl-row-overlay,.fl-col-overlay,.fl-builder-drop-zone,.fl-drop-target{display:none!important;}'
+		// Team Detail on a team: the design is the shared template's (visitors always see it), so its
+		// design options would preview here and never go live. Show only the "This team" section.
+		// Hidden, not removed: Beaver Builder's save needs the full form (a trimmed one never saves).
+		. '.fl-builder-ds-team-detail-settings .fl-builder-settings-tabs,'
+		. '.fl-builder-ds-team-detail-settings .fl-builder-settings-section:not(#fl-builder-settings-section-team_content){display:none!important;}';
+	wp_register_style( 'ds-cr-content-edit', false, array(), DS_TOOLKIT_VERSION );
+	wp_enqueue_style( 'ds-cr-content-edit' );
+	wp_add_inline_style( 'ds-cr-content-edit', $css );
+};
+add_action( 'fl_builder_ui_enqueue_scripts', $ds_cr_lock_structure ); // outer builder UI
+add_action( 'wp_enqueue_scripts', $ds_cr_lock_structure, 99 );        // the canvas iframe (block overlays live there)
+unset( $ds_cr_lock_structure );
+
 /* Builder-UI script: powers the "Edit template" button inside each Route popup. */
 add_action( 'fl_builder_ui_enqueue_scripts', function () {
 	wp_enqueue_script(
@@ -262,10 +345,10 @@ FLBuilder::register_settings_form( 'ds_cr_route_form', array(
 							'label'   => __( 'Posts built in Beaver Builder', 'ds-toolkit' ),
 							'default' => 'no',
 							'options' => array(
-								'no'  => __( 'Always use this template', 'ds-toolkit' ),
-								'yes' => __( 'Show the post’s own layout when it has one', 'ds-toolkit' ),
+								'no'      => __( 'Always use this template', 'ds-toolkit' ),
+								'content' => __( 'Edit each post’s content in Beaver Builder (design locked)', 'ds-toolkit' ),
 							),
-							'help'    => __( 'With "own layout", a post opened in Beaver Builder shows that layout; every other post of this type keeps the template. Needs the post type ticked in Settings > Beaver Builder > Post Types. The dashboard fields stay.', 'ds-toolkit' ),
+							'help'    => __( 'With "Edit each post’s content", opening a post of this type in Beaver Builder shows this template with its modules clickable: their panels edit that post’s own fields (Team Detail: photo, roster, schedule, coaches), saved to the same fields the dashboard shows when you publish. Adding, moving and deleting modules is switched off, and visitors always see this template. Needs the post type ticked in Settings > Beaver Builder > Post Types.', 'ds-toolkit' ),
 						),
 						'cr_edit_btn' => array(
 							'type'    => 'raw',
