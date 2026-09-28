@@ -104,3 +104,7 @@ ac359df9a8f30f081ba7d00467848c5b  pixelyoursite 11.3.1 includes/class-pys.php - 
 # --- own elFinder. somerssports.org emailed CRITICAL on it 09-27 09:18 UTC and would have again
 # --- every day. Plugin is INACTIVE on that site, which does not change the file's hash.
 4d8b0a0f6f8a2ea750cfbba9498436d2  file-manager-advanced 5.4.14 application/library/php/elFinder.class.php - 189995b, BYTE-IDENTICAL to the wordpress.org 5.4.14 zip. Same score-145 shape as wp-file-manager's copy: move_uploaded_file() with no nonce check plus split-literal stream wrappers in a file that include()s. That is elFinder. Site: somerssports.org
+# --- 2026-09-28: a FOURTH wp-file-manager elFinder version. The Flywheel fleet is on 1.9.166, which
+# --- does not have 1.10.7's vendor-manifest check, so that half still needs hashes by hand. This one
+# --- was cleared in seconds by fleet-audit/bin/tw-verify-vendor.py instead of an hour of zip diffing.
+8534db17e4d14e8e8b395b3708e83228  wp-file-manager 6.9 lib/php/elFinder.class.php - 181682b, BYTE-IDENTICAL to the wordpress.org plugin-checksums manifest for 6.9 (verified by tw-verify-vendor.py). Plugin is INACTIVE on the site. Site: elitetournys.com
