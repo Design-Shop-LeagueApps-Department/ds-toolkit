@@ -4,6 +4,14 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.15] - 2026-09-29
+### Fixed
+- **A cancelled program no longer prints "spots left".** The row said `SPOTS LEFT 15` next to the Cancelled label on dsstormbasketball.com, which is the same false advertisement as the register button was: there are no places to take. Cancelled rows now show the neutral dash, labelled "Not applicable" for screen readers. Sorting is unaffected (it reads the underlying value, not the rendered cell).
+### Changed
+- **The cancelled chip now has a visible edge.** Measured on the live page, its plate landed within **1.1:1** of the row behind it in both viewports, so the chip disappeared and the action column lost the rhythm the live buttons set. It gets a 1px inset shadow, which draws the edge without adding to the box height, so the chip still lines up with the buttons in the other rows.
+
+---
+
 ## [1.10.14] - 2026-09-29
 ### Fixed
 - **The cancelled chip's neutral colours now actually reach the page.** 1.10.13 put them in the module's static stylesheet, where they could never win: the register button's colours are emitted per node with `!important` (from Global Styles, the bb-theme Customizer button/accent mods, or the module's own Custom colours), so on dsstormbasketball.com the cancelled label kept rendering in full brand yellow. Verified against the live cascade, not assumed. The chip is now emitted in the same per-node CSS, immediately after the button rules and before the sold-out block, overriding the `background` shorthand as well as `background-color`. A partner who picked **Own colours** is emitted later still and keeps winning.
