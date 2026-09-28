@@ -31,6 +31,21 @@ class DS_Divider_Module extends FLBuilderModule {
 		) );
 	}
 
+	/**
+	 * Line thickness defaults to 2px since 1.10.8 (it was 3). A module saved before the
+	 * field existed has no value, and Beaver would fill it from the new default; pin those
+	 * to the old 3 so nothing already on a site changes. Saved modules store their own value.
+	 */
+	public function filter_raw_settings_defaults( $settings, $defaults ) {
+		if ( is_object( $settings ) && ! property_exists( $settings, 'thickness' ) ) { $settings->thickness = '3'; }
+		return $settings;
+	}
+
+	/** Beaver Builder before 2.9 calls this one instead. */
+	public function filter_raw_settings( $settings ) {
+		return $this->filter_raw_settings_defaults( $settings, null );
+	}
+
 	/** Heading markup: safe inline HTML, {a}..{/a} -> accent, {outline} -> outline span. */
 	private function heading_html( $raw ) {
 		$h = DS_Module_UI::inline( (string) $raw );
@@ -175,7 +190,7 @@ FLBuilder::register_module( 'DS_Divider_Module', array(
 			'size'    => array(
 				'title'  => __( 'Size & Shape', 'ds-toolkit' ),
 				'fields' => array(
-					'thickness'    => array( 'type' => 'unit', 'label' => __( 'Thickness', 'ds-toolkit' ), 'default' => '3', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 30, 'step' => 1 ) ),
+					'thickness'    => array( 'type' => 'unit', 'label' => __( 'Thickness', 'ds-toolkit' ), 'default' => '2', 'description' => 'px', 'slider' => array( 'min' => 1, 'max' => 30, 'step' => 1 ) ),
 					'h_width'      => array( 'type' => 'unit', 'label' => __( 'Length', 'ds-toolkit' ), 'default' => '100', 'slider' => array( 'min' => 5, 'max' => 100, 'step' => 1 ) ),
 					'h_width_unit' => array( 'type' => 'select', 'label' => __( 'Length Unit', 'ds-toolkit' ), 'default' => '%', 'options' => array( '%' => '%', 'px' => 'px' ) ),
 					'h_align'      => array( 'type' => 'select', 'label' => __( 'Alignment', 'ds-toolkit' ), 'default' => 'center', 'options' => array( 'left' => __( 'Left', 'ds-toolkit' ), 'center' => __( 'Center', 'ds-toolkit' ), 'right' => __( 'Right', 'ds-toolkit' ) ) ),
