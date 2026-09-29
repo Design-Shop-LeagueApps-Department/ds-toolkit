@@ -286,6 +286,9 @@ chk('master mode: standalone unaffected', $by($r,30)['price'], '$50');
 $r = DS_Programs_Data::get(array($site), array(), array(), 'both');
 chk('both: masters and children all listed', $ids($r), array(10,11,12,21,30,40,41,42));
 chk('both: master and its children share a groupKey', array($by($r,10)['groupKey'],$by($r,11)['groupKey'],$by($r,12)['groupKey']), array(10,10,10));
+chk('both: a child listed under its master carries parentId', array($by($r,11)['parentId'],$by($r,12)['parentId']), array(10,10));
+chk('both: the master itself, an orphan and a standalone have no parentId', array($by($r,10)['parentId'],$by($r,21)['parentId'],$by($r,30)['parentId']), array(0,0,0));
+chk('children mode: parentId is never set (nothing to nest under)', array_sum(array_map(function($p){ return (int)!empty($p['parentId']); }, DS_Programs_Data::get(array($site), array(), array(), 'children')['programs'])), 0);
 chk('both: equal child fees collapse to one price on the master', (function() use ($grp,$site){ return null; })() ?? $by($r,40)['price'], '$200');
 $GLOBALS['http']=array(array('code'=>200,'body'=>json_encode(array(
   array('programId'=>50,'isMaster'=>true,'name'=>'Same Fee Master','type'=>'CAMP','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/50'),

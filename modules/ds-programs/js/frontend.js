@@ -71,7 +71,7 @@
 					var c;
 					if (num) { c = (parseFloat(av) || 0) - (parseFloat(bv) || 0); }
 					else { c = av < bv ? -1 : (av > bv ? 1 : 0); }
-					if (c === 0) { c = (+a.getAttribute('data-i')) - (+b.getAttribute('data-i')); }
+					if (c === 0) { return (+a.getAttribute('data-i')) - (+b.getAttribute('data-i')); }
 					return c * dir;
 				});
 			}
@@ -112,7 +112,26 @@
 				var q = search ? search.value.trim().toLowerCase() : '';
 				if (opts.reset) { state.page = 1; }
 
-				var shown = rows.filter(function (r) { return matches(r, active, q); });
+				// A sub-program nested under its main program (data-parent) is one
+				// group with it: the group shows when the main program matches or any
+				// sub-program does, and then the sub-programs that match (all of them
+				// when the main program matched on its own).
+				var own = {}, kids = {};
+				rows.forEach(function (r) {
+					var k = r.getAttribute('data-i'), p = r.getAttribute('data-parent');
+					own[k] = matches(r, active, q);
+					if (p) { (kids[p] = kids[p] || []).push(k); }
+				});
+				var vis = {};
+				rows.forEach(function (r) {
+					var k = r.getAttribute('data-i');
+					if (!r.getAttribute('data-parent')) { vis[k] = own[k] || (kids[k] || []).some(function (c) { return own[c]; }); }
+				});
+				rows.forEach(function (r) {
+					var k = r.getAttribute('data-i'), p = r.getAttribute('data-parent');
+					if (p) { vis[k] = !!vis[p] && (own[k] || own[p]); }
+				});
+				var shown = rows.filter(function (r) { return vis[r.getAttribute('data-i')]; });
 				var order = sorted(rows);
 				if (tbody) { order.forEach(function (r) { tbody.appendChild(r); }); }
 
@@ -130,7 +149,9 @@
 					r.classList.toggle('is-paged', isMatch && !shownSet[k]);
 				});
 
-				if (countEl) { countEl.textContent = total + ' ' + (total === 1 ? one : many); }
+				// The count is programs, so nested sub-programs are not counted twice.
+				var programs = visible.filter(function (r) { return !r.getAttribute('data-parent'); }).length;
+				if (countEl) { countEl.textContent = programs + ' ' + (programs === 1 ? one : many); }
 				if (noneEl)  { noneEl.hidden = total !== 0; }
 				if (clearEl) { clearEl.hidden = active.length === 0 && !q; }
 				renderPager(total);

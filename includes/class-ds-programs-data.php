@@ -441,6 +441,9 @@ class DS_Programs_Data {
 				continue;
 			} else {
 				$p = self::normalize( $row, $masters, $overrides, $format );
+				// Listed under its master's own row: the table nests it and the
+				// front end sorts, filters and pages the two as one group.
+				if ( $p && 'both' === $grouping && $mid && $mid !== $pid && isset( $masters[ $mid ] ) && ! empty( $children[ $mid ] ) ) { $p['parentId'] = $mid; }
 			}
 			if ( $p ) { $rows[] = $p; }
 		}
@@ -541,6 +544,7 @@ class DS_Programs_Data {
 			'canceled'   => ( 'CANCELED' === $stat_raw ),
 			'isMaster'   => ! empty( $children ),
 			'children'   => count( $children ),
+			'parentId'   => 0,
 		);
 
 		// Field mapping: a partner's typed convention replaces the derived value.

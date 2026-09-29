@@ -69,6 +69,9 @@ $v = $sc( 'row_color' );  if ( $v ) { echo "$node .ds-programs-td{color:$v;}\n";
 // the row typography rule (two classes vs three) instead of being flattened by it.
 $nw = (string) $st( 'name_weight', '600' );
 if ( 'inherit' !== $nw && is_numeric( $nw ) ) { echo "$node .ds-programs-td.ds-programs-td--program{font-weight:$nw;}\n"; }
+$nested = ( 'both' === (string) ( $settings->grouping ?? 'children' ) );
+// Nested sub-programs read as the main program's lines, not as more programs.
+if ( $nested ) { echo "$node .ds-programs-row.is-child .ds-programs-td.ds-programs-td--program{font-weight:400;}\n"; }
 
 /* cell padding: responsive; the preset supplies a default the field may be blank on */
 $pad_base = $px( 'cell_pad', 12 );
@@ -296,6 +299,13 @@ $v = $sc( 'mob_label_color' ); $lbl[] = $v ? "color:$v;opacity:1" : 'opacity:.65
 $m[] = ".ds-programs-td::before{" . implode( ';', $lbl ) . ";}";
 $m[] = ".ds-programs-table .ds-programs-td--program{display:block;order:-1;padding:6px 0;font-size:" . ( $px( 'mob_name_size' ) ?: '19px' ) . ";line-height:1.25;font-weight:" . ( is_numeric( $nw ) ? $nw : 700 ) . ";}";
 $m[] = ".ds-programs-td--program::before{display:none;}";
+if ( $nested ) {
+	// A phone card stands alone, so the main program's name becomes an eyebrow
+	// and the tree indent goes.
+	$m[] = ".ds-programs-row.is-child .ds-programs-parent{display:block;margin:0 0 3px;font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;opacity:.65;}";
+	$m[] = ".ds-programs-row.is-child .ds-programs-sub{display:inline;padding-left:0;}";
+	$m[] = ".ds-programs-row.is-child .ds-programs-sub::before{display:none;}";
+}
 $m[] = ".ds-programs-table .ds-programs-td--register{display:block;padding-top:12px;}";
 $m[] = ".ds-programs-td--register::before{display:none;}";
 $m[] = ".ds-programs-btn{display:block;width:100%;padding:13px 16px;}";
