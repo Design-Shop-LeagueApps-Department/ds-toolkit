@@ -1187,6 +1187,7 @@ class DS_Tripwire {
         // here are belt-and-braces: an empty allow set means "suppress nothing", the loud direction.
         try { $known = self::known_good_md5(); } catch ( \Throwable $e ) { $known = array(); }
         try { $bad   = self::known_bad_md5();  } catch ( \Throwable $e ) { $bad   = self::KNOWN_BAD_MD5; }
+        try { $own   = self::own_marker_md5(); } catch ( \Throwable $e ) { $own   = array(); }
         $opts    = array(
             'min'          => DSSCAN_HIGH_SCORE,
             'tokenize_cap' => $tokcap,
@@ -1194,9 +1195,13 @@ class DS_Tripwire {
             'self_paths'   => $self,
         );
         try {
-            $cleared = 0;
-            $stats   = dsscan_scan_list( $paths, $opts, function ( $f ) use ( &$found, &$skipped, &$cleared, $known, $bad ) {
+            $cleared    = 0;
+            $own_copies = 0;
+            $stats   = dsscan_scan_list( $paths, $opts, function ( $f ) use ( &$found, &$skipped, &$cleared, &$own_copies, $known, $bad, $own ) {
                 if ( ! empty( $f['skipped'] ) ) { $skipped++; return; }
+                // a byte-identical COPY of our own engine or of this class, wherever it sits: a staging
+                // dir, a backup plugin's snapshot, a manual copy. See own_marker_md5() for why only these two.
+                if ( ! empty( $f['md5'] ) && isset( $own[ $f['md5'] ] ) ) { $own_copies++; return; }
                 // known-good by HASH: verified vendor and blueprint code, never a path or name match
                 if ( ! empty( $f['md5'] ) && isset( $known[ $f['md5'] ] ) ) { $cleared++; return; }
                 // vendor-verified by HASH against the plugin's own official manifest. Same equality
@@ -1258,6 +1263,7 @@ class DS_Tripwire {
         // How many findings the known-good hash gate suppressed. Recorded because a scanner that
         // goes quiet has to be able to say why: "cleared=412" is auditable, silence is not.
         $c['cleared']     = $cleared;
+        $c['own_copies']  = isset( $own_copies ) ? $own_copies : 0;
         $c['known_good']  = count( $known );
         // observable, so "the noise went away" can be checked instead of assumed
         $c['vendor']      = self::$vendor_stats;
@@ -1282,6 +1288,30 @@ class DS_Tripwire {
             $this->alert( 'CRITICAL', array_map( function ( $l ) { return '[CRITICAL] ' . $l; }, $mail ) );
         }
         return $found;
+    }
+
+    /**
+     * md5 of the two files that carry the campaign markers ON PURPOSE: the running engine and this
+     * class. Both are exempt in place by exact path (self_paths). This extends that exemption to
+     * byte-identical COPIES of them anywhere under the web root, by hash, never by name or folder.
+     *
+     * Why: the WP Engine fleet installer staged each release in wp-content/plugins/.dstk-new.<PID>/,
+     * the content scan read that copy of its own engine mid-install, and 71 sites mailed a false
+     * CRITICAL during the 1.10.16 push (2026-09-28). Any backup plugin or manual copy does the same.
+     *
+     * Deliberately NOT every toolkit file: hashing the whole running plugin would also clear a
+     * toolkit file an attacker had modified in place. These two are already exempt in place, so
+     * covering their copies adds no blind spot. A copy from a DIFFERENT release (hash differs) still
+     * scores; the installer now stages in wp-content/upgrade/, which the walk skips.
+     */
+    private static function own_marker_md5() {
+        $set = array();
+        foreach ( array( __FILE__, DS_TOOLKIT_PATH . 'includes/ds-scan-engine.php' ) as $p ) {
+            $m = is_readable( $p ) ? @md5_file( $p ) : false;
+            // never the empty-file hash: a 0-byte file must not inherit an exemption
+            if ( $m && 'd41d8cd98f00b204e9800998ecf8427e' !== $m ) { $set[ $m ] = true; }
+        }
+        return $set;
     }
 
     /** Manual entry point for a canary or a support session: wp eval 'DS_Tripwire::content_scan_now( 60 );' */
