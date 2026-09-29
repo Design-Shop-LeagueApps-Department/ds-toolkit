@@ -150,6 +150,35 @@
 
 .ds-programs-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
+/* A sub-program nested under its main program's row: indented with a tree tick in
+   the table; the main program's name is an eyebrow only where there is nothing to
+   indent under (phone cards, the Cards layout). */
+.ds-programs-parent { display: none; }
+.ds-programs-sub { position: relative; display: inline-block; padding-left: 26px; }
+.ds-programs-sub::before {
+	content: '';
+	position: absolute;
+	left: 8px;
+	top: 0;
+	width: 9px;
+	height: .72em;
+	border-left: 1px solid currentColor;
+	border-bottom: 1px solid currentColor;
+	opacity: .45;
+}
+.ds-programs--cards .ds-programs-parent,
+.ds-programs-parent.is-eyebrow {
+	display: block;
+	margin: 0 0 3px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: .03em;
+	text-transform: uppercase;
+	opacity: .65;
+}
+.ds-programs--cards .ds-programs-sub { display: inline; padding-left: 0; }
+.ds-programs--cards .ds-programs-sub::before { display: none; }
+
 .ds-programs-btn {
 	display: inline-block;
 	padding: 8px 16px;
