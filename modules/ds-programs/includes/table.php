@@ -40,7 +40,7 @@ $empty_txt = trim( (string) ( $s->empty_text ?? '' ) ) ?: __( 'No programs are o
 $none_txt  = trim( (string) ( $s->none_text ?? '' ) ) ?: __( 'No programs match those filters.', 'ds-toolkit' );
 
 /** Cell content for one column. Everything is escaped here. */
-$cell = function ( $key, $r ) use ( $btn_text, $btn_full, $btn_canc, $full_mode ) {
+$cell = function ( $key, $r ) use ( $btn_text, $btn_full, $btn_canc, $full_mode, $cols ) {
 	if ( 'register' === $key ) {
 		// The program's LeagueApps page, not the checkout form. See DS_Programs_Data::button_url().
 		$url = DS_Programs_Data::button_url( $r );
@@ -68,7 +68,22 @@ $cell = function ( $key, $r ) use ( $btn_text, $btn_full, $btn_canc, $full_mode 
 	if ( '' === $v && 'spots' === $key ) {
 		return '<span class="ds-programs-dash" aria-label="' . esc_attr__( 'Not limited', 'ds-toolkit' ) . '">&mdash;</span>';
 	}
-	if ( 'program' === $key && ! empty( $r['programUrl'] ) && 'yes' === ( $this->settings->link_program ?? 'no' ) ) {
+	$link = ( ! empty( $r['programUrl'] ) && 'yes' === ( $this->settings->link_program ?? 'no' ) );
+	// A sub-program nested under its main program's row: the Program cell is
+	// the sub-program's own name, indented, with the main program's name as an
+	// eyebrow that only shows where there is no column to indent under (phone
+	// cards, the Cards layout). Its Age Group cell is then left blank rather
+	// than printing the same name twice; it still holds the value when the
+	// table has no Program column.
+	if ( ! empty( $r['parentId'] ) && isset( $cols['program'] ) ) {
+		if ( 'ageGroup' === $key ) { return ''; }
+		if ( 'program' === $key ) {
+			$own = esc_html( (string) $r['ageGroup'] );
+			if ( $link ) { $own = '<a class="ds-programs-link" href="' . esc_url( $r['programUrl'] ) . '" target="_blank" rel="noopener">' . $own . '</a>'; }
+			return '<span class="ds-programs-parent">' . esc_html( $v ) . '</span><span class="ds-programs-sub">' . $own . '</span>';
+		}
+	}
+	if ( 'program' === $key && $link ) {
 		return '<a class="ds-programs-link" href="' . esc_url( $r['programUrl'] ) . '" target="_blank" rel="noopener">' . esc_html( $v ) . '</a>';
 	}
 	return esc_html( $v );
@@ -95,14 +110,25 @@ $sort_val = function ( $key, $r ) {
 $col_types = array();
 foreach ( $cols as $ckey => $c ) { $col_types[ $ckey ] = $sort_val( $ckey, array( 'startTs' => 0, 'endTs' => 0, 'month' => '', 'ageGroup' => '', 'days' => '', 'price' => '', 'spots' => '', 'soldOut' => false, 'canceled' => false ) )[1]; }
 
+/** Row index of each main program listed with its sub-programs, by program id. */
+$parent_i = array();
+foreach ( $rows as $i => $r ) { if ( ! empty( $r['isMaster'] ) ) { $parent_i[ (int) $r['programId'] ] = $i; } }
+
 /** The attributes every row element carries, in either layout. */
-$row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val ) {
+$row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val, $rows, $parent_i ) {
 	$search = array();
 	foreach ( $cols as $ckey => $c ) { if ( 'register' !== $ckey ) { $search[] = (string) ( $r[ $ckey ] ?? '' ); } }
 	$a  = ' data-i="' . (int) $i . '" data-search="' . esc_attr( strtolower( implode( ' ', array_filter( $search ) ) ) ) . '"';
 	foreach ( $filters as $fkey => $f ) { $a .= ' data-f-' . esc_attr( strtolower( $fkey ) ) . '="' . esc_attr( trim( (string) ( $r[ $fkey ] ?? '' ) ) ) . '"'; }
+	// A nested sub-program sorts by its main program's values, so a group moves
+	// as one block whatever column is sorted; row order settles the rest.
+	$sort_row = $r;
+	if ( ! empty( $r['parentId'] ) && isset( $parent_i[ (int) $r['parentId'] ] ) ) {
+		$a .= ' data-parent="' . (int) $parent_i[ (int) $r['parentId'] ] . '"';
+		$sort_row = $rows[ $parent_i[ (int) $r['parentId'] ] ];
+	}
 	if ( $sortable ) {
-		foreach ( $cols as $ckey => $c ) { if ( 'register' !== $ckey ) { $a .= ' data-s-' . esc_attr( strtolower( $ckey ) ) . '="' . esc_attr( $sort_val( $ckey, $r )[0] ) . '"'; } }
+		foreach ( $cols as $ckey => $c ) { if ( 'register' !== $ckey ) { $a .= ' data-s-' . esc_attr( strtolower( $ckey ) ) . '="' . esc_attr( $sort_val( $ckey, $sort_row )[0] ) . '"'; } }
 	}
 	return $a;
 };
@@ -174,10 +200,10 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val ) {
 		?>
 	<div class="ds-programs-grid" data-ds-programs-list>
 		<?php foreach ( $rows as $i => $r ) : ?>
-			<article class="ds-programs-row ds-programs-card<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; echo ! empty( $r['isMaster'] ) ? ' is-master' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
+			<article class="ds-programs-row ds-programs-card<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; echo ! empty( $r['isMaster'] ) ? ' is-master' : ''; echo ! empty( $r['parentId'] ) ? ' is-child' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
 				<div class="ds-programs-card-head">
 					<<?php echo $head_tag; ?> class="ds-programs-card-title"><?php echo $cell( 'program', $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell ?></<?php echo $head_tag; ?>>
-					<?php if ( $has_badge && '' !== trim( (string) $r['ageGroup'] ) ) : ?>
+					<?php if ( $has_badge && '' !== trim( (string) $r['ageGroup'] ) && empty( $r['parentId'] ) ) : ?>
 						<span class="ds-programs-card-badge"><?php echo esc_html( $r['ageGroup'] ); ?></span>
 					<?php endif; ?>
 				</div>
@@ -231,7 +257,7 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val ) {
 			</thead>
 			<tbody data-ds-programs-list>
 				<?php foreach ( $rows as $i => $r ) : ?>
-					<tr class="ds-programs-row<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; echo ! empty( $r['isMaster'] ) ? ' is-master' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
+					<tr class="ds-programs-row<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; echo ! empty( $r['isMaster'] ) ? ' is-master' : ''; echo ! empty( $r['parentId'] ) ? ' is-child' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
 						<?php foreach ( $cols as $ckey => $c ) : ?>
 							<td class="ds-programs-td ds-programs-td--<?php echo esc_attr( $ckey ); ?>" data-label="<?php echo esc_attr( 'register' === $ckey ? '' : $c['label'] ); ?>"><?php
 								echo $cell( $ckey, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell
