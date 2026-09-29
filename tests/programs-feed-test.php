@@ -298,5 +298,22 @@ $r = DS_Programs_Data::get(array($site), array(), array(), 'master');
 chk('children with one identical fee: master shows that single price', $by($r,50)['price'], '$25');
 chk('no fee on master or children: price blank', $by($r,60)['price'], '');
 
+$GLOBALS['http']=array(array('code'=>200,'body'=>json_encode(array(
+  array('programId'=>70,'isMaster'=>true,'name'=>'Girls Series','type'=>'CAMP','gender'=>'ANY','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/70'),
+  array('programId'=>71,'masterProgramId'=>70,'name'=>'A','type'=>'CAMP','gender'=>'FEMALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/71'),
+  array('programId'=>72,'masterProgramId'=>70,'name'=>'B','type'=>'CAMP','gender'=>'FEMALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/72'),
+  array('programId'=>80,'isMaster'=>true,'name'=>'Mixed Series','type'=>'CAMP','gender'=>'ANY','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/80'),
+  array('programId'=>81,'masterProgramId'=>80,'name'=>'A','type'=>'CAMP','gender'=>'FEMALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/81'),
+  array('programId'=>82,'masterProgramId'=>80,'name'=>'B','type'=>'CAMP','gender'=>'MALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/82'),
+  array('programId'=>90,'isMaster'=>true,'name'=>'Set On Master','type'=>'CAMP','gender'=>'MALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/90'),
+  array('programId'=>91,'masterProgramId'=>90,'name'=>'A','type'=>'CAMP','gender'=>'FEMALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/91'),
+)),'headers'=>array())); delete_transient($key);
+$r = DS_Programs_Data::get(array($site), array(), array(), 'master');
+chk('master gender ANY, every child FEMALE: row says Girls', $by($r,70)['gender'], 'Girls');
+chk('master gender ANY, children disagree: row keeps Coed', $by($r,80)['gender'], 'Coed');
+chk('master gender set: its own value wins over the children', $by($r,90)['gender'], 'Boys');
+$r = DS_Programs_Data::get(array($site), array(), array(), 'children');
+chk('children mode: a child keeps its own gender (unchanged path)', $by($r,71)['gender'], 'Girls');
+
 echo "\n" . ($fails ? "$fails FAILED" : "all passed") . "\n";
 exit($fails ? 1 : 0);

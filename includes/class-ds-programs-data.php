@@ -517,7 +517,7 @@ class DS_Programs_Data {
 			'endDate'    => self::date_one( $end_s, $format['date'] ?? 'numeric' ),
 			'month'      => $start_s ? date_i18n( 'F', $start_s ) : '',
 			'sport'      => $inherit( 'sport' ),
-			'gender'     => $gender_map[ strtoupper( (string) ( $row['gender'] ?? '' ) ) ] ?? '',
+			'gender'     => $gender_map[ self::group_gender( $row, $children ) ] ?? '',
 			'type'       => $type_map[ $type_raw ] ?? ucfirst( strtolower( $type_raw ) ),
 			'typeRaw'    => $type_raw,
 			'mode'       => $mode_map[ $mode_raw ] ?? ucfirst( strtolower( $mode_raw ) ),
@@ -578,6 +578,23 @@ class DS_Programs_Data {
 	public static function button_url( array $row ) {
 		$u = (string) ( $row['programUrl'] ?? '' );
 		return '' !== $u ? $u : (string) ( $row['registerUrl'] ?? '' );
+	}
+
+	/**
+	 * A main program's own gender, unless LeagueApps left it unset or ANY and
+	 * every sub-program agrees on one (a girls clinic series is stored as ANY on
+	 * the main program and FEMALE on each session); then that shared value.
+	 */
+	private static function group_gender( $row, array $children ) {
+		$own = strtoupper( (string) ( $row['gender'] ?? '' ) );
+		if ( ! $children || ( '' !== $own && 'ANY' !== $own ) ) { return $own; }
+		$seen = array();
+		foreach ( $children as $c ) {
+			$g = strtoupper( (string) ( is_array( $c ) ? ( $c['gender'] ?? '' ) : '' ) );
+			if ( '' === $g || 'ANY' === $g ) { return $own; }
+			$seen[ $g ] = true;
+		}
+		return ( 1 === count( $seen ) ) ? (string) array_key_first( $seen ) : $own;
 	}
 
 	private static function price( $row, $master ) {
