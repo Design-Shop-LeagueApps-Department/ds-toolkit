@@ -272,6 +272,8 @@ class DS_Tripwire {
         $state['root_seen'] = $now;
         foreach ( $this->check_named_shells() as $t )               { $f[] = array( 'CRITICAL', $t ); }
         foreach ( $this->check_admins( $state, $seeded ) as $t )    { $f[] = array( 'HIGH', $t ); }
+        // Owns its own tier and its own once-a-day throttle, so it returns pairs.
+        foreach ( $this->check_stale_staging( $state ) as $pair )    { $f[] = $pair; }
 
         $state['seeded']        = 1;
         $state['last_run']      = time();
@@ -324,6 +326,90 @@ class DS_Tripwire {
         }
         $state['mu_baseline'] = $current;
         return array_unique( $out );
+    }
+
+    /**
+     * Leftover ds-toolkit install staging folders.
+     *
+     * The WP Engine installer stages a release in wp-content/upgrade/.dstk-new.<pid> and moves the
+     * outgoing copy aside to .dstk-prev.<pid>, then deletes both at the end of a successful run. If
+     * the run is killed mid-install (leash timeout, dropped SSH, container recycle) its EXIT trap
+     * never fires and the folder stays behind.
+     *
+     * Nothing else reports that, which is the whole reason this rule exists. The content scan skips
+     * /wp-content/upgrade/ entirely because it is WordPress's own update scratch dir, and since
+     * 1.10.19 the scan also ignores byte-identical copies of our own engine wherever they sit. Both
+     * of those are correct: a staged copy of ds-toolkit is not a web shell, and calling it one
+     * mailed 71 false CRITICALs during the 1.10.16 push on 2026-09-28. Together, though, they made a
+     * leftover folder invisible, and a silent leftover is exactly what we were asked not to have.
+     * Alipio, 2026-09-29: "if it leave trace its good the tripwire notify me."
+     *
+     * This does not undo 1.10.19. That change stops a copy of our engine being called a web shell;
+     * this reports the FOLDER as a leftover, by name and age. Both are true at once.
+     *
+     * HIGH, not CRITICAL: it is our own garbage, not an attacker's, and the fix is a delete rather
+     * than an incident. Younger than an hour is an install in progress, so it stays silent.
+     *
+     * The shape matched here is deliberately the same one job-toolkit-install-wpe-fast.sh deletes
+     * (.dstk-new.<digits> / .dstk-prev.<digits>, directories only). If this rule were looser it
+     * would report folders the installer refuses to remove, and the alert could never be cleared.
+     */
+    private function check_stale_staging( &$state ) {
+        $out  = array();
+        $hour = defined( 'HOUR_IN_SECONDS' ) ? HOUR_IN_SECONDS : 3600;
+        $day  = defined( 'DAY_IN_SECONDS' ) ? DAY_IN_SECONDS : 86400;
+        $seen = isset( $state['staging_seen'] ) ? (array) $state['staging_seen'] : array();
+        $now  = time();
+
+        foreach ( array( 'plugins', 'upgrade' ) as $sub ) {
+            foreach ( array( 'new', 'prev' ) as $kind ) {
+                // GLOB_ONLYDIR is what makes a FILE wearing a staging name produce nothing; the
+                // installer only ever creates directories, so a file is not our leftover.
+                foreach ( (array) glob( WP_CONTENT_DIR . '/' . $sub . '/.dstk-' . $kind . '.*', GLOB_ONLYDIR ) as $d ) {
+                    $base = basename( $d );
+                    if ( ! preg_match( '/^\.dstk-(new|prev)\.[0-9]+$/', $base ) ) {
+                        continue;
+                    }
+                    $mtime = (int) @filemtime( $d );
+                    if ( ! $mtime ) {
+                        continue;
+                    }
+                    $age = $now - $mtime;
+                    if ( $age < $hour ) {
+                        continue;   // an install is running right now
+                    }
+                    $rel = 'wp-content/' . $sub . '/' . $base;
+                    $out[] = array(
+                        // Already mailed within the day: keep it in state, keep it out of the mail,
+                        // the same way the web-root rule handles a site's own bespoke folder.
+                        ( ! empty( $seen[ $rel ] ) && ( $now - (int) $seen[ $rel ] ) < $day ) ? 'REVIEW' : 'HIGH',
+                        "Leftover DS Toolkit install folder: {$rel} (" . self::age_phrase( $age ) . " old). An update was interrupted; delete the folder.",
+                    );
+                    if ( empty( $seen[ $rel ] ) || ( $now - (int) $seen[ $rel ] ) >= $day ) {
+                        $seen[ $rel ] = $now;
+                    }
+                }
+            }
+        }
+
+        // Drop folders that are gone so state cannot grow without bound.
+        $live = array();
+        foreach ( $out as $pair ) {
+            if ( preg_match( '#(wp-content/[a-z]+/\.dstk-[a-z]+\.[0-9]+)#', $pair[1], $m ) ) {
+                $live[ $m[1] ] = isset( $seen[ $m[1] ] ) ? $seen[ $m[1] ] : $now;
+            }
+        }
+        $state['staging_seen'] = $live;
+        return $out;
+    }
+
+    /** Whole hours, switching to whole days past two, so the message reads like a person wrote it. */
+    private static function age_phrase( $age ) {
+        $h = (int) floor( $age / 3600 );
+        if ( $h >= 48 ) {
+            return (int) floor( $h / 24 ) . ' days';
+        }
+        return $h . ' h';
     }
 
     /** Fake plugin folders used by the campaign. Pure directory listing. */
