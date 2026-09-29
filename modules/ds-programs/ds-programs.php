@@ -141,7 +141,10 @@ class DS_Programs_Module extends FLBuilderModule {
 				return $c ?: strcasecmp( $a['program'], $b['program'] );
 			}
 			$ra = DS_Programs_Data::age_rank( $a['ageGroup'] ); $rb = DS_Programs_Data::age_rank( $b['ageGroup'] );
-			return ( $ra === $rb ) ? strcasecmp( $a['ageGroup'], $b['ageGroup'] ) : $ra <=> $rb;
+			if ( $ra !== $rb ) { return $ra <=> $rb; }
+			// Same age: by date, so a series' sessions for one grade read in
+			// order (Sept 25, Sept 26, Oct 4), then by name.
+			return ( $a['startTs'] <=> $b['startTs'] ) ?: strcasecmp( $a['ageGroup'], $b['ageGroup'] );
 		} );
 
 		$max = (int) ( $s->max_rows ?? 0 );

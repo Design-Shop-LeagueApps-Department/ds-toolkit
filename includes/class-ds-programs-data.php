@@ -711,6 +711,8 @@ class DS_Programs_Data {
 		if ( preg_match( '/(\d{1,2})\s*[uU]\b/', $label, $m ) )      { return (int) $m[1]; }
 		if ( preg_match( '/\b[uU]\s*-?\s*(\d{1,2})\b/', $label, $m ) ) { return (int) $m[1]; }
 		if ( preg_match( '/^\s*(\d{1,2})\b/', $label, $m ) )           { return (int) $m[1]; }
+		// School grades: "3rd-6th Grade", "7th & 8th Grade", "5th Grade Girls".
+		if ( preg_match( '/^\s*(\d{1,2})(?:st|nd|rd|th)\b/i', $label, $m ) ) { return (int) $m[1]; }
 		return 999;
 	}
 

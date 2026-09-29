@@ -315,5 +315,14 @@ chk('master gender set: its own value wins over the children', $by($r,90)['gende
 $r = DS_Programs_Data::get(array($site), array(), array(), 'children');
 chk('children mode: a child keeps its own gender (unchanged path)', $by($r,71)['gender'], 'Girls');
 
+echo "age rank: school grades\n";
+chk('"3rd-6th Grade: Sept 25th @ Windsor" ranks 3', DS_Programs_Data::age_rank('3rd-6th Grade: Sept 25th @ Windsor High School'), 3);
+chk('"7th & 8th Grade" ranks 7', DS_Programs_Data::age_rank('7th & 8th Grade: Oct 4th'), 7);
+chk('"12th Grade" ranks 12', DS_Programs_Data::age_rank('12th Grade Boys'), 12);
+chk('"1st-4th Grade" ranks 1', DS_Programs_Data::age_rank('1st-4th Grade'), 1);
+chk('U-forms still win: "U9" is 9', DS_Programs_Data::age_rank('U9'), 9);
+chk('"10u" still 10', DS_Programs_Data::age_rank('10u Boys'), 10);
+chk('no age still last', DS_Programs_Data::age_rank('Adult Open'), 999);
+
 echo "\n" . ($fails ? "$fails FAILED" : "all passed") . "\n";
 exit($fails ? 1 : 0);
