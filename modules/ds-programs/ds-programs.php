@@ -101,7 +101,7 @@ class DS_Programs_Module extends FLBuilderModule {
 			if ( '' !== $t && '' !== $src ) { $overrides[ $t ] = $src; }
 		}
 
-		$feed = DS_Programs_Data::get( $sites, $overrides, array( 'date' => (string) ( $s->date_format ?? 'numeric' ) ) );
+		$feed = DS_Programs_Data::get( $sites, $overrides, array( 'date' => (string) ( $s->date_format ?? 'numeric' ) ), (string) ( $s->grouping ?? 'children' ) );
 		$rows = $feed['programs'];
 		$this->feed_stale  = ! empty( $feed['stale'] );
 		$this->feed_errors = $feed['errors'];
@@ -130,6 +130,10 @@ class DS_Programs_Module extends FLBuilderModule {
 		// ordered by date or name, age groups ascending within each group.
 		$sort = (string) ( $s->sort_by ?? 'date_asc' );
 		usort( $rows, function ( $a, $b ) use ( $sort ) {
+			// A main program listed with its sub-programs leads its group.
+			if ( ( $a['groupKey'] === $b['groupKey'] ) && ( ! empty( $a['isMaster'] ) !== ! empty( $b['isMaster'] ) ) ) {
+				return ! empty( $a['isMaster'] ) ? -1 : 1;
+			}
 			if ( $a['groupKey'] !== $b['groupKey'] ) {
 				if ( 'name' === $sort ) { return strcasecmp( $a['program'], $b['program'] ) ?: ( $a['startTs'] <=> $b['startTs'] ); }
 				$c = $a['startTs'] <=> $b['startTs'];
@@ -387,8 +391,19 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 			),
 			'scope' => array(
 				'title'       => __( 'What to show', 'ds-toolkit' ),
-				'description' => __( 'Listed: every program LeagueApps marks Public and not deleted, whose season is upcoming or in progress (past seasons are never listed). A tournament shows one row per age group; the parent row is not repeated. Sold-out and closed-registration programs are listed unless hidden below.', 'ds-toolkit' ),
+				'description' => __( 'Listed: every program LeagueApps marks Public and not deleted, whose season is upcoming or in progress (past seasons are never listed). Sold-out and closed-registration programs are listed unless hidden below.', 'ds-toolkit' ),
 				'fields'      => array(
+					'grouping' => array(
+						'type'    => 'select',
+						'label'   => __( 'Programs with sub-programs', 'ds-toolkit' ),
+						'default' => 'children',
+						'options' => array(
+							'children' => __( 'List the sub-programs only (one row per age group or session)', 'ds-toolkit' ),
+							'master'   => __( 'List the main program only', 'ds-toolkit' ),
+							'both'     => __( 'List the main program, then its sub-programs', 'ds-toolkit' ),
+						),
+						'help'    => __( 'LeagueApps nests a tournament\'s age groups, or a clinic\'s sessions, under one main program. When the registration is on the main program (a clinic series where the session is picked at checkout, a camp whose sub-programs are optional add-ons), list the main program. Its row takes its own dates and link, and its price is the range of its sub-programs when LeagueApps left the main fee blank.', 'ds-toolkit' ),
+					),
 					'program_type' => array(
 						'type'         => 'button-group',
 						'label'        => __( 'Program types', 'ds-toolkit' ),
