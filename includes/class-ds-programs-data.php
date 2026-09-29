@@ -202,16 +202,21 @@ class DS_Programs_Data {
 	 * @param array $sites        Rows from configured_sites() (or a subset).
 	 * @param array $overrides    catalogue key => raw field name (field mapping).
 	 * @param array $format       array( 'date' => 'numeric|short|long' )
+	 * @param string $grouping    How a main program with sub-programs is listed:
+	 *                            'children' (one row per sub-program, the default and
+	 *                            the only behaviour before 1.10.17), 'master' (one row
+	 *                            for the main program, its sub-programs folded into it),
+	 *                            'both' (the main program's row, then its sub-programs).
 	 * @return array{programs:array,stale:bool,errors:array,fetched:int}
 	 */
-	public static function get( array $sites, array $overrides = array(), array $format = array() ) {
+	public static function get( array $sites, array $overrides = array(), array $format = array(), $grouping = 'children' ) {
 		$sites = self::clean_sites( $sites );
 		if ( empty( $sites ) ) {
 			return array( 'programs' => array(), 'stale' => false, 'errors' => array( __( 'No LeagueApps site is configured. Add one under Settings > DS Toolkit > LeagueApps.', 'ds-toolkit' ) ), 'fetched' => 0 );
 		}
 
 		$raw = self::raw_feed( $sites );
-		$programs = self::build_rows( $raw['rows'], $overrides, $format );
+		$programs = self::build_rows( $raw['rows'], $overrides, $format, $grouping );
 		return array( 'programs' => $programs, 'stale' => $raw['stale'], 'errors' => $raw['errors'], 'fetched' => $raw['fetched'] );
 	}
 
@@ -395,34 +400,61 @@ class DS_Programs_Data {
 	 * Raw API rows -> table rows.
 	 *
 	 * LeagueApps models a tournament as a MASTER program with one CHILD per
-	 * age group. One table row = one child; "Program" is the master's name and
-	 * "Age Group" the child's own name. The API does not populate
-	 * masterProgramName, so the join is done here on masterProgramId. A master
-	 * that has children is a heading, not a row.
+	 * age group, and a clinic or camp series the same way with one child per
+	 * session. The API does not populate masterProgramName, so the join is
+	 * done here on masterProgramId.
+	 *
+	 * $grouping decides what a master with children becomes:
+	 *   children  one row per child; "Program" is the master's name and "Age
+	 *             Group" the child's own name. The master is a heading, never
+	 *             a row. The only behaviour before 1.10.17.
+	 *   master    one row for the master itself, its children folded in. This
+	 *             is what a partner needs when LeagueApps puts the registration
+	 *             on the main program (a clinic series where the session is
+	 *             picked at checkout, a college camp whose children are add-ons).
+	 *   both      the master's row and then its children.
+	 * A child whose master is not in the feed is a standalone row whatever the
+	 * mode, because there is no master row to stand in for it.
 	 */
-	private static function build_rows( array $raw, array $overrides, array $format ) {
+	private static function build_rows( array $raw, array $overrides, array $format, $grouping = 'children' ) {
+		$grouping  = in_array( $grouping, array( 'master', 'both' ), true ) ? $grouping : 'children';
 		$masters   = array();
-		$has_child = array();
+		$children  = array();
 
 		foreach ( $raw as $row ) {
 			$pid = (int) ( $row['programId'] ?? 0 );
 			if ( ! empty( $row['isMaster'] ) && $pid ) { $masters[ $pid ] = $row; }
 			$mid = (int) ( $row['masterProgramId'] ?? 0 );
-			if ( $mid && $pid !== $mid ) { $has_child[ $mid ] = true; }
+			if ( $mid && $pid !== $mid ) { $children[ $mid ][] = $row; }
 		}
 
 		$rows = array();
 		foreach ( $raw as $row ) {
 			$pid = (int) ( $row['programId'] ?? 0 );
-			if ( ! empty( $has_child[ $pid ] ) ) { continue; }
-			$p = self::normalize( $row, $masters, $overrides, $format );
+			$mid = (int) ( $row['masterProgramId'] ?? 0 );
+			if ( ! empty( $children[ $pid ] ) ) {
+				// A master with children.
+				if ( 'children' === $grouping ) { continue; }
+				$p = self::normalize( $row, $masters, $overrides, $format, $children[ $pid ] );
+			} elseif ( 'master' === $grouping && $mid && $mid !== $pid && isset( $masters[ $mid ] ) && ! empty( $children[ $mid ] ) ) {
+				// A child folded into its master's row.
+				continue;
+			} else {
+				$p = self::normalize( $row, $masters, $overrides, $format );
+			}
 			if ( $p ) { $rows[] = $p; }
 		}
 		return $rows;
 	}
 
-	/** One raw program -> the flat shape the table renders. */
-	private static function normalize( $row, array $masters, array $overrides, array $format ) {
+	/**
+	 * One raw program -> the flat shape the table renders.
+	 *
+	 * @param array $children Set only when $row is a master being listed as its
+	 *                        own row: its raw children, for the values LeagueApps
+	 *                        keeps on the children (the fee) rather than the master.
+	 */
+	private static function normalize( $row, array $masters, array $overrides, array $format, array $children = array() ) {
 		if ( ! is_array( $row ) ) { return null; }
 
 		$visibility = (string) ( $row['visibility'] ?? '' );
@@ -485,7 +517,7 @@ class DS_Programs_Data {
 			'endDate'    => self::date_one( $end_s, $format['date'] ?? 'numeric' ),
 			'month'      => $start_s ? date_i18n( 'F', $start_s ) : '',
 			'sport'      => $inherit( 'sport' ),
-			'gender'     => $gender_map[ strtoupper( (string) ( $row['gender'] ?? '' ) ) ] ?? '',
+			'gender'     => $gender_map[ self::group_gender( $row, $children ) ] ?? '',
 			'type'       => $type_map[ $type_raw ] ?? ucfirst( strtolower( $type_raw ) ),
 			'typeRaw'    => $type_raw,
 			'mode'       => $mode_map[ $mode_raw ] ?? ucfirst( strtolower( $mode_raw ) ),
@@ -501,12 +533,14 @@ class DS_Programs_Data {
 			'level'      => $inherit( 'experienceLevel' ),
 			'format'     => $inherit( 'leagueFormat' ),
 			'sponsor'    => $inherit( 'sponsor' ),
-			'price'      => self::price( $row, $master ),
+			'price'      => $children ? self::price_of_group( $row, $children ) : self::price( $row, $master ),
 			'spots'      => $spots,
 			'registerUrl'=> self::url( (string) ( $row['registerUrlHtml'] ?? '' ) ) ?: self::url( (string) ( $row['programUrlHtml'] ?? '' ) ),
 			'programUrl' => self::url( (string) ( $row['programUrlHtml'] ?? '' ) ),
 			'soldOut'    => ( 'SOLD_OUT' === $stat_raw ),
 			'canceled'   => ( 'CANCELED' === $stat_raw ),
+			'isMaster'   => ! empty( $children ),
+			'children'   => count( $children ),
 		);
 
 		// Field mapping: a partner's typed convention replaces the derived value.
@@ -546,15 +580,57 @@ class DS_Programs_Data {
 		return '' !== $u ? $u : (string) ( $row['registerUrl'] ?? '' );
 	}
 
+	/**
+	 * A main program's own gender, unless LeagueApps left it unset or ANY and
+	 * every sub-program agrees on one (a girls clinic series is stored as ANY on
+	 * the main program and FEMALE on each session); then that shared value.
+	 */
+	private static function group_gender( $row, array $children ) {
+		$own = strtoupper( (string) ( $row['gender'] ?? '' ) );
+		if ( ! $children || ( '' !== $own && 'ANY' !== $own ) ) { return $own; }
+		$seen = array();
+		foreach ( $children as $c ) {
+			$g = strtoupper( (string) ( is_array( $c ) ? ( $c['gender'] ?? '' ) : '' ) );
+			if ( '' === $g || 'ANY' === $g ) { return $own; }
+			$seen[ $g ] = true;
+		}
+		return ( 1 === count( $seen ) ) ? (string) array_key_first( $seen ) : $own;
+	}
+
 	private static function price( $row, $master ) {
+		$v = self::fee( $row, $master );
+		return null === $v ? '' : self::money( $v );
+	}
+
+	/** The first positive fee on the row, then on its master. Null when there is none. */
+	private static function fee( $row, $master ) {
 		foreach ( array( 'teamFee', 'freeAgentFee', 'teamIndividualFee', 'individualFee', 'fee' ) as $f ) {
 			$v = $row[ $f ] ?? ( $master[ $f ] ?? null );
-			if ( is_numeric( $v ) && $v > 0 ) {
-				$v = (float) $v;
-				return '$' . ( floor( $v ) == $v ? number_format( $v ) : number_format( $v, 2 ) );
-			}
+			if ( is_numeric( $v ) && $v > 0 ) { return (float) $v; }
 		}
-		return '';
+		return null;
+	}
+
+	private static function money( $v ) {
+		return '$' . ( floor( $v ) == $v ? number_format( $v ) : number_format( $v, 2 ) );
+	}
+
+	/**
+	 * A master listed as its own row: its own fee when LeagueApps set one,
+	 * otherwise the spread of its children's fees ("$30" when they all match,
+	 * "$30-$60" when they differ), because the fee usually lives on the child.
+	 */
+	private static function price_of_group( $master, array $children ) {
+		$own = self::fee( $master, null );
+		if ( null !== $own ) { return self::money( $own ); }
+		$fees = array();
+		foreach ( $children as $c ) {
+			$v = is_array( $c ) ? self::fee( $c, null ) : null;
+			if ( null !== $v ) { $fees[] = $v; }
+		}
+		if ( ! $fees ) { return ''; }
+		$lo = min( $fees ); $hi = max( $fees );
+		return $lo == $hi ? self::money( $lo ) : self::money( $lo ) . '-' . self::money( $hi );
 	}
 
 	private static function spots( $row ) {
@@ -635,6 +711,8 @@ class DS_Programs_Data {
 		if ( preg_match( '/(\d{1,2})\s*[uU]\b/', $label, $m ) )      { return (int) $m[1]; }
 		if ( preg_match( '/\b[uU]\s*-?\s*(\d{1,2})\b/', $label, $m ) ) { return (int) $m[1]; }
 		if ( preg_match( '/^\s*(\d{1,2})\b/', $label, $m ) )           { return (int) $m[1]; }
+		// School grades: "3rd-6th Grade", "7th & 8th Grade", "5th Grade Girls".
+		if ( preg_match( '/^\s*(\d{1,2})(?:st|nd|rd|th)\b/i', $label, $m ) ) { return (int) $m[1]; }
 		return 999;
 	}
 

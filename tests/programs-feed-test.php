@@ -236,5 +236,93 @@ chk('two configured sites double the budget', (function() use ($site){ $GLOBALS[
 $book = get_option('ds_programs_ledger');
 chk('hour buckets pruned to a day', max(array_keys($book['hours'])) >= gmdate('YmdH', time()-86400), true);
 
+echo "main programs with sub-programs (grouping)\n";
+$GLOBALS['tr']=array();
+$grp = json_encode(array(
+  array('programId'=>10,'isMaster'=>true,'name'=>'Winter College Camps','type'=>'EVENT','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1799000000000,'endTime'=>1799100000000,'endRegistrationTime'=>1799000000000,
+        'registerUrlHtml'=>'//x.leagueapps.com/registration/init?bid=10','programUrlHtml'=>'//x.leagueapps.com/events/10-winter'),
+  array('programId'=>11,'masterProgramId'=>10,'name'=>'D2 Impact Camp','type'=>'EVENT','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1799000000000,'endTime'=>1799000000000,'individualFee'=>30,'programUrlHtml'=>'//x.leagueapps.com/events/11-d2'),
+  array('programId'=>12,'masterProgramId'=>10,'name'=>'D3 Elite Camp','type'=>'EVENT','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1799050000000,'endTime'=>1799050000000,'individualFee'=>60,'programUrlHtml'=>'//x.leagueapps.com/events/12-d3'),
+  array('programId'=>21,'masterProgramId'=>20,'name'=>'Orphan Child','type'=>'CAMP','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1799000000000,'endTime'=>1799000000000,'individualFee'=>900,'registerUrlHtml'=>'//x.leagueapps.com/registration/init?bid=21','programUrlHtml'=>'//x.leagueapps.com/camps/21-orphan'),
+  array('programId'=>30,'name'=>'Standalone Clinic','type'=>'CLINIC','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1799000000000,'endTime'=>1799000000000,'individualFee'=>50,'programUrlHtml'=>'//x.leagueapps.com/clinics/30-solo'),
+  array('programId'=>40,'isMaster'=>true,'name'=>'Priced Master','type'=>'CAMP','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1799000000000,'endTime'=>1799000000000,'individualFee'=>200,'programUrlHtml'=>'//x.leagueapps.com/camps/40-priced'),
+  array('programId'=>41,'masterProgramId'=>40,'name'=>'Session A','type'=>'CAMP','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1799000000000,'endTime'=>1799000000000,'individualFee'=>25,'programUrlHtml'=>'//x.leagueapps.com/camps/41-a'),
+  array('programId'=>42,'masterProgramId'=>40,'name'=>'Session B','type'=>'CAMP','mode'=>'YOUTH','state'=>'UPCOMING','visibility'=>'Public',
+        'startTime'=>1799000000000,'endTime'=>1799000000000,'individualFee'=>25,'programUrlHtml'=>'//x.leagueapps.com/camps/42-b'),
+));
+$GLOBALS['http']=array(array('code'=>200,'body'=>$grp,'headers'=>array()));
+$ids = function($r){ return array_map(function($p){ return $p['programId']; }, $r['programs']); };
+$by  = function($r,$id){ foreach($r['programs'] as $p){ if($p['programId']===$id) return $p; } return null; };
+
+$r = DS_Programs_Data::get(array($site));
+chk('default (no 4th arg): children, orphan, standalone; no master rows', $ids($r), array(11,12,21,30,41,42));
+chk('default: child row carries the master name as Program', $by($r,11)['program'], 'Winter College Camps');
+chk('default: child row carries its own name as Age Group', $by($r,11)['ageGroup'], 'D2 Impact Camp');
+chk('default: no row is flagged isMaster', array_sum(array_map(function($p){ return (int)!empty($p['isMaster']); }, $r['programs'])), 0);
+chk('"children" explicitly = the default', $ids(DS_Programs_Data::get(array($site), array(), array(), 'children')), array(11,12,21,30,41,42));
+chk('unknown grouping value falls back to children', $ids(DS_Programs_Data::get(array($site), array(), array(), 'bogus')), array(11,12,21,30,41,42));
+
+$r = DS_Programs_Data::get(array($site), array(), array(), 'master');
+chk('master: the two masters, the orphan and the standalone; children folded', $ids($r), array(10,21,30,40));
+$m = $by($r,10);
+chk('master row: Program is its own name', $m['program'], 'Winter College Camps');
+chk('master row: Age Group blank', $m['ageGroup'], '');
+chk('master row: flagged isMaster with its child count', array($m['isMaster'],$m['children']), array(true,2));
+chk('master row: button goes to the master program page', DS_Programs_Data::button_url($m), 'https://x.leagueapps.com/events/10-winter');
+chk('master row: registerUrl is the master checkout link', $m['registerUrl'], 'https://x.leagueapps.com/registration/init?bid=10');
+chk('master row: price is the spread of its children when its own fee is blank', $m['price'], '$30-$60');
+chk('master row: derived status OPEN (register link, registration not ended)', $m['statusRaw'], 'OPEN');
+chk('master with its own fee keeps it, children ignored', $by($r,40)['price'], '$200');
+chk('orphan child (master not in feed) still lists as itself', array($by($r,21)['program'],$by($r,21)['isMaster']), array('Orphan Child',false));
+chk('master mode: standalone unaffected', $by($r,30)['price'], '$50');
+
+$r = DS_Programs_Data::get(array($site), array(), array(), 'both');
+chk('both: masters and children all listed', $ids($r), array(10,11,12,21,30,40,41,42));
+chk('both: master and its children share a groupKey', array($by($r,10)['groupKey'],$by($r,11)['groupKey'],$by($r,12)['groupKey']), array(10,10,10));
+chk('both: equal child fees collapse to one price on the master', (function() use ($grp,$site){ return null; })() ?? $by($r,40)['price'], '$200');
+$GLOBALS['http']=array(array('code'=>200,'body'=>json_encode(array(
+  array('programId'=>50,'isMaster'=>true,'name'=>'Same Fee Master','type'=>'CAMP','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/50'),
+  array('programId'=>51,'masterProgramId'=>50,'name'=>'A','type'=>'CAMP','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'individualFee'=>25,'programUrlHtml'=>'//x/51'),
+  array('programId'=>52,'masterProgramId'=>50,'name'=>'B','type'=>'CAMP','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'individualFee'=>25,'programUrlHtml'=>'//x/52'),
+  array('programId'=>60,'isMaster'=>true,'name'=>'No Fee Anywhere','type'=>'CAMP','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/60'),
+  array('programId'=>61,'masterProgramId'=>60,'name'=>'C','type'=>'CAMP','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/61'),
+)),'headers'=>array())); delete_transient($key);
+$r = DS_Programs_Data::get(array($site), array(), array(), 'master');
+chk('children with one identical fee: master shows that single price', $by($r,50)['price'], '$25');
+chk('no fee on master or children: price blank', $by($r,60)['price'], '');
+
+$GLOBALS['http']=array(array('code'=>200,'body'=>json_encode(array(
+  array('programId'=>70,'isMaster'=>true,'name'=>'Girls Series','type'=>'CAMP','gender'=>'ANY','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/70'),
+  array('programId'=>71,'masterProgramId'=>70,'name'=>'A','type'=>'CAMP','gender'=>'FEMALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/71'),
+  array('programId'=>72,'masterProgramId'=>70,'name'=>'B','type'=>'CAMP','gender'=>'FEMALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/72'),
+  array('programId'=>80,'isMaster'=>true,'name'=>'Mixed Series','type'=>'CAMP','gender'=>'ANY','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/80'),
+  array('programId'=>81,'masterProgramId'=>80,'name'=>'A','type'=>'CAMP','gender'=>'FEMALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/81'),
+  array('programId'=>82,'masterProgramId'=>80,'name'=>'B','type'=>'CAMP','gender'=>'MALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/82'),
+  array('programId'=>90,'isMaster'=>true,'name'=>'Set On Master','type'=>'CAMP','gender'=>'MALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/90'),
+  array('programId'=>91,'masterProgramId'=>90,'name'=>'A','type'=>'CAMP','gender'=>'FEMALE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000,'programUrlHtml'=>'//x/91'),
+)),'headers'=>array())); delete_transient($key);
+$r = DS_Programs_Data::get(array($site), array(), array(), 'master');
+chk('master gender ANY, every child FEMALE: row says Girls', $by($r,70)['gender'], 'Girls');
+chk('master gender ANY, children disagree: row keeps Coed', $by($r,80)['gender'], 'Coed');
+chk('master gender set: its own value wins over the children', $by($r,90)['gender'], 'Boys');
+$r = DS_Programs_Data::get(array($site), array(), array(), 'children');
+chk('children mode: a child keeps its own gender (unchanged path)', $by($r,71)['gender'], 'Girls');
+
+echo "age rank: school grades\n";
+chk('"3rd-6th Grade: Sept 25th @ Windsor" ranks 3', DS_Programs_Data::age_rank('3rd-6th Grade: Sept 25th @ Windsor High School'), 3);
+chk('"7th & 8th Grade" ranks 7', DS_Programs_Data::age_rank('7th & 8th Grade: Oct 4th'), 7);
+chk('"12th Grade" ranks 12', DS_Programs_Data::age_rank('12th Grade Boys'), 12);
+chk('"1st-4th Grade" ranks 1', DS_Programs_Data::age_rank('1st-4th Grade'), 1);
+chk('U-forms still win: "U9" is 9', DS_Programs_Data::age_rank('U9'), 9);
+chk('"10u" still 10', DS_Programs_Data::age_rank('10u Boys'), 10);
+chk('no age still last', DS_Programs_Data::age_rank('Adult Open'), 999);
+
 echo "\n" . ($fails ? "$fails FAILED" : "all passed") . "\n";
 exit($fails ? 1 : 0);

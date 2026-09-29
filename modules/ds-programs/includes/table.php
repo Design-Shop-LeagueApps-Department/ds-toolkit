@@ -174,7 +174,7 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val ) {
 		?>
 	<div class="ds-programs-grid" data-ds-programs-list>
 		<?php foreach ( $rows as $i => $r ) : ?>
-			<article class="ds-programs-row ds-programs-card<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
+			<article class="ds-programs-row ds-programs-card<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; echo ! empty( $r['isMaster'] ) ? ' is-master' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
 				<div class="ds-programs-card-head">
 					<<?php echo $head_tag; ?> class="ds-programs-card-title"><?php echo $cell( 'program', $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell ?></<?php echo $head_tag; ?>>
 					<?php if ( $has_badge && '' !== trim( (string) $r['ageGroup'] ) ) : ?>
@@ -231,7 +231,7 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val ) {
 			</thead>
 			<tbody data-ds-programs-list>
 				<?php foreach ( $rows as $i => $r ) : ?>
-					<tr class="ds-programs-row<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
+					<tr class="ds-programs-row<?php echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; echo ! empty( $r['isMaster'] ) ? ' is-master' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
 						<?php foreach ( $cols as $ckey => $c ) : ?>
 							<td class="ds-programs-td ds-programs-td--<?php echo esc_attr( $ckey ); ?>" data-label="<?php echo esc_attr( 'register' === $ckey ? '' : $c['label'] ); ?>"><?php
 								echo $cell( $ckey, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell
