@@ -64,6 +64,8 @@ $v = $sc( 'row_bg' );     if ( $v ) { echo "$node .ds-programs-table tbody tr{ba
 $v = $sc( 'row_stripe' ); if ( $v ) { echo "$node .ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:$v;}\n"; }
 $v = $sc( 'row_hover' );  if ( $v ) { echo "$node .ds-programs-table tbody tr:hover{background-color:$v;}\n"; }
 $v = $sc( 'row_color' );  if ( $v ) { echo "$node .ds-programs-td{color:$v;}\n"; }
+// In-season schedule/standings links: node + three classes beats the static inherit rule.
+$v = $sc( 'season_link_color' ); if ( $v ) { echo "$node .ds-programs-seasonlinks a.ds-programs-seasonlink{color:$v;}\n"; }
 
 // Program-name emphasis. Emitted with the column class so it out-specifies
 // the row typography rule (two classes vs three) instead of being flattened by it.
@@ -309,6 +311,11 @@ if ( $nested ) {
 $m[] = ".ds-programs-table .ds-programs-td--register{display:block;padding-top:12px;}";
 $m[] = ".ds-programs-td--register::before{display:none;}";
 $m[] = ".ds-programs-btn{display:block;width:100%;padding:13px 16px;}";
+// Phone card: the in-season buttons stack full width like the single register button.
+$m[] = ".ds-programs-actions{display:flex;flex-direction:column;align-items:stretch;gap:4px;width:100%;}";
+// Phone card: the two links sit side by side under the button, each a 44px tap target.
+$m[] = ".ds-programs-seasonlinks{flex-direction:row;justify-content:center;gap:24px;}";
+$m[] = ".ds-programs-seasonlinks a.ds-programs-seasonlink{display:inline-flex;align-items:center;min-height:44px;font-size:15px;}";
 $m[] = ".ds-programs-table .ds-programs-td--spots:has(.ds-programs-dash){display:none;}";
 // Node-scoped so it out-specifies the `tr{display:flex}` card rule above (the static
 // .is-hidden rule loses to it); without this, phones ignore filters and paging.
