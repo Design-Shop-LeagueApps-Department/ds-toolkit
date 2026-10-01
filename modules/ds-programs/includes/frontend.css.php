@@ -309,6 +309,8 @@ if ( $nested ) {
 $m[] = ".ds-programs-table .ds-programs-td--register{display:block;padding-top:12px;}";
 $m[] = ".ds-programs-td--register::before{display:none;}";
 $m[] = ".ds-programs-btn{display:block;width:100%;padding:13px 16px;}";
+// Phone card: the in-season buttons stack full width like the single register button.
+$m[] = ".ds-programs-actions{display:flex;flex-direction:column;gap:8px;width:100%;}";
 $m[] = ".ds-programs-table .ds-programs-td--spots:has(.ds-programs-dash){display:none;}";
 // Node-scoped so it out-specifies the `tr{display:flex}` card rule above (the static
 // .is-hidden rule loses to it); without this, phones ignore filters and paging.

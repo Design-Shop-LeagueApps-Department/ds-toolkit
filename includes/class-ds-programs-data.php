@@ -540,6 +540,9 @@ class DS_Programs_Data {
 			'spots'      => $spots,
 			'registerUrl'=> self::url( (string) ( $row['registerUrlHtml'] ?? '' ) ) ?: self::url( (string) ( $row['programUrlHtml'] ?? '' ) ),
 			'programUrl' => self::url( (string) ( $row['programUrlHtml'] ?? '' ) ),
+			// In-season links the hosted widget showed beside (or instead of) Sign Up.
+			'scheduleUrl'  => self::url( (string) ( $row['scheduleUrlHtml'] ?? '' ) ),
+			'standingsUrl' => self::url( (string) ( $row['standingsUrlHtml'] ?? '' ) ),
 			'soldOut'    => ( 'SOLD_OUT' === $stat_raw ),
 			'canceled'   => ( 'CANCELED' === $stat_raw ),
 			'isMaster'   => ! empty( $children ),

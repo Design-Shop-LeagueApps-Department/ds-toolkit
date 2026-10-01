@@ -24,6 +24,9 @@ $btn_text  = trim( (string) ( $s->btn_text ?? '' ) ) ?: __( 'Register', 'ds-tool
 $btn_full  = trim( (string) ( $s->btn_full_text ?? '' ) ) ?: __( 'Sold Out', 'ds-toolkit' );
 $btn_canc  = trim( (string) ( $s->btn_cancel_text ?? '' ) ) ?: __( 'Cancelled', 'ds-toolkit' );
 $full_mode = (string) ( $s->btn_full_style ?? 'fade' );
+$season    = 'no' !== ( $s->season_links ?? 'yes' );
+$sched_txt = trim( (string) ( $s->schedule_text ?? '' ) ) ?: __( 'Schedule', 'ds-toolkit' );
+$stand_txt = trim( (string) ( $s->standings_text ?? '' ) ) ?: __( 'Standings', 'ds-toolkit' );
 $show_cnt  = 'no' !== ( $s->show_count ?? 'yes' );
 $show_clr  = 'no' !== ( $s->show_clear ?? 'yes' );
 $show_srch = 'no' !== ( $s->show_search ?? 'yes' );
@@ -40,7 +43,7 @@ $empty_txt = trim( (string) ( $s->empty_text ?? '' ) ) ?: __( 'No programs are o
 $none_txt  = trim( (string) ( $s->none_text ?? '' ) ) ?: __( 'No programs match those filters.', 'ds-toolkit' );
 
 /** Cell content for one column. Everything is escaped here. */
-$cell = function ( $key, $r ) use ( $btn_text, $btn_full, $btn_canc, $full_mode, $cols ) {
+$cell = function ( $key, $r ) use ( $btn_text, $btn_full, $btn_canc, $full_mode, $cols, $season, $sched_txt, $stand_txt ) {
 	if ( 'register' === $key ) {
 		// The program's LeagueApps page, not the checkout form. See DS_Programs_Data::button_url().
 		$url = DS_Programs_Data::button_url( $r );
@@ -51,11 +54,22 @@ $cell = function ( $key, $r ) use ( $btn_text, $btn_full, $btn_canc, $full_mode,
 			return '<span class="' . $cls . '">' . esc_html( $btn_canc ) . '</span>';
 		}
 		if ( ! empty( $r['soldOut'] ) ) {
-			$cls = ( 'text' === $full_mode ) ? 'ds-programs-full' : 'ds-programs-btn ds-programs-btn--full';
-			return '<span class="' . $cls . '">' . esc_html( $btn_full ) . '</span>';
+			$cls  = ( 'text' === $full_mode ) ? 'ds-programs-full' : 'ds-programs-btn ds-programs-btn--full';
+			$main = '<span class="' . $cls . '">' . esc_html( $btn_full ) . '</span>';
+		} else {
+			$main = '' === $url ? '' : '<a class="ds-programs-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $btn_text ) . '</a>';
 		}
-		if ( '' === $url ) { return ''; }
-		return '<a class="ds-programs-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $btn_text ) . '</a>';
+		// In season: the hosted widget's rule. Schedule and Standings once the program is
+		// LIVE, and the register button only while registration is still open, so families
+		// mid-season stop landing on a sign-up page to find their games.
+		$sched = (string) ( $r['scheduleUrl'] ?? '' );
+		$stand = (string) ( $r['standingsUrl'] ?? '' );
+		if ( ! $season || 'LIVE' !== ( $r['stateRaw'] ?? '' ) || ( '' === $sched && '' === $stand ) ) { return $main; }
+		$out = array();
+		if ( 'CLOSED' !== ( $r['statusRaw'] ?? '' ) && '' !== $main ) { $out[] = $main; }
+		if ( '' !== $sched ) { $out[] = '<a class="ds-programs-btn ds-programs-btn--season" href="' . esc_url( $sched ) . '" target="_blank" rel="noopener">' . esc_html( $sched_txt ) . '</a>'; }
+		if ( '' !== $stand ) { $out[] = '<a class="ds-programs-btn ds-programs-btn--season" href="' . esc_url( $stand ) . '" target="_blank" rel="noopener">' . esc_html( $stand_txt ) . '</a>'; }
+		return '<span class="ds-programs-actions">' . implode( '', $out ) . '</span>';
 	}
 	$v = trim( (string) ( $r[ $key ] ?? '' ) );
 	// A cancelled session has no places to take, so never print "15 spots left"

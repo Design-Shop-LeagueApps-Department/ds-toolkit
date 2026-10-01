@@ -193,6 +193,16 @@
 }
 
 .ds-programs-btn--full { opacity: .55; cursor: default; }
+/* In-season programs: Register (while open) + Schedule + Standings in one cell.
+   A column whose buttons all take the widest one's width, so the stack has one
+   clean edge instead of three ragged ones. */
+.ds-programs-actions {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 6px;
+	vertical-align: middle;
+}
 .ds-programs-full { font-weight: 700; opacity: .7; white-space: nowrap; }
 /* A cancelled session must NOT keep the live CTA's colour. Faded brand yellow still
    reads as a button, and on phones the register cell goes full width, so a called-off
