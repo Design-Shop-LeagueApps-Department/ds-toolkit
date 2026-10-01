@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.23] - 2026-10-01
+### Added
+- **Theme Setting > Buttons > Shape: Slant** (GH #282, KD). A parallelogram: both side edges lean the same way, where Angle slices opposite corners. The lean is a fixed 14px rather than a percentage, so a short REGISTER and a long EXPLORE OUR TEAMS lean at the same angle (KD's reference measures about 13px on a 54px button). It is one more preset in the existing shape system, so the admin preview, the live preview and the front end all read the same `clip` value, and it reaches every surface the other shapes reach, with the site's colours, hover colours and typography untouched; outline buttons stay square, as they do for Angle and Clip. Default, Angle and Clip emit byte-identical CSS to 1.10.22. Checked by injecting it into two live partner home pages (cityjuniorsvbc, absolutevbc; nothing written to either): 34 shaped buttons at 1440 and 390, no label past a slanted edge (smallest clearance 11.6px), hover recolours with the shape kept. The shape picker is now a 2x2 grid so the fourth card does not sit alone on a row.
+
 ## [1.10.22] - 2026-10-01
 ### Fixed
 - **CTA: the Card Title and Card Eyebrow typography now preview live on every card style (GH #278).** Both fields are shared by Styles 1, 2, 3 and 5, and each style names its title and eyebrow differently, but the builder preview only targeted Style 1's classes (`.ds-cta-card-title`, `.ds-cta-card-eyebrow`). On a Style 2, 3 or 5 module, changing the font size moved nothing until the page was saved, so the control looked broken. The preview now lists every style's class; the saved CSS was already correct and is unchanged.
