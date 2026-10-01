@@ -107,6 +107,12 @@ if ( 'style3' === $style ) {
 	if ( '' !== $beye ) { echo "$node .ds-cta-bento-eyebrow { color: {$beye}; }\n"; }
 	if ( class_exists( 'FLBuilderCSS' ) ) {
 		FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'bento_eyebrow_typography', 'selector' => "$node .ds-cta-bento-eyebrow" ) );
+		// Image-card title (GH #278). Three classes so it outranks the shared Card Title
+		// rule (`$node .ds-cta-bento-title`, two classes) wherever both set a property,
+		// whichever is emitted first; blank emits nothing, so image cards follow Card Title.
+		if ( ! empty( $settings->bento_img_title_typography ) ) {
+			FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'bento_img_title_typography', 'selector' => "$node .ds-cta-bento-img .ds-cta-bento-title" ) );
+		}
 	}
 
 	// Bento button: respect the Theme Setting global Button by default.

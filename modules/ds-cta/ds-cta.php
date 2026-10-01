@@ -865,6 +865,7 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					),
 					'bento_eyebrow_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Eyebrow Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Colour of the cell eyebrow label. Blank = accent on text cells, white on image cells.', 'ds-toolkit' ), 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-bento-eyebrow', 'property' => 'color' ) ),
 					'bento_eyebrow_typography' => array( 'type' => 'typography', 'label' => __( 'Eyebrow Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-bento-eyebrow' ) ),
+					'bento_img_title_typography' => array( 'type' => 'typography', 'label' => __( 'Image Card Title', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-bento-img .ds-cta-bento-title' ), 'help' => __( 'Title on image cards only. Leave blank and image cards follow Style > Typography > Card Title like every other card. Set it to give an image card a different title, for example a larger feature card.', 'ds-toolkit' ) ),
 					'cell_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Text Cell Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
 					'img_cell_bg' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Image Cell Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Shows behind image cells (visible with transparent logos or while the image loads).', 'ds-toolkit' ) ),
 					'btn_global' => array( 'type' => 'select', 'label' => __( 'Button Style', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Match site Button (Theme Setting)', 'ds-toolkit' ), 'no' => __( 'Accent colour', 'ds-toolkit' ) ), 'help' => __( 'Text-cell buttons inherit the global Button (background, hover, radius, typography) from Theme Setting by default.', 'ds-toolkit' ) ),
@@ -944,8 +945,12 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 				'title'  => __( 'Typography', 'ds-toolkit' ),
 				'fields' => array(
 					'heading_typography' => array( 'type' => 'typography', 'label' => __( 'Header Heading', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-heading' ) ),
-					'title_typography'   => array( 'type' => 'typography', 'label' => __( 'Card Title', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-card-title' ) ),
-					'eyebrow_typography' => array( 'type' => 'typography', 'label' => __( 'Card Eyebrow', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-card-eyebrow' ) ),
+					// One shared field per role, and each style names its title and eyebrow
+					// differently (includes/frontend.css.php maps them). The preview lists every
+					// style's class so the builder preview moves whichever style is selected;
+					// Beaver Builder scopes each comma-separated part to the node.
+					'title_typography'   => array( 'type' => 'typography', 'label' => __( 'Card Title', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-card-title, .ds-cta-tile-title, .ds-cta-bento-title, .ds-mcard-title' ) ),
+					'eyebrow_typography' => array( 'type' => 'typography', 'label' => __( 'Card Eyebrow', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-cta-card-eyebrow, .ds-cta-tile-num, .ds-cta-bento-desc, .ds-mcard-eyebrow' ) ),
 				),
 			),
 			// ---- Style 4 only: Big Hero background ----
