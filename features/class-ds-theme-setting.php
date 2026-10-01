@@ -334,6 +334,14 @@ CSS;
                 'desc'  => 'All four corners beveled for a chamfered edge.',
                 'clip'  => 'polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px)',
             ),
+            // GH #282. A fixed 14px lean, not a percentage, so a short REGISTER and a long
+            // EXPLORE OUR TEAMS lean at the same angle (the reference is ~13px on a 54px
+            // button). Both sides lean the same way; Angle slices opposite corners instead.
+            'slant' => array(
+                'label' => 'Slant',
+                'desc'  => 'Parallel slanted sides for a sporty, dynamic look.',
+                'clip'  => 'polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%)',
+            ),
         );
     }
 
