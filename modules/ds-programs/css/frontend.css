@@ -193,16 +193,34 @@
 }
 
 .ds-programs-btn--full { opacity: .55; cursor: default; }
-/* In-season programs: Register (while open) + Schedule + Standings in one cell.
-   A column whose buttons all take the widest one's width, so the stack has one
-   clean edge instead of three ragged ones. */
+/* In-season programs: Register (while open), then "View schedule" / "View standings"
+   as quiet text links stacked under it, right-aligned on the button's edge. */
 .ds-programs-actions {
 	display: inline-flex;
 	flex-direction: column;
-	align-items: stretch;
-	gap: 6px;
+	align-items: flex-end;
+	gap: 8px;
 	vertical-align: middle;
 }
+.ds-programs-seasonlinks {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 2px;
+}
+/* Three classes + element: the theme's link rule (e.g. `.fl-page a`, brand accent)
+   would otherwise repaint these, and Salt City's accent is 2.64:1 on white. Row text
+   colour + underline reads as a link and passes; the module's link-colour field wins. */
+.ds-programs .ds-programs-seasonlinks a.ds-programs-seasonlink {
+	color: inherit;
+	font-size: 14px;
+	line-height: 1.45;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	white-space: nowrap;
+}
+.ds-programs .ds-programs-seasonlinks a.ds-programs-seasonlink:hover,
+.ds-programs .ds-programs-seasonlinks a.ds-programs-seasonlink:focus { text-decoration-thickness: 2px; }
 .ds-programs-full { font-weight: 700; opacity: .7; white-space: nowrap; }
 /* A cancelled session must NOT keep the live CTA's colour. Faded brand yellow still
    reads as a button, and on phones the register cell goes full width, so a called-off

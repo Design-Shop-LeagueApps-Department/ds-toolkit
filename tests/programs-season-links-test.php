@@ -7,8 +7,8 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
  *   php tests/programs-season-links-test.php
  *
  * The rule mirrors the hosted LeagueApps listing widget it replaces
- * (showScheduleStandingLinks): a LIVE program gets Schedule and Standings
- * buttons, and keeps its register button only while registration is open.
+ * (showScheduleStandingLinks): a LIVE program gets "View schedule" / "View standings"
+ * text links, and keeps its register button only while registration is open.
  * Salt City 2026-09-30: nine in-season leagues showed only a dead Sign Up
  * button after the swap, so families could not reach their schedules.
  */
@@ -73,23 +73,24 @@ function reg_cell( $settings, $raw ) {
 
 // 1. LIVE + registration closed: Schedule + Standings, no Sign Up.
 $c = reg_cell( array(), $base );
-ok( false !== strpos( $c, '>Schedule<' ) && false !== strpos( $c, 'leagues/1/schedule' ), 'live+closed shows Schedule linked to the schedule page' );
-ok( false !== strpos( $c, '>Standings<' ) && false !== strpos( $c, 'leagues/1/standings' ), 'live+closed shows Standings' );
+ok( false !== strpos( $c, '>View schedule<' ) && false !== strpos( $c, 'leagues/1/schedule' ), 'live+closed shows Schedule linked to the schedule page' );
+ok( false !== strpos( $c, '>View standings<' ) && false !== strpos( $c, 'leagues/1/standings' ), 'live+closed shows Standings' );
 ok( false === strpos( $c, 'Sign Up' ), 'live+closed drops the dead Sign Up button' );
-ok( false !== strpos( $c, 'ds-programs-actions' ), 'buttons wrapped in .ds-programs-actions' );
+ok( false !== strpos( $c, 'ds-programs-actions' ), 'cell wrapped in .ds-programs-actions' );
+ok( 2 === substr_count( $c, 'class="ds-programs-seasonlink"' ) && false === strpos( $c, 'ds-programs-btn--season' ), 'schedule/standings are text links, not buttons' );
 
 // 2. LIVE + registration still open: Sign Up first, then Schedule + Standings.
 $c = reg_cell( array(), array_merge( $base, array( 'endRegistrationTime' => $future, 'registerUrlHtml' => '' ) ) );
-ok( false !== strpos( $c, 'Sign Up' ) && strpos( $c, 'Sign Up' ) < strpos( $c, 'Schedule' ), 'live+open keeps Sign Up, before Schedule' );
-ok( false !== strpos( $c, 'Standings' ), 'live+open also shows Standings' );
+ok( false !== strpos( $c, 'Sign Up' ) && strpos( $c, 'Sign Up' ) < strpos( $c, 'View schedule' ), 'live+open keeps Sign Up, before Schedule' );
+ok( false !== strpos( $c, 'View standings' ), 'live+open also shows Standings' );
 
 // 3. UPCOMING: unchanged, a single Sign Up and no wrapper.
 $c = reg_cell( array(), array_merge( $base, array( 'state' => 'UPCOMING', 'endRegistrationTime' => $future ) ) );
-ok( false !== strpos( $c, 'Sign Up' ) && false === strpos( $c, 'Schedule' ) && false === strpos( $c, 'ds-programs-actions' ), 'upcoming renders exactly as before' );
+ok( false !== strpos( $c, 'Sign Up' ) && false === strpos( $c, 'View schedule' ) && false === strpos( $c, 'ds-programs-actions' ), 'upcoming renders exactly as before' );
 
 // 4. Switched off: today's behaviour, Sign Up only.
 $c = reg_cell( array( 'season_links' => 'no' ), $base );
-ok( false !== strpos( $c, 'Sign Up' ) && false === strpos( $c, 'Schedule' ), 'season_links=no keeps the old single button' );
+ok( false !== strpos( $c, 'Sign Up' ) && false === strpos( $c, 'View schedule' ), 'season_links=no keeps the old single button' );
 
 // 5. Custom labels.
 $c = reg_cell( array( 'schedule_text' => 'Games', 'standings_text' => 'Table' ), $base );
@@ -97,7 +98,7 @@ ok( false !== strpos( $c, '>Games<' ) && false !== strpos( $c, '>Table<' ), 'cus
 
 // 6. Cancelled outranks in-season: neutral chip only.
 $c = reg_cell( array(), array_merge( $base, array( 'registrationStatus' => 'CANCELED' ) ) );
-ok( false !== strpos( $c, 'Cancelled' ) && false === strpos( $c, 'Schedule' ), 'cancelled program shows only the Cancelled chip' );
+ok( false !== strpos( $c, 'Cancelled' ) && false === strpos( $c, 'View schedule' ), 'cancelled program shows only the Cancelled chip' );
 
 // 7. LIVE without either URL: unchanged.
 $c = reg_cell( array(), array_merge( $base, array( 'scheduleUrlHtml' => '', 'standingsUrlHtml' => '', 'endRegistrationTime' => $future ) ) );
@@ -105,11 +106,11 @@ ok( false !== strpos( $c, 'Sign Up' ) && false === strpos( $c, 'ds-programs-acti
 
 // 8. Only one link published: only that button.
 $c = reg_cell( array(), array_merge( $base, array( 'standingsUrlHtml' => '' ) ) );
-ok( false !== strpos( $c, 'Schedule' ) && false === strpos( $c, 'Standings' ), 'only the published link renders' );
+ok( false !== strpos( $c, 'View schedule' ) && false === strpos( $c, 'View standings' ), 'only the published link renders' );
 
 // 9. Sold out + live + still open window: Sold Out chip kept alongside the links.
 $c = reg_cell( array(), array_merge( $base, array( 'endRegistrationTime' => $future, 'registrationStatus' => 'SOLD_OUT' ) ) );
-ok( false !== strpos( $c, 'Sold Out' ) && false !== strpos( $c, 'Schedule' ), 'live sold-out keeps its chip and adds Schedule' );
+ok( false !== strpos( $c, 'Sold Out' ) && false !== strpos( $c, 'View schedule' ), 'live sold-out keeps its chip and adds Schedule' );
 
 echo ( $fails ? "$fails of $n FAILED\n" : "all $n passed\n" );
 exit( $fails ? 1 : 0 );
