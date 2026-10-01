@@ -42,6 +42,9 @@ function wp_remote_post( $url, $args ) {
 function wp_remote_retrieve_response_code( $r ) { return $r['code']; }
 function wp_remote_retrieve_body( $r ) { return $r['body']; }
 function wp_date( $f, $t ) { return gmdate( $f, $t ); }
+define( 'MINUTE_IN_SECONDS', 60 );
+function get_transient( $k ) { return $GLOBALS['tr'][ $k ] ?? false; }
+function set_transient( $k, $v, $e = 0 ) { $GLOBALS['tr'][ $k ] = $v; return true; }
 function human_time_diff( $a ) { return 'moments'; }
 
 require dirname( __DIR__ ) . '/features/class-ds-hq-link.php';
@@ -131,7 +134,26 @@ DS_HQ_Link::on_alert( 'CRITICAL', array( '[CRITICAL] shell at /www/y.php', '[HIG
 $b = json_decode( sent_last()[1]['body'], true );
 ok( 'HIGH' === $b['findings'][1]['tier'] && 'shell at /www/y.php' === $b['findings'][0]['text'], 'alert lines parse into tier + text' );
 
-// 10. Flywheel and WP Engine ids (constants can only be defined once, so these run last).
+// 10. Retired on HQ: the site stops sending, never re-enrolls by itself, and the card says so.
+$pk_before = DS_HQ_Link::state()['pk'];
+$GLOBALS['reply_code'] = 403; $GLOBALS['reply'] = array( 'code' => 'retired' );
+DS_HQ_Link::send( 'checkin', array() );
+ok( 'retired' === DS_HQ_Link::state()['status'] && DS_HQ_Link::state()['pk'] === $pk_before, 'retired: status set, key NOT replaced (no self re-enroll)' );
+$n = count( $GLOBALS['sent'] );
+DS_HQ_Link::send( 'checkin', array() );
+ok( count( $GLOBALS['sent'] ) === $n, 'retired: nothing more is sent' );
+$GLOBALS['reply_code'] = 200; $GLOBALS['reply'] = array( 'ok' => true, 'status' => 'retired' );
+$GLOBALS['tr'] = array();
+$line = DS_HQ_Link::status_line();
+ok( 'bad' === $line[0] && false !== strpos( $line[1], 'Retired' ), 'settings card shows Retired' );
+ok( '/status' === substr( sent_last()[0], -7 ), 'the card asked HQ /status' );
+$n = count( $GLOBALS['sent'] );
+DS_HQ_Link::status_line();
+ok( count( $GLOBALS['sent'] ) === $n, 'status is asked at most once per 5 minutes' );
+$GLOBALS['tr'] = array(); $GLOBALS['reply'] = array( 'ok' => true, 'status' => 'active' );
+ok( 'ok' === DS_HQ_Link::status_line()[0], 'once HQ says active again, the card says Connected' );
+
+// 11. Flywheel and WP Engine ids (constants can only be defined once, so these run last).
 define( 'FLYWHEEL_CONFIG_DIR', '/www/flywheel-config' );
 ok( (bool) preg_match( '/^fw:[a-f0-9]{10}\.[a-f0-9]{4}$/', DS_HQ_Link::install_id() ) && 'Flywheel' === DS_HQ_Link::platform(), 'Flywheel id shape: fw:<hash>.<prefix>' );
 define( 'PWP_NAME', 'WidgetTesting1' );

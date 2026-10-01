@@ -241,6 +241,9 @@ class DS_HQ_Link {
 	 * queued (newest QUEUE_MAX kept) and retried with the next report.
 	 */
 	public static function send( $kind, array $findings ) {
+		if ( 'retired' === ( self::state()['status'] ?? '' ) && self::has_key() ) {
+			return; // retired on HQ: stay quiet until someone presses Reconnect on this site (email alerts still go)
+		}
 		if ( ! self::has_key() ) {
 			self::enroll();
 		}
@@ -261,6 +264,15 @@ class DS_HQ_Link {
 				$s2['error']     = '';
 				self::save( $s2 );
 				continue;
+			}
+			if ( 403 === $code && 'retired' === ( $out['code'] ?? '' ) ) {
+				// Retired on HQ. Never re-enroll by ourselves (that would undo the Retire); drop what is queued.
+				$s2           = self::state();
+				$s2['status'] = 'retired';
+				$s2['queue']  = array();
+				$s2['error']  = '';
+				self::save( $s2 );
+				return;
 			}
 			if ( 401 === $code && 'unknown_site' === ( $out['code'] ?? '' ) ) {
 				// HQ retired this key (Reconnect, or it never knew it): enroll a fresh one, at most twice a day.
@@ -356,14 +368,39 @@ class DS_HQ_Link {
 		exit;
 	}
 
+	/** Ask HQ how it sees this site (the settings card calls this; at most once every 5 minutes). */
+	public static function refresh_status() {
+		if ( ! self::has_key() || get_transient( 'ds_hq_link_status_checked' ) ) {
+			return;
+		}
+		set_transient( 'ds_hq_link_status_checked', 1, 5 * MINUTE_IN_SECONDS );
+		list( $code, $out ) = self::post( 'status', array( 'v' => 1, 'kind' => 'status' ) );
+		$s = self::state();
+		if ( 200 === $code && is_array( $out ) && ! empty( $out['status'] ) ) {
+			$s['status']  = in_array( $out['status'], array( 'active', 'pending', 'retired', 'reconnect' ), true ) ? $out['status'] : $s['status'];
+			$s['checked'] = time();
+		} elseif ( 401 === $code && 'unknown_site' === ( is_array( $out ) ? ( $out['code'] ?? '' ) : '' ) ) {
+			$s['status']  = 'unknown';
+			$s['checked'] = time();
+		}
+		self::save( $s );
+	}
+
 	/** One line for the settings card. */
 	public static function status_line() {
+		self::refresh_status();
 		$s = self::state();
 		if ( ! self::has_key() ) {
 			return array( 'warn', 'Not connected yet. It connects by itself within a few minutes of the next cron run.' );
 		}
 		$since = ! empty( $s['enrolled'] ) ? wp_date( 'j M Y', (int) $s['enrolled'] ) : '';
 		$last  = ! empty( $s['last_ok'] ) ? human_time_diff( (int) $s['last_ok'] ) . ' ago' : 'none yet';
+		if ( 'retired' === ( $s['status'] ?? '' ) ) {
+			return array( 'bad', 'Retired on Design Shop HQ: this site no longer reports there (email alerts still go). Press Reconnect to ask HQ to take it back; an admin there has to approve it.' );
+		}
+		if ( in_array( $s['status'] ?? '', array( 'reconnect', 'unknown' ), true ) ) {
+			return array( 'warn', 'Design Shop HQ asked this site for a new key. It reconnects by itself with its next report, or press Reconnect now.' );
+		}
 		if ( 'pending' === ( $s['status'] ?? '' ) ) {
 			return array( 'warn', "Waiting for Design Shop HQ to approve this site. Last report: $last." );
 		}
