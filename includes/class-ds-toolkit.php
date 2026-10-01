@@ -387,6 +387,8 @@ class DS_Toolkit {
             // (clone-safe); it only ever emails on later drift or hard IOCs.
             'tripwire_enabled'                   => 1,
             'tripwire_alert_email'               => 'design@leagueapps.com',
+            // Copy alerts + a daily check-in to Design Shop HQ (features/class-ds-hq-link.php).
+            'tripwire_hq_report'                 => 1,
             // Ships in monitor mode: staged rollout. Every rule is safe on
             // its own — the pagination rule only refuses pages WordPress
             // confirms are empty, and reverse-DNS-verified search engines are

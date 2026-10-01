@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // ---- group counts (on / total), computed from the same vars the cards use ----
 $dst_bp6 = ( $blueprint_version >= 6 );
 
-$dst_grp_security = array( $hide_fl_assistant, $user_roles_enabled, $bot_shield_enabled, $origin_guard_enabled );
+$dst_grp_security = array( $hide_fl_assistant, $user_roles_enabled, $bot_shield_enabled, $origin_guard_enabled, $tripwire_hq_report );
 if ( $dst_bp6 ) {
 	$dst_grp_security[] = $disable_comments_enabled;
 	$dst_grp_security[] = $admin_menu_tidy_enabled;
@@ -217,6 +217,27 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                         Block XML-RPC (auto-skipped if Jetpack is active)
                     </label>
                 </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tripwire -> Design Shop HQ -->
+    <?php $dst_hq_colors = array( 'ok' => '#1a7f37', 'warn' => '#996800', 'bad' => '#b32d2e' ); ?>
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-cloud-upload"></span></div>
+            <div class="dst-card-info">
+                <strong>Report to Design Shop HQ</strong>
+                <span>Sends a copy of every Tripwire alert, plus a daily check-in (toolkit version, last scan, current findings), to the Design Shop HQ dashboard, so the team sees the whole fleet in one place and a site that stops reporting shows as Silent. The email alert is unchanged. This site signs everything with its own key; the key is kept on this site and never shown.
+                <br><strong style="color:<?php echo esc_attr( $dst_hq_colors[ $tripwire_hq_status[0] ] ?? '#50575e' ); ?>;"><?php echo esc_html( $tripwire_hq_status[1] ); ?></strong>
+                <?php if ( $tripwire_hq_report && $tripwire_enabled ) : ?>
+                    <a class="button button-small" style="margin-left:8px;" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ds_hq_link_reconnect' ), 'ds_hq_link_reconnect' ) ); ?>">Reconnect</a>
+                <?php endif; ?></span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[tripwire_hq_report]" value="0">
+                <input type="checkbox" id="tripwire_hq_report" name="ds_toolkit_settings[tripwire_hq_report]" value="1" <?php checked( $tripwire_hq_report ); ?>>
+                <label for="tripwire_hq_report"></label>
             </div>
         </div>
     </div>
