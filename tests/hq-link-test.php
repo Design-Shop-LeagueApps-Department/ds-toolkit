@@ -45,7 +45,13 @@ function wp_date( $f, $t ) { return gmdate( $f, $t ); }
 define( 'MINUTE_IN_SECONDS', 60 );
 function get_transient( $k ) { return $GLOBALS['tr'][ $k ] ?? false; }
 function set_transient( $k, $v, $e = 0 ) { $GLOBALS['tr'][ $k ] = $v; return true; }
-function human_time_diff( $a ) { return 'moments'; }
+function human_time_diff( $a, $b = 0 ) { return 'moments'; }
+$GLOBALS['cron'] = array();
+function wp_clear_scheduled_hook( $h ) { unset( $GLOBALS['cron'][ $h ] ); }
+function wp_schedule_single_event( $t, $h ) { $GLOBALS['cron'][ $h ] = $t; return true; }
+function wp_next_scheduled( $h ) { return $GLOBALS['cron'][ $h ] ?? false; }
+class WP_REST_Response { public $data; public function __construct( $d ) { $this->data = $d; } public function header( $k, $v ) {} }
+function rest_ensure_response( $d ) { return new WP_REST_Response( $d ); }
 
 require dirname( __DIR__ ) . '/features/class-ds-hq-link.php';
 
@@ -153,7 +159,33 @@ ok( count( $GLOBALS['sent'] ) === $n, 'status is asked at most once per 5 minute
 $GLOBALS['tr'] = array(); $GLOBALS['reply'] = array( 'ok' => true, 'status' => 'active' );
 ok( 'ok' === DS_HQ_Link::status_line()[0], 'once HQ says active again, the card says Connected' );
 
-// 11. Flywheel and WP Engine ids (constants can only be defined once, so these run last).
+// 11. HQ sets the check-in interval; the site re-arms its own timer.
+$GLOBALS['tr'] = array();
+$st = DS_HQ_Link::state(); $st['status'] = 'active'; update_option( DS_HQ_Link::OPT, $st );
+$GLOBALS['reply_code'] = 200; $GLOBALS['reply'] = array( 'ok' => true, 'status' => 'active', 'checkin_every' => 3600 );
+DS_HQ_Link::send( 'checkin', array() );
+ok( 3600 === DS_HQ_Link::every(), 'interval from HQ is remembered (1 hour)' );
+$next = $GLOBALS['cron'][ DS_HQ_Link::CHECKIN_HOOK ] ?? 0;
+ok( $next > time() + 3500 && $next <= time() + 3600, 'next check-in armed one interval ahead' );
+$GLOBALS['reply'] = array( 'ok' => true, 'status' => 'active', 'checkin_every' => 30 );
+DS_HQ_Link::send( 'checkin', array() );
+ok( DS_HQ_Link::EVERY_MIN === DS_HQ_Link::every(), 'an interval below 15 minutes is clamped up' );
+$GLOBALS['reply'] = array( 'ok' => true, 'status' => 'active', 'checkin_every' => 999999 );
+DS_HQ_Link::send( 'checkin', array() );
+ok( DS_HQ_Link::EVERY_MAX === DS_HQ_Link::every(), 'an interval above 24 hours is clamped down' );
+
+// 12. "Check in now" sends at once, then refuses for a minute; a retired site refuses.
+$GLOBALS['tr'] = array();
+$n = count( $GLOBALS['sent'] );
+$r = DS_HQ_Link::checkin_now();
+ok( $r instanceof WP_REST_Response && count( $GLOBALS['sent'] ) === $n + 1, 'check in now: one report sent' );
+ok( DS_HQ_Link::checkin_now() instanceof WP_Error, 'check in now: refused again within a minute' );
+$GLOBALS['tr'] = array();
+$st = DS_HQ_Link::state(); $st['status'] = 'retired'; update_option( DS_HQ_Link::OPT, $st );
+ok( DS_HQ_Link::checkin_now() instanceof WP_Error, 'check in now: refused when retired' );
+$st['status'] = 'active'; update_option( DS_HQ_Link::OPT, $st );
+
+// 13. Flywheel and WP Engine ids (constants can only be defined once, so these run last).
 define( 'FLYWHEEL_CONFIG_DIR', '/www/flywheel-config' );
 ok( (bool) preg_match( '/^fw:[a-f0-9]{10}\.[a-f0-9]{4}$/', DS_HQ_Link::install_id() ) && 'Flywheel' === DS_HQ_Link::platform(), 'Flywheel id shape: fw:<hash>.<prefix>' );
 define( 'PWP_NAME', 'WidgetTesting1' );

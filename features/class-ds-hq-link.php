@@ -21,6 +21,12 @@
  * proof signature from ever being reusable as a report signature (report messages always start with an install id,
  * which contains ':').
  *
+ * Check-ins. Besides the copy after every Tripwire scan, the site checks in on its own interval, which HQ sets for the
+ * whole fleet (HQ returns `checkin_every` in every reply; default 24 h until HQ has said otherwise). A check-in
+ * sends the latest scan state; it never starts a scan. HQ's "Check in now" button POSTs to
+ * /wp-json/ds-toolkit/v1/hq-checkin-now, which sends one check-in at once (at most once a minute; it only ever
+ * makes this site report to HQ, so it needs no key).
+ *
  * Off switch: ds_toolkit_settings.tripwire_hq_report = 0. Endpoint override: the DS_HQ_LINK_ENDPOINT constant or the
  * ds_hq_link_endpoint filter (local testing).
  *
@@ -38,6 +44,9 @@ class DS_HQ_Link {
 	const ENDPOINT     = 'https://designshophq.wpenginepowered.com/wp-json/dshq/v1/tripwire/';
 	const QUEUE_MAX    = 10;
 	const RETRY_AFTER  = 43200; // re-enroll at most twice a day
+	const CHECKIN_HOOK = 'ds_hq_link_checkin';
+	const EVERY_MIN    = 900;    // 15 minutes
+	const EVERY_MAX    = 86400;  // 24 hours, also the default
 
 	private static $booted = false;
 
@@ -51,7 +60,14 @@ class DS_HQ_Link {
 		add_action( 'ds_tripwire_checked', array( __CLASS__, 'on_checked' ), 10, 1 );
 		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 2 );
 		add_action( self::ENROLL_HOOK, array( __CLASS__, 'enroll' ) );
+		add_action( self::CHECKIN_HOOK, array( __CLASS__, 'on_checked' ) );
 		add_action( 'admin_post_ds_hq_link_reconnect', array( __CLASS__, 'reconnect' ) );
+
+		// The site's own check-in timer (interval set by HQ). Re-armed after every send; armed here if it went missing.
+		if ( ( is_admin() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) && self::has_key()
+			&& 'retired' !== ( self::state()['status'] ?? '' ) && ! wp_next_scheduled( self::CHECKIN_HOOK ) ) {
+			self::schedule_next();
+		}
 
 		// A site with no key (fresh update, new build, a copy) enrolls once, a minute later, from cron.
 		if ( ( is_admin() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) && ! self::has_key() && ! wp_next_scheduled( self::ENROLL_HOOK ) ) {
@@ -111,6 +127,18 @@ class DS_HQ_Link {
 		return ! empty( $s['sk'] ) && ! empty( $s['sid'] ) && self::install_id() === $s['sid'];
 	}
 
+	/** Seconds between check-ins, as HQ last asked (clamped). */
+	public static function every() {
+		$e = (int) ( self::state()['every'] ?? self::EVERY_MAX );
+		return max( self::EVERY_MIN, min( self::EVERY_MAX, $e ?: self::EVERY_MAX ) );
+	}
+
+	/** One single event at now + interval; any earlier one is replaced, so a changed interval applies at once. */
+	public static function schedule_next() {
+		wp_clear_scheduled_hook( self::CHECKIN_HOOK );
+		wp_schedule_single_event( time() + self::every(), self::CHECKIN_HOOK );
+	}
+
 	/** This install's key, made now if missing or if the stored one belongs to the install this site was copied from. */
 	private static function ensure_key() {
 		$s = self::state();
@@ -164,7 +192,19 @@ class DS_HQ_Link {
 		if ( is_wp_error( $res ) ) {
 			return array( 0, $res->get_error_message() );
 		}
-		return array( (int) wp_remote_retrieve_response_code( $res ), json_decode( (string) wp_remote_retrieve_body( $res ), true ) );
+		$code = (int) wp_remote_retrieve_response_code( $res );
+		$out  = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+		if ( is_array( $out ) && ! empty( $out['checkin_every'] ) ) {
+			$s3          = self::state();
+			$new         = max( self::EVERY_MIN, min( self::EVERY_MAX, (int) $out['checkin_every'] ) );
+			$changed     = (int) ( $s3['every'] ?? 0 ) !== $new;
+			$s3['every'] = $new;
+			self::save( $s3 );
+			if ( $changed && function_exists( 'wp_schedule_single_event' ) ) {
+				self::schedule_next(); // HQ changed the interval: re-time now, not after the old wait
+			}
+		}
+		return array( $code, $out );
 	}
 
 	/** Introduce this site's public key to HQ. */
@@ -303,6 +343,9 @@ class DS_HQ_Link {
 		$s          = self::state();
 		$s['queue'] = array_slice( $left, -self::QUEUE_MAX );
 		self::save( $s );
+		if ( 'retired' !== ( $s['status'] ?? '' ) ) {
+			self::schedule_next();
+		}
 	}
 
 	/** After the daily Tripwire run: today's state as a check-in. */
@@ -328,12 +371,33 @@ class DS_HQ_Link {
 	/* ------------------------------------------------------------------ */
 
 	public static function rest_routes() {
+		register_rest_route( 'ds-toolkit/v1', '/hq-checkin-now', array(
+			'methods'             => 'POST',
+			'callback'            => array( __CLASS__, 'checkin_now' ),
+			'permission_callback' => '__return_true', // can only make this site report to HQ, once a minute
+		) );
 		register_rest_route( 'ds-toolkit/v1', '/hq-proof', array(
 			'methods'             => 'GET',
 			'callback'            => array( __CLASS__, 'proof' ),
 			'permission_callback' => '__return_true', // signs a caller's nonce; reveals nothing secret
 			'args'                => array( 'n' => array( 'required' => true ) ),
 		) );
+	}
+
+	/** HQ's "Check in now": send one check-in at once. */
+	public static function checkin_now() {
+		if ( ! self::has_key() || 'retired' === ( self::state()['status'] ?? '' ) ) {
+			return new WP_Error( 'not_connected', 'This site is not connected to HQ.', array( 'status' => 409 ) );
+		}
+		if ( get_transient( 'ds_hq_link_ping' ) ) {
+			return new WP_Error( 'slow_down', 'A check-in was sent less than a minute ago.', array( 'status' => 429 ) );
+		}
+		set_transient( 'ds_hq_link_ping', 1, MINUTE_IN_SECONDS );
+		$before = (int) ( self::state()['last_ok'] ?? 0 );
+		self::on_checked();
+		$res = rest_ensure_response( array( 'ok' => (int) ( self::state()['last_ok'] ?? 0 ) > $before ) );
+		$res->header( 'Cache-Control', 'no-store' );
+		return $res;
 	}
 
 	public static function proof( WP_REST_Request $r ) {
@@ -407,6 +471,8 @@ class DS_HQ_Link {
 		if ( ! empty( $s['error'] ) ) {
 			return array( 'bad', 'Connected' . ( $since ? " since $since" : '' ) . ", but the last attempt failed ({$s['error']}). Last report: $last." );
 		}
-		return array( 'ok', 'Connected to Design Shop HQ' . ( $since ? " since $since" : '' ) . ". Last report: $last." );
+		$next = wp_next_scheduled( self::CHECKIN_HOOK );
+		$nxt  = $next ? ' Next check-in in ' . human_time_diff( time(), (int) $next ) . '.' : '';
+		return array( 'ok', 'Connected to Design Shop HQ' . ( $since ? " since $since" : '' ) . ". Last report: $last." . $nxt );
 	}
 }
