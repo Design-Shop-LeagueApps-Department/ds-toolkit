@@ -35,6 +35,9 @@
  * and a one-off cron event (FLUSH_HOOK) sends them, one locked flush at a time, at most FLUSH_MAX per run, saving
  * the queue after every accepted report. In cron or WP-CLI (the scans) it flushes straight away.
  *
+ * Updates. HQ's reply to a report may carry a signed update order; features/class-ds-hq-update.php checks it and
+ * installs that signed GitHub release itself. HQ can choose when, never what (see that file).
+ *
  * Off switch: ds_toolkit_settings.tripwire_hq_report = 0. Endpoint override: the DS_HQ_LINK_ENDPOINT constant or the
  * ds_hq_link_endpoint filter (local testing).
  *
@@ -69,6 +72,8 @@ class DS_HQ_Link {
 			return;
 		}
 		self::$booted = true;
+		require_once __DIR__ . '/class-ds-hq-update.php';
+		DS_HQ_Update::boot();
 		add_action( 'rest_api_init', array( __CLASS__, 'rest_routes' ) );
 		add_action( 'ds_tripwire_checked', array( __CLASS__, 'on_checked' ), 10, 1 );
 		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 2 );
@@ -209,6 +214,9 @@ class DS_HQ_Link {
 		}
 		$code = (int) wp_remote_retrieve_response_code( $res );
 		$out  = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+		if ( 200 === $code && is_array( $out ) && ! empty( $out['update'] ) && is_array( $out['update'] ) && class_exists( 'DS_HQ_Update' ) ) {
+			DS_HQ_Update::take_order( $out['update'], (string) $s['sid'] ); // only queues; checked and installed from cron
+		}
 		if ( is_array( $out ) && ! empty( $out['checkin_every'] ) ) {
 			$s3          = self::state();
 			$new         = max( self::EVERY_MIN, min( self::EVERY_MAX, (int) $out['checkin_every'] ) );
@@ -275,7 +283,8 @@ class DS_HQ_Link {
 			'site_url'  => home_url(),
 			'login_url' => wp_login_url(), // the masked login URL when Defender masks it
 			'platform'  => self::platform(),
-			'toolkit'   => defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '',
+			'toolkit'   => class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::installed() : ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '' ),
+			'update'    => class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::report() : array(),
 			'tripwire'  => array(
 				'enabled'          => isset( $set['tripwire_enabled'] ) ? (int) $set['tripwire_enabled'] : 1,
 				'content_enabled'  => isset( $set['tripwire_content_enabled'] ) ? (int) $set['tripwire_content_enabled'] : 1,
@@ -537,6 +546,8 @@ class DS_HQ_Link {
 				wp_clear_scheduled_hook( $h );
 			}
 		}
+		require_once __DIR__ . '/class-ds-hq-update.php';
+		DS_HQ_Update::unschedule();
 	}
 
 	/** Ask HQ how it sees this site (the settings card calls this; at most once every 5 minutes). */
@@ -581,6 +592,7 @@ class DS_HQ_Link {
 		}
 		$next = wp_next_scheduled( self::CHECKIN_HOOK );
 		$nxt  = $next ? ' Next check-in in ' . human_time_diff( time(), (int) $next ) . '.' : '';
-		return array( 'ok', 'Connected to Design Shop HQ' . ( $since ? " since $since" : '' ) . ". Last report: $last." . $nxt );
+		$upd  = class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::status_line() : '';
+		return array( 'ok', 'Connected to Design Shop HQ' . ( $since ? " since $since" : '' ) . ". Last report: $last." . $nxt . ( $upd ? ' ' . $upd : '' ) );
 	}
 }

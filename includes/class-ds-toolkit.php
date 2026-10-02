@@ -582,7 +582,7 @@ class DS_Toolkit {
             if ( empty( $settings['ds_table_module_enabled'] ) && wp_next_scheduled( 'ds_table_sync' ) ) { wp_clear_scheduled_hook( 'ds_table_sync' ); }
             // Tripwire -> HQ reporting off (or Tripwire off): leave no HQ cron events behind.
             if ( ( empty( $settings['tripwire_enabled'] ) || ( isset( $settings['tripwire_hq_report'] ) && ! $settings['tripwire_hq_report'] ) )
-                && ( wp_next_scheduled( 'ds_hq_link_checkin' ) || wp_next_scheduled( 'ds_hq_link_flush' ) || wp_next_scheduled( 'ds_hq_link_enroll' ) ) ) {
+                && ( wp_next_scheduled( 'ds_hq_link_checkin' ) || wp_next_scheduled( 'ds_hq_link_flush' ) || wp_next_scheduled( 'ds_hq_link_enroll' ) || wp_next_scheduled( 'ds_hq_update_run' ) ) ) {
                 require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-link.php';
                 DS_HQ_Link::unschedule();
             }
