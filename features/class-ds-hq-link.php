@@ -24,8 +24,16 @@
  * Check-ins. Besides the copy after every Tripwire scan, the site checks in on its own interval, which HQ sets for the
  * whole fleet (HQ returns `checkin_every` in every reply; default 24 h until HQ has said otherwise). A check-in
  * sends the latest scan state; it never starts a scan. HQ's "Check in now" button POSTs to
- * /wp-json/ds-toolkit/v1/hq-checkin-now, which sends one check-in at once (at most once a minute; it only ever
- * makes this site report to HQ, so it needs no key).
+ * /wp-json/ds-toolkit/v1/hq-checkin-now, which sends one check-in at once (at most once a minute).
+ *
+ * HQ-signed calls. hq-proof and hq-checkin-now only answer a call HQ signed with its own key (public half in
+ * HQ_PUBKEY, overridable with the DS_HQ_LINK_PUBKEY constant for a local HQ): a signature over
+ * "dshq-hq\n<proof|checkin-now>\n<this host>\n<time>\n<nonce>" in X-DSHQ-HQ-Sig, time within 5 minutes. Anyone else
+ * gets a 404, so the routes are no CPU amplifier and do not reveal the install id.
+ *
+ * Sending never happens inside the request that raised the alert. Reports go into a queue (newest QUEUE_MAX kept)
+ * and a one-off cron event (FLUSH_HOOK) sends them, one locked flush at a time, at most FLUSH_MAX per run, saving
+ * the queue after every accepted report. In cron or WP-CLI (the scans) it flushes straight away.
  *
  * Off switch: ds_toolkit_settings.tripwire_hq_report = 0. Endpoint override: the DS_HQ_LINK_ENDPOINT constant or the
  * ds_hq_link_endpoint filter (local testing).
@@ -47,6 +55,11 @@ class DS_HQ_Link {
 	const CHECKIN_HOOK = 'ds_hq_link_checkin';
 	const EVERY_MIN    = 900;    // 15 minutes
 	const EVERY_MAX    = 86400;  // 24 hours, also the default
+	const FLUSH_HOOK   = 'ds_hq_link_flush';
+	const FLUSH_MAX    = 5;      // reports sent per flush run
+	const LOCK_OPT     = 'ds_hq_link_lock';
+	const HQ_PUBKEY    = 'jx502Rgzondxga5IEo7/EHxAVJml9e9a9EN9dlqRF38='; // Design Shop HQ's public key
+	const HQ_SKEW      = 300;
 
 	private static $booted = false;
 
@@ -61,6 +74,7 @@ class DS_HQ_Link {
 		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 2 );
 		add_action( self::ENROLL_HOOK, array( __CLASS__, 'enroll' ) );
 		add_action( self::CHECKIN_HOOK, array( __CLASS__, 'on_checked' ) );
+		add_action( self::FLUSH_HOOK, array( __CLASS__, 'flush' ) );
 		add_action( 'admin_post_ds_hq_link_reconnect', array( __CLASS__, 'reconnect' ) );
 
 		// The site's own check-in timer (interval set by HQ). Re-armed after every send; armed here if it went missing.
@@ -89,7 +103,8 @@ class DS_HQ_Link {
 
 	public static function install_id() {
 		global $table_prefix;
-		$p = substr( md5( (string) $table_prefix ), 0, 4 );
+		// Multisite: every subsite shares PWP_NAME, DB_NAME and $table_prefix, so the blog id keeps their ids apart.
+		$p = substr( md5( (string) $table_prefix ), 0, 4 ) . ( function_exists( 'is_multisite' ) && is_multisite() ? '.b' . (int) get_current_blog_id() : '' );
 		if ( defined( 'PWP_NAME' ) && PWP_NAME ) {
 			return 'wpe:' . strtolower( preg_replace( '/[^A-Za-z0-9-]/', '', PWP_NAME ) ) . '.' . $p;
 		}
@@ -170,14 +185,14 @@ class DS_HQ_Link {
 	/* ------------------------------------------------------------------ */
 
 	/** Sign and POST. Returns [ http code, decoded body ] or [ 0, error message ]. */
-	private static function post( $route, array $body, array $s = null ) {
+	private static function post( $route, array $body, ?array $s = null, $timeout = 10 ) {
 		$s    = $s ?: self::state();
 		$json = wp_json_encode( $body );
 		$t    = max( time(), (int) ( $s['last_t'] ?? 0 ) + 1 ); // HQ refuses a time that is not newer than the last
 		self::sodium();
 		$sig = sodium_crypto_sign_detached( $s['sid'] . "\n" . $t . "\n" . hash( 'sha256', $json ), base64_decode( $s['sk'] ) );
 		$res = wp_remote_post( self::endpoint() . $route, array(
-			'timeout' => 10,
+			'timeout' => $timeout,
 			'headers' => array(
 				'Content-Type' => 'application/json',
 				'X-DSHQ-Site'  => $s['sid'],
@@ -277,74 +292,137 @@ class DS_HQ_Link {
 	}
 
 	/**
-	 * Send a report, oldest queued ones first. Never throws and never blocks the scan for long: a failed send is
-	 * queued (newest QUEUE_MAX kept) and retried with the next report.
+	 * Queue a report and get it sent without holding up the caller: in cron or WP-CLI (the scans) it is sent now,
+	 * anywhere else (an admin creating a user, a page view) a one-off cron event sends it.
 	 */
 	public static function send( $kind, array $findings ) {
 		if ( 'retired' === ( self::state()['status'] ?? '' ) && self::has_key() ) {
 			return; // retired on HQ: stay quiet until someone presses Reconnect on this site (email alerts still go)
 		}
-		if ( ! self::has_key() ) {
-			self::enroll();
+		self::enqueue( self::payload( $kind, $findings ) );
+		if ( wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
+			self::flush();
+		} elseif ( ! wp_next_scheduled( self::FLUSH_HOOK ) ) {
+			wp_schedule_single_event( time(), self::FLUSH_HOOK );
 		}
-		$s       = self::state();
-		$queue   = (array) ( $s['queue'] ?? array() );
-		$queue[] = self::payload( $kind, $findings );
-		$left    = array();
-		foreach ( $queue as $i => $body ) {
-			if ( $left ) { // HQ unreachable: keep the rest for next time
-				$left[] = $body;
-				continue;
+	}
+
+	private static function enqueue( array $payload ) {
+		$s          = self::state();
+		$q          = (array) ( $s['queue'] ?? array() );
+		$q[]        = $payload;
+		$s['queue'] = array_slice( $q, -self::QUEUE_MAX );
+		self::save( $s );
+	}
+
+	/**
+	 * One flush at a time. INSERT IGNORE on the options table's unique option_name is atomic, so of two processes
+	 * exactly one gets the row (add_option() is not: it checks first and then upserts, so both can "win").
+	 * A lock older than 5 minutes is stale (a killed request) and is taken over.
+	 */
+	private static function lock() {
+		global $wpdb;
+		if ( ! is_object( $wpdb ) ) {
+			return add_option( self::LOCK_OPT, time(), '', 'no' );
+		}
+		$take = function () use ( $wpdb ) {
+			return 1 === (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", self::LOCK_OPT, (string) time() ) );
+		};
+		if ( $take() ) {
+			return true;
+		}
+		$since = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPT ) );
+		if ( time() - $since > 300 ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK_OPT, (string) $since ) );
+			return $take();
+		}
+		return false;
+	}
+
+	private static function unlock() {
+		global $wpdb;
+		if ( is_object( $wpdb ) ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPT ) );
+			wp_cache_delete( self::LOCK_OPT, 'options' );
+		} else {
+			delete_option( self::LOCK_OPT );
+		}
+	}
+
+	/** Remove the first queued report once HQ has it, and save at once, so a killed request never sends it twice. */
+	private static function shift() {
+		$s = self::state();
+		$q = (array) ( $s['queue'] ?? array() );
+		array_shift( $q );
+		$s['queue'] = $q;
+		self::save( $s );
+	}
+
+	/** Send queued reports, oldest first, at most $max of them. Anything HQ could not take stays queued. */
+	public static function flush( $max = self::FLUSH_MAX ) {
+		if ( ! self::lock() ) {
+			return;
+		}
+		try {
+			if ( ! self::has_key() ) {
+				self::enroll();
 			}
-			list( $code, $out ) = self::post( 'report', $body );
-			if ( 200 === $code ) {
-				$s2              = self::state();
-				$s2['last_ok']   = time();
-				$s2['status']    = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
-				$s2['error']     = '';
-				self::save( $s2 );
-				continue;
-			}
-			if ( 403 === $code && 'retired' === ( $out['code'] ?? '' ) ) {
-				// Retired on HQ. Never re-enroll by ourselves (that would undo the Retire); drop what is queued.
-				$s2           = self::state();
-				$s2['status'] = 'retired';
-				$s2['queue']  = array();
-				$s2['error']  = '';
-				self::save( $s2 );
-				return;
-			}
-			if ( 401 === $code && 'unknown_site' === ( $out['code'] ?? '' ) ) {
-				// HQ retired this key (Reconnect, or it never knew it): enroll a fresh one, at most twice a day.
-				$s2 = self::state();
-				if ( empty( $s2['tried'] ) || time() - (int) $s2['tried'] > self::RETRY_AFTER ) {
-					unset( $s2['sk'], $s2['pk'] );
-					$s2['sid'] = ''; // forces a new key; HQ sees it as a re-key of this install
+			for ( $i = 0; $i < (int) $max; $i++ ) {
+				$s = self::state();
+				if ( 'retired' === ( $s['status'] ?? '' ) || empty( $s['queue'] ) ) {
+					break;
+				}
+				$body = reset( $s['queue'] );
+				list( $code, $out ) = self::post( 'report', (array) $body );
+				if ( 200 === $code ) {
+					self::shift();
+					$s2            = self::state();
+					$s2['last_ok'] = time();
+					$s2['status']  = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
+					$s2['error']   = '';
 					self::save( $s2 );
-					self::enroll();
-					if ( 200 === self::post( 'report', $body )[0] ) { // resend now with the new key
-						$s3            = self::state();
-						$s3['last_ok'] = time();
-						self::save( $s3 );
+					continue;
+				}
+				if ( 403 === $code && 'retired' === ( $out['code'] ?? '' ) ) {
+					// Retired on HQ. Never re-enroll by ourselves (that would undo the Retire); drop what is queued.
+					$s2           = self::state();
+					$s2['status'] = 'retired';
+					$s2['queue']  = array();
+					$s2['error']  = '';
+					self::save( $s2 );
+					break;
+				}
+				if ( 401 === $code && 'unknown_site' === ( $out['code'] ?? '' ) ) {
+					// HQ retired this key (Reconnect, or it never knew it): enroll a fresh one, at most twice a day,
+					// and the loop resends the same report with the new key.
+					$s2 = self::state();
+					if ( empty( $s2['tried'] ) || time() - (int) $s2['tried'] > self::RETRY_AFTER ) {
+						unset( $s2['sk'], $s2['pk'] );
+						$s2['sid'] = ''; // forces a new key; HQ sees it as a re-key of this install
+						self::save( $s2 );
+						self::enroll();
 						continue;
 					}
+					break;
 				}
-				$left[] = $body;
-				continue;
+				$s2          = self::state();
+				$s2['error'] = 'Report: ' . ( $code ? 'HTTP ' . $code . ' ' . (string) ( is_array( $out ) ? ( $out['code'] ?? '' ) : '' ) : (string) $out );
+				self::save( $s2 );
+				// Unreachable, overloaded, or a time clash with another sender (409 replay): keep it for next time.
+				if ( 0 === $code || $code >= 500 || 429 === $code || 409 === $code ) {
+					break;
+				}
+				self::shift(); // any other refusal (bad signature, malformed) cannot be fixed by resending
 			}
-			if ( 0 === $code || $code >= 500 || 429 === $code ) {
-				$left[] = $body;
-			}
-			// Any other refusal (bad signature, replay, malformed) is dropped: resending cannot fix it.
-			$s2          = self::state();
-			$s2['error'] = 'Report: ' . ( $code ? 'HTTP ' . $code . ' ' . (string) ( is_array( $out ) ? ( $out['code'] ?? '' ) : '' ) : (string) $out );
-			self::save( $s2 );
+		} finally {
+			self::unlock();
 		}
-		$s          = self::state();
-		$s['queue'] = array_slice( $left, -self::QUEUE_MAX );
-		self::save( $s );
+		$s = self::state();
 		if ( 'retired' !== ( $s['status'] ?? '' ) ) {
 			self::schedule_next();
+			if ( ! empty( $s['queue'] ) && ! wp_next_scheduled( self::FLUSH_HOOK ) ) {
+				wp_schedule_single_event( time() + 5 * MINUTE_IN_SECONDS, self::FLUSH_HOOK ); // retry what is left
+			}
 		}
 	}
 
@@ -384,8 +462,27 @@ class DS_HQ_Link {
 		) );
 	}
 
+	/** True when the request carries HQ's signature for $what on this host (see the class docblock). */
+	public static function hq_signed( WP_REST_Request $r, $what, $nonce = '' ) {
+		$t   = (int) $r->get_header( 'x_dshq_hq_time' );
+		$sig = base64_decode( (string) $r->get_header( 'x_dshq_hq_sig' ), true );
+		$pub = base64_decode( defined( 'DS_HQ_LINK_PUBKEY' ) ? DS_HQ_LINK_PUBKEY : self::HQ_PUBKEY, true );
+		if ( ! $sig || 64 !== strlen( $sig ) || ! $pub || 32 !== strlen( $pub ) || abs( time() - $t ) > self::HQ_SKEW ) {
+			return false;
+		}
+		self::sodium();
+		return sodium_crypto_sign_verify_detached( $sig, "dshq-hq\n$what\n" . self::host() . "\n$t\n$nonce", $pub );
+	}
+
+	private static function not_found() {
+		return new WP_Error( 'rest_no_route', 'No route was found matching the URL and request method.', array( 'status' => 404 ) );
+	}
+
 	/** HQ's "Check in now": send one check-in at once. */
-	public static function checkin_now() {
+	public static function checkin_now( WP_REST_Request $r ) {
+		if ( ! self::hq_signed( $r, 'checkin-now' ) ) {
+			return self::not_found();
+		}
 		if ( ! self::has_key() || 'retired' === ( self::state()['status'] ?? '' ) ) {
 			return new WP_Error( 'not_connected', 'This site is not connected to HQ.', array( 'status' => 409 ) );
 		}
@@ -394,7 +491,8 @@ class DS_HQ_Link {
 		}
 		set_transient( 'ds_hq_link_ping', 1, MINUTE_IN_SECONDS );
 		$before = (int) ( self::state()['last_ok'] ?? 0 );
-		self::on_checked();
+		self::enqueue( self::payload( 'checkin', self::findings_from_state() ) );
+		self::flush( 2 ); // HQ is waiting on this request: this check-in plus at most one older report
 		$res = rest_ensure_response( array( 'ok' => (int) ( self::state()['last_ok'] ?? 0 ) > $before ) );
 		$res->header( 'Cache-Control', 'no-store' );
 		return $res;
@@ -402,13 +500,13 @@ class DS_HQ_Link {
 
 	public static function proof( WP_REST_Request $r ) {
 		$n = (string) $r->get_param( 'n' );
-		if ( ! preg_match( '/^[a-f0-9]{16,64}$/', $n ) || ! self::has_key() ) {
-			return new WP_Error( 'no_proof', 'Nothing to prove.', array( 'status' => 404 ) );
+		if ( ! preg_match( '/^[a-f0-9]{16,64}$/', $n ) || ! self::has_key() || ! self::hq_signed( $r, 'proof', $n ) ) {
+			return self::not_found();
 		}
 		self::sodium();
 		$s   = self::state();
 		$sig = sodium_crypto_sign_detached( "dshq-proof\n" . $n . "\n" . self::host(), base64_decode( $s['sk'] ) );
-		$res = rest_ensure_response( array( 'sid' => $s['sid'], 'sig' => base64_encode( $sig ) ) );
+		$res = rest_ensure_response( array( 'sig' => base64_encode( $sig ) ) );
 		$res->header( 'Cache-Control', 'no-store' );
 		return $res;
 	}
@@ -426,10 +524,19 @@ class DS_HQ_Link {
 		self::save( $s );
 		$s = self::enroll();
 		if ( 'active' === ( $s['status'] ?? '' ) ) {
-			self::on_checked();
+			self::send( 'checkin', self::findings_from_state() );
 		}
 		wp_safe_redirect( add_query_arg( 'ds_hq', 'reconnected', admin_url( 'options-general.php?page=ds-toolkit' ) ) );
 		exit;
+	}
+
+	/** When reporting is switched off, and on uninstall: no HQ events left behind. */
+	public static function unschedule() {
+		foreach ( array( self::CHECKIN_HOOK, self::ENROLL_HOOK, self::FLUSH_HOOK ) as $h ) {
+			if ( wp_next_scheduled( $h ) ) {
+				wp_clear_scheduled_hook( $h );
+			}
+		}
 	}
 
 	/** Ask HQ how it sees this site (the settings card calls this; at most once every 5 minutes). */
@@ -438,7 +545,8 @@ class DS_HQ_Link {
 			return;
 		}
 		set_transient( 'ds_hq_link_status_checked', 1, 5 * MINUTE_IN_SECONDS );
-		list( $code, $out ) = self::post( 'status', array( 'v' => 1, 'kind' => 'status' ) );
+		// Runs while the settings page renders, so a slow HQ costs at most 3 seconds, once per 5 minutes.
+		list( $code, $out ) = self::post( 'status', array( 'v' => 1, 'kind' => 'status' ), null, 3 );
 		$s = self::state();
 		if ( 200 === $code && is_array( $out ) && ! empty( $out['status'] ) ) {
 			$s['status']  = in_array( $out['status'], array( 'active', 'pending', 'retired', 'reconnect' ), true ) ? $out['status'] : $s['status'];

@@ -321,8 +321,7 @@ class DS_Toolkit_Admin {
                 $origin_guard_enabled         = ! empty( $opts['origin_guard_enabled'] );
                 $origin_guard_block_login     = ! isset( $opts['origin_guard_block_login'] ) || ! empty( $opts['origin_guard_block_login'] );
                 $origin_guard_block_xmlrpc    = ! isset( $opts['origin_guard_block_xmlrpc'] ) || ! empty( $opts['origin_guard_block_xmlrpc'] );
-                // Is the mu-plugin actually on disk right now? (installer may
-                // have failed to write, e.g. read-only mu-plugins dir.)
+                // Tripwire -> Design Shop HQ card (asks HQ for this site's status, at most every 5 minutes).
                 $tripwire_enabled   = ! isset( $opts['tripwire_enabled'] ) || ! empty( $opts['tripwire_enabled'] );
                 $tripwire_hq_report = ! isset( $opts['tripwire_hq_report'] ) || ! empty( $opts['tripwire_hq_report'] );
                 $tripwire_hq_status = array( 'warn', 'Tripwire is off, so nothing is reported.' );
@@ -332,6 +331,8 @@ class DS_Toolkit_Admin {
                 } elseif ( $tripwire_enabled ) {
                     $tripwire_hq_status = array( 'warn', 'Reporting to Design Shop HQ is off. Alerts still go by email.' );
                 }
+                // Is the mu-plugin actually on disk right now? (installer may
+                // have failed to write, e.g. read-only mu-plugins dir.)
                 $origin_guard_installed = file_exists( ( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ) . '/ds-origin-guard.php' );
                 // Today's block counters (cache reads only; empty string hides the line).
                 $bot_shield_stats = '';

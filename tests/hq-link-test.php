@@ -8,7 +8,11 @@
 //   - every report is signed over "<id>\n<time>\n<sha256 body>" and verifies with the public key only;
 //   - times only go forward, so HQ's replay check never drops two reports sent in the same second;
 //   - a proof signature can never be replayed as a report signature;
-//   - alert lines "[TIER] text" and stored findings "TIER: text" parse into {tier, text}.
+//   - alert lines "[TIER] text" and stored findings "TIER: text" parse into {tier, text};
+//   - sending never happens in the request that raised the alert (outside cron it only queues + schedules a flush),
+//     each accepted report leaves the queue at once, a 409 replay clash is kept and retried, one flush at a time;
+//   - hq-proof and hq-checkin-now answer only a call signed with HQ's key (404 otherwise), and proof does not
+//     reveal the install id; multisite subsites get distinct ids.
 
 error_reporting( E_ALL & ~E_DEPRECATED );
 define( 'ABSPATH', sys_get_temp_dir() . '/' );
@@ -52,6 +56,25 @@ function wp_schedule_single_event( $t, $h ) { $GLOBALS['cron'][ $h ] = $t; retur
 function wp_next_scheduled( $h ) { return $GLOBALS['cron'][ $h ] ?? false; }
 class WP_REST_Response { public $data; public function __construct( $d ) { $this->data = $d; } public function header( $k, $v ) {} }
 function rest_ensure_response( $d ) { return new WP_REST_Response( $d ); }
+function wp_doing_cron() { return $GLOBALS['cron_ctx'] ?? true; } // the scans run in cron
+function add_option( $k, $v, $d = '', $a = 'yes' ) { if ( array_key_exists( $k, $GLOBALS['o'] ) ) { return false; } $GLOBALS['o'][ $k ] = $v; return true; }
+function delete_option( $k ) { unset( $GLOBALS['o'][ $k ] ); return true; }
+function is_multisite() { return ! empty( $GLOBALS['ms'] ); }
+function get_current_blog_id() { return $GLOBALS['ms'] ?? 1; }
+class WP_REST_Request {
+	public $h = array(); public $p = array();
+	public function __construct( $h = array(), $p = array() ) { $this->h = $h; $this->p = $p; }
+	public function get_header( $k ) { return $this->h[ $k ] ?? null; }
+	public function get_param( $k ) { return $this->p[ $k ] ?? null; }
+}
+// A test HQ key (the real public key ships in DS_HQ_Link::HQ_PUBKEY; DS_HQ_LINK_PUBKEY overrides it).
+$hqkp = sodium_crypto_sign_keypair();
+define( 'DS_HQ_LINK_PUBKEY', base64_encode( sodium_crypto_sign_publickey( $hqkp ) ) );
+function hq_req( $what, $nonce = '', $kp = null, $t = null ) {
+	$kp = $kp ?: $GLOBALS['hqkp']; $t = $t ?? time();
+	$sig = sodium_crypto_sign_detached( "dshq-hq\n$what\nexample-club.org\n$t\n$nonce", sodium_crypto_sign_secretkey( $kp ) );
+	return new WP_REST_Request( array( 'x_dshq_hq_time' => (string) $t, 'x_dshq_hq_sig' => base64_encode( $sig ) ), array( 'n' => $nonce ) );
+}
 
 require dirname( __DIR__ ) . '/features/class-ds-hq-link.php';
 
@@ -120,9 +143,35 @@ ok( 0 === count( (array) DS_HQ_Link::state()['queue'] ), 'the refused report is 
 $GLOBALS['reply_code'] = 503;
 for ( $i = 0; $i < 15; $i++ ) { DS_HQ_Link::send( 'checkin', array() ); }
 ok( count( DS_HQ_Link::state()['queue'] ) === DS_HQ_Link::QUEUE_MAX, 'queue is capped at ' . DS_HQ_Link::QUEUE_MAX );
+ok( false !== wp_next_scheduled( DS_HQ_Link::FLUSH_HOOK ), 'a retry flush is scheduled while reports wait' );
 $GLOBALS['reply_code'] = 200;
 DS_HQ_Link::send( 'checkin', array() );
+ok( DS_HQ_Link::QUEUE_MAX - DS_HQ_Link::FLUSH_MAX === count( DS_HQ_Link::state()['queue'] ), 'one flush sends at most ' . DS_HQ_Link::FLUSH_MAX );
+DS_HQ_Link::flush();
 ok( 0 === count( DS_HQ_Link::state()['queue'] ), 'queue drains once HQ answers' );
+
+// 7b. Outside cron (an admin creating a user, a page view) nothing is sent in the request: it only queues.
+$GLOBALS['cron_ctx'] = false; $GLOBALS['cron'] = array();
+$n = count( $GLOBALS['sent'] );
+DS_HQ_Link::on_alert( 'HIGH', array( '[HIGH] new admin' ) );
+ok( count( $GLOBALS['sent'] ) === $n && 1 === count( DS_HQ_Link::state()['queue'] ), 'web request: alert queued, nothing sent' );
+ok( false !== wp_next_scheduled( DS_HQ_Link::FLUSH_HOOK ), 'web request: a flush event is scheduled' );
+$GLOBALS['cron_ctx'] = true;
+DS_HQ_Link::flush();
+ok( 0 === count( DS_HQ_Link::state()['queue'] ) && count( $GLOBALS['sent'] ) === $n + 1, 'the scheduled flush sends it' );
+
+// 7c. A 409 replay clash (two senders in one second) keeps the report; each accepted one leaves the queue at once.
+$GLOBALS['reply_code'] = 409; $GLOBALS['reply'] = array( 'code' => 'replay' );
+DS_HQ_Link::send( 'alert', array( array( 'tier' => 'CRITICAL', 'text' => 'z' ) ) );
+ok( 1 === count( DS_HQ_Link::state()['queue'] ), '409 replay: the report is kept for the retry' );
+$GLOBALS['reply_code'] = 200; $GLOBALS['reply'] = array( 'ok' => true, 'status' => 'active' );
+DS_HQ_Link::flush();
+ok( 0 === count( DS_HQ_Link::state()['queue'] ), '409 replay: sent on the next flush' );
+$GLOBALS['o'][ DS_HQ_Link::LOCK_OPT ] = time();
+DS_HQ_Link::send( 'checkin', array() );
+ok( 1 === count( DS_HQ_Link::state()['queue'] ), 'a flush already running (lock held): this one backs off' );
+unset( $GLOBALS['o'][ DS_HQ_Link::LOCK_OPT ] );
+DS_HQ_Link::flush();
 
 // 8. Proof signatures cannot pass as report signatures.
 $st    = DS_HQ_Link::state();
@@ -177,13 +226,30 @@ ok( DS_HQ_Link::EVERY_MAX === DS_HQ_Link::every(), 'an interval above 24 hours i
 // 12. "Check in now" sends at once, then refuses for a minute; a retired site refuses.
 $GLOBALS['tr'] = array();
 $n = count( $GLOBALS['sent'] );
-$r = DS_HQ_Link::checkin_now();
-ok( $r instanceof WP_REST_Response && count( $GLOBALS['sent'] ) === $n + 1, 'check in now: one report sent' );
-ok( DS_HQ_Link::checkin_now() instanceof WP_Error, 'check in now: refused again within a minute' );
+ok( DS_HQ_Link::checkin_now( new WP_REST_Request() ) instanceof WP_Error && count( $GLOBALS['sent'] ) === $n, 'check in now: unsigned call refused, nothing sent' );
+ok( DS_HQ_Link::checkin_now( hq_req( 'checkin-now', '', sodium_crypto_sign_keypair() ) ) instanceof WP_Error, 'check in now: call signed with another key refused' );
+ok( DS_HQ_Link::checkin_now( hq_req( 'checkin-now', '', null, time() - 900 ) ) instanceof WP_Error, 'check in now: stale HQ signature refused' );
+ok( DS_HQ_Link::checkin_now( hq_req( 'proof' ) ) instanceof WP_Error, 'check in now: a signature for another route refused' );
+$r = DS_HQ_Link::checkin_now( hq_req( 'checkin-now' ) );
+ok( $r instanceof WP_REST_Response && count( $GLOBALS['sent'] ) === $n + 1, 'check in now: HQ-signed call sends one report' );
+ok( DS_HQ_Link::checkin_now( hq_req( 'checkin-now' ) ) instanceof WP_Error, 'check in now: refused again within a minute' );
 $GLOBALS['tr'] = array();
 $st = DS_HQ_Link::state(); $st['status'] = 'retired'; update_option( DS_HQ_Link::OPT, $st );
-ok( DS_HQ_Link::checkin_now() instanceof WP_Error, 'check in now: refused when retired' );
+ok( DS_HQ_Link::checkin_now( hq_req( 'checkin-now' ) ) instanceof WP_Error, 'check in now: refused when retired' );
 $st['status'] = 'active'; update_option( DS_HQ_Link::OPT, $st );
+
+// 12b. hq-proof: only for HQ, and it reveals no install id.
+$nonce = 'aabbccddeeff00112233445566778899';
+ok( DS_HQ_Link::proof( new WP_REST_Request( array(), array( 'n' => $nonce ) ) ) instanceof WP_Error, 'proof: unsigned call gets 404' );
+$pr = DS_HQ_Link::proof( hq_req( 'proof', $nonce ) );
+$st = DS_HQ_Link::state();
+ok( $pr instanceof WP_REST_Response && ! isset( $pr->data['sid'] ) && sodium_crypto_sign_verify_detached( base64_decode( $pr->data['sig'] ), "dshq-proof\n$nonce\nexample-club.org", base64_decode( $st['pk'] ) ), 'proof: HQ-signed call gets a valid signature and no install id' );
+$pr2 = DS_HQ_Link::proof( new WP_REST_Request( hq_req( 'proof', $nonce )->h, array( 'n' => 'ffffffffffffffffffffffffffffffff' ) ) );
+ok( $pr2 instanceof WP_Error, 'proof: an HQ signature for one nonce does not work for another' );
+
+// 12c. Multisite: subsites get distinct ids.
+$GLOBALS['ms'] = 1; $id1 = DS_HQ_Link::install_id(); $GLOBALS['ms'] = 2; $id2 = DS_HQ_Link::install_id(); unset( $GLOBALS['ms'] );
+ok( $id1 !== $id2 && false !== strpos( $id2, '.b2' ), "multisite: subsite ids differ ($id1 / $id2)" );
 
 // 13. Flywheel and WP Engine ids (constants can only be defined once, so these run last).
 define( 'FLYWHEEL_CONFIG_DIR', '/www/flywheel-config' );
