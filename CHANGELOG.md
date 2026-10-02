@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.26] - 2026-10-03
+### Fixed
+- **A toolkit update now reaches every page's styling, not just its markup.** Beaver Builder bundles each module's `css/frontend.css` and `js/frontend.js` into per-page cache files and only rebuilds them when a layout is saved, so after an update pages ran the new module PHP with the old module CSS/JS until someone edited them. Seen on 1.10.21: on a Programs card, the new "View schedule" link rendered inline and un-underlined, jammed against the Register button, because the page's bundle predated the rules that stack and style it. DS Toolkit now deletes Beaver Builder's cached layout CSS/JS once per version (option `ds_toolkit_assets_version`; a burst of requests right after an update may clear it a few times, which is harmless because the files rebuild) and, on WP Engine, purges the page cache; each page rebuilds its bundle on its next view. It runs on any request, because the fleet installer replaces files without the WordPress upgrader. Checked against real Beaver Builder: a new version clears the cache once, the same version leaves it alone.
+
 ## [1.10.25] - 2026-10-03
 ### Added
 - **LeagueApps Table editor: sort a column, and select several cells to clear, copy or delete them** (Alipio, 2026-10-03: "add order option in a column also multiple select a cell and we could delete it multiple cells (row/columns)").
