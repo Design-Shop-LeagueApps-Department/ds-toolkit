@@ -4,7 +4,7 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
-## [1.10.26] - 2026-10-03
+## [1.10.25] - 2026-10-03
 ### Added
 - **LeagueApps Table editor: sort a column, and select several cells to clear, copy or delete them** (Alipio, 2026-10-03: "add order option in a column also multiple select a cell and we could delete it multiple cells (row/columns)").
   - **Sort:** a column's menu has *Sort rows A to Z (low to high)* and *Sort rows Z to A (high to low)*. It re-orders the saved rows once, so it is the order visitors see unless they sort the table themselves. Numbers and prices sort as numbers ($80 before $900 before $1,250), dates as dates, text A to Z with digits in number order (U9 before U10); empty cells go last either way. Link and Button columns sort by their label; Image columns cannot be sorted. One undo puts the old order back.
