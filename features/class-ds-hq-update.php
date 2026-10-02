@@ -7,15 +7,21 @@
  *      {"target": "1.10.27", "t": <time>, "sig": <base64>}, signed with HQ's key (DS_HQ_Link::HQ_PUBKEY) over
  *      "dshq-update\n<this install id>\n<target>\n<t>". An order for another install, an old one (ORDER_SKEW), a
  *      badly signed one, a pre-release, or one that is not newer than the installed copy is ignored.
- *   2. The site downloads that version itself, from the official GitHub repo only (REPO: a published, stable release
- *      tagged v<target>), together with ds-toolkit.zip.sig: an Ed25519 signature over
+ *   2. The site downloads that version itself from the official repo's fixed release download addresses
+ *      (github.com/REPO/releases/download/v<target>/ds-toolkit.zip and .zip.sig; no API call, so no 60-an-hour
+ *      limit shared by every site on one server). ds-toolkit.zip.sig is an Ed25519 signature over
  *      "ds-toolkit-release\n<version>\n<sha256 of the zip>" by the release key (RELEASE_PUBKEYS), whose private half
- *      never lives on HQ. Both version lines inside the zip (header and DS_TOOLKIT_VERSION) must say <target>.
+ *      never lives on HQ and which only ever signs published stable releases (designshophq tools/release/
+ *      sign-release.sh refuses anything else). Both version lines inside the zip must say <target>.
  *   3. WordPress's own automatic updater installs it, for ds-toolkit only (backup, maintenance mode for a few seconds,
  *      crash check and rollback on WordPress 6.6+), from a one-off cron event a few minutes later, holding WordPress's
  *      own auto-update lock so it never runs beside a normal auto-update.
- *   4. The result (done, or failed and why) reaches HQ with a check-in a minute after the install, so it is sent by
- *      the new code. A target that failed MAX_TRIES times is not tried again; HQ has to name a newer one.
+ *   4. The result (done, skipped, or failed and why) reaches HQ with a check-in a minute after the install, so it is
+ *      sent by the new code. A target that failed MAX_TRIES times is not tried again; HQ has to name a newer one.
+ *      GitHub unreachable or busy, or WordPress busy with its own updates, does not count as a try (MAX_WAITS).
+ * Never: on a multisite subsite (only the main site touches the shared plugin folder), with DISALLOW_FILE_MODS, on
+ * WordPress older than 6.6 (no crash check / rollback), or to a version that is not newer than what is installed
+ * at the moment of the install (checked again under WordPress's lock, so a manual update in between wins).
  * A stolen HQ key can therefore at most make sites install a real, signed release sooner. Nothing else.
  *
  * Off switch: define( 'DS_HQ_UPDATE_DISABLED', true ) in wp-config.php makes this site ignore every order.
@@ -40,6 +46,8 @@ class DS_HQ_Update {
 	const ORDER_SKEW      = 900;      // an order is good for 15 minutes after HQ signed it
 	const MAX_TRIES       = 3;        // per target version
 	const STUCK_AFTER     = 1800;     // a "running" update older than this was killed (it is retried)
+	const MAX_WAITS       = 8;        // transient waits (GitHub / WordPress busy) before it counts as a failure
+	const MIN_WP          = '6.6';    // first WordPress with the crash check that rolls a fatal update back
 	const MAX_ZIP         = 52428800; // 50 MB
 
 	/** Called from DS_HQ_Link::boot(). */
@@ -99,7 +107,7 @@ class DS_HQ_Update {
 		}
 		$target = (string) ( $order['target'] ?? '' );
 		$t      = (int) ( $order['t'] ?? 0 );
-		if ( ! preg_match( '/^\d{1,3}\.\d{1,3}\.\d{1,4}$/', $target ) ) {
+		if ( ! preg_match( '/^\d{1,3}\.\d{1,3}\.\d{1,4}\z/', $target ) ) {
 			return array( false, 'not a stable version number' );
 		}
 		if ( abs( $now - $t ) > self::ORDER_SKEW ) {
@@ -133,6 +141,24 @@ class DS_HQ_Update {
 		return array( $h, $d );
 	}
 
+	/** Why this site must not update itself, or '' when it may. */
+	public static function cannot() {
+		if ( defined( 'DS_HQ_UPDATE_DISABLED' ) && DS_HQ_UPDATE_DISABLED ) {
+			return 'updates from HQ are switched off on this site (DS_HQ_UPDATE_DISABLED)';
+		}
+		if ( function_exists( 'is_multisite' ) && is_multisite() && ! ( is_main_site() && ( ! function_exists( 'is_main_network' ) || is_main_network() ) ) ) {
+			return 'multisite: only the main site updates the shared plugin';
+		}
+		if ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) {
+			return 'file changes are disabled on this site (DISALLOW_FILE_MODS)';
+		}
+		$wp = (string) ( $GLOBALS['wp_version'] ?? '' );
+		if ( '' === $wp || version_compare( $wp, self::MIN_WP, '<' ) ) {
+			return 'WordPress ' . ( $wp ?: '?' ) . ' has no crash check to roll a bad update back; update WordPress to ' . self::MIN_WP . '+ first';
+		}
+		return '';
+	}
+
 	/**
 	 * HQ's reply to a report carried an update order (DS_HQ_Link::post()). Check it and queue the install.
 	 * Never installs in this request: it runs from cron a few minutes later.
@@ -144,6 +170,9 @@ class DS_HQ_Update {
 		$installed = self::installed();
 		list( $ok, $target ) = self::order_ok( $order, $sid, $installed );
 		$s = self::state();
+		if ( $ok && self::cannot() ) {
+			list( $ok, $target ) = array( false, self::cannot() );
+		}
 		if ( ! $ok ) {
 			$s['refused'] = array( 'reason' => $target, 'at' => time() );
 			self::save( $s );
@@ -166,6 +195,7 @@ class DS_HQ_Update {
 			'from'   => $installed,
 			'queued' => time(),
 			'tries'  => $same ? (int) ( $s['tries'] ?? 0 ) : 0,
+			'waits'  => $same ? (int) ( $s['waits'] ?? 0 ) : 0,
 			'error'  => $same ? (string) ( $s['error'] ?? '' ) : '',
 		);
 		self::save( $s );
@@ -200,8 +230,18 @@ class DS_HQ_Update {
 
 	/** The cron job: install the queued target. */
 	public static function run() {
-		$s = self::state();
-		if ( 'queued' !== ( $s['status'] ?? '' ) || empty( $s['target'] ) || ( defined( 'DS_HQ_UPDATE_DISABLED' ) && DS_HQ_UPDATE_DISABLED ) ) {
+		$s      = self::state();
+		$target = (string) ( $s['target'] ?? '' );
+		if ( 'queued' !== ( $s['status'] ?? '' ) || '' === $target ) {
+			return;
+		}
+		$why = self::cannot();
+		if ( $why ) {
+			self::finish( $target, 'failed', $why, self::MAX_TRIES ); // nothing will change by retrying
+			return;
+		}
+		if ( ! version_compare( $target, self::installed(), '>' ) ) {
+			self::finish( $target, self::installed() === $target ? 'done' : 'skipped', '' ); // updated some other way meanwhile
 			return;
 		}
 		if ( ! self::lock() ) {
@@ -212,27 +252,46 @@ class DS_HQ_Update {
 			$s['started'] = time();
 			$s['tries']   = (int) ( $s['tries'] ?? 0 ) + 1;
 			self::save( $s );
-			$res = self::install( (string) $s['target'] );
-			$s   = self::state();
-			$s['to']       = self::installed();
-			$s['finished'] = time();
-			if ( is_wp_error( $res ) ) {
-				$s['status'] = 'failed';
-				$s['error']  = substr( $res->get_error_code() . ': ' . $res->get_error_message(), 0, 300 );
-				if ( 'busy' === $res->get_error_code() ) {
-					$s['status'] = 'queued'; // WordPress was updating something else: try again shortly, not counted
-					$s['tries']  = max( 0, (int) $s['tries'] - 1 );
-					wp_schedule_single_event( time() + 600, self::HOOK );
-				}
-			} else {
-				$s['status'] = 'done';
-				$s['error']  = '';
-			}
-			self::save( $s );
+			$res = self::install( $target );
 		} finally {
 			self::unlock();
 		}
-		// Tell HQ how it went, from a fresh request a minute from now (that one runs the new code).
+		if ( ! is_wp_error( $res ) ) {
+			self::finish( $target, 'done', '' );
+		} elseif ( 'skipped' === $res->get_error_code() ) {
+			self::finish( $target, 'skipped', '' );
+		} elseif ( in_array( $res->get_error_code(), array( 'busy', 'unreachable' ), true ) && (int) ( $s['waits'] ?? 0 ) < self::MAX_WAITS ) {
+			// Not this release's fault: GitHub or WordPress was busy. Try again later; it does not count as a try.
+			$w = self::state();
+			if ( ( $w['target'] ?? '' ) === $target ) {
+				$w['status'] = 'queued';
+				$w['tries']  = max( 0, (int) $w['tries'] - 1 );
+				$w['waits']  = (int) ( $w['waits'] ?? 0 ) + 1;
+				$w['error']  = substr( $res->get_error_code() . ': ' . $res->get_error_message(), 0, 300 );
+				self::save( $w );
+				wp_schedule_single_event( time() + ( function_exists( 'wp_rand' ) ? wp_rand( 900, 3600 ) : 1800 ), self::HOOK );
+			}
+			return;
+		} else {
+			self::finish( $target, 'failed', substr( $res->get_error_code() . ': ' . $res->get_error_message(), 0, 300 ) );
+		}
+	}
+
+	/** Record how $target ended (unless a newer order replaced it meanwhile) and tell HQ a minute later. */
+	private static function finish( $target, $status, $error, $tries = null ) {
+		$s = self::state();
+		if ( ( $s['target'] ?? '' ) !== $target ) {
+			return; // a newer order arrived while this one ran: its own run reports it
+		}
+		$s['status']   = $status;
+		$s['error']    = $error;
+		$s['to']       = self::installed();
+		$s['finished'] = time();
+		if ( null !== $tries ) {
+			$s['tries'] = $tries;
+		}
+		self::save( $s );
+		// From a fresh request a minute from now: that one runs the new code.
 		if ( class_exists( 'DS_HQ_Link' ) ) {
 			wp_clear_scheduled_hook( DS_HQ_Link::CHECKIN_HOOK );
 			wp_schedule_single_event( time() + 60, DS_HQ_Link::CHECKIN_HOOK );
@@ -243,7 +302,7 @@ class DS_HQ_Update {
 	public static function report() {
 		$s = self::state();
 		$o = array();
-		foreach ( array( 'target', 'status', 'from', 'to', 'error', 'tries', 'queued', 'finished' ) as $k ) {
+		foreach ( array( 'target', 'status', 'from', 'to', 'error', 'tries', 'waits', 'queued', 'finished' ) as $k ) {
 			if ( isset( $s[ $k ] ) ) {
 				$o[ $k ] = $s[ $k ];
 			}
@@ -254,15 +313,7 @@ class DS_HQ_Update {
 		return $o;
 	}
 
-	private static function github_get( $url, $timeout = 20 ) {
-		return wp_remote_get( $url, array(
-			'timeout'     => $timeout,
-			'redirection' => 5,
-			'headers'     => array( 'Accept' => 'application/vnd.github+json', 'User-Agent' => 'ds-toolkit/' . self::installed() ),
-		) );
-	}
-
-	/** Download, verify and install $target. Returns true or WP_Error (the installed plugin is untouched on any error before step 5). */
+	/** Download, verify and install $target. Returns true or WP_Error (the installed plugin is untouched on any error before the install step). */
 	public static function install( $target ) {
 		if ( self::installed() === $target ) {
 			return true; // already there (installed some other way)
@@ -271,37 +322,29 @@ class DS_HQ_Update {
 			return new WP_Error( 'folder', 'the plugin is not installed as wp-content/plugins/ds-toolkit/; update it by hand' );
 		}
 
-		// 1. The release, from the official repo only: published, stable, exactly this tag.
-		$tag = 'v' . $target;
-		$res = self::github_get( 'https://api.github.com/repos/' . self::REPO . '/releases/tags/' . $tag );
-		if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
-			return new WP_Error( 'release', 'GitHub release ' . $tag . ' not readable (' . ( is_wp_error( $res ) ? $res->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code( $res ) ) . ')' );
+		// 1. The signature, from the release's fixed download address on the official repo (no API call).
+		$base = 'https://github.com/' . self::REPO . '/releases/download/v' . $target . '/';
+		$sr   = wp_remote_get( $base . 'ds-toolkit.zip.sig', array( 'timeout' => 20, 'redirection' => 5, 'headers' => array( 'User-Agent' => 'ds-toolkit/' . self::installed() ) ) );
+		$code = is_wp_error( $sr ) ? 0 : (int) wp_remote_retrieve_response_code( $sr );
+		if ( 404 === $code ) {
+			return new WP_Error( 'release', 'v' . $target . ' has no signed release (ds-toolkit.zip.sig) on GitHub' );
 		}
-		$rel = json_decode( (string) wp_remote_retrieve_body( $res ), true );
-		if ( ! is_array( $rel ) || ( $rel['tag_name'] ?? '' ) !== $tag || ! empty( $rel['draft'] ) || ! empty( $rel['prerelease'] ) ) {
-			return new WP_Error( 'release', $tag . ' is not a published stable release' );
-		}
-		$base = 'https://github.com/' . self::REPO . '/releases/download/' . $tag . '/';
-		$have = array();
-		foreach ( (array) ( $rel['assets'] ?? array() ) as $a ) {
-			$have[ (string) ( $a['name'] ?? '' ) ] = (string) ( $a['browser_download_url'] ?? '' );
-		}
-		if ( ( $have['ds-toolkit.zip'] ?? '' ) !== $base . 'ds-toolkit.zip' || ( $have['ds-toolkit.zip.sig'] ?? '' ) !== $base . 'ds-toolkit.zip.sig' ) {
-			return new WP_Error( 'release', $tag . ' has no ds-toolkit.zip with a ds-toolkit.zip.sig signature' );
-		}
-
-		// 2. Signature, then the zip itself.
-		$sr = self::github_get( $base . 'ds-toolkit.zip.sig' );
-		if ( is_wp_error( $sr ) || 200 !== (int) wp_remote_retrieve_response_code( $sr ) ) {
-			return new WP_Error( 'download', 'signature file not downloadable' );
+		if ( 200 !== $code ) {
+			return new WP_Error( 'unreachable', 'GitHub did not answer for the signature (' . ( is_wp_error( $sr ) ? $sr->get_error_message() : 'HTTP ' . $code ) . ')' );
 		}
 		$sig = trim( (string) wp_remote_retrieve_body( $sr ) );
+
+		// 2. The zip.
 		if ( ! function_exists( 'download_url' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 		}
 		$tmp = download_url( $base . 'ds-toolkit.zip', 300 );
 		if ( is_wp_error( $tmp ) ) {
-			return new WP_Error( 'download', 'zip not downloadable (' . $tmp->get_error_message() . ')' );
+			$d = $tmp->get_error_data();
+			if ( 404 === (int) ( is_array( $d ) ? ( $d['code'] ?? 0 ) : 0 ) ) {
+				return new WP_Error( 'release', 'v' . $target . ' has no ds-toolkit.zip on GitHub' );
+			}
+			return new WP_Error( 'unreachable', 'the zip did not download (' . $tmp->get_error_message() . ')' );
 		}
 		try {
 			$size = (int) @filesize( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
@@ -349,8 +392,15 @@ class DS_HQ_Update {
 		require_once ABSPATH . 'wp-admin/includes/admin.php';
 		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
+		if ( ! method_exists( 'WP_Automatic_Updater', 'has_fatal_error' ) ) {
+			return new WP_Error( 'old-wp', 'this WordPress has no crash check to roll a bad update back; nothing installed' );
+		}
 		if ( ! WP_Upgrader::create_lock( 'auto_updater' ) ) {
-			return new WP_Error( 'busy', 'WordPress is running its own automatic updates; trying again in 10 minutes' );
+			return new WP_Error( 'busy', 'WordPress is running its own automatic updates; trying again later' );
+		}
+		if ( ! version_compare( $target, self::installed(), '>' ) ) {
+			WP_Upgrader::release_lock( 'auto_updater' ); // updated to this or newer by someone else just now
+			return new WP_Error( 'skipped', 'already on ' . self::installed() );
 		}
 		$item = (object) array(
 			'id'          => 'ds-toolkit',
@@ -400,7 +450,7 @@ class DS_HQ_Update {
 			return new WP_Error( 'install', $result->get_error_message() . " (still on $now)" );
 		}
 		if ( false === $result ) {
-			return new WP_Error( 'install', "WordPress declined the update: the files are not writable without FTP details, or the site is a version-control checkout (still on $now)" );
+			return new WP_Error( 'install', "WordPress declined the update (plugin files not writable without FTP details, a version-control checkout, or a host setting that blocks plugin updates); still on $now" );
 		}
 		if ( $now !== $target ) {
 			return new WP_Error( 'install', "the update ran but the plugin says $now, not $target" );
@@ -425,6 +475,8 @@ class DS_HQ_Update {
 		switch ( $s['status'] ?? '' ) {
 			case 'done':
 				return 'Updated to ' . $s['target'] . ' by Design Shop HQ' . $when . '.';
+			case 'skipped':
+				return 'Design Shop HQ asked for ' . $s['target'] . '; this site already had ' . ( $s['to'] ?? 'a newer version' ) . '.';
 			case 'failed':
 				return 'Design Shop HQ asked for ' . $s['target'] . ' but the update failed' . $when . ': ' . ( $s['error'] ?? '' );
 			case 'queued':

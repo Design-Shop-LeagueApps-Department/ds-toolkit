@@ -6,9 +6,12 @@
 //     newer than the installed one (tampered target, other site, stale, pre-release, downgrade, wrong key: ignored);
 //   - a release counts only if the release key signed "<version> + sha256 of the zip", and both version lines in the
 //     zip say that version; HQ's key cannot sign a release and a release signature cannot be replayed as an order;
-//   - the download comes only from the official repo's published stable release with that exact tag;
+//   - the download comes only from the official repo's fixed release addresses for that exact tag (no API call);
 //   - an order only queues (cron does the work), one queue entry per target, three tries per target, a stuck run is
-//     retried, and the off switch wins;
+//     retried, GitHub or WordPress being busy does not count as a try, and the off switch wins;
+//   - never on a multisite subsite, with DISALLOW_FILE_MODS, or on WordPress < 6.6; never a downgrade, even when the
+//     plugin was updated some other way after the order was queued (checked again under WordPress's lock);
+//   - a run never stamps its result onto a newer order that arrived meanwhile;
 //   - the happy path hands WordPress's updater exactly the verified local file, for ds-toolkit only, and every
 //     filter it added is gone afterwards; any failure before that leaves the installed plugin untouched.
 
@@ -33,11 +36,16 @@ plugin_at( '1.10.26-rc.1' );
 
 // ---- WordPress stand-ins -------------------------------------------------------------------------------------
 class WP_Error {
-	private $c; private $m;
-	public function __construct( $c = '', $m = '' ) { $this->c = $c; $this->m = $m; }
+	private $c; private $m; private $d;
+	public function __construct( $c = '', $m = '', $d = '' ) { $this->c = $c; $this->m = $m; $this->d = $d; }
 	public function get_error_code() { return $this->c; }
 	public function get_error_message() { return $this->m; }
+	public function get_error_data() { return $this->d; }
 }
+$GLOBALS['wp_version'] = '7.1.2';
+function is_multisite() { return ! empty( $GLOBALS['ms'] ); }
+function is_main_site() { return empty( $GLOBALS['subsite'] ); }
+function is_main_network() { return true; }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 $GLOBALS['o'] = array(); $GLOBALS['cron'] = array(); $GLOBALS['filters'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['o'] ) ? $GLOBALS['o'][ $k ] : $d; }
@@ -49,7 +57,7 @@ function wp_clear_scheduled_hook( $h ) { unset( $GLOBALS['cron'][ $h ] ); }
 function wp_rand( $a, $b ) { return $a; }
 function human_time_diff( $a, $b = 0 ) { return 'moments'; }
 function get_file_data( $file, $headers ) { $c = file_get_contents( $file ); return array( 'Version' => preg_match( '/^[ \t\/*#@]*Version:\s*(\S+)/mi', $c, $m ) ? $m[1] : '' ); }
-function plugin_basename( $f ) { return ltrim( str_replace( WP_PLUGIN_DIR, '', $f ), '/' ); }
+function plugin_basename( $f ) { return ! empty( $GLOBALS['folder'] ) ? $GLOBALS['folder'] . '/ds-toolkit.php' : ltrim( str_replace( WP_PLUGIN_DIR, '', $f ), '/' ); }
 function is_plugin_active( $p ) { return true; }
 function activate_plugin() { $GLOBALS['activated'] = true; }
 function wp_clean_plugins_cache() {}
@@ -65,8 +73,9 @@ function wp_remote_get( $url, $args = array() ) { $GLOBALS['got'][] = $url; retu
 function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? $r['code'] : 0; }
 function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? $r['body'] : ''; }
 function download_url( $url, $timeout = 300 ) {
-	$GLOBALS['downloaded'][] = $url;
-	if ( empty( $GLOBALS['zipfile'] ) ) { return new WP_Error( 'http_404', 'Not Found' ); }
+	$GLOBALS['downloaded'][] = $url; $GLOBALS['got'][] = $url;
+	if ( 'timeout' === ( $GLOBALS['zipfile'] ?? '' ) ) { return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' ); }
+	if ( empty( $GLOBALS['zipfile'] ) ) { return new WP_Error( 'http_404', 'Not Found', array( 'code' => 404, 'body' => '' ) ); }
 	$t = tempnam( sys_get_temp_dir(), 'dstk' ); copy( $GLOBALS['zipfile'], $t ); $GLOBALS['tmpfiles'][] = $t; return $t;
 }
 class FakeWpdb {
@@ -84,11 +93,13 @@ $GLOBALS['wpdb'] = new FakeWpdb();
 // The updater: records what it was offered and "installs" by rewriting the plugin header to the offered version.
 class WP_Upgrader {
 	public static $locked = false;
-	public static function create_lock( $n ) { if ( ! empty( $GLOBALS['wp_busy'] ) || self::$locked ) { return false; } self::$locked = true; return true; }
+	public static function create_lock( $n ) { if ( ! empty( $GLOBALS['wp_busy'] ) || self::$locked ) { return false; } self::$locked = true; if ( ! empty( $GLOBALS['bump_on_lock'] ) ) { plugin_at( $GLOBALS['bump_on_lock'] ); } return true; }
 	public static function release_lock( $n ) { self::$locked = false; }
 }
 class WP_Automatic_Updater {
+	protected function has_fatal_error() { return false; }
 	public function update( $type, $item ) {
+		if ( ! empty( $GLOBALS['swap_target'] ) ) { $o = get_option( 'ds_hq_update' ); $o['target'] = $GLOBALS['swap_target']; $o['status'] = 'queued'; update_option( 'ds_hq_update', $o ); }
 		$t     = get_site_transient( 'update_plugins' );
 		$offer = $t->response['ds-toolkit/ds-toolkit.php'] ?? null;
 		$GLOBALS['offered'] = array( 'type' => $type, 'item' => $item, 'transient_pkg' => $offer ? $offer->package : null,
@@ -177,7 +188,6 @@ ok( '1.10.26' === $s['target'] && 'bad HQ signature' === ( $s['refused']['reason
 ok( isset( DS_HQ_Update::report()['refused'] ), 'the refusal is reported to HQ' );
 
 // ---- 5. install: every failure leaves the plugin as it was -----------------------------------------------------------------
-$repo = 'https://api.github.com/repos/' . DS_HQ_Update::REPO . '/releases/tags/v1.10.26';
 $base = 'https://github.com/' . DS_HQ_Update::REPO . '/releases/download/v1.10.26/';
 function make_zip( $version_header, $version_define ) {
 	$z = tempnam( sys_get_temp_dir(), 'dsz' ) . '.zip';
@@ -186,47 +196,41 @@ function make_zip( $version_header, $version_define ) {
 	$a->addFromString( 'ds-toolkit/assets/noise.bin', random_bytes( 8000 ) ); // does not compress: a realistic size
 	$a->close(); return $z;
 }
-function release( $extra = array() ) {
-	global $base;
-	return json_encode( array_merge( array( 'tag_name' => 'v1.10.26', 'draft' => false, 'prerelease' => false, 'assets' => array(
-		array( 'name' => 'ds-toolkit.zip', 'browser_download_url' => $base . 'ds-toolkit.zip' ),
-		array( 'name' => 'ds-toolkit.zip.sig', 'browser_download_url' => $base . 'ds-toolkit.zip.sig' ),
-	) ), $extra ) );
-}
 $good = make_zip( '1.10.26', '1.10.26' );
-function setup_http( $zip, $sig, $rel = null ) {
-	global $repo, $base;
-	$GLOBALS['http'] = array( $repo => array( 200, $rel ?? release() ), $base . 'ds-toolkit.zip.sig' => array( 200, $sig ) );
+function setup_http( $zip, $sig, $sig_code = 200 ) {
+	global $base;
+	$GLOBALS['http'] = 'none' === $sig_code ? array() : array( $base . 'ds-toolkit.zip.sig' => array( $sig_code, $sig ) );
 	$GLOBALS['zipfile'] = $zip; $GLOBALS['got'] = array(); $GLOBALS['downloaded'] = array(); $GLOBALS['offered'] = null;
 }
 $goodsig = relsig( '1.10.26', hash_file( 'sha256', $good ) );
+$tampered = tempnam( sys_get_temp_dir(), 'dst' ); copy( $good, $tampered ); file_put_contents( $tampered, 'appended', FILE_APPEND );
 $cases = array(
-	'no such release'           => array( 'release', function () use ( $good, $goodsig, $repo ) { setup_http( $good, $goodsig ); $GLOBALS['http'][ $repo ] = array( 404, '{}' ); } ),
-	'a draft'                   => array( 'release', function () use ( $good, $goodsig ) { setup_http( $good, $goodsig, release( array( 'draft' => true ) ) ); } ),
-	'a pre-release'             => array( 'release', function () use ( $good, $goodsig ) { setup_http( $good, $goodsig, release( array( 'prerelease' => true ) ) ); } ),
-	'a different tag'           => array( 'release', function () use ( $good, $goodsig ) { setup_http( $good, $goodsig, release( array( 'tag_name' => 'v1.10.27' ) ) ); } ),
-	'a zip hosted elsewhere'    => array( 'release', function () use ( $good, $goodsig ) { setup_http( $good, $goodsig, release( array( 'assets' => array( array( 'name' => 'ds-toolkit.zip', 'browser_download_url' => 'https://evil.example/ds-toolkit.zip' ), array( 'name' => 'ds-toolkit.zip.sig', 'browser_download_url' => 'https://evil.example/ds-toolkit.zip.sig' ) ) ) ) ); } ),
-	'no signature file'         => array( 'release', function () use ( $good, $goodsig, $base ) { setup_http( $good, $goodsig, release( array( 'assets' => array( array( 'name' => 'ds-toolkit.zip', 'browser_download_url' => $base . 'ds-toolkit.zip' ) ) ) ) ); } ),
-	'a tampered zip'            => array( 'signature', function () use ( $goodsig ) { setup_http( make_zip( '1.10.26', '1.10.26' ) . '', $goodsig ); file_put_contents( $GLOBALS['zipfile'], 'PK-tampered' . str_repeat( 'y', 5000 ), FILE_APPEND ); } ),
-	'a signature by another key' => array( 'signature', function () use ( $good, $bad ) { setup_http( $good, relsig( '1.10.26', hash_file( 'sha256', $good ), $bad ) ); } ),
-	'version lines that differ' => array( 'zip', function () { $z = make_zip( '1.10.26', '1.10.25' ); setup_http( $z, relsig( '1.10.26', hash_file( 'sha256', $z ) ) ); } ),
-	'a zip of another version'  => array( 'zip', function () { $z = make_zip( '1.10.27', '1.10.27' ); setup_http( $z, relsig( '1.10.26', hash_file( 'sha256', $z ) ) ); } ),
-	'a download that fails'     => array( 'download', function () use ( $goodsig ) { setup_http( '', $goodsig ); } ),
+	'no signed release (.sig 404)'       => array( 'release', function () use ( $good, $goodsig ) { setup_http( $good, 'Not Found', 404 ); } ),
+	'GitHub rate limit on the .sig (403)' => array( 'unreachable', function () use ( $good, $goodsig ) { setup_http( $good, '{"message":"API rate limit"}', 403 ); } ),
+	'GitHub down for the .sig (502)'     => array( 'unreachable', function () use ( $good, $goodsig ) { setup_http( $good, '', 502 ); } ),
+	'no network for the .sig'            => array( 'unreachable', function () use ( $good, $goodsig ) { setup_http( $good, $goodsig, 'none' ); } ),
+	'no zip on the release (404)'        => array( 'release', function () use ( $goodsig ) { setup_http( '', $goodsig ); } ),
+	'zip download times out'             => array( 'unreachable', function () use ( $goodsig ) { setup_http( 'timeout', $goodsig ); } ),
+	'a tampered zip (same file + bytes)' => array( 'signature', function () use ( $tampered, $goodsig ) { setup_http( $tampered, $goodsig ); } ),
+	'a signature by another key'         => array( 'signature', function () use ( $good, $bad ) { setup_http( $good, relsig( '1.10.26', hash_file( 'sha256', $good ), $bad ) ); } ),
+	'version lines that differ'          => array( 'zip', function () { $z = make_zip( '1.10.26', '1.10.25' ); setup_http( $z, relsig( '1.10.26', hash_file( 'sha256', $z ) ) ); } ),
+	'a zip of another version'           => array( 'zip', function () { $z = make_zip( '1.10.27', '1.10.27' ); setup_http( $z, relsig( '1.10.26', hash_file( 'sha256', $z ) ) ); } ),
+	'the plugin in another folder'       => array( 'folder', function () use ( $good, $goodsig ) { setup_http( $good, $goodsig ); $GLOBALS['folder'] = 'ds-toolkit-main'; } ),
 );
 foreach ( $cases as $label => list( $want, $setup ) ) {
 	$setup();
 	$before = file_get_contents( DS_TOOLKIT_PATH . 'ds-toolkit.php' );
 	$res    = DS_HQ_Update::install( '1.10.26' );
+	$GLOBALS['folder'] = '';
 	ok( is_wp_error( $res ) && $want === $res->get_error_code() && null === $GLOBALS['offered'] && file_get_contents( DS_TOOLKIT_PATH . 'ds-toolkit.php' ) === $before,
 		"refused: $label, for the right reason ($want; got " . ( is_wp_error( $res ) ? $res->get_error_code() . ': ' . $res->get_error_message() : 'NOT REFUSED' ) . '), plugin untouched' );
 }
-ok( ! array_filter( (array) $GLOBALS['got'], function ( $u ) { return 0 !== strpos( $u, 'https://api.github.com/repos/' . DS_HQ_Update::REPO . '/' ) && 0 !== strpos( $u, 'https://github.com/' . DS_HQ_Update::REPO . '/' ); } ), 'nothing is ever fetched outside the official repo' );
+ok( ! array_filter( (array) $GLOBALS['got'], function ( $u ) { return 0 !== strpos( $u, 'https://github.com/' . DS_HQ_Update::REPO . '/releases/download/' ); } ), 'nothing is fetched except the official repo\'s release downloads' );
+$all_urls = array();
+foreach ( $cases as $label => list( $want, $setup ) ) { $setup(); DS_HQ_Update::install( '1.10.26' ); $GLOBALS['folder'] = ''; $all_urls = array_merge( $all_urls, (array) $GLOBALS['got'] ); }
+ok( ! array_filter( $all_urls, function ( $u ) { return false !== strpos( $u, 'api.github.com' ); } ), 'no GitHub API call at all (no 60-an-hour limit shared by a server\'s sites)' );
 $left = array_filter( (array) ( $GLOBALS['tmpfiles'] ?? array() ), 'file_exists' );
 ok( ! $left, 'every downloaded zip is deleted again (' . count( (array) ( $GLOBALS['tmpfiles'] ?? array() ) ) . ' downloads, ' . count( $left ) . ' left)' );
-
-// Wrong folder: refuse before touching anything.
-$GLOBALS['offered'] = null;
-// (plugin_basename is computed from DS_TOOLKIT_PATH, which is ds-toolkit/ here; the folder rule is exercised by the E2E.)
 
 // ---- 6. install: the happy path -----------------------------------------------------------------------------------------
 setup_http( $good, $goodsig );
@@ -255,6 +259,12 @@ $res = DS_HQ_Update::install( '1.10.26' );
 ok( is_wp_error( $res ) && 'busy' === $res->get_error_code(), 'while WordPress runs its own auto-updates, the install waits (busy)' );
 $GLOBALS['wp_busy'] = false;
 
+// Updated to 1.10.26 or newer by someone else between the checks and WordPress's lock: nothing is installed.
+plugin_at( '1.10.26-rc.1' ); setup_http( $good, $goodsig ); $GLOBALS['bump_on_lock'] = '1.10.27';
+$res = DS_HQ_Update::install( '1.10.26' );
+ok( is_wp_error( $res ) && 'skipped' === $res->get_error_code() && null === $GLOBALS['offered'] && '1.10.27' === DS_HQ_Update::installed() && ! WP_Upgrader::$locked, 'a newer version that appears just before the install is never downgraded (checked under the lock)' );
+$GLOBALS['bump_on_lock'] = '';
+
 // ---- 7. the cron run end to end ------------------------------------------------------------------------------------------
 plugin_at( '1.10.26-rc.1' ); $GLOBALS['o'] = array(); $GLOBALS['cron'] = array();
 DS_HQ_Update::take_order( order( $sid, '1.10.26' ), $sid );
@@ -281,6 +291,58 @@ ok( '1.10.26-rc.1' === DS_HQ_Update::installed(), '... and the installed plugin 
 DS_HQ_Update::take_order( order( $sid, '1.10.27' ), $sid );
 ok( 'queued' === DS_HQ_Update::state()['status'] && 0 === DS_HQ_Update::state()['tries'], 'a newer target starts a fresh count' );
 
+// GitHub busy (rate limit): not counted as a try, retried later; only after MAX_WAITS does it fail.
+plugin_at( '1.10.26-rc.1' ); $GLOBALS['o'] = array(); $GLOBALS['cron'] = array();
+DS_HQ_Update::take_order( order( $sid, '1.10.26' ), $sid );
+setup_http( $good, '{"message":"API rate limit"}', 403 );
+DS_HQ_Update::run();
+$s = DS_HQ_Update::state();
+ok( 'queued' === $s['status'] && 0 === $s['tries'] && 1 === $s['waits'] && $GLOBALS['cron'][ DS_HQ_Update::HOOK ] >= time() + 900, 'GitHub rate-limited: still queued, not a try, retried 15-60 minutes later' );
+for ( $i = 0; $i < DS_HQ_Update::MAX_WAITS + 2 && 'queued' === DS_HQ_Update::state()['status']; $i++ ) { DS_HQ_Update::run(); }
+$s = DS_HQ_Update::state();
+ok( 'failed' === $s['status'] && DS_HQ_Update::MAX_WAITS === $s['waits'] && 0 === strpos( $s['error'], 'unreachable' ), 'after ' . DS_HQ_Update::MAX_WAITS . ' waits it is reported as failed (unreachable), not retried forever' );
+
+// Updated some other way after the order was queued: run() installs nothing.
+plugin_at( '1.10.26-rc.1' ); $GLOBALS['o'] = array(); $GLOBALS['cron'] = array();
+DS_HQ_Update::take_order( order( $sid, '1.10.26' ), $sid );
+plugin_at( '1.10.27' ); setup_http( $good, $goodsig );
+DS_HQ_Update::run();
+$s = DS_HQ_Update::state();
+ok( 'skipped' === $s['status'] && '1.10.27' === $s['to'] && empty( $GLOBALS['got'] ) && '1.10.27' === DS_HQ_Update::installed(), 'a site updated past the target meanwhile: skipped, nothing downloaded, no downgrade' );
+plugin_at( '1.10.26-rc.1' ); $GLOBALS['o'] = array(); $GLOBALS['cron'] = array();
+DS_HQ_Update::take_order( order( $sid, '1.10.26' ), $sid );
+plugin_at( '1.10.26' );
+DS_HQ_Update::run();
+ok( 'done' === DS_HQ_Update::state()['status'] && empty( $GLOBALS['got'] ), 'a site updated to exactly the target meanwhile: done, nothing downloaded' );
+
+// A newer order arrives while a run installs: the run does not stamp its result on the newer order.
+plugin_at( '1.10.26-rc.1' ); $GLOBALS['o'] = array(); $GLOBALS['cron'] = array();
+DS_HQ_Update::take_order( order( $sid, '1.10.26' ), $sid );
+setup_http( $good, $goodsig ); $GLOBALS['swap_target'] = '1.10.28';
+DS_HQ_Update::run();
+$GLOBALS['swap_target'] = '';
+$s = DS_HQ_Update::state();
+ok( '1.10.28' === $s['target'] && 'queued' === $s['status'], 'a newer order that arrived mid-run keeps its own state (not marked done by the old run)' );
+
+// Sites that must never update themselves.
+$GLOBALS['o'] = array(); $GLOBALS['cron'] = array(); plugin_at( '1.10.26-rc.1' );
+$GLOBALS['ms'] = true; $GLOBALS['subsite'] = true;
+DS_HQ_Update::take_order( order( $sid, '1.10.26' ), $sid );
+ok( empty( $GLOBALS['cron'] ) && false !== strpos( DS_HQ_Update::state()['refused']['reason'] ?? '', 'multisite' ), 'a multisite subsite refuses (only the main site touches the shared plugin folder)' );
+$GLOBALS['subsite'] = false;
+DS_HQ_Update::take_order( order( $sid, '1.10.26' ), $sid );
+ok( 'queued' === ( DS_HQ_Update::state()['status'] ?? '' ), '... the main site of a network takes it' );
+$GLOBALS['ms'] = false;
+$GLOBALS['o'] = array(); $GLOBALS['cron'] = array(); $GLOBALS['wp_version'] = '6.5.5';
+DS_HQ_Update::take_order( order( $sid, '1.10.26' ), $sid );
+ok( empty( $GLOBALS['cron'] ) && false !== strpos( DS_HQ_Update::state()['refused']['reason'] ?? '', 'crash check' ), 'WordPress 6.5 refuses (no crash check / rollback)' );
+$GLOBALS['o'][ DS_HQ_Update::OPT ] = array( 'target' => '1.10.26', 'status' => 'queued', 'tries' => 0 );
+DS_HQ_Update::run();
+ok( 'failed' === DS_HQ_Update::state()['status'] && DS_HQ_Update::MAX_TRIES === DS_HQ_Update::state()['tries'], '... and an order queued before WordPress was downgraded fails at once, no retries' );
+$GLOBALS['wp_version'] = '7.1.2';
+list( $ook, $r ) = DS_HQ_Update::order_ok( order( $sid, "1.10.26\n" ), $sid, '1.10.25' );
+ok( ! $ook && false !== strpos( $r, 'stable' ), 'a version with a trailing newline is refused (strict \\z match)' );
+
 // A run killed mid-way ("running" for over 30 minutes) is retried; a fresh "running" is left alone.
 $GLOBALS['o'][ DS_HQ_Update::OPT ] = array( 'target' => '1.10.27', 'status' => 'running', 'started' => time() - 60, 'tries' => 1 );
 $GLOBALS['cron'] = array();
@@ -297,7 +359,11 @@ DS_HQ_Update::run();
 ok( 'queued' === DS_HQ_Update::state()['status'] && empty( $GLOBALS['got'] ), 'while another update holds the lock, run() waits and fetches nothing' );
 unset( $GLOBALS['o'][ DS_HQ_Update::LOCK_OPT ] );
 
-// ---- 8. the off switch ---------------------------------------------------------------------------------------------------
+// ---- 8. switches -------------------------------------------------------------------------------------------------------
+$GLOBALS['o'] = array(); $GLOBALS['cron'] = array();
+define( 'DISALLOW_FILE_MODS', true );
+DS_HQ_Update::take_order( order( $sid, '1.10.26' ), $sid );
+ok( empty( $GLOBALS['cron'] ) && false !== strpos( DS_HQ_Update::state()['refused']['reason'] ?? '', 'DISALLOW_FILE_MODS' ), 'DISALLOW_FILE_MODS: refused, with that reason reported' );
 $GLOBALS['o'] = array(); $GLOBALS['cron'] = array();
 define( 'DS_HQ_UPDATE_DISABLED', true );
 DS_HQ_Update::take_order( order( $sid, '1.10.28' ), $sid );
@@ -305,6 +371,7 @@ ok( array() === DS_HQ_Update::state() && empty( $GLOBALS['cron'] ), 'DS_HQ_UPDAT
 
 // ---- tidy --------------------------------------------------------------------------------------------------------------
 foreach ( (array) ( $GLOBALS['tmpfiles'] ?? array() ) as $t ) { @unlink( $t ); }
+@unlink( $tampered );
 exec( 'rm -rf ' . escapeshellarg( $root ) );
 echo "\n$pass passed, $fail failed\n";
 echo $fail ? "FAILED\n" : "all passed\n";
