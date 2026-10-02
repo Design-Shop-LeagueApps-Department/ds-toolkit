@@ -4,6 +4,15 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.26] - 2026-10-03
+### Added
+- **Design Shop HQ can roll out toolkit updates to connected sites, which install only signed official releases** (Alipio, 2026-10-03: "ok do an update make sure its double check"). HQ chooses WHEN, never WHAT:
+  - HQ's reply to a site's own report may carry an update order, signed with HQ's key for that one install, valid for 15 minutes, for a newer stable version. Anything else is ignored and the reason is reported back.
+  - The site then downloads that exact release itself from this repo's release download addresses (no API call), checks `ds-toolkit.zip.sig` (an Ed25519 signature by a release key whose private half is never on HQ) and both version lines in the zip, and installs the verified file with WordPress's own automatic updater: backup, a few seconds of maintenance mode, crash check and automatic rollback.
+  - It runs from cron a few minutes after the order, holding WordPress's auto-update lock, and never downgrades: the installed version is checked again at run time and under the lock. GitHub or WordPress being busy is a wait, not a failed try; a version that fails 3 times is left alone. The result goes back to HQ with the next check-in.
+  - Never on a multisite subsite, with `DISALLOW_FILE_MODS`, or on WordPress older than 6.6. Off switch: `define( 'DS_HQ_UPDATE_DISABLED', true );` in wp-config.php.
+  - New: `features/class-ds-hq-update.php`, `tests/hq-update-test.php` (71 checks). Also proven in a real WordPress 7.1: rc build to release through the real upgrader, a release that fatals on load rolled back by WordPress (site stayed up), and an order skipped when the site had already been updated by hand.
+
 ## [1.10.25] - 2026-10-03
 ### Added
 - **LeagueApps Table editor: sort a column, and select several cells to clear, copy or delete them** (Alipio, 2026-10-03: "add order option in a column also multiple select a cell and we could delete it multiple cells (row/columns)").
