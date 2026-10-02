@@ -13,6 +13,9 @@
  *           replaces the file in place so every table synced to it updates.
  *   url     a Google Sheet or CSV link, fetched over AJAX; "Refresh now".
  * Column options (alignment, one line, hide on phones, type) are editable in every mode.
+ * Selection (manual): drag across cells, or Shift+click a cell, row number or column menu,
+ * to select a block; Delete clears it, Ctrl/Cmd+C copies it, and the bar above the grid
+ * deletes the rows or columns it covers. A column's menu sorts the rows by that column.
  * Types: Text, Image (Media Library ID or image address, "image | link" makes it
  * clickable), Link and Button ("Label | address"; a lone address takes the heading).
  */
@@ -136,6 +139,10 @@
 		this.undoStack = [];
 		this.synced = null;        // { rows, name, error } for file / link sources
 		this.focus = null;         // { r, c } of the focused cell
+		this.sel = null;           // { ar, ac, hr, hc }: anchor and far corner of a selected block of cells
+		this.drag = null;          // { r, c } where a mouse drag started
+		this.rowAnchor = null;     // last row / column number clicked, for Shift+click ranges
+		this.colAnchor = null;
 		this.refreshTimer = null;
 		this.build();
 		this.bind();
@@ -184,12 +191,17 @@
 		h += '<button type="button" class="ds-te-btn ds-te-icon ds-te-expand" data-act="expand" title="Open a larger editor">&#x2922;</button>';
 		h += '</div>';
 		h += '<div class="ds-te-status" role="status" aria-live="polite"></div>';
+		h += '<div class="ds-te-selbar ds-te-only-manual" hidden><span class="ds-te-selinfo"></span>'
+			+ '<button type="button" class="ds-te-btn" data-sa="clear" title="Empty the selected cells (Delete)">Clear cells</button>'
+			+ '<button type="button" class="ds-te-btn ds-te-danger" data-sa="rows"></button>'
+			+ '<button type="button" class="ds-te-btn ds-te-danger" data-sa="cols"></button>'
+			+ '<button type="button" class="ds-te-btn ds-te-icon" data-sa="none" title="Clear the selection (Esc)">&times;</button></div>';
 		h += '<div class="ds-te-progress" hidden><span></span></div>';
-		h += '<div class="ds-te-drop"><div class="ds-te-scroll"><table class="ds-te-grid"><thead></thead><tbody></tbody></table></div>';
+		h += '<div class="ds-te-drop" tabindex="-1"><div class="ds-te-scroll"><table class="ds-te-grid"><thead></thead><tbody></tbody></table></div>';
 		h += '<div class="ds-te-empty" hidden></div>';
 		h += '<div class="ds-te-dropmsg">Drop the CSV file to import it</div></div>';
 		h += '<button type="button" class="ds-te-addrow ds-te-only-manual" data-act="add-row">+ Add row</button>';
-		h += '<p class="ds-te-hint ds-te-only-manual">Tip: paste cells straight from Excel or Google Sheets. Enter moves down, Shift+Enter starts a new line in a cell.</p>';
+		h += '<p class="ds-te-hint ds-te-only-manual">Tip: paste cells straight from Excel or Google Sheets. Enter moves down, Shift+Enter starts a new line in a cell. Drag across cells (or Shift+click) to select several: Delete clears them, Ctrl/Cmd+C copies them, and the bar above the grid deletes their rows or columns.</p>';
 		h += '<p class="ds-te-hint ds-te-only-synced">Rows come from the source and are read-only here. The &#9662; on a column still sets its alignment, wrapping and phone visibility.</p>';
 		h += '<input type="file" class="ds-te-file" accept=".csv,.tsv,.txt,text/csv,text/plain" hidden>';
 		h += '<div class="ds-te-menu" hidden role="menu"></div>';
@@ -206,6 +218,8 @@
 		this.$file = this.$root.find('.ds-te-file');
 		this.$empty = this.$root.find('.ds-te-empty');
 		this.$progress = this.$root.find('.ds-te-progress');
+		this.$selbar = this.$root.find('.ds-te-selbar');
+		this.$drop = this.$root.find('.ds-te-drop');
 		if (!CFG.canUpload) { this.$root.find('[data-act="upload"],[data-act="replace"]').prop('disabled', true).attr('title', 'Your account cannot upload files.'); }
 	};
 
@@ -235,7 +249,7 @@
 		var m = this.mode();
 		this.$root.attr('data-mode', m).toggleClass('is-synced', m !== 'manual');
 		this.closeMenu();
-		if (m === 'manual') { this.renderManual(); } else { this.renderSynced(); }
+		if (m === 'manual') { this.renderManual(); } else { this.sel = null; this.paintSel(); this.renderSynced(); }
 		this.updateCounts();
 	};
 
@@ -252,7 +266,7 @@
 	Editor.prototype.renderManual = function () {
 		var t = this.state, self = this;
 		if (!t.cols.length) { t.cols = [blankCol(), blankCol(), blankCol()]; t.rows = [['', '', '']]; this.store.val(encode(t)); }
-		var hh = '<tr><th class="ds-te-corner" aria-hidden="true"></th>';
+		var hh = '<tr><th class="ds-te-corner ds-te-selall" title="Select every cell"></th>';
 		t.cols.forEach(function (c, i) { hh += self.colHead(c.label, i, true); });
 		hh += '</tr>';
 		this.$thead.html(hh);
@@ -267,7 +281,7 @@
 				if (col.type === 'image') {
 					ta = '<div class="ds-te-imgcell"><span class="ds-te-thumb" data-r="' + r + '" data-c="' + c + '" aria-hidden="true"></span>' + ta + '<button type="button" class="ds-te-pick" data-r="' + r + '" data-c="' + c + '" title="Choose from the Media Library">Choose</button></div>';
 				}
-				bh += '<td class="' + (col.align ? 'is-' + col.align : '') + (col.hide ? ' is-hidden-sm' : '') + (col.type ? ' is-type-' + col.type : '') + '">' + ta + '</td>';
+				bh += '<td data-r="' + r + '" data-c="' + c + '" class="' + (col.align ? 'is-' + col.align : '') + (col.hide ? ' is-hidden-sm' : '') + (col.type ? ' is-type-' + col.type : '') + '">' + ta + '</td>';
 			}
 			bh += '</tr>';
 		}
@@ -275,6 +289,7 @@
 		this.$empty.prop('hidden', true);
 		this.fillThumbs();
 		this.growAll();
+		this.paintSel();
 		if (t.rows.length > RENDER_CAP) {
 			this.$empty.prop('hidden', false).html('Showing the first ' + RENDER_CAP + ' of ' + t.rows.length + ' rows here; every row is saved. For bulk edits, Export CSV, change it in a spreadsheet, then Import CSV.');
 		}
@@ -399,6 +414,108 @@
 		this.render(); this.commit();
 	};
 
+	/* ---------------------------------------------------------- selection */
+
+	/** The selected block as { r1, r2, c1, c2 } (inclusive), clamped to the rows drawn here. */
+	Editor.prototype.selRect = function () {
+		var s = this.sel; if (!s) { return null; }
+		var maxR = Math.min(this.state.rows.length, RENDER_CAP) - 1, maxC = this.state.cols.length - 1;
+		var cl = function (v, m) { return Math.max(0, Math.min(v, m)); };
+		return { r1: cl(Math.min(s.ar, s.hr), maxR), r2: cl(Math.max(s.ar, s.hr), maxR), c1: cl(Math.min(s.ac, s.hc), maxC), c2: cl(Math.max(s.ac, s.hc), maxC) };
+	};
+	/** More than one cell selected (a single cell is just the cursor). */
+	Editor.prototype.multi = function () { var q = this.selRect(); return !!q && (q.r1 !== q.r2 || q.c1 !== q.c2); };
+	Editor.prototype.setSel = function (ar, ac, hr, hc) { this.sel = { ar: ar, ac: ac, hr: hr, hc: hc }; this.paintSel(); };
+	Editor.prototype.clearSel = function () { if (this.sel) { this.sel = null; this.paintSel(); } };
+
+	Editor.prototype.colName = function (c) { var l = ((this.state.cols[c] || {}).label || '').trim(); return l ? '"' + (l.length > 18 ? l.slice(0, 17) + '…' : l) + '"' : 'column ' + (c + 1); };
+
+	/** Highlight the block, its row numbers and column headings, and show the selection bar. */
+	Editor.prototype.paintSel = function () {
+		var q = this.multi() ? this.selRect() : null;
+		this.$tbody.find('td.is-sel').removeClass('is-sel');
+		this.$root.find('.is-selhead').removeClass('is-selhead');
+		this.$root.toggleClass('has-sel', !!q);
+		if (!this.$selbar) { return; }
+		if (!q) { this.$selbar.prop('hidden', true); return; }
+		var self = this;
+		this.$tbody.find('td[data-r]').each(function () {
+			var r = +this.getAttribute('data-r'), c = +this.getAttribute('data-c');
+			if (r >= q.r1 && r <= q.r2 && c >= q.c1 && c <= q.c2) { this.classList.add('is-sel'); }
+		});
+		for (var r = q.r1; r <= q.r2; r++) { this.$tbody.find('tr[data-r="' + r + '"] .ds-te-rowh').addClass('is-selhead'); }
+		for (var c = q.c1; c <= q.c2; c++) { this.$thead.find('th.ds-te-colh[data-c="' + c + '"]').addClass('is-selhead'); }
+		var nr = q.r2 - q.r1 + 1, nc = q.c2 - q.c1 + 1, allCols = nc >= this.state.cols.length;
+		this.$selbar.find('.ds-te-selinfo').text((nr * nc) + ' cells selected (' + nr + ' row' + (nr === 1 ? '' : 's') + ' × ' + nc + ' column' + (nc === 1 ? '' : 's') + ')');
+		this.$selbar.find('[data-sa="rows"]').text(nr === 1 ? 'Delete row ' + (q.r1 + 1) : 'Delete rows ' + (q.r1 + 1) + '–' + (q.r2 + 1));
+		this.$selbar.find('[data-sa="cols"]').text(nc === 1 ? 'Delete ' + self.colName(q.c1) : 'Delete ' + nc + ' columns')
+			.prop('disabled', allCols).attr('title', allCols ? 'A table needs at least one column.' : '');
+		this.$selbar.prop('hidden', false);
+	};
+
+	/** Empty every selected cell. */
+	Editor.prototype.clearCells = function () {
+		var q = this.selRect(); if (!q) { return; }
+		this.snapshot();
+		for (var r = q.r1; r <= q.r2; r++) { for (var c = q.c1; c <= q.c2; c++) { if (this.state.rows[r]) { this.state.rows[r][c] = ''; } } }
+		var n = (q.r2 - q.r1 + 1) * (q.c2 - q.c1 + 1);
+		this.render(); this.commit(true); this.say(n + ' cells cleared. Undo with ↶.');
+	};
+	/** Delete rows r1..r2 (inclusive); a table always keeps one row. */
+	Editor.prototype.delRows = function (r1, r2) {
+		var n = r2 - r1 + 1; if (n < 1) { return; }
+		this.snapshot(); this.state.rows.splice(r1, n);
+		if (!this.state.rows.length) { this.state.rows.push(this.state.cols.map(function () { return ''; })); }
+		this.sel = null; this.render(); this.commit(); this.say((n === 1 ? 'Row' : n + ' rows') + ' deleted. Undo with ↶.');
+	};
+	/** Delete columns c1..c2 (inclusive); a table always keeps one column. */
+	Editor.prototype.delCols = function (c1, c2) {
+		var n = c2 - c1 + 1; if (n < 1) { return; }
+		if (n >= this.state.cols.length) { this.say('A table needs at least one column.', 'error'); return; }
+		this.snapshot(); this.state.cols.splice(c1, n); this.state.rows.forEach(function (r) { r.splice(c1, n); });
+		this.sel = null; this.render(); this.commit(); this.say((n === 1 ? 'Column' : n + ' columns') + ' deleted. Undo with ↶.');
+	};
+	/** The selected block as tab-separated text, ready to paste into a spreadsheet or back into this grid. */
+	Editor.prototype.selText = function () {
+		var q = this.selRect(), out = [];
+		for (var r = q.r1; r <= q.r2; r++) {
+			var line = [];
+			for (var c = q.c1; c <= q.c2; c++) { var v = String((this.state.rows[r] || [])[c] || ''); line.push(/[\t\n"]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v); }
+			out.push(line.join('\t'));
+		}
+		return out.join('\n');
+	};
+
+	/* --------------------------------------------------------------- sort */
+
+	/**
+	 * Re-order the rows by column c, once (this is the order visitors see unless they sort
+	 * themselves). Numbers and prices sort as numbers, dates as dates, everything else
+	 * A to Z with digits in number order ("U9" before "U10"). Empty cells go last either way.
+	 */
+	Editor.prototype.sortRows = function (c, desc) {
+		var t = this.state, type = (t.cols[c] || {}).type || '';
+		var text = function (v) { v = String(v == null ? '' : v).trim(); if (type === 'link' || type === 'button') { var i = v.indexOf('|'); if (i !== -1) { v = v.slice(0, i).trim(); } } return v.replace(/^\[([^\]]*)\]\(.*\)$/, '$1'); };
+		var vals = t.rows.map(function (r) { return text(r[c]); }), filled = vals.filter(function (v) { return v !== ''; });
+		if (filled.length < 2) { this.say('Nothing to sort in this column yet.'); return; }
+		var num = function (v) { var x = v.replace(/[$€£,%\s]/g, ''); return /^[-+]?\d*\.?\d+$/.test(x) ? parseFloat(x) : NaN; };
+		var kind = filled.every(function (v) { return !isNaN(num(v)); }) ? 'num'
+			: (filled.every(function (v) { return /\d/.test(v) && !isNaN(Date.parse(v)); }) ? 'date' : 'text');
+		var coll = window.Intl && Intl.Collator ? new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' }) : null;
+		var key = function (v) { return kind === 'num' ? num(v) : (kind === 'date' ? Date.parse(v) : v); };
+		var idx = t.rows.map(function (r, i) { return { i: i, v: vals[i], k: vals[i] === '' ? null : key(vals[i]) }; });
+		idx.sort(function (a, b) {
+			if (a.k === null || b.k === null) { return a.k === null && b.k === null ? a.i - b.i : (a.k === null ? 1 : -1); }
+			var d = kind === 'text' ? (coll ? coll.compare(a.k, b.k) : (a.k < b.k ? -1 : a.k > b.k ? 1 : 0)) : a.k - b.k;
+			return d === 0 ? a.i - b.i : (desc ? -d : d);
+		});
+		if (idx.every(function (x, n) { return x.i === n; })) { this.say('Already in that order.'); return; }
+		this.snapshot();
+		t.rows = idx.map(function (x) { return t.rows[x.i]; });
+		this.sel = null; this.render(); this.commit(true);
+		this.say('Rows sorted by ' + this.colName(c) + ', ' + (kind === 'num' ? (desc ? 'highest first' : 'lowest first') : kind === 'date' ? (desc ? 'latest first' : 'earliest first') : (desc ? 'Z to A' : 'A to Z')) + '. Undo with ↶.');
+	};
+
 	Editor.prototype.focusCell = function (r, c) {
 		var ta = this.$tbody.find('textarea[data-r="' + r + '"][data-c="' + c + '"]')[0];
 		if (ta) { ta.focus(); var v = ta.value.length; try { ta.setSelectionRange(v, v); } catch (e) {} }
@@ -459,14 +576,18 @@
 			{ k: 'tb', label: 'Type: Button', on: col.type === 'button', run: function () { setOpt('type', 'button'); } }
 		];
 		if (manual) {
+			var q = this.multi() ? this.selRect() : null, inSel = q && c >= q.c1 && c <= q.c2 && q.c2 > q.c1;
 			items = items.concat(['-',
+				{ k: 'sa', label: 'Sort rows A to Z (low to high)', disabled: col.type === 'image', run: function () { self.sortRows(c, false); } },
+				{ k: 'sd', label: 'Sort rows Z to A (high to low)', disabled: col.type === 'image', run: function () { self.sortRows(c, true); } },
+				'-',
 				{ k: 'il', label: 'Insert column left', run: function () { self.addCol(c); } },
 				{ k: 'ir', label: 'Insert column right', run: function () { self.addCol(c + 1); } },
 				{ k: 'ml', label: 'Move left', disabled: c === 0, run: function () { self.moveCol(c, -1); } },
 				{ k: 'mr', label: 'Move right', disabled: c >= this.state.cols.length - 1, run: function () { self.moveCol(c, 1); } },
 				'-',
 				{ k: 'dc', label: 'Delete column', danger: true, run: function () { self.delCol(c); } }
-			]);
+			].concat(inSel ? [{ k: 'dcs', label: 'Delete the ' + (q.c2 - q.c1 + 1) + ' selected columns', danger: true, disabled: q.c2 - q.c1 + 1 >= this.state.cols.length, run: function () { self.delCols(q.c1, q.c2); } }] : []));
 		}
 		this.openMenu(btn, items);
 	};
@@ -481,7 +602,10 @@
 			{ k: 'md', label: 'Move down', disabled: r >= self.state.rows.length - 1, run: function () { self.moveRow(r, 1); } },
 			'-',
 			{ k: 'dr', label: 'Delete row', danger: true, run: function () { self.delRow(r); } }
-		]);
+		].concat((function () {
+			var q = self.multi() ? self.selRect() : null;
+			return q && r >= q.r1 && r <= q.r2 && q.r2 > q.r1 ? [{ k: 'drs', label: 'Delete rows ' + (q.r1 + 1) + '–' + (q.r2 + 1), danger: true, run: function () { self.delRows(q.r1, q.r2); } }] : [];
+		}())));
 	};
 
 	/* ------------------------------------------------------------ dialogs */
@@ -634,6 +758,56 @@
 	Editor.prototype.bind = function () {
 		var self = this, $r = this.$root;
 
+		/* Selection: drag across cells, or Shift+click a cell, row number or column menu. */
+		var cellAt = function (node) { var td = $(node).closest('td[data-r]')[0]; return td ? { r: +td.getAttribute('data-r'), c: +td.getAttribute('data-c') } : null; };
+		$r.on('mousedown', '.ds-te-grid td[data-r]', function (e) {
+			if (e.button !== 0 || self.mode() !== 'manual' || $(e.target).closest('.ds-te-pick').length) { return; }
+			var at = cellAt(this);
+			if (e.shiftKey) {
+				var a = self.sel ? { r: self.sel.ar, c: self.sel.ac } : self.focus;
+				if (a) { e.preventDefault(); self.setSel(a.r, a.c, at.r, at.c); self.$drop.trigger('focus'); return; }
+			}
+			self.drag = at; self.sel = { ar: at.r, ac: at.c, hr: at.r, hc: at.c }; self.paintSel();
+		});
+		$r.on('mouseover', '.ds-te-grid td[data-r]', function (e) {
+			if (!self.drag || !(e.buttons & 1)) { return; }
+			var at = cellAt(this);
+			if (at.r === self.sel.hr && at.c === self.sel.hc) { return; }
+			if (!$r.hasClass('is-selecting')) { $r.addClass('is-selecting'); if (document.activeElement && document.activeElement.blur) { document.activeElement.blur(); } window.getSelection && window.getSelection().removeAllRanges(); }
+			self.setSel(self.drag.r, self.drag.c, at.r, at.c);
+		});
+		$(document).on('mouseup.dste', function () {
+			if (!self.drag) { return; }
+			self.drag = null;
+			if ($r.hasClass('is-selecting')) { $r.removeClass('is-selecting'); if (self.multi()) { self.$drop.trigger('focus'); } }
+		});
+		$r.on('click', '.ds-te-selall', function (e) {
+			e.preventDefault(); if (self.mode() !== 'manual') { return; }
+			self.setSel(0, 0, Math.min(self.state.rows.length, RENDER_CAP) - 1, self.state.cols.length - 1); self.$drop.trigger('focus');
+		});
+		$r.on('click', '[data-sa]', function (e) {
+			e.preventDefault();
+			var q = self.selRect(), sa = $(this).attr('data-sa');
+			if (sa === 'none' || !q) { self.clearSel(); return; }
+			if (sa === 'clear') { self.clearCells(); }
+			else if (sa === 'rows') { self.delRows(q.r1, q.r2); }
+			else if (sa === 'cols') { self.delCols(q.c1, q.c2); }
+		});
+		// Keys while a block is selected (focus sits on the grid, not in a cell).
+		this.$drop.on('keydown', function (e) {
+			if (e.target !== this || !self.multi()) { return; }
+			if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); self.clearCells(); }
+			else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); self.clearSel(); }
+		});
+		this.$drop.on('copy', function (e) {
+			if (e.target !== this || !self.multi()) { return; }
+			var cd = e.originalEvent.clipboardData; if (!cd) { return; }
+			cd.setData('text/plain', self.selText()); e.preventDefault();
+			var q = self.selRect(); self.say('Copied ' + ((q.r2 - q.r1 + 1) * (q.c2 - q.c1 + 1)) + ' cells.');
+		});
+		// Typing in a cell ends a selection.
+		$r.on('input', 'textarea.ds-te-cell', function () { if (self.multi()) { self.clearSel(); } });
+
 		$r.on('click', '[data-act]', function (e) {
 			e.preventDefault();
 			var act = $(this).attr('data-act');
@@ -703,11 +877,28 @@
 		});
 
 		$r.on('click', '.ds-te-pick', function (e) { e.preventDefault(); self.pickImage(+this.getAttribute('data-r'), +this.getAttribute('data-c')); });
-		$r.on('click', '.ds-te-colmenu', function (e) { e.preventDefault(); e.stopPropagation(); self.colMenu(this, +this.getAttribute('data-c')); });
-		$r.on('click', '.ds-te-rowmenu', function (e) { e.preventDefault(); e.stopPropagation(); self.rowMenu(this, +this.getAttribute('data-r')); });
+		$r.on('click', '.ds-te-colmenu', function (e) {
+			e.preventDefault(); e.stopPropagation();
+			var c = +this.getAttribute('data-c');
+			if (e.shiftKey && self.mode() === 'manual') {
+				var a = self.colAnchor == null ? (self.focus ? self.focus.c : c) : self.colAnchor;
+				self.closeMenu(); self.setSel(0, a, Math.min(self.state.rows.length, RENDER_CAP) - 1, c); self.$drop.trigger('focus'); return;
+			}
+			self.colAnchor = c; self.colMenu(this, c);
+		});
+		$r.on('click', '.ds-te-rowmenu', function (e) {
+			e.preventDefault(); e.stopPropagation();
+			var r = +this.getAttribute('data-r');
+			if (e.shiftKey) {
+				var a = self.rowAnchor == null ? (self.focus ? self.focus.r : r) : self.rowAnchor;
+				self.closeMenu(); self.setSel(a, 0, r, self.state.cols.length - 1); self.$drop.trigger('focus'); return;
+			}
+			self.rowAnchor = r; self.rowMenu(this, r);
+		});
 		$r.on('keydown', function (e) {
 			if (e.key === 'Escape') {
 				if (!self.$menu.prop('hidden')) { self.closeMenu(); e.stopPropagation(); }
+				else if (self.multi()) { self.clearSel(); e.stopPropagation(); }
 				else if (!self.$dialog.prop('hidden')) { self.$dialog.prop('hidden', true).empty(); e.stopPropagation(); }
 				else if ($r.hasClass('is-expanded')) { self.expand(false); e.stopPropagation(); }
 			}
@@ -757,6 +948,7 @@
 				e.preventDefault(); e.stopPropagation();
 				if (!self.$menu.prop('hidden')) { self.closeMenu(); }
 				else if (!self.$dialog.prop('hidden')) { self.$dialog.prop('hidden', true).empty(); }
+				else if (self.multi()) { self.clearSel(); }
 				else { self.expand(false); }
 			};
 			document.addEventListener('keydown', this.escHandler, true);

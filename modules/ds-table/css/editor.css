@@ -163,3 +163,16 @@ body.ds-te-open { overflow: hidden; }
 .fl-builder-settings .ds-te button.ds-te-pick:hover { border-color: currentColor !important; }
 .fl-builder-settings .ds-te .ds-te-grid td.is-type-image { min-width: 230px !important; }
 .fl-builder-settings .ds-te .ds-te-grid td.is-type-link, .fl-builder-settings .ds-te .ds-te-grid td.is-type-button { min-width: 170px !important; }
+
+/* Selection: a block of cells, its row numbers and headings, and the bar that acts on it. */
+.ds-te-selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 6px; padding: 5px 6px 5px 10px; border-radius: 6px; background: var(--te-accent-soft); font-size: 12px; }
+.ds-te-selinfo { margin-right: auto; color: var(--te-fg); font-weight: 500; }
+.ds-te .ds-te-danger { color: var(--te-danger); }
+.ds-te .ds-te-danger:hover:not(:disabled) { border-color: var(--te-danger); color: var(--te-danger); }
+.ds-te-drop:focus { outline: none; }
+.ds-te-corner.ds-te-selall { cursor: cell; }
+.ds-te.is-selecting, .ds-te.is-selecting textarea { user-select: none; -webkit-user-select: none; cursor: cell; }
+.ds-te-grid td.is-sel, .fl-builder-settings .ds-te .ds-te-grid td.is-sel { background: var(--te-accent-soft) !important; box-shadow: inset 0 0 0 1px var(--te-accent); }
+.ds-te-grid td.is-sel textarea.ds-te-cell { background: transparent; }
+.ds-te-grid .is-selhead, .fl-builder-settings .ds-te .ds-te-grid th.is-selhead { background: var(--te-accent-soft) !important; }
+.ds-te-grid .ds-te-rowh.is-selhead .ds-te-rowmenu { color: var(--te-accent); font-weight: 700; }
