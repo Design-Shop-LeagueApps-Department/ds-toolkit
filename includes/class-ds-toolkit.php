@@ -539,8 +539,40 @@ class DS_Toolkit {
         return $settings;
     }
 
+    /**
+     * Once per DS Toolkit version: delete Beaver Builder's cached layout CSS/JS so every
+     * page rebuilds its bundle from the updated module files on its next view. Runs on
+     * any request, because the fleet installer replaces files without the WordPress
+     * upgrader (so no upgrader hook fires). The option is written before the delete so
+     * the window is short, but this is not a lock: a burst of requests right after an
+     * update can delete the files a few times, which is harmless because they rebuild.
+     */
+    public static function refresh_builder_assets() {
+        if ( ! class_exists( 'FLBuilderModel' ) || ! method_exists( 'FLBuilderModel', 'delete_asset_cache_for_all_posts' ) ) {
+            return;
+        }
+        if ( get_option( 'ds_toolkit_assets_version' ) === DS_TOOLKIT_VERSION ) {
+            return;
+        }
+        update_option( 'ds_toolkit_assets_version', DS_TOOLKIT_VERSION, true );
+        FLBuilderModel::delete_asset_cache_for_all_posts();
+        // Cached HTML still points at the same file names, which now rebuild, so only the
+        // page cache that held old markup needs purging. WP Engine only; elsewhere the page
+        // cache expires on its own.
+        if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) {
+            WpeCommon::purge_varnish_cache();
+        }
+    }
+
     public function run() {
         $settings = $this->maybe_set_defaults();
+
+        // Beaver Builder bundles each module's css/frontend.css and js/frontend.js into
+        // per-page cache files and only rebuilds them when a layout is saved. After a
+        // toolkit update the pages therefore ran the NEW module PHP with the OLD module
+        // CSS/JS until someone edited them: 1.10.21's schedule links rendered inline and
+        // un-styled beside the Register button on cards. Clear those files once per version.
+        add_action( 'init', array( __CLASS__, 'refresh_builder_assets' ), 99 );
 
         // The MCP server only needs to be alive for REST requests. Defer loading the
         // 2.8k-line class file until rest_api_init fires so non-REST page loads
