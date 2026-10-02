@@ -205,6 +205,9 @@ class DS_Tripwire {
         // /usr/sbin/sendmail at all; Flywheel's is a setuid shim whose config is unreadable
         // outside a web request), so a CLI test reports a false negative on every site.
         add_action( self::MAILCHECK_HOOK, array( $this, 'run_mailcheck' ) );
+        // Copy every alert and a daily check-in to Design Shop HQ (features/class-ds-hq-link.php).
+        require_once __DIR__ . '/class-ds-hq-link.php';
+        DS_HQ_Link::boot( $this->settings );
 
         // Instant alert when an administrator appears. Registration and role
         // grants only ever happen in admin/AJAX/CLI flows, so these hooks are
@@ -281,6 +284,8 @@ class DS_Tripwire {
         update_option( self::STATE_OPT, $state, false );
 
         $mail = array_filter( $f, function ( $p ) { return 'REVIEW' !== $p[0]; } );
+        // After the alert below has gone out, so a slow HQ can never delay the email.
+        add_action( 'shutdown', function () use ( $f ) { do_action( 'ds_tripwire_checked', $f ); } );
         if ( $mail && $seeded ) {
             $worst = 'HIGH';
             foreach ( $mail as $p ) { if ( 'CRITICAL' === $p[0] ) { $worst = 'CRITICAL'; break; } }
@@ -1550,6 +1555,8 @@ class DS_Tripwire {
             'to'        => implode( ',', (array) $to ),
             'accepted'  => (bool) $sent,
         ), false );
+        // The same alert to Design Shop HQ (DS_HQ_Link). Email stays the primary channel.
+        do_action( 'ds_tripwire_alert', $tier, $lines );
     }
 
     /**

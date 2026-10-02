@@ -387,6 +387,8 @@ class DS_Toolkit {
             // (clone-safe); it only ever emails on later drift or hard IOCs.
             'tripwire_enabled'                   => 1,
             'tripwire_alert_email'               => 'design@leagueapps.com',
+            // Copy alerts + a daily check-in to Design Shop HQ (features/class-ds-hq-link.php).
+            'tripwire_hq_report'                 => 1,
             // Ships in monitor mode: staged rollout. Every rule is safe on
             // its own — the pagination rule only refuses pages WordPress
             // confirms are empty, and reverse-DNS-verified search engines are
@@ -578,6 +580,12 @@ class DS_Toolkit {
 
             // The Table module's 5-minute sync job stops with the module (its handler only loads while it is on).
             if ( empty( $settings['ds_table_module_enabled'] ) && wp_next_scheduled( 'ds_table_sync' ) ) { wp_clear_scheduled_hook( 'ds_table_sync' ); }
+            // Tripwire -> HQ reporting off (or Tripwire off): leave no HQ cron events behind.
+            if ( ( empty( $settings['tripwire_enabled'] ) || ( isset( $settings['tripwire_hq_report'] ) && ! $settings['tripwire_hq_report'] ) )
+                && ( wp_next_scheduled( 'ds_hq_link_checkin' ) || wp_next_scheduled( 'ds_hq_link_flush' ) || wp_next_scheduled( 'ds_hq_link_enroll' ) ) ) {
+                require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-link.php';
+                DS_HQ_Link::unschedule();
+            }
         }
 
         $blueprint    = self::blueprint_version();
