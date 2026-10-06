@@ -396,6 +396,44 @@ if ( 'style3' === $style ) {
 	$typo = array( 'heading_typography' => '.ds-cta-heading', 'title_typography' => '.ds-cta-card-title', 'eyebrow_typography' => '.ds-cta-card-eyebrow' );
 }
 
+// ---- Style 7: Program Pathway (GH #288) ----
+if ( 'style7' === $style ) {
+	$v = array();
+	$fill = $col( $settings->pp_num_fill ?? '' );    if ( '' !== $fill ) { $v[] = "--pp-fill:{$fill}"; }
+	$line = $col( $settings->pp_num_outline ?? '' ); if ( '' !== $line ) { $v[] = "--pp-line:{$line}"; }
+	if ( isset( $settings->pp_num_width ) && '' !== $settings->pp_num_width ) { $v[] = '--pp-stroke:' . max( 0, (int) $settings->pp_num_width ) . 'px'; }
+	if ( isset( $settings->pp_bar ) && '' !== $settings->pp_bar ) { $v[] = '--pp-bar:' . max( 0, (int) $settings->pp_bar ) . 'px'; }
+	$ratio = in_array( $settings->pp_ratio ?? '4/5', array( '1/1', '4/5', '3/4', '4/3', '16/9' ), true ) ? ( $settings->pp_ratio ?? '4/5' ) : '4/5';
+	$v[] = "--pp-ratio:{$ratio}";
+	$lc = $col( $settings->pp_lines_color ?? '' );   if ( '' !== $lc ) { $v[] = "--pp-gridline:{$lc}"; }
+	foreach ( array( 'pp_title_color' => '--pp-title', 'pp_sub_color' => '--pp-sub', 'pp_desc_color' => '--pp-desc' ) as $k => $var ) { $c = $col( $settings->$k ?? '' ); if ( '' !== $c ) { $v[] = "{$var}:{$c}"; } }
+	// Columns, gap and number size per breakpoint (blank tablet/phone falls back to the size above).
+	$cd = max( 1, min( 4, (int) ( ( $settings->pp_cols ?? '' ) !== '' ? $settings->pp_cols : 3 ) ) );
+	$cm = ( $settings->pp_cols_medium ?? '' ) !== '' ? max( 1, min( 4, (int) $settings->pp_cols_medium ) ) : min( $cd, 2 );
+	$cr = ( $settings->pp_cols_responsive ?? '' ) !== '' ? max( 1, min( 4, (int) $settings->pp_cols_responsive ) ) : 1;
+	$gd = ( $settings->pp_gap ?? '' ) !== '' ? (int) $settings->pp_gap : 40;
+	$gm = ( $settings->pp_gap_medium ?? '' ) !== '' ? (int) $settings->pp_gap_medium : $gd;
+	$gr = ( $settings->pp_gap_responsive ?? '' ) !== '' ? (int) $settings->pp_gap_responsive : $gm;
+	$nd = ( $settings->pp_num_size ?? '' ) !== '' ? (int) $settings->pp_num_size : 104;
+	$nm = ( $settings->pp_num_size_medium ?? '' ) !== '' ? (int) $settings->pp_num_size_medium : $nd;
+	$nr = ( $settings->pp_num_size_responsive ?? '' ) !== '' ? (int) $settings->pp_num_size_responsive : min( $nm, 88 );
+	$v[] = "--pp-cols:{$cd}"; $v[] = "--pp-gap:{$gd}px"; $v[] = "--pp-num:{$nd}px";
+	echo "$node .ds-cta--style7 { " . implode( '; ', $v ) . "; }
+";
+	echo "@media (max-width:{$bpm}px){ $node .ds-cta--style7 { --pp-cols:{$cm}; --pp-gap:{$gm}px; --pp-num:{$nm}px; } }
+";
+	echo "@media (max-width:{$bpr}px){ $node .ds-cta--style7 { --pp-cols:{$cr}; --pp-gap:{$gr}px; --pp-num:{$nr}px; } }
+";
+	// The number is set in the site's heading font (Global Styles "All headings", then the theme's).
+	$gs  = class_exists( 'FLBuilderGlobalStyles' ) ? FLBuilderGlobalStyles::get_settings( false ) : null;
+	$hf  = is_object( $gs ) && isset( $gs->h_typography ) ? ( (array) $gs->h_typography )['font_family'] ?? '' : '';
+	if ( '' === $hf || 'Default' === $hf ) { $hf = (string) get_theme_mod( 'fl-heading-font-family', '' ); }
+	$hf  = preg_replace( '/[^\w \-]/', '', (string) $hf );
+	// No keyword such as inherit after the name: it is invalid inside a font list and voids the whole rule.
+	if ( '' !== $hf && 'Default' !== $hf ) { echo "$node .ds-pp-num { font-family: \"{$hf}\", sans-serif; }\n"; }
+	$typo = array( 'heading_typography' => '.ds-cta-heading', 'pp_title_typo' => '.ds-pp-title', 'pp_sub_typo' => '.ds-pp-sub', 'pp_desc_typo' => '.ds-pp-desc' );
+}
+
 // ---- Style 6: Program Cards (manual list) ----
 // Markup comes from the shared DS_Program_Cards renderer, so the wrappers are
 // .ds-news / .ds-news-wrap (not .ds-cta*) and the CSS has to match the Post Loop
