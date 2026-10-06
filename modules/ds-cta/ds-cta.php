@@ -45,6 +45,7 @@ class DS_CTA_Module extends FLBuilderModule {
 			'style4' => __( 'Style 4 — Big Hero (Contact)', 'ds-toolkit' ),
 			'style5' => __( 'Style 5 — Motion Cards (image + logo overlay)', 'ds-toolkit' ),
 			'style6' => __( 'Style 6 — Program Cards (manual list)', 'ds-toolkit' ),
+			'style7' => __( 'Style 7 — Program Pathway', 'ds-toolkit' ),
 		);
 	}
 
@@ -61,6 +62,87 @@ class DS_CTA_Module extends FLBuilderModule {
 			$this->settings,
 			__( 'No program cards yet. Add them in the Program Cards list.', 'ds-toolkit' )
 		);
+	}
+
+	/**
+	 * Style 7 — Program Pathway (GH #288): numbered program cards. A large image, an
+	 * oversized outlined number (01, 02 ...) overlapping its lower-left edge, a bold title
+	 * with a category label beside it, and a description.
+	 *
+	 * Reads the SAME `programs` repeater as Style 6 (ds_program_form): Image, Sub-heading
+	 * (the label), Title, Description and Link. Date, Icon and Button Text belong to Style 6
+	 * and are not shown. The number is the card's position among the cards shown.
+	 *
+	 * A card with a link is ONE <a> wrapping image, number and text, so the whole card is
+	 * the target; the description is rendered without links so no <a> nests inside it.
+	 * A row with no image and no text is skipped rather than drawn as an empty card.
+	 */
+	public function render_style7() {
+		$s     = $this->settings;
+		$items = ( isset( $s->programs ) && is_array( $s->programs ) ) ? $s->programs : array();
+		$mods  = 'ds-cta ds-cta--style7';
+		if ( ( $s->pp_lines ?? 'yes' ) === 'yes' ) { $mods .= ' ds-pp--lines'; }
+		$hover = in_array( $s->pp_hover ?? 'lift', array( 'lift', 'zoom', 'none' ), true ) ? ( $s->pp_hover ?? 'lift' ) : 'lift';
+		$mods .= ' ds-pp--hover-' . $hover;
+
+		echo '<section class="' . esc_attr( $mods ) . '"><div class="ds-cta-wrap">';
+
+		if ( ( $s->show_header ?? 'no' ) === 'yes' && ( ! empty( $s->heading ) || ! empty( $s->header_label ) ) ) {
+			echo '<div class="ds-cta-head">';
+			if ( ! empty( $s->heading ) ) {
+				echo '<h2 class="ds-cta-heading">' . $this->heading_html( $s->heading ) . '</h2>';
+			}
+			if ( ! empty( $s->header_label ) ) {
+				echo '<span class="ds-cta-head-label">' . esc_html( $s->header_label ) . '</span>';
+			}
+			echo '</div>';
+		}
+
+		// Description markup minus anything interactive: the card itself is the link.
+		$allowed = wp_kses_allowed_html( 'post' );
+		foreach ( array( 'a', 'button', 'input', 'select', 'textarea', 'form', 'label', 'iframe', 'video', 'audio', 'details' ) as $tag ) { unset( $allowed[ $tag ] ); }
+
+		$cards = '';
+		$n     = 0;
+		foreach ( $items as $it ) {
+			$it    = (object) $it;
+			$img   = DS_Card::photo_url( $it->prog_image ?? '' );
+			$sub   = trim( (string) ( $it->prog_subheading ?? '' ) );
+			$title = trim( (string) ( $it->prog_title ?? '' ) );
+			$desc  = trim( (string) ( $it->prog_desc ?? '' ) );
+			if ( '' === $img && '' === $sub && '' === $title && '' === trim( wp_strip_all_tags( $desc ) ) ) {
+				continue; // an empty repeater row: no phantom card, no number used
+			}
+			$n++;
+			list( $url, $target ) = DS_Card::link_parts( $it->prog_url ?? '', $it->prog_url_target ?? '' );
+			$hasurl = ( '' !== $url && '#' !== $url );
+			$tag    = $hasurl ? 'a' : 'div';
+			$attr   = $hasurl ? ' href="' . esc_url( $url ) . '"' . ( '_blank' === $target ? ' target="_blank" rel="noopener noreferrer"' : '' ) : '';
+
+			$cards .= '<' . $tag . ' class="ds-pp-card' . ( $hasurl ? ' is-link' : '' ) . '"' . $attr . '>';
+			$cards .= '<div class="ds-pp-media' . ( '' === $img ? ' is-empty' : '' ) . '">';
+			// The title names the link, so the picture is decorative here (no doubled announcement).
+			if ( '' !== $img ) { $cards .= '<span class="ds-pp-frame"><img src="' . esc_url( $img ) . '" alt="" loading="lazy" decoding="async" /></span>'; }
+			$cards .= '<span class="ds-pp-num" aria-hidden="true">' . esc_html( sprintf( '%02d', $n ) ) . '</span>';
+			$cards .= '</div><div class="ds-pp-body">';
+			if ( '' !== $title || '' !== $sub ) {
+				$cards .= '<div class="ds-pp-titlerow">';
+				if ( '' !== $title ) { $cards .= '<h3 class="ds-pp-title">' . DS_Module_UI::inline( $title ) . '</h3>'; }
+				if ( '' !== $sub ) { $cards .= '<span class="ds-pp-sub">' . esc_html( $sub ) . '</span>'; }
+				$cards .= '</div>';
+			}
+			if ( '' !== $desc ) { $cards .= '<div class="ds-pp-desc">' . wpautop( wp_kses( $desc, $allowed ) ) . '</div>'; }
+			$cards .= '</div></' . $tag . '>';
+		}
+
+		if ( '' === $cards ) {
+			if ( FLBuilderModel::is_builder_active() ) {
+				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'No program cards yet. Add them in the Program Cards list.', 'ds-toolkit' ) . '</p>';
+			}
+		} else {
+			echo '<div class="ds-pp-grid">' . $cards . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above
+		}
+		echo '</div></section>';
 	}
 
 	/** Style 5 — Motion Cards: elevated image cards with bg effects + animated logo overlay. */
@@ -617,6 +699,9 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 							),
 							'style6' => array(
 								'sections' => array( 'section_style', 'header', 'programs_sec', 'program_opts', 'program_chrome', 'spacing' ),
+							),
+							'style7' => array(
+								'sections' => array( 'section_style', 'header', 'programs_sec', 'pp_layout', 'pp_number', 'pp_text', 'spacing' ),
 							),
 						),
 					),
@@ -1262,6 +1347,40 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					'pg_title_typo'     => array( 'type' => 'typography', 'label' => __( 'Title Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-title' ) ),
 					'pg_desc_typo'      => array( 'type' => 'typography', 'label' => __( 'Description Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-desc' ) ),
 					'pg_btn_typo'       => array( 'type' => 'typography', 'label' => __( 'Button Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-program-btn' ) ),
+				),
+			),
+			// ---- Style 7 only: Program Pathway. Own pp_* keys, so Style 6 settings never move. ----
+			'pp_layout' => array(
+				'title'       => __( 'Program Pathway: Layout', 'ds-toolkit' ),
+				'description' => __( 'Uses each program\'s Image, Sub-heading (the label beside the title), Title, Description and Link from the Program Cards list. Date, Icon and Button Text are Style 6 fields and are not shown. A card with a link is clickable everywhere; the number follows the card order.', 'ds-toolkit' ),
+				'fields'      => array(
+					'pp_cols'     => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '3', 'responsive' => array( 'default' => array( 'default' => '3', 'medium' => '2', 'responsive' => '1' ) ), 'slider' => array( 'min' => 1, 'max' => 4, 'step' => 1 ) ),
+					'pp_gap'      => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '40', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 0, 'max' => 80, 'step' => 2 ) ),
+					'pp_ratio'    => array( 'type' => 'select', 'label' => __( 'Image Shape', 'ds-toolkit' ), 'default' => '4/5', 'options' => array( '1/1' => __( 'Square', 'ds-toolkit' ), '4/5' => __( 'Portrait 4:5 (default)', 'ds-toolkit' ), '3/4' => __( 'Portrait 3:4', 'ds-toolkit' ), '4/3' => __( 'Landscape 4:3', 'ds-toolkit' ), '16/9' => __( 'Wide 16:9', 'ds-toolkit' ) ), 'help' => __( 'Every image is cropped to this shape, never stretched.', 'ds-toolkit' ) ),
+					'pp_bar'      => array( 'type' => 'unit', 'label' => __( 'Line Under Image', 'ds-toolkit' ), 'default' => '6', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 16, 'step' => 1 ), 'help' => __( 'Drawn in the number outline colour. 0 = none.', 'ds-toolkit' ) ),
+					'pp_lines'    => array( 'type' => 'select', 'label' => __( 'Grid Lines Behind Cards', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'pp_lines_color' ) ) ) ),
+					'pp_lines_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Grid Line Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = a faint tint of the heading colour.', 'ds-toolkit' ) ),
+					'pp_hover'    => array( 'type' => 'select', 'label' => __( 'Card Hover', 'ds-toolkit' ), 'default' => 'lift', 'options' => array( 'lift' => __( 'Lift the card and zoom the image', 'ds-toolkit' ), 'zoom' => __( 'Zoom the image only', 'ds-toolkit' ), 'none' => __( 'None', 'ds-toolkit' ) ), 'help' => __( 'Linked cards only. Keyboard focus always shows an outline; motion is off for visitors who ask for reduced motion.', 'ds-toolkit' ) ),
+				),
+			),
+			'pp_number' => array(
+				'title'  => __( 'Program Pathway: Number', 'ds-toolkit' ),
+				'fields' => array(
+					'pp_num_size'    => array( 'type' => 'unit', 'label' => __( 'Number Size', 'ds-toolkit' ), 'default' => '104', 'description' => 'px', 'responsive' => true, 'slider' => array( 'min' => 40, 'max' => 200, 'step' => 2 ) ),
+					'pp_num_fill'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Number Fill', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true, 'show_alpha' => true ),
+					'pp_num_outline' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Number Outline (and image line)', 'ds-toolkit' ), 'default' => 'var(--fl-global-primary)', 'show_reset' => true ),
+					'pp_num_width'   => array( 'type' => 'unit', 'label' => __( 'Outline Width', 'ds-toolkit' ), 'default' => '4', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 10, 'step' => 1 ) ),
+				),
+			),
+			'pp_text' => array(
+				'title'  => __( 'Program Pathway: Text', 'ds-toolkit' ),
+				'fields' => array(
+					'pp_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-headings)', 'show_reset' => true ),
+					'pp_sub_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Label Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true, 'help' => __( 'The Sub-heading shown beside the title. Check it reads on the section background.', 'ds-toolkit' ) ),
+					'pp_desc_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Description Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-body)', 'show_reset' => true ),
+					'pp_title_typo'  => array( 'type' => 'typography', 'label' => __( 'Title Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-pp-title' ) ),
+					'pp_sub_typo'    => array( 'type' => 'typography', 'label' => __( 'Label Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-pp-sub' ) ),
+					'pp_desc_typo'   => array( 'type' => 'typography', 'label' => __( 'Description Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-pp-desc' ) ),
 				),
 			),
 			// Card border + hover. Same keys as the Post Loop module's shared

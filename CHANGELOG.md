@@ -4,6 +4,14 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.28] - 2026-10-06
+### Added
+- **CTA: Style 7, Program Pathway** (GH #288, KD). Numbered program cards: a large photo, an oversized outlined number (01, 02, 03) overlapping the photo's lower-left edge above a line in the same colour, a bold title with its category label beside it, and a description, on an optional faint vertical grid. It reads the **same Program Cards list as Style 6** (Image, Sub-heading as the label, Title, Description, Link); Date, Icon and Button Text stay Style 6 fields and are not shown, so a list can switch between the two styles without re-entry.
+  - **The whole card is the link:** one `<a>` wraps photo, number and text; a link typed inside the description is removed so nothing nests; a "new window" link gets `target="_blank" rel="noopener noreferrer"`; a card with no link renders as plain content. Hover lifts the card, zooms the photo inside its frame and underlines the title; keyboard focus draws an outline; reduced motion turns the movement off.
+  - **Numbering follows the cards shown:** an empty repeater row is skipped, so it neither leaves a gap nor uses up a number.
+  - **Style tab (Style 7 only, `pp_*` keys):** Columns (3 / 2 / 1 by default) and Gap per breakpoint, Image Shape (square, 4:5, 3:4, 4:3, 16:9; always cropped, never stretched), Line Under Image, Grid Lines (on/off, colour), Card Hover (lift, zoom, none); Number Size per breakpoint, Fill, Outline colour and width; Title, Label and Description colour and typography. Defaults use the global tokens (headings, accent, body, primary, white), so no club's colours are built in. The number is set in the site's Global Styles heading font.
+  - Styles 1 to 6 render byte-identically to 1.10.27 (HTML and node CSS, all six compared). Tested on PA Playmakers staging with three of its own photos: one row of 3 at 1440, 2 per row at 900, 1 at 390, equal card heights, number over the photo edge and clear of the title at every width, no sideways scroll. The contrast gate reads the number's white fill against the background (1.42:1); the glyph is drawn by its outline, measured 7.34:1 against the background, and the number is hidden from screen readers because each card's title names the link.
+
 ## [1.10.27] - 2026-10-06
 ### Changed
 - **A repeat Tripwire alert email is skipped when Design Shop HQ has already closed it as a false alarm** (Alipio, 2026-10-06: "please do all your recommendation"). HQ already auto-closes a repeat of a false alarm on the dashboard; until now the site still emailed it every day.
