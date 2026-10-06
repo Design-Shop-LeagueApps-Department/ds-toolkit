@@ -1301,6 +1301,7 @@ class DS_Tripwire {
                 if ( ! empty( $f['md5'] ) && ! empty( $f['path'] ) && self::vendor_verified( $f['path'], $f['md5'] ) ) { $cleared++; return; }
                 // name it if we have identified this exact file before (bundled list + remote deny list)
                 if ( ! empty( $f['md5'] ) && isset( $bad[ $f['md5'] ] ) ) {
+                    $f['known_bad'] = true; // never a "repeat": HQ must not be asked to silence named malware
                     $f['reasons'] = array_merge(
                         array( 'KNOWN MALWARE: ' . $bad[ $f['md5'] ] ),
                         isset( $f['reasons'] ) ? (array) $f['reasons'] : array()
@@ -1338,7 +1339,9 @@ class DS_Tripwire {
                 if ( empty( $alerted[ $key ] ) || ( time() - (int) $alerted[ $key ] ) > DAY_IN_SECONDS ) {
                     $mail[]          = $line;
                     $files[]         = array( 'path' => (string) $f['path'], 'size' => (int) @filesize( $f['path'] ), 'md5' => strtolower( (string) $f['md5'] ) );
-                    $repeat          = $repeat && ! empty( $alerted[ $key ] );
+                    // A repeat only when this exact file was emailed before, is not on the deny list, and its path
+                    // cannot be misread in the alert line (whitespace or parentheses could pose as another file).
+                    $repeat          = $repeat && ! empty( $alerted[ $key ] ) && empty( $f['known_bad'] ) && ! preg_match( '/[\s()]/', (string) $f['path'] );
                     $alerted[ $key ] = time();
                 }
             }

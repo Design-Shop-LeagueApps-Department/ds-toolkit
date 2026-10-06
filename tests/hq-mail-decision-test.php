@@ -87,11 +87,11 @@ function reset_world() {
 	update_option( 'ds_hq_link', $s );
 }
 /** HQ's skip reply, signed the way HQ signs it; each argument can be bent to make it wrong. */
-function skip_reply( $nonce_override = null, $host = 'example-club.org', $t = null, $sk = null ) {
-	return function ( $body ) use ( $nonce_override, $host, $t, $sk ) {
+function skip_reply( $nonce_override = null, $host = 'example-club.org', $t = null, $sk = null, $what = 'mail-skip' ) {
+	return function ( $body ) use ( $nonce_override, $host, $t, $sk, $what ) {
 		$n = null === $nonce_override ? (string) ( $body['hold'] ?? '' ) : $nonce_override;
 		$t = null === $t ? time() : $t;
-		$sig = sodium_crypto_sign_detached( "dshq-hq\nmail-skip\n$host\n$t\n$n", $sk ?: $GLOBALS['hq_sk'] );
+		$sig = sodium_crypto_sign_detached( "dshq-hq\n$what\n$host\n$t\n$n", $sk ?: $GLOBALS['hq_sk'] );
 		return array( 'ok' => true, 'status' => 'active', 'mail' => 'skip', 'mail_why' => 'repeat of event 7', 'mail_t' => $t, 'mail_sig' => base64_encode( $sig ) );
 	};
 }
@@ -138,6 +138,8 @@ $bad = array(
 	'signed 10 minutes ago'       => skip_reply( null, 'example-club.org', time() - 600 ),
 	'signed by another key'       => skip_reply( null, 'example-club.org', null, sodium_crypto_sign_secretkey( sodium_crypto_sign_keypair() ) ),
 	'unsigned'                    => array( 'ok' => true, 'status' => 'active', 'mail' => 'skip' ),
+	'with a proof signature'      => skip_reply( null, 'example-club.org', null, null, 'proof' ),
+	'with a checkin-now signature' => skip_reply( null, 'example-club.org', null, null, 'checkin-now' ),
 );
 foreach ( $bad as $what => $bad_reply ) {
 	reset_world();
@@ -153,6 +155,21 @@ $GLOBALS['reply']      = skip_reply();
 $alert->invoke( $tw, 'CRITICAL', $lines, $files, true );
 ok( 1 === count( $GLOBALS['mailed'] ), 'HQ 500: emailed' );
 ok( 1 === count( DS_HQ_Link::state()['queue'] ?? array() ), 'HQ 500: alert kept in the queue for HQ' );
+
+// 9b. other refusals on the ask: email now, and the alert goes to the queue path (which handles each code)
+foreach ( array( 409 => 'replay', 401 => 'unknown_site', 403 => 'retired' ) as $code => $what ) {
+	reset_world();
+	$GLOBALS['reply_code'] = $code;
+	$GLOBALS['reply']      = array( 'code' => $what );
+	$alert->invoke( $tw, 'CRITICAL', $lines, $files, true );
+	ok( 1 === count( $GLOBALS['mailed'] ) && count( reports() ) >= 2, "HQ $code $what: emailed, alert handed to the queue path" );
+}
+
+// 9c. HQ took it but flagged the host (200, ok=false, no mail field): email, no second report
+reset_world();
+$GLOBALS['reply'] = array( 'ok' => false, 'flag' => 'Signed with this key but sent from another host' );
+$alert->invoke( $tw, 'CRITICAL', $lines, $files, true );
+ok( 1 === count( $GLOBALS['mailed'] ) && 1 === count( reports() ), '200 ok=false: emailed, one report' );
 
 // 10. network error / timeout: email now
 reset_world();

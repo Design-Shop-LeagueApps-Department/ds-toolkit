@@ -479,8 +479,7 @@ class DS_HQ_Link {
 	 */
 	public static function ask_mail( $tier, array $lines, array $files ) {
 		$no = array( false, false, '' );
-		$s  = self::state();
-		if ( ! self::has_key() || 'active' !== ( $s['status'] ?? '' ) || ! $lines || count( $lines ) !== count( $files ) || count( $lines ) > 300 ) {
+		if ( ! self::has_key() || 'active' !== ( self::state()['status'] ?? '' ) || ! $lines || count( $lines ) !== count( $files ) || count( $lines ) > 300 ) {
 			return $no;
 		}
 		$findings = self::alert_findings( $tier, $lines, $files );
@@ -493,22 +492,34 @@ class DS_HQ_Link {
 			return $no; // another report is being sent right now; do not wait for it
 		}
 		try {
-			$nonce           = bin2hex( random_bytes( 16 ) );
-			$body            = self::payload( 'alert', $findings );
-			$body['hold']    = $nonce;
-			list( $code, $out ) = self::post( 'report', $body, $s, 10 );
+			$s = self::state(); // read under the lock, so last_t is current
+			if ( 'active' !== ( $s['status'] ?? '' ) ) {
+				return $no;
+			}
+			$nonce        = bin2hex( random_bytes( 16 ) );
+			$body         = self::payload( 'alert', $findings );
+			$body['hold'] = $nonce;
+			// 5 s, not 10: the scan has already saved its state, and a cron run killed while waiting would lose the email.
+			list( $code, $out ) = self::post( 'report', $body, $s, 5 );
+		} catch ( \Throwable $e ) {
+			return $no; // unknown whether HQ got it: email, and queue it (a duplicate on HQ is harmless, a gap is not)
 		} finally {
 			self::unlock();
 		}
 		if ( 200 !== $code || ! is_array( $out ) ) {
 			return $no;
 		}
-		$s2            = self::state();
-		$s2['last_ok'] = time();
-		$s2['status']  = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
-		$s2['error']   = '';
-		self::save( $s2 );
-		$skip = 'skip' === ( $out['mail'] ?? '' ) && self::hq_signed_skip( $out, $nonce );
+		// HQ has the report from here on: whatever happens next, never report it again, and email unless skip verifies.
+		try {
+			$s2            = self::state();
+			$s2['last_ok'] = time();
+			$s2['status']  = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
+			$s2['error']   = '';
+			self::save( $s2 );
+			$skip = 'skip' === ( $out['mail'] ?? '' ) && self::hq_signed_skip( $out, $nonce );
+		} catch ( \Throwable $e ) {
+			$skip = false;
+		}
 		return array( true, $skip, $skip ? substr( (string) ( $out['mail_why'] ?? '' ), 0, 300 ) : '' );
 	}
 
