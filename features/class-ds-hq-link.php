@@ -35,6 +35,13 @@
  * and a one-off cron event (FLUSH_HOOK) sends them, one locked flush at a time, at most FLUSH_MAX per run, saving
  * the queue after every accepted report. In cron or WP-CLI (the scans) it flushes straight away.
  *
+ * Repeat alerts. When every file in a content-scan alert is one this site has already emailed about, Tripwire asks HQ
+ * before mailing it again (ask_mail): the alert report goes straight to HQ with a fresh nonce, inside the cron run that
+ * found it. The email is skipped ONLY when HQ's reply carries mail=skip with a signature by HQ's key over
+ * "dshq-hq\nmail-skip\n<this host>\n<time>\n<nonce>", time within 5 minutes. HQ answers skip only when every file has the
+ * same path, size and full md5 as one a person closed on this site as a vendor false positive or our own files. Anything
+ * else sends the email in the same run, so a first warning can never be silenced and nothing waits on a later run.
+ *
  * Updates. HQ's reply to a report may carry a signed update order; features/class-ds-hq-update.php checks it and
  * installs that signed GitHub release itself. HQ can choose when, never what (see that file).
  *
@@ -77,7 +84,6 @@ class DS_HQ_Link {
 		add_action( 'rest_api_init', array( __CLASS__, 'rest_routes' ) );
 		add_action( 'ds_tripwire_checked', array( __CLASS__, 'on_checked' ), 10, 1 );
 		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 3 );
-		add_filter( 'ds_tripwire_hold_mail', array( __CLASS__, 'hold_mail' ) );
 		add_action( self::ENROLL_HOOK, array( __CLASS__, 'enroll' ) );
 		add_action( self::CHECKIN_HOOK, array( __CLASS__, 'on_checked' ) );
 		add_action( self::FLUSH_HOOK, array( __CLASS__, 'flush' ) );
@@ -305,18 +311,11 @@ class DS_HQ_Link {
 	 * Queue a report and get it sent without holding up the caller: in cron or WP-CLI (the scans) it is sent now,
 	 * anywhere else (an admin creating a user, a page view) a one-off cron event sends it.
 	 */
-	public static function send( $kind, array $findings, $hold = '' ) {
+	public static function send( $kind, array $findings ) {
 		if ( 'retired' === ( self::state()['status'] ?? '' ) && self::has_key() ) {
-			if ( '' !== $hold && class_exists( 'DS_Tripwire' ) ) {
-				DS_Tripwire::release_held( $hold, 'send' ); // never hold mail for a link that will not report
-			}
 			return; // retired on HQ: stay quiet until someone presses Reconnect on this site (email alerts still go)
 		}
-		$p = self::payload( $kind, $findings );
-		if ( '' !== $hold ) {
-			$p['hold'] = $hold;
-		}
-		self::enqueue( $p );
+		self::enqueue( self::payload( $kind, $findings ) );
 		if ( wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 			self::flush();
 		} elseif ( ! wp_next_scheduled( self::FLUSH_HOOK ) ) {
@@ -393,7 +392,6 @@ class DS_HQ_Link {
 				list( $code, $out ) = self::post( 'report', (array) $body );
 				if ( 200 === $code ) {
 					self::shift();
-					self::decide_held( (array) $body, $out );
 					$s2            = self::state();
 					$s2['last_ok'] = time();
 					$s2['status']  = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
@@ -403,9 +401,6 @@ class DS_HQ_Link {
 				}
 				if ( 403 === $code && 'retired' === ( $out['code'] ?? '' ) ) {
 					// Retired on HQ. Never re-enroll by ourselves (that would undo the Retire); drop what is queued.
-					foreach ( (array) ( self::state()['queue'] ?? array() ) as $qb ) {
-						self::decide_held( (array) $qb, null ); // their held emails go now
-					}
 					$s2           = self::state();
 					$s2['status'] = 'retired';
 					$s2['queue']  = array();
@@ -433,7 +428,6 @@ class DS_HQ_Link {
 				if ( 0 === $code || $code >= 500 || 429 === $code || 409 === $code ) {
 					break;
 				}
-				self::decide_held( (array) $body, null ); // its held email goes now: this report will never be accepted
 				self::shift(); // any other refusal (bad signature, malformed) cannot be fixed by resending
 			}
 		} finally {
@@ -448,84 +442,86 @@ class DS_HQ_Link {
 		}
 	}
 
-	/**
-	 * Hold an alert email for HQ's decision only while the link is clearly healthy: a key, active (not pending, not
-	 * retired), and a report accepted within two check-in intervals plus an hour. Anything else mails at once.
-	 */
-	public static function healthy() {
-		$s = self::state();
-		return self::has_key() && 'active' === ( $s['status'] ?? '' ) && time() - (int) ( $s['last_ok'] ?? 0 ) < 2 * self::every() + 3600;
-	}
-
-	public static function hold_mail( $hold ) {
-		return $hold || self::healthy();
-	}
-
-	/**
-	 * Structured details of the file a finding names ("... /path/x.php (1234 bytes, md5 abcd1234, ...)"): the FULL md5
-	 * (read from disk, only when size and the 8-character prefix still match, so a file changed since the scan is never
-	 * described wrongly), and for a plugin file the plugin folder and its version. HQ matches repeats on the full hash.
-	 */
-	public static function file_details( $text ) {
-		if ( ! preg_match( '#(/\S+?)\s*\((\d+) bytes, md5 ([0-9a-f]{8})\b#', (string) $text, $m ) ) {
-			return array();
-		}
-		$path = $m[1];
-		$out  = array( 'path' => $path, 'size' => (int) $m[2] );
-		if ( @is_file( $path ) && (int) @filesize( $path ) === (int) $m[2] ) {
-			$md5 = (string) @md5_file( $path );
-			if ( 0 === strpos( $md5, $m[3] ) ) {
-				$out['md5'] = $md5;
-			}
-		}
-		if ( preg_match( '#/wp-content/plugins/([^/]+)/#', $path, $p ) ) {
-			$out['plugin'] = $p[1];
-			if ( ! function_exists( 'get_plugins' ) && defined( 'ABSPATH' ) && is_readable( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
-				require_once ABSPATH . 'wp-admin/includes/plugin.php';
-			}
-			if ( function_exists( 'get_plugins' ) ) {
-				foreach ( (array) get_plugins() as $file => $data ) {
-					if ( 0 === strpos( $file, $p[1] . '/' ) ) {
-						$out['version'] = (string) ( $data['Version'] ?? '' );
-						break;
-					}
-				}
-			}
-		}
-		return $out;
-	}
-
 	/** After the daily Tripwire run: today's state as a check-in. */
 	public static function on_checked( $findings = null ) {
 		self::send( 'checkin', self::findings_from_state() );
 	}
 
-	/** Every Tripwire alert mail: the same lines as an alert, each with its file details, and the held-mail id if any. */
-	public static function on_alert( $tier, $lines, $hold = '' ) {
-		$f = array();
-		foreach ( (array) $lines as $l ) {
-			if ( preg_match( '/^\[([A-Z]+)\]\s*(.*)$/s', (string) $l, $m ) ) {
-				$x = array( 'tier' => $m[1], 'text' => $m[2] );
-			} else {
-				$x = array( 'tier' => (string) $tier, 'text' => (string) $l );
-			}
-			$file = self::file_details( $x['text'] );
-			if ( $file ) {
-				$x['file'] = $file;
-			}
-			$f[] = $x;
-		}
-		self::send( 'alert', $f, (string) $hold );
+	/** Every Tripwire alert mail: the same lines as an alert. */
+	public static function on_alert( $tier, $lines, $files = array() ) {
+		self::send( 'alert', self::alert_findings( $tier, $lines, $files ) );
 	}
 
-	/** Pass HQ's decision on a held alert email to Tripwire (no decision in the reply = send). */
-	private static function decide_held( $body, $out ) {
-		$hold = (string) ( $body['hold'] ?? '' );
-		if ( '' === $hold || ! class_exists( 'DS_Tripwire' ) ) {
-			return;
+	/** Alert lines ("[TIER] text") -> findings, each with the file it names (path, size, full md5) when known. */
+	private static function alert_findings( $tier, $lines, $files ) {
+		$f     = array();
+		$files = array_values( (array) $files );
+		foreach ( array_values( (array) $lines ) as $i => $l ) {
+			if ( preg_match( '/^\[([A-Z]+)\]\s*(.*)$/s', (string) $l, $m ) ) {
+				$one = array( 'tier' => $m[1], 'text' => $m[2] );
+			} else {
+				$one = array( 'tier' => (string) $tier, 'text' => (string) $l );
+			}
+			$file = $files[ $i ] ?? null;
+			if ( is_array( $file ) && preg_match( '/^[0-9a-f]{32}$/', (string) ( $file['md5'] ?? '' ) ) ) {
+				$one['file'] = array( 'path' => (string) ( $file['path'] ?? '' ), 'size' => (int) ( $file['size'] ?? 0 ), 'md5' => (string) $file['md5'] );
+			}
+			$f[] = $one;
 		}
-		$d = is_array( $out ) ? (string) ( $out['mail'] ?? 'send' ) : 'send';
-		DS_Tripwire::release_held( $hold, 'skip' === $d ? 'skip' : 'send', is_array( $out ) ? (string) ( $out['mail_why'] ?? '' ) : '' );
+		return $f;
+	}
+
+	/**
+	 * Ask HQ whether a repeat alert email can be skipped (see "Repeat alerts" in the class docblock).
+	 * Returns [ HQ took the report, skip, why ]. Only a 200 with a valid signed skip for THIS nonce returns skip = true;
+	 * every other outcome returns false so the caller emails. When HQ did not take the report, the caller queues it as
+	 * usual (on_alert), so HQ still gets the alert.
+	 */
+	public static function ask_mail( $tier, array $lines, array $files ) {
+		$no = array( false, false, '' );
+		$s  = self::state();
+		if ( ! self::has_key() || 'active' !== ( $s['status'] ?? '' ) || ! $lines || count( $lines ) !== count( $files ) || count( $lines ) > 300 ) {
+			return $no;
+		}
+		$findings = self::alert_findings( $tier, $lines, $files );
+		foreach ( $findings as $f ) {
+			if ( empty( $f['file']['md5'] ) ) {
+				return $no; // a line without a full md5 can never be matched, so do not ask
+			}
+		}
+		if ( ! self::lock() ) {
+			return $no; // another report is being sent right now; do not wait for it
+		}
+		try {
+			$nonce           = bin2hex( random_bytes( 16 ) );
+			$body            = self::payload( 'alert', $findings );
+			$body['hold']    = $nonce;
+			list( $code, $out ) = self::post( 'report', $body, $s, 10 );
+		} finally {
+			self::unlock();
+		}
+		if ( 200 !== $code || ! is_array( $out ) ) {
+			return $no;
+		}
+		$s2            = self::state();
+		$s2['last_ok'] = time();
+		$s2['status']  = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
+		$s2['error']   = '';
+		self::save( $s2 );
+		$skip = 'skip' === ( $out['mail'] ?? '' ) && self::hq_signed_skip( $out, $nonce );
+		return array( true, $skip, $skip ? substr( (string) ( $out['mail_why'] ?? '' ), 0, 300 ) : '' );
+	}
+
+	/** True when $out carries HQ's signature over "dshq-hq\nmail-skip\n<this host>\n<time>\n<nonce>", time within 5 minutes. */
+	private static function hq_signed_skip( array $out, $nonce ) {
+		$t   = (int) ( $out['mail_t'] ?? 0 );
+		$sig = base64_decode( (string) ( $out['mail_sig'] ?? '' ), true );
+		$pub = base64_decode( defined( 'DS_HQ_LINK_PUBKEY' ) ? DS_HQ_LINK_PUBKEY : self::HQ_PUBKEY, true );
+		if ( ! $sig || 64 !== strlen( $sig ) || ! $pub || 32 !== strlen( $pub ) || abs( time() - $t ) > self::HQ_SKEW ) {
+			return false;
+		}
+		self::sodium();
+		return sodium_crypto_sign_verify_detached( $sig, "dshq-hq\nmail-skip\n" . self::host() . "\n$t\n$nonce", $pub );
 	}
 
 	/* ------------------------------------------------------------------ */

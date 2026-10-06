@@ -6,12 +6,12 @@ All notable changes to DS Toolkit are documented here.
 
 ## [1.10.27] - 2026-10-06
 ### Changed
-- **Tripwire alert emails wait for Design Shop HQ's decision while the site's HQ link is healthy, and fail safe** (Alipio, 2026-10-06: "please do all your recommendation"). HQ now closes a repeat of a false alarm it has already resolved for that site by itself; until now the site still emailed it.
-  - When the link is healthy (an HQ key, status active, a report accepted within two check-in intervals plus an hour), an alert email is held, the alert report carries its hold id, and HQ's reply says `send` or `skip`. HQ skips **only** a repeat it auto-resolved (every file the same path, size and md5 as one a person already marked a vendor false positive or our own files on that site); anything else, an unknown answer or no answer at all, sends.
-  - Fail-safe: anything held for 30 minutes is sent anyway (one-off cron event, and again at the start of every daily run in case that event was lost). A report HQ refuses for good, or a link retired on HQ, sends its held email at once. A late decision never sends a second email. When the link is not healthy, nothing is held and the email goes immediately as before.
-  - `ds_tripwire_last_notify` records `held`, `skipped` (with HQ's reason) or the deadline send.
-- **Alert reports to HQ carry the flagged file's full md5**, its size and, for a plugin file, the plugin folder and version, so HQ matches repeats on the full hash (the email text still shows the short 8-character form). The full md5 is only sent when the file on disk still has the size and prefix the scan saw.
-- New: `tests/hq-mail-hold-test.php` (24 checks: when to hold, skip/send/no answer, HQ unreachable, deadline, no double send, refused/retired, file details). All other suites unchanged.
+- **A repeat Tripwire alert email is skipped when Design Shop HQ has already closed it as a false alarm** (Alipio, 2026-10-06: "please do all your recommendation"). HQ already auto-closes a repeat of a false alarm on the dashboard; until now the site still emailed it every day.
+  - Only the content scan can skip, and only when **every** file in the alert is one this site has already emailed about before. A new file, an admin alert or a toolkit integrity alert always emails, so a first warning can never be silenced.
+  - The site asks HQ **inside the same cron or WP-CLI run** that found it: the alert report goes straight to HQ with a fresh nonce (10 s timeout). The email is skipped only when HQ's reply is `mail=skip` **signed by HQ's key over this site's host and that nonce**, within 5 minutes. HQ answers skip only when every file matches one a person closed on that site as a vendor false positive or our own files, on path, size and the **full md5 on both sides**. Any other answer, no answer, a timeout, an HTTP error, a web request, a pending or retired link, or a busy sender emails at once. Nothing is held for later, so nothing can be lost or sent twice.
+  - A skip is recorded in `ds_tripwire_last_skip` (time, tier, line count, HQ's reason). `ds_tripwire_last_notify` keeps meaning "the last email that left".
+- **Alert reports to HQ carry each flagged file's full md5**, path and size (`findings[].file`), so HQ matches repeats on the whole hash. The email text still shows the short 8-character form.
+- New: `tests/hq-mail-decision-test.php` (24 checks: new vs repeat, signed skip, skip signed over another nonce / host / key / too old / unsigned, HQ 500 and timeout, web context, a line without a file, pending, busy lock, retired, WP-CLI, failed wp_mail). All other suites unchanged.
 
 ## [1.10.26] - 2026-10-03
 ### Added

@@ -64,11 +64,6 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_Tripwire {
 
     const CRON_HOOK = 'ds_tripwire_daily';
-    // An alert email held while Design Shop HQ decides (send, or skip a repeat it closed itself). Fail-safe: whatever
-    // is still held after HELD_MAX_AGE is sent anyway, so an HQ outage can never swallow an alert.
-    const HELD_OPT     = 'ds_tripwire_held_mail';
-    const HELD_HOOK    = 'ds_tripwire_held_deadline';
-    const HELD_MAX_AGE = 1800;
     const STATE_OPT = 'ds_tripwire_state';
 
     /**
@@ -210,7 +205,6 @@ class DS_Tripwire {
         // /usr/sbin/sendmail at all; Flywheel's is a setuid shim whose config is unreadable
         // outside a web request), so a CLI test reports a false negative on every site.
         add_action( self::MAILCHECK_HOOK, array( $this, 'run_mailcheck' ) );
-        add_action( self::HELD_HOOK, array( __CLASS__, 'send_overdue_held' ) );
         // Copy every alert and a daily check-in to Design Shop HQ (features/class-ds-hq-link.php).
         require_once __DIR__ . '/class-ds-hq-link.php';
         DS_HQ_Link::boot( $this->settings );
@@ -254,7 +248,6 @@ class DS_Tripwire {
     /* ---------------------------------------------------------------- cron */
 
     public function run_checks() {
-        self::send_overdue_held(); // belt and braces: a held alert never waits past its deadline because a cron event was lost
         $state  = get_option( self::STATE_OPT, array() );
         if ( ! is_array( $state ) ) {
             $state = array();
@@ -1334,6 +1327,8 @@ class DS_Tripwire {
         // record everything at HIGH and above; email CRITICAL only, once per file per day
         $alerted = isset( $c['alerted'] ) ? (array) $c['alerted'] : array();
         $mail    = array();
+        $files   = array(); // per mailed line: the file (path, size, FULL md5) for HQ, or null
+        $repeat  = true;    // every mailed line is a file this site has already emailed about (see alert())
         $record  = array();
         foreach ( $found as $f ) {
             $line     = self::content_line( $f );
@@ -1342,6 +1337,8 @@ class DS_Tripwire {
                 $key = md5( $f['path'] . '|' . $f['md5'] );
                 if ( empty( $alerted[ $key ] ) || ( time() - (int) $alerted[ $key ] ) > DAY_IN_SECONDS ) {
                     $mail[]          = $line;
+                    $files[]         = array( 'path' => (string) $f['path'], 'size' => (int) @filesize( $f['path'] ), 'md5' => strtolower( (string) $f['md5'] ) );
+                    $repeat          = $repeat && ! empty( $alerted[ $key ] );
                     $alerted[ $key ] = time();
                 }
             }
@@ -1351,6 +1348,8 @@ class DS_Tripwire {
             $key      = md5( $pair[1] );
             if ( empty( $alerted[ $key ] ) || ( time() - (int) $alerted[ $key ] ) > DAY_IN_SECONDS ) {
                 $mail[]          = $pair[1];
+                $files[]         = null;
+                $repeat          = false; // toolkit integrity is never HQ's to silence
                 $alerted[ $key ] = time();
             }
         }
@@ -1383,7 +1382,7 @@ class DS_Tripwire {
         update_option( self::STATE_OPT, $state, false );
 
         if ( $mail ) {
-            $this->alert( 'CRITICAL', array_map( function ( $l ) { return '[CRITICAL] ' . $l; }, $mail ) );
+            $this->alert( 'CRITICAL', array_map( function ( $l ) { return '[CRITICAL] ' . $l; }, $mail ), $files, $repeat );
         }
         return $found;
     }
@@ -1521,8 +1520,37 @@ class DS_Tripwire {
 
     /* -------------------------------------------------------------- output */
 
-    /** $tier is CRITICAL or HIGH; it leads the subject so the inbox sorts itself. */
-    private function alert( $tier, array $lines ) {
+    /**
+     * $tier is CRITICAL or HIGH; it leads the subject so the inbox sorts itself.
+     *
+     * $files runs parallel to $lines: the file each line names (path, size, full md5) or null. They go to HQ with the
+     * alert so HQ matches on the full hash.
+     *
+     * $repeat is true only from the content scan, when EVERY line is a file this site has already emailed about
+     * before. Only then may the email be skipped, and only when Design Shop HQ answers, inside this same run, with a
+     * signature over this run's own nonce that the alert repeats a false alarm a person already closed for this site
+     * (DS_HQ_Link::ask_mail). Any other answer, no answer, a timeout or an error sends the email now. Nothing is held
+     * for later, so nothing can be lost; a new file, an admin alert or a toolkit integrity alert always emails.
+     */
+    private function alert( $tier, array $lines, array $files = array(), $repeat = false ) {
+        $asked = array( false, false ); // [ HQ has this alert, HQ signed a skip ]
+        if ( $repeat && class_exists( 'DS_HQ_Link' ) && ( wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) ) {
+            try {
+                $asked = DS_HQ_Link::ask_mail( $tier, $lines, $files );
+            } catch ( \Throwable $e ) {
+                $asked = array( false, false ); // any failure sends the email
+            }
+        }
+        if ( ! empty( $asked[1] ) ) {
+            // ds_tripwire_last_notify stays the last email that left; skips are recorded on their own.
+            update_option( 'ds_tripwire_last_skip', array(
+                'time'  => gmdate( 'c' ),
+                'tier'  => ( 'CRITICAL' === $tier ) ? 'CRITICAL' : 'HIGH',
+                'lines' => count( $lines ),
+                'why'   => (string) ( $asked[2] ?? '' ),
+            ), false );
+            return;
+        }
         // Comma-separated list supported; invalid entries are dropped. The
         // fallback is the shared Design Shop inbox so alerts always reach a
         // person who can route them.
@@ -1552,85 +1580,20 @@ class DS_Tripwire {
               . "3. If the site looks fine to visitors, that is normal — this malware hides from people "
               . "and only shows itself to search engines.\n\n"
               . "— DS Tripwire (part of the DS Toolkit plugin)\n";
-        $subject = '[DS Tripwire] ' . $tier . ' — ' . $host;
-        // While this site's link to Design Shop HQ is healthy, HQ decides whether the email goes: it skips only a repeat
-        // of a false alarm it has already closed for this site, and its silence means "send". Held mail is sent anyway
-        // after HELD_MAX_AGE (deadline cron + every daily run), so the link being down can never swallow an alert.
-        if ( apply_filters( 'ds_tripwire_hold_mail', false, $tier, $lines ) ) {
-            $id   = substr( md5( uniqid( '', true ) . $host ), 0, 12 );
-            $held = get_option( self::HELD_OPT, array() );
-            $held = is_array( $held ) ? $held : array();
-            $held[ $id ] = array( 'to' => array_values( (array) $to ), 'subject' => $subject, 'body' => $body, 'tier' => $tier, 'time' => time() );
-            update_option( self::HELD_OPT, array_slice( $held, -20, null, true ), false );
-            if ( ! wp_next_scheduled( self::HELD_HOOK ) ) {
-                wp_schedule_single_event( time() + self::HELD_MAX_AGE + 60, self::HELD_HOOK );
-            }
-            update_option( 'ds_tripwire_last_notify', array( 'time' => gmdate( 'c' ), 'tier' => $tier, 'to' => implode( ',', (array) $to ), 'held' => $id ), false );
-            do_action( 'ds_tripwire_alert', $tier, $lines, $id );
-            return;
+        $sent = wp_mail( $to, '[DS Tripwire] ' . $tier . ' — ' . $host, $body );
+        // Record what the handoff did. Until now the return was discarded, so no site knew whether
+        // its own alert ever left, and "found something but the mail failed" was unobservable.
+        // NOTE: true only means PHPMailer accepted it, never that it was delivered.
+        update_option( 'ds_tripwire_last_notify', array(
+            'time'      => gmdate( 'c' ),
+            'tier'      => $tier,
+            'to'        => implode( ',', (array) $to ),
+            'accepted'  => (bool) $sent,
+        ), false );
+        // The same alert to Design Shop HQ (DS_HQ_Link), unless ask_mail() already delivered it. Email stays primary.
+        if ( empty( $asked[0] ) ) {
+            do_action( 'ds_tripwire_alert', $tier, $lines, $files );
         }
-        self::deliver( $to, $subject, $body, $tier );
-        // The same alert to Design Shop HQ (DS_HQ_Link). Email stays the primary channel.
-        do_action( 'ds_tripwire_alert', $tier, $lines, '' );
-    }
-
-    /** Send one alert email and record the handoff. True only means PHPMailer accepted it, never that it was delivered. */
-    private static function deliver( $to, $subject, $body, $tier, $note = '' ) {
-        $sent = wp_mail( $to, $subject, $body );
-        update_option( 'ds_tripwire_last_notify', array_filter( array(
-            'time'     => gmdate( 'c' ),
-            'tier'     => $tier,
-            'to'       => implode( ',', (array) $to ),
-            'accepted' => (bool) $sent,
-            'note'     => $note,
-        ), function ( $v ) { return '' !== $v; } ), false );
-        return (bool) $sent;
-    }
-
-    /**
-     * HQ's answer for a held alert: 'skip' drops it (HQ closed it as a repeat of a resolved false alarm), anything else
-     * sends it. Unknown ids are ignored (already sent by the deadline). Returns what happened.
-     */
-    public static function release_held( $id, $decision, $why = '' ) {
-        $held = get_option( self::HELD_OPT, array() );
-        if ( ! is_array( $held ) || ! isset( $held[ $id ] ) ) {
-            return 'unknown';
-        }
-        $m = $held[ $id ];
-        unset( $held[ $id ] );
-        update_option( self::HELD_OPT, $held, false );
-        if ( 'skip' === $decision ) {
-            update_option( 'ds_tripwire_last_notify', array(
-                'time'    => gmdate( 'c' ),
-                'tier'    => $m['tier'],
-                'to'      => implode( ',', (array) $m['to'] ),
-                'skipped' => substr( 'HQ: ' . ( '' !== (string) $why ? (string) $why : 'repeat of a resolved false alarm' ), 0, 200 ),
-            ), false );
-            return 'skipped';
-        }
-        self::deliver( $m['to'], $m['subject'], $m['body'], $m['tier'] );
-        return 'sent';
-    }
-
-    /** Send every held alert older than HELD_MAX_AGE; re-arm the deadline while younger ones remain. */
-    public static function send_overdue_held() {
-        $held = get_option( self::HELD_OPT, array() );
-        if ( ! is_array( $held ) || ! $held ) {
-            return 0;
-        }
-        $n = 0;
-        foreach ( $held as $id => $m ) {
-            if ( time() - (int) ( $m['time'] ?? 0 ) >= self::HELD_MAX_AGE ) {
-                unset( $held[ $id ] );
-                update_option( self::HELD_OPT, $held, false ); // saved before sending: a killed request never mails twice
-                self::deliver( $m['to'], $m['subject'], $m['body'], $m['tier'], 'sent after ' . round( self::HELD_MAX_AGE / 60 ) . ' min without an answer from HQ' );
-                $n++;
-            }
-        }
-        if ( $held && ! wp_next_scheduled( self::HELD_HOOK ) ) {
-            wp_schedule_single_event( time() + self::HELD_MAX_AGE, self::HELD_HOOK );
-        }
-        return $n;
     }
 
     /**
