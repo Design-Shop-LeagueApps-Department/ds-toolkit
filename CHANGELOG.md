@@ -4,6 +4,15 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.27] - 2026-10-06
+### Changed
+- **A repeat Tripwire alert email is skipped when Design Shop HQ has already closed it as a false alarm** (Alipio, 2026-10-06: "please do all your recommendation"). HQ already auto-closes a repeat of a false alarm on the dashboard; until now the site still emailed it every day.
+  - Only the content scan can skip, and only when **every** file in the alert is one this site has already emailed about before, is not on the known-malware deny list, and has a path without whitespace or parentheses (so it cannot be misread as another file in the alert line). A new or changed file, an admin alert or a toolkit integrity alert always emails, so a first warning can never be silenced.
+  - The site asks HQ **inside the same cron or WP-CLI run** that found it: the alert report goes straight to HQ with a fresh nonce (5 s timeout, state read under the send lock). The email is skipped only when HQ's reply is `mail=skip` **signed by HQ's key over this site's host and that nonce**, within 5 minutes. HQ answers skip only when every file matches one **a person** closed on that site as a vendor false positive or our own files, on path, size and the **full md5 on both sides** (HQ's own auto-closes are never evidence, and any "Malware found" at that path vetoes). Any other answer, no answer, a timeout, an HTTP error, a web request, a pending or retired link, or a busy sender emails at once. Nothing is held for later, so nothing can be lost or sent twice.
+  - A skip is recorded in `ds_tripwire_last_skip` (time, tier, line count, HQ's reason). `ds_tripwire_last_notify` keeps meaning "the last email that left".
+- **Alert reports to HQ carry each flagged file's full md5**, path and size (`findings[].file`), so HQ matches repeats on the whole hash. The email text still shows the short 8-character form.
+- New: `tests/hq-mail-decision-test.php` (30 checks: signed skip; skip signed over another nonce / host / key / purpose (proof, checkin-now) / too old / unsigned; HQ 500, 409, 401, 403, 200 with ok=false, timeout; web context; a line without a file; pending; busy lock; retired; WP-CLI; failed wp_mail) and `tests/tripwire-repeat-test.php` (12 checks on the real content scan: first sighting, same day, next-day repeat with full md5, HQ says send, changed file, repeat plus new file, deny-listed hash, path with spaces/parentheses). All other suites unchanged.
+
 ## [1.10.26] - 2026-10-03
 ### Added
 - **Design Shop HQ can roll out toolkit updates to connected sites, which install only signed official releases** (Alipio, 2026-10-03: "ok do an update make sure its double check"). HQ chooses WHEN, never WHAT:

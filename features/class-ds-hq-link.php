@@ -35,6 +35,13 @@
  * and a one-off cron event (FLUSH_HOOK) sends them, one locked flush at a time, at most FLUSH_MAX per run, saving
  * the queue after every accepted report. In cron or WP-CLI (the scans) it flushes straight away.
  *
+ * Repeat alerts. When every file in a content-scan alert is one this site has already emailed about, Tripwire asks HQ
+ * before mailing it again (ask_mail): the alert report goes straight to HQ with a fresh nonce, inside the cron run that
+ * found it. The email is skipped ONLY when HQ's reply carries mail=skip with a signature by HQ's key over
+ * "dshq-hq\nmail-skip\n<this host>\n<time>\n<nonce>", time within 5 minutes. HQ answers skip only when every file has the
+ * same path, size and full md5 as one a person closed on this site as a vendor false positive or our own files. Anything
+ * else sends the email in the same run, so a first warning can never be silenced and nothing waits on a later run.
+ *
  * Updates. HQ's reply to a report may carry a signed update order; features/class-ds-hq-update.php checks it and
  * installs that signed GitHub release itself. HQ can choose when, never what (see that file).
  *
@@ -76,7 +83,7 @@ class DS_HQ_Link {
 		DS_HQ_Update::boot();
 		add_action( 'rest_api_init', array( __CLASS__, 'rest_routes' ) );
 		add_action( 'ds_tripwire_checked', array( __CLASS__, 'on_checked' ), 10, 1 );
-		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 2 );
+		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 3 );
 		add_action( self::ENROLL_HOOK, array( __CLASS__, 'enroll' ) );
 		add_action( self::CHECKIN_HOOK, array( __CLASS__, 'on_checked' ) );
 		add_action( self::FLUSH_HOOK, array( __CLASS__, 'flush' ) );
@@ -441,16 +448,91 @@ class DS_HQ_Link {
 	}
 
 	/** Every Tripwire alert mail: the same lines as an alert. */
-	public static function on_alert( $tier, $lines ) {
-		$f = array();
-		foreach ( (array) $lines as $l ) {
+	public static function on_alert( $tier, $lines, $files = array() ) {
+		self::send( 'alert', self::alert_findings( $tier, $lines, $files ) );
+	}
+
+	/** Alert lines ("[TIER] text") -> findings, each with the file it names (path, size, full md5) when known. */
+	private static function alert_findings( $tier, $lines, $files ) {
+		$f     = array();
+		$files = array_values( (array) $files );
+		foreach ( array_values( (array) $lines ) as $i => $l ) {
 			if ( preg_match( '/^\[([A-Z]+)\]\s*(.*)$/s', (string) $l, $m ) ) {
-				$f[] = array( 'tier' => $m[1], 'text' => $m[2] );
+				$one = array( 'tier' => $m[1], 'text' => $m[2] );
 			} else {
-				$f[] = array( 'tier' => (string) $tier, 'text' => (string) $l );
+				$one = array( 'tier' => (string) $tier, 'text' => (string) $l );
+			}
+			$file = $files[ $i ] ?? null;
+			if ( is_array( $file ) && preg_match( '/^[0-9a-f]{32}$/', (string) ( $file['md5'] ?? '' ) ) ) {
+				$one['file'] = array( 'path' => (string) ( $file['path'] ?? '' ), 'size' => (int) ( $file['size'] ?? 0 ), 'md5' => (string) $file['md5'] );
+			}
+			$f[] = $one;
+		}
+		return $f;
+	}
+
+	/**
+	 * Ask HQ whether a repeat alert email can be skipped (see "Repeat alerts" in the class docblock).
+	 * Returns [ HQ took the report, skip, why ]. Only a 200 with a valid signed skip for THIS nonce returns skip = true;
+	 * every other outcome returns false so the caller emails. When HQ did not take the report, the caller queues it as
+	 * usual (on_alert), so HQ still gets the alert.
+	 */
+	public static function ask_mail( $tier, array $lines, array $files ) {
+		$no = array( false, false, '' );
+		if ( ! self::has_key() || 'active' !== ( self::state()['status'] ?? '' ) || ! $lines || count( $lines ) !== count( $files ) || count( $lines ) > 300 ) {
+			return $no;
+		}
+		$findings = self::alert_findings( $tier, $lines, $files );
+		foreach ( $findings as $f ) {
+			if ( empty( $f['file']['md5'] ) ) {
+				return $no; // a line without a full md5 can never be matched, so do not ask
 			}
 		}
-		self::send( 'alert', $f );
+		if ( ! self::lock() ) {
+			return $no; // another report is being sent right now; do not wait for it
+		}
+		try {
+			$s = self::state(); // read under the lock, so last_t is current
+			if ( 'active' !== ( $s['status'] ?? '' ) ) {
+				return $no;
+			}
+			$nonce        = bin2hex( random_bytes( 16 ) );
+			$body         = self::payload( 'alert', $findings );
+			$body['hold'] = $nonce;
+			// 5 s, not 10: the scan has already saved its state, and a cron run killed while waiting would lose the email.
+			list( $code, $out ) = self::post( 'report', $body, $s, 5 );
+		} catch ( \Throwable $e ) {
+			return $no; // unknown whether HQ got it: email, and queue it (a duplicate on HQ is harmless, a gap is not)
+		} finally {
+			self::unlock();
+		}
+		if ( 200 !== $code || ! is_array( $out ) ) {
+			return $no;
+		}
+		// HQ has the report from here on: whatever happens next, never report it again, and email unless skip verifies.
+		try {
+			$s2            = self::state();
+			$s2['last_ok'] = time();
+			$s2['status']  = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
+			$s2['error']   = '';
+			self::save( $s2 );
+			$skip = 'skip' === ( $out['mail'] ?? '' ) && self::hq_signed_skip( $out, $nonce );
+		} catch ( \Throwable $e ) {
+			$skip = false;
+		}
+		return array( true, $skip, $skip ? substr( (string) ( $out['mail_why'] ?? '' ), 0, 300 ) : '' );
+	}
+
+	/** True when $out carries HQ's signature over "dshq-hq\nmail-skip\n<this host>\n<time>\n<nonce>", time within 5 minutes. */
+	private static function hq_signed_skip( array $out, $nonce ) {
+		$t   = (int) ( $out['mail_t'] ?? 0 );
+		$sig = base64_decode( (string) ( $out['mail_sig'] ?? '' ), true );
+		$pub = base64_decode( defined( 'DS_HQ_LINK_PUBKEY' ) ? DS_HQ_LINK_PUBKEY : self::HQ_PUBKEY, true );
+		if ( ! $sig || 64 !== strlen( $sig ) || ! $pub || 32 !== strlen( $pub ) || abs( time() - $t ) > self::HQ_SKEW ) {
+			return false;
+		}
+		self::sodium();
+		return sodium_crypto_sign_verify_detached( $sig, "dshq-hq\nmail-skip\n" . self::host() . "\n$t\n$nonce", $pub );
 	}
 
 	/* ------------------------------------------------------------------ */

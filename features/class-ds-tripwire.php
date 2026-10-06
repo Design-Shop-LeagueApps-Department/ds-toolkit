@@ -1301,6 +1301,7 @@ class DS_Tripwire {
                 if ( ! empty( $f['md5'] ) && ! empty( $f['path'] ) && self::vendor_verified( $f['path'], $f['md5'] ) ) { $cleared++; return; }
                 // name it if we have identified this exact file before (bundled list + remote deny list)
                 if ( ! empty( $f['md5'] ) && isset( $bad[ $f['md5'] ] ) ) {
+                    $f['known_bad'] = true; // never a "repeat": HQ must not be asked to silence named malware
                     $f['reasons'] = array_merge(
                         array( 'KNOWN MALWARE: ' . $bad[ $f['md5'] ] ),
                         isset( $f['reasons'] ) ? (array) $f['reasons'] : array()
@@ -1327,6 +1328,8 @@ class DS_Tripwire {
         // record everything at HIGH and above; email CRITICAL only, once per file per day
         $alerted = isset( $c['alerted'] ) ? (array) $c['alerted'] : array();
         $mail    = array();
+        $files   = array(); // per mailed line: the file (path, size, FULL md5) for HQ, or null
+        $repeat  = true;    // every mailed line is a file this site has already emailed about (see alert())
         $record  = array();
         foreach ( $found as $f ) {
             $line     = self::content_line( $f );
@@ -1335,6 +1338,10 @@ class DS_Tripwire {
                 $key = md5( $f['path'] . '|' . $f['md5'] );
                 if ( empty( $alerted[ $key ] ) || ( time() - (int) $alerted[ $key ] ) > DAY_IN_SECONDS ) {
                     $mail[]          = $line;
+                    $files[]         = array( 'path' => (string) $f['path'], 'size' => (int) @filesize( $f['path'] ), 'md5' => strtolower( (string) $f['md5'] ) );
+                    // A repeat only when this exact file was emailed before, is not on the deny list, and its path
+                    // cannot be misread in the alert line (whitespace or parentheses could pose as another file).
+                    $repeat          = $repeat && ! empty( $alerted[ $key ] ) && empty( $f['known_bad'] ) && ! preg_match( '/[\s()]/', (string) $f['path'] );
                     $alerted[ $key ] = time();
                 }
             }
@@ -1344,6 +1351,8 @@ class DS_Tripwire {
             $key      = md5( $pair[1] );
             if ( empty( $alerted[ $key ] ) || ( time() - (int) $alerted[ $key ] ) > DAY_IN_SECONDS ) {
                 $mail[]          = $pair[1];
+                $files[]         = null;
+                $repeat          = false; // toolkit integrity is never HQ's to silence
                 $alerted[ $key ] = time();
             }
         }
@@ -1376,7 +1385,7 @@ class DS_Tripwire {
         update_option( self::STATE_OPT, $state, false );
 
         if ( $mail ) {
-            $this->alert( 'CRITICAL', array_map( function ( $l ) { return '[CRITICAL] ' . $l; }, $mail ) );
+            $this->alert( 'CRITICAL', array_map( function ( $l ) { return '[CRITICAL] ' . $l; }, $mail ), $files, $repeat );
         }
         return $found;
     }
@@ -1514,8 +1523,37 @@ class DS_Tripwire {
 
     /* -------------------------------------------------------------- output */
 
-    /** $tier is CRITICAL or HIGH; it leads the subject so the inbox sorts itself. */
-    private function alert( $tier, array $lines ) {
+    /**
+     * $tier is CRITICAL or HIGH; it leads the subject so the inbox sorts itself.
+     *
+     * $files runs parallel to $lines: the file each line names (path, size, full md5) or null. They go to HQ with the
+     * alert so HQ matches on the full hash.
+     *
+     * $repeat is true only from the content scan, when EVERY line is a file this site has already emailed about
+     * before. Only then may the email be skipped, and only when Design Shop HQ answers, inside this same run, with a
+     * signature over this run's own nonce that the alert repeats a false alarm a person already closed for this site
+     * (DS_HQ_Link::ask_mail). Any other answer, no answer, a timeout or an error sends the email now. Nothing is held
+     * for later, so nothing can be lost; a new file, an admin alert or a toolkit integrity alert always emails.
+     */
+    private function alert( $tier, array $lines, array $files = array(), $repeat = false ) {
+        $asked = array( false, false ); // [ HQ has this alert, HQ signed a skip ]
+        if ( $repeat && class_exists( 'DS_HQ_Link' ) && ( wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) ) {
+            try {
+                $asked = DS_HQ_Link::ask_mail( $tier, $lines, $files );
+            } catch ( \Throwable $e ) {
+                $asked = array( false, false ); // any failure sends the email
+            }
+        }
+        if ( ! empty( $asked[1] ) ) {
+            // ds_tripwire_last_notify stays the last email that left; skips are recorded on their own.
+            update_option( 'ds_tripwire_last_skip', array(
+                'time'  => gmdate( 'c' ),
+                'tier'  => ( 'CRITICAL' === $tier ) ? 'CRITICAL' : 'HIGH',
+                'lines' => count( $lines ),
+                'why'   => (string) ( $asked[2] ?? '' ),
+            ), false );
+            return;
+        }
         // Comma-separated list supported; invalid entries are dropped. The
         // fallback is the shared Design Shop inbox so alerts always reach a
         // person who can route them.
@@ -1555,8 +1593,10 @@ class DS_Tripwire {
             'to'        => implode( ',', (array) $to ),
             'accepted'  => (bool) $sent,
         ), false );
-        // The same alert to Design Shop HQ (DS_HQ_Link). Email stays the primary channel.
-        do_action( 'ds_tripwire_alert', $tier, $lines );
+        // The same alert to Design Shop HQ (DS_HQ_Link), unless ask_mail() already delivered it. Email stays primary.
+        if ( empty( $asked[0] ) ) {
+            do_action( 'ds_tripwire_alert', $tier, $lines, $files );
+        }
     }
 
     /**
