@@ -129,14 +129,33 @@ class DS_Programs_Module extends FLBuilderModule {
 		// Programs stay grouped (a tournament's age groups together), groups
 		// ordered by date or name, age groups ascending within each group.
 		$sort = (string) ( $s->sort_by ?? 'date_asc' );
-		usort( $rows, function ( $a, $b ) use ( $sort ) {
+
+		// A group's place in the list is the GROUP's own start, taken as the earliest
+		// start in it, and every row in that group compares on it. Comparing each
+		// row's own startTs across groups is NOT a group-consistent order: a series'
+		// later sessions sort past a different program that starts in between, the
+		// group is split, and the stranded sub-programs read as if they belonged to
+		// the program now above them. Absolute VB, 2026-10-06: a six-session boys
+		// series starting Oct 16 kept its first three rows and had the other four
+		// pushed below the winter program that starts Oct 24.
+		$group_ts = array();
+		foreach ( $rows as $r ) {
+			$ts = (int) $r['startTs'];
+			if ( ! $ts ) { continue; }
+			$gk = (string) $r['groupKey'];
+			if ( ! isset( $group_ts[ $gk ] ) || $ts < $group_ts[ $gk ] ) { $group_ts[ $gk ] = $ts; }
+		}
+
+		usort( $rows, function ( $a, $b ) use ( $sort, $group_ts ) {
 			// A main program listed with its sub-programs leads its group.
 			if ( ( $a['groupKey'] === $b['groupKey'] ) && ( ! empty( $a['isMaster'] ) !== ! empty( $b['isMaster'] ) ) ) {
 				return ! empty( $a['isMaster'] ) ? -1 : 1;
 			}
 			if ( $a['groupKey'] !== $b['groupKey'] ) {
-				if ( 'name' === $sort ) { return strcasecmp( $a['program'], $b['program'] ) ?: ( $a['startTs'] <=> $b['startTs'] ); }
-				$c = $a['startTs'] <=> $b['startTs'];
+				$ta = $group_ts[ (string) $a['groupKey'] ] ?? 0;
+				$tb = $group_ts[ (string) $b['groupKey'] ] ?? 0;
+				if ( 'name' === $sort ) { return strcasecmp( $a['program'], $b['program'] ) ?: ( $ta <=> $tb ); }
+				$c = $ta <=> $tb;
 				if ( 'date_desc' === $sort ) { $c = -$c; }
 				return $c ?: strcasecmp( $a['program'], $b['program'] );
 			}

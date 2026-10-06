@@ -4,6 +4,16 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.29] - 2026-10-06
+### Fixed
+- **Programs: a main program's sub-programs stay grouped under it whatever the sort order** (Absolute VB, reported by the partner 2026-10-06, raised by Iris). Benji created a new six-session registration and saw the main program with **only 3 of its 7 sub-programs**, the other 4 rendering under a different program entirely ("2026 LL/JJ/AA Winter Program, which is not even correct").
+  - **Cause:** the row comparator ordered **groups** by **each row's own `startTs`**, which is not a group-consistent order. The boys series starts Oct 16 and runs to Nov 20; the winter program starts Oct 24, so it sorted between that series' Oct 23 and Oct 30 sessions, split the group, and stranded the remaining sub-programs below it where they read as the winter program's own.
+  - **"Program name A to Z" was unaffected only by luck:** `program` holds the master's name on every row in a group, so that cross-group key is constant within a group. The date key was not. Switching to A to Z is the workaround those sites are on.
+  - **Fix:** a group's place in the list is now the **group's own start**, taken as the earliest start in it, and every row in that group compares on it. `date_desc` is now the exact reverse of `date_asc` rather than a different grouping.
+  - **The same defect was in the client-side sort**, which ordered every row flat with no knowledge of `data-parent`, so a column header or the sort select split groups the same way. `sorted()` now orders the main programs and keeps each sub-program directly under its own parent.
+  - Verified read-only against the live feed that produced the report: 1 split group before, **0 after across all three orders**, all 8 rows of the boys series together, `date_desc` an exact reverse.
+  - New: `tests/programs-group-sort-test.php` (15 checks on that real feed shape: no group split under any order, each group opens with its main program, group ordering by the group's own start, the partner's exact symptom, and an undated group). **4 of the 15 fail against the old comparator**, so the test genuinely guards the regression.
+
 ## [1.10.28] - 2026-10-06
 ### Added
 - **CTA: Style 7, Program Pathway** (GH #288, KD). Numbered program cards: a large photo, an oversized outlined number (01, 02, 03) overlapping the photo's lower-left edge above a line in the same colour, a bold title with its category label beside it, and a description, on an optional faint vertical grid. It reads the **same Program Cards list as Style 6** (Image, Sub-heading as the label, Title, Description, Link); Date, Icon and Button Text stay Style 6 fields and are not shown, so a list can switch between the two styles without re-entry.

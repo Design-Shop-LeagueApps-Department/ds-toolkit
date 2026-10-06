@@ -59,21 +59,45 @@
 				return q.split(/\s+/).every(function (w) { return hay.indexOf(w) !== -1; });
 			}
 
-			function sorted(list) {
+			function comparator() {
 				if (!state.sortKey) {
-					return list.slice().sort(function (a, b) { return (+a.getAttribute('data-i')) - (+b.getAttribute('data-i')); });
+					return function (a, b) { return (+a.getAttribute('data-i')) - (+b.getAttribute('data-i')); };
 				}
 				var attr = 'data-s-' + state.sortKey.toLowerCase();
 				var num  = state.sortType === 'num';
 				var dir  = state.sortDir === 'desc' ? -1 : 1;
-				return list.slice().sort(function (a, b) {
+				return function (a, b) {
 					var av = a.getAttribute(attr) || '', bv = b.getAttribute(attr) || '';
 					var c;
 					if (num) { c = (parseFloat(av) || 0) - (parseFloat(bv) || 0); }
 					else { c = av < bv ? -1 : (av > bv ? 1 : 0); }
 					if (c === 0) { return (+a.getAttribute('data-i')) - (+b.getAttribute('data-i')); }
 					return c * dir;
+				};
+			}
+
+			// A sub-program is never ordered against the whole table: it stays
+			// directly under its main program, which is the row that carries the
+			// group's place in the list. Sorting every row flat splits a group the
+			// moment another program's value falls between two of its sub-programs,
+			// and the stranded ones then read as belonging to the program above them.
+			function sorted(list) {
+				var cmp = comparator();
+				var kids = {}, tops = [], present = {};
+				list.forEach(function (r) { present[r.getAttribute('data-i')] = 1; });
+				list.forEach(function (r) {
+					var p = r.getAttribute('data-parent');
+					if (p && present[p]) { (kids[p] = kids[p] || []).push(r); }
+					else { tops.push(r); }
 				});
+				tops.sort(cmp);
+				var out = [];
+				tops.forEach(function (r) {
+					out.push(r);
+					var k = kids[r.getAttribute('data-i')];
+					if (k) { k.sort(cmp); k.forEach(function (c) { out.push(c); }); }
+				});
+				return out;
 			}
 
 			function renderPager(total) {
