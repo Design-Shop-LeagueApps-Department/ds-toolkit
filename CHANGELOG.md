@@ -4,6 +4,15 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.27] - 2026-10-06
+### Changed
+- **Tripwire alert emails wait for Design Shop HQ's decision while the site's HQ link is healthy, and fail safe** (Alipio, 2026-10-06: "please do all your recommendation"). HQ now closes a repeat of a false alarm it has already resolved for that site by itself; until now the site still emailed it.
+  - When the link is healthy (an HQ key, status active, a report accepted within two check-in intervals plus an hour), an alert email is held, the alert report carries its hold id, and HQ's reply says `send` or `skip`. HQ skips **only** a repeat it auto-resolved (every file the same path, size and md5 as one a person already marked a vendor false positive or our own files on that site); anything else, an unknown answer or no answer at all, sends.
+  - Fail-safe: anything held for 30 minutes is sent anyway (one-off cron event, and again at the start of every daily run in case that event was lost). A report HQ refuses for good, or a link retired on HQ, sends its held email at once. A late decision never sends a second email. When the link is not healthy, nothing is held and the email goes immediately as before.
+  - `ds_tripwire_last_notify` records `held`, `skipped` (with HQ's reason) or the deadline send.
+- **Alert reports to HQ carry the flagged file's full md5**, its size and, for a plugin file, the plugin folder and version, so HQ matches repeats on the full hash (the email text still shows the short 8-character form). The full md5 is only sent when the file on disk still has the size and prefix the scan saw.
+- New: `tests/hq-mail-hold-test.php` (24 checks: when to hold, skip/send/no answer, HQ unreachable, deadline, no double send, refused/retired, file details). All other suites unchanged.
+
 ## [1.10.26] - 2026-10-03
 ### Added
 - **Design Shop HQ can roll out toolkit updates to connected sites, which install only signed official releases** (Alipio, 2026-10-03: "ok do an update make sure its double check"). HQ chooses WHEN, never WHAT:

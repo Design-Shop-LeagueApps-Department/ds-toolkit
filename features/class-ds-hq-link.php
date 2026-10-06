@@ -76,7 +76,8 @@ class DS_HQ_Link {
 		DS_HQ_Update::boot();
 		add_action( 'rest_api_init', array( __CLASS__, 'rest_routes' ) );
 		add_action( 'ds_tripwire_checked', array( __CLASS__, 'on_checked' ), 10, 1 );
-		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 2 );
+		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 3 );
+		add_filter( 'ds_tripwire_hold_mail', array( __CLASS__, 'hold_mail' ) );
 		add_action( self::ENROLL_HOOK, array( __CLASS__, 'enroll' ) );
 		add_action( self::CHECKIN_HOOK, array( __CLASS__, 'on_checked' ) );
 		add_action( self::FLUSH_HOOK, array( __CLASS__, 'flush' ) );
@@ -304,11 +305,18 @@ class DS_HQ_Link {
 	 * Queue a report and get it sent without holding up the caller: in cron or WP-CLI (the scans) it is sent now,
 	 * anywhere else (an admin creating a user, a page view) a one-off cron event sends it.
 	 */
-	public static function send( $kind, array $findings ) {
+	public static function send( $kind, array $findings, $hold = '' ) {
 		if ( 'retired' === ( self::state()['status'] ?? '' ) && self::has_key() ) {
+			if ( '' !== $hold && class_exists( 'DS_Tripwire' ) ) {
+				DS_Tripwire::release_held( $hold, 'send' ); // never hold mail for a link that will not report
+			}
 			return; // retired on HQ: stay quiet until someone presses Reconnect on this site (email alerts still go)
 		}
-		self::enqueue( self::payload( $kind, $findings ) );
+		$p = self::payload( $kind, $findings );
+		if ( '' !== $hold ) {
+			$p['hold'] = $hold;
+		}
+		self::enqueue( $p );
 		if ( wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
 			self::flush();
 		} elseif ( ! wp_next_scheduled( self::FLUSH_HOOK ) ) {
@@ -385,6 +393,7 @@ class DS_HQ_Link {
 				list( $code, $out ) = self::post( 'report', (array) $body );
 				if ( 200 === $code ) {
 					self::shift();
+					self::decide_held( (array) $body, $out );
 					$s2            = self::state();
 					$s2['last_ok'] = time();
 					$s2['status']  = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
@@ -394,6 +403,9 @@ class DS_HQ_Link {
 				}
 				if ( 403 === $code && 'retired' === ( $out['code'] ?? '' ) ) {
 					// Retired on HQ. Never re-enroll by ourselves (that would undo the Retire); drop what is queued.
+					foreach ( (array) ( self::state()['queue'] ?? array() ) as $qb ) {
+						self::decide_held( (array) $qb, null ); // their held emails go now
+					}
 					$s2           = self::state();
 					$s2['status'] = 'retired';
 					$s2['queue']  = array();
@@ -421,6 +433,7 @@ class DS_HQ_Link {
 				if ( 0 === $code || $code >= 500 || 429 === $code || 409 === $code ) {
 					break;
 				}
+				self::decide_held( (array) $body, null ); // its held email goes now: this report will never be accepted
 				self::shift(); // any other refusal (bad signature, malformed) cannot be fixed by resending
 			}
 		} finally {
@@ -435,22 +448,84 @@ class DS_HQ_Link {
 		}
 	}
 
+	/**
+	 * Hold an alert email for HQ's decision only while the link is clearly healthy: a key, active (not pending, not
+	 * retired), and a report accepted within two check-in intervals plus an hour. Anything else mails at once.
+	 */
+	public static function healthy() {
+		$s = self::state();
+		return self::has_key() && 'active' === ( $s['status'] ?? '' ) && time() - (int) ( $s['last_ok'] ?? 0 ) < 2 * self::every() + 3600;
+	}
+
+	public static function hold_mail( $hold ) {
+		return $hold || self::healthy();
+	}
+
+	/**
+	 * Structured details of the file a finding names ("... /path/x.php (1234 bytes, md5 abcd1234, ...)"): the FULL md5
+	 * (read from disk, only when size and the 8-character prefix still match, so a file changed since the scan is never
+	 * described wrongly), and for a plugin file the plugin folder and its version. HQ matches repeats on the full hash.
+	 */
+	public static function file_details( $text ) {
+		if ( ! preg_match( '#(/\S+?)\s*\((\d+) bytes, md5 ([0-9a-f]{8})\b#', (string) $text, $m ) ) {
+			return array();
+		}
+		$path = $m[1];
+		$out  = array( 'path' => $path, 'size' => (int) $m[2] );
+		if ( @is_file( $path ) && (int) @filesize( $path ) === (int) $m[2] ) {
+			$md5 = (string) @md5_file( $path );
+			if ( 0 === strpos( $md5, $m[3] ) ) {
+				$out['md5'] = $md5;
+			}
+		}
+		if ( preg_match( '#/wp-content/plugins/([^/]+)/#', $path, $p ) ) {
+			$out['plugin'] = $p[1];
+			if ( ! function_exists( 'get_plugins' ) && defined( 'ABSPATH' ) && is_readable( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/plugin.php';
+			}
+			if ( function_exists( 'get_plugins' ) ) {
+				foreach ( (array) get_plugins() as $file => $data ) {
+					if ( 0 === strpos( $file, $p[1] . '/' ) ) {
+						$out['version'] = (string) ( $data['Version'] ?? '' );
+						break;
+					}
+				}
+			}
+		}
+		return $out;
+	}
+
 	/** After the daily Tripwire run: today's state as a check-in. */
 	public static function on_checked( $findings = null ) {
 		self::send( 'checkin', self::findings_from_state() );
 	}
 
-	/** Every Tripwire alert mail: the same lines as an alert. */
-	public static function on_alert( $tier, $lines ) {
+	/** Every Tripwire alert mail: the same lines as an alert, each with its file details, and the held-mail id if any. */
+	public static function on_alert( $tier, $lines, $hold = '' ) {
 		$f = array();
 		foreach ( (array) $lines as $l ) {
 			if ( preg_match( '/^\[([A-Z]+)\]\s*(.*)$/s', (string) $l, $m ) ) {
-				$f[] = array( 'tier' => $m[1], 'text' => $m[2] );
+				$x = array( 'tier' => $m[1], 'text' => $m[2] );
 			} else {
-				$f[] = array( 'tier' => (string) $tier, 'text' => (string) $l );
+				$x = array( 'tier' => (string) $tier, 'text' => (string) $l );
 			}
+			$file = self::file_details( $x['text'] );
+			if ( $file ) {
+				$x['file'] = $file;
+			}
+			$f[] = $x;
 		}
-		self::send( 'alert', $f );
+		self::send( 'alert', $f, (string) $hold );
+	}
+
+	/** Pass HQ's decision on a held alert email to Tripwire (no decision in the reply = send). */
+	private static function decide_held( $body, $out ) {
+		$hold = (string) ( $body['hold'] ?? '' );
+		if ( '' === $hold || ! class_exists( 'DS_Tripwire' ) ) {
+			return;
+		}
+		$d = is_array( $out ) ? (string) ( $out['mail'] ?? 'send' ) : 'send';
+		DS_Tripwire::release_held( $hold, 'skip' === $d ? 'skip' : 'send', is_array( $out ) ? (string) ( $out['mail_why'] ?? '' ) : '' );
 	}
 
 	/* ------------------------------------------------------------------ */
