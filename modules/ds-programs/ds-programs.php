@@ -220,9 +220,9 @@ class DS_Programs_Module extends FLBuilderModule {
 		return array_values( $out );
 	}
 
-	/** "120", "120px", "20%" -> a safe CSS length, else ''. */
 	/**
-	 * Location scope: one entry per line (commas also split), trimmed, blanks dropped.
+	 * Location scope: one entry per line, trimmed, blanks dropped. Not split on
+	 * commas: a location name can hold one ("Fort Bragg, NC").
 	 * One region's LeagueApps site often holds many bases, so a page for one base
 	 * scopes by location, as the hosted widget does with its hidden Location filter.
 	 */
@@ -244,6 +244,7 @@ class DS_Programs_Module extends FLBuilderModule {
 		return false;
 	}
 
+	/** "120", "120px", "20%" -> a safe CSS length, else ''. */
 	public static function css_length( $v ) {
 		$v = trim( $v );
 		if ( '' === $v ) { return ''; }
