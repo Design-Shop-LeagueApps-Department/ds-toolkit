@@ -12,6 +12,9 @@ All notable changes to DS Toolkit are documented here.
   - A program with no location is left out while a scope is set. **Blank (the default) lists every location, so every existing module renders exactly as before.**
   - New: `tests/programs-location-scope-test.php` (15 checks on the real Tiny Troops Eastern location names, reading the two helpers out of the shipped module file rather than a copy). The other Programs tests still pass (feed, group-sort 15/15, season-links 17/17).
 
+- **Programs: a "Show filters" switch** (Filters tab > Filter bar, default Yes, so existing modules are unchanged). Turning the filters off used to mean deleting every filter row, and Beaver Builder's Add button works by copying the last row, so with none left it did nothing and the filters could not be added back (found on the Tiny Troops test page, 2026-10-08). The switch keeps the rows and hides them; the bar above the list disappears when filters, search, count and sorting are all off.
+- **Tripwire allow list:** two entries for thepaohio.com's WP Staging backup archives (PR #294, merged after 1.10.29 without a version of its own). A stopgap until PR #291; a new backup on that site alerts again.
+
 ## [1.10.29] - 2026-10-06
 ### Fixed
 - **Programs: a main program's sub-programs stay grouped under it whatever the sort order** (Absolute VB, reported by the partner 2026-10-06, raised by Iris). Benji created a new six-session registration and saw the main program with **only 3 of its 7 sub-programs**, the other 4 rendering under a different program entirely ("2026 LL/JJ/AA Winter Program, which is not even correct").

@@ -256,6 +256,7 @@ class DS_Programs_Module extends FLBuilderModule {
 	 * @return array key => array( label, all, multi )
 	 */
 	public function chosen_filters() {
+		if ( 'no' === ( $this->settings->show_filters ?? 'yes' ) ) { return array(); }
 		$cat = DS_Programs_Data::catalog();
 		$out = array();
 		foreach ( (array) ( $this->settings->filters ?? array() ) as $row ) {
@@ -555,6 +556,14 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 				'title'       => __( 'Filter bar', 'ds-toolkit' ),
 				'description' => __( 'Drag to reorder. A filter with fewer than two values in the current listing hides itself.', 'ds-toolkit' ),
 				'fields'      => array(
+					'show_filters' => array(
+						'type'    => 'select',
+						'label'   => __( 'Show filters', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'filters' ) ) ),
+						'help'    => __( 'Switch the filters off here rather than deleting them: they are kept for when you switch back, and the Add button needs at least one filter to copy. With filters, search, count and sorting all off, the bar above the list is not shown at all.', 'ds-toolkit' ),
+					),
 					'filters' => array(
 						'type'         => 'form',
 						'form'         => 'ds_programs_filter_form',
