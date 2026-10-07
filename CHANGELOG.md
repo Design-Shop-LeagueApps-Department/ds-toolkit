@@ -4,6 +4,17 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.30] - 2026-10-08
+### Added
+- **Programs: a Locations scope, so one page can list one location out of a region** (Tiny Troops Soccer, ticket 464663, 2026-10-06). One LeagueApps site often covers many locations: Tiny Troops' Eastern site alone holds Fort Bragg, Camp Lejeune, Quantico, Shaw AFB, Fort Belvoir and more, and each base has its own page. The hosted widget scopes those pages with a hidden Location filter. The module could only scope by site, so a base page listed the whole region, which blocked the module from replacing the widget there.
+  - **New field, Programs tab > What to show > Locations:** one entry per line. A program is listed when its LeagueApps location **contains** one of the entries, case-insensitively, so "Fort Bragg" keeps every Fort Bragg field and a new field added at that base later is picked up without editing the page. Several lines combine as OR. Pasting the hosted widget's exact location names also works and gives the same rows.
+  - Lines are **not** split on commas, because a location name can hold one ("Fort Bragg, NC"). A field renamed in LeagueApps away from the base name (Tiny Troops' "Fort Liberty/... Formerly Ft Bragg") is not caught by the base name and needs its own line; the help text says so.
+  - A program with no location is left out while a scope is set. **Blank (the default) lists every location, so every existing module renders exactly as before.**
+  - New: `tests/programs-location-scope-test.php` (15 checks on the real Tiny Troops Eastern location names, reading the two helpers out of the shipped module file rather than a copy). The other Programs tests still pass (feed, group-sort 15/15, season-links 17/17).
+
+- **Programs: a "Show filters" switch** (Filters tab > Filter bar, default Yes, so existing modules are unchanged). Turning the filters off used to mean deleting every filter row, and Beaver Builder's Add button works by copying the last row, so with none left it did nothing and the filters could not be added back (found on the Tiny Troops test page, 2026-10-08). The switch keeps the rows and hides them; the bar above the list disappears when filters, search, count and sorting are all off.
+- **Tripwire allow list:** two entries for thepaohio.com's WP Staging backup archives (PR #294, merged after 1.10.29 without a version of its own). A stopgap until PR #291; a new backup on that site alerts again.
+
 ## [1.10.29] - 2026-10-06
 ### Fixed
 - **Programs: a main program's sub-programs stay grouped under it whatever the sort order** (Absolute VB, reported by the partner 2026-10-06, raised by Iris). Benji created a new six-session registration and saw the main program with **only 3 of its 7 sub-programs**, the other 4 rendering under a different program entirely ("2026 LL/JJ/AA Winter Program, which is not even correct").

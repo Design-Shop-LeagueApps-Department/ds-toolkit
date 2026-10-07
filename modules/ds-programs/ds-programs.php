@@ -111,15 +111,17 @@ class DS_Programs_Module extends FLBuilderModule {
 		$state = strtoupper( (string) ( $s->state_filter ?? '' ) );
 		$sport = trim( (string) ( $s->sport_filter ?? '' ) );
 		if ( '' === $sport ) { $sport = trim( (string) ( $s->sport_text ?? '' ) ); }
+		$locs = self::location_list( $s->location_scope ?? '' );
 		$hide_sold   = 'yes' === ( $s->hide_sold_out ?? 'no' );
 		$hide_closed = 'yes' === ( $s->hide_closed ?? 'no' );
 		$hide_canc   = 'yes' === ( $s->hide_canceled ?? 'no' );
 
-		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $state, $sport, $hide_sold, $hide_closed, $hide_canc ) {
+		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $state, $sport, $locs, $hide_sold, $hide_closed, $hide_canc ) {
 			if ( $types && ! in_array( $r['typeRaw'], $types, true ) ) { return false; }
 			if ( $mode && $r['modeRaw'] !== $mode ) { return false; }
 			if ( $state && $r['stateRaw'] !== $state ) { return false; }
 			if ( '' !== $sport && 0 !== strcasecmp( $r['sport'], $sport ) ) { return false; }
+			if ( $locs && ! self::location_matches( (string) ( $r['location'] ?? '' ), $locs ) ) { return false; }
 			if ( $hide_sold && $r['soldOut'] ) { return false; }
 			if ( $hide_canc && ! empty( $r['canceled'] ) ) { return false; }
 			if ( $hide_closed && 'CLOSED' === $r['statusRaw'] ) { return false; }
@@ -218,6 +220,30 @@ class DS_Programs_Module extends FLBuilderModule {
 		return array_values( $out );
 	}
 
+	/**
+	 * Location scope: one entry per line, trimmed, blanks dropped. Not split on
+	 * commas: a location name can hold one ("Fort Bragg, NC").
+	 * One region's LeagueApps site often holds many bases, so a page for one base
+	 * scopes by location, as the hosted widget does with its hidden Location filter.
+	 */
+	public static function location_list( $v ) {
+		$out = array();
+		foreach ( preg_split( '/[\r\n]+/', (string) $v ) as $l ) {
+			$l = trim( $l );
+			if ( '' !== $l ) { $out[] = $l; }
+		}
+		return array_values( array_unique( $out ) );
+	}
+
+	/** True when the location contains any scope entry, case-insensitively. */
+	public static function location_matches( $location, array $locs ) {
+		if ( '' === trim( $location ) ) { return false; }
+		foreach ( $locs as $l ) {
+			if ( false !== ( function_exists( 'mb_stripos' ) ? mb_stripos( $location, $l ) : stripos( $location, $l ) ) ) { return true; }
+		}
+		return false;
+	}
+
 	/** "120", "120px", "20%" -> a safe CSS length, else ''. */
 	public static function css_length( $v ) {
 		$v = trim( $v );
@@ -231,6 +257,7 @@ class DS_Programs_Module extends FLBuilderModule {
 	 * @return array key => array( label, all, multi )
 	 */
 	public function chosen_filters() {
+		if ( 'no' === ( $this->settings->show_filters ?? 'yes' ) ) { return array(); }
 		$cat = DS_Programs_Data::catalog();
 		$out = array();
 		foreach ( (array) ( $this->settings->filters ?? array() ) as $row ) {
@@ -453,6 +480,13 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 						'placeholder' => 'Soccer (Outdoor)',
 						'help'        => __( 'Used only when the Sport list above is blank or empty. Type it exactly as LeagueApps names it.', 'ds-toolkit' ),
 					),
+					'location_scope' => array(
+						'type'        => 'textarea',
+						'label'       => __( 'Locations', 'ds-toolkit' ),
+						'rows'        => 3,
+						'placeholder' => "Fort Bragg\nHoneycutt Park",
+						'help'        => __( 'One per line. Lists only programs whose LeagueApps location contains one of these words, e.g. "Fort Bragg" keeps every Fort Bragg field and drops the rest of the region. A field renamed in LeagueApps (Fort Liberty) needs its own line. Not case sensitive. Blank = every location.', 'ds-toolkit' ),
+					),
 					'state_filter' => array(
 						'type'    => 'select',
 						'label'   => __( 'Season status', 'ds-toolkit' ),
@@ -523,6 +557,14 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 				'title'       => __( 'Filter bar', 'ds-toolkit' ),
 				'description' => __( 'Drag to reorder. A filter with fewer than two values in the current listing hides itself.', 'ds-toolkit' ),
 				'fields'      => array(
+					'show_filters' => array(
+						'type'    => 'select',
+						'label'   => __( 'Show filters', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'filters' ) ) ),
+						'help'    => __( 'Switch the filters off here rather than deleting them: they are kept for when you switch back, and the Add button needs at least one filter to copy. With filters, search, count and sorting all off, the bar above the list is not shown at all.', 'ds-toolkit' ),
+					),
 					'filters' => array(
 						'type'         => 'form',
 						'form'         => 'ds_programs_filter_form',
