@@ -891,6 +891,22 @@ class DS_Tripwire {
 
         foreach ( (array) scandir( $root ) as $e ) {
             if ( '.' === $e || '..' === $e || preg_match( self::ROOT_ALLOW, $e ) ) continue;
+            /* .maintenance is WordPress's own updater marker: core writes it when an update starts and
+               deletes it when the update ends, so a scan that lands in that window sees it legitimately.
+               It is NOT in ROOT_ALLOW by name on purpose - the comment on that constant is the rule, and
+               a bare name there would wave through a shell called .maintenance. Hash-allow-listing is
+               unwinnable too, because the whole body is a timestamp and every leftover differs. So match
+               the SHAPE, exactly as includes/ds-scan-engine.php already does for the same file; anything
+               else wearing the name falls through and is judged normally.
+               3hlhockey.com, 2026-10-07: HIGH on a 33-byte .maintenance, which is precisely the length of
+               core's own "<?php $upgrading = <10-digit epoch>; ?>". The engine knew; this rule did not. */
+            if ( '.maintenance' === strtolower( $e ) ) {
+                // $p is not assigned until further down the loop, so build the path here.
+                $body = (string) @file_get_contents( $root . '/' . $e, false, null, 0, 512 );
+                if ( preg_match( '/^\s*<\?php\s*\$upgrading\s*=\s*\d+\s*;\s*(\?>)?\s*$/', $body ) ) {
+                    continue;
+                }
+            }
             // A site's OWN bespoke web-root code is a documented false-positive class
             // (SCANNER-SPEC section 4). brsoccer.org keeps a 2019 schedules app in /www/events/,
             // /www/classes/ and /www/require/ that bb-theme-child/header.php requires on every
