@@ -456,11 +456,21 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 	<?php /* Mirror the overlay's persistent top-level item background. */ ?>
 	<?php echo $node; ?> .ds-drill .ds-drill-panel.is-root .ds-drill-row:not(.ds-drill-cta) { background: <?php echo $oitembg; ?> !important; }
 	<?php endif; ?>
+	<?php /* Root rows must carry their own colour. The label is a <span> inside a
+	   <button>, so with no rule here it inherits Beaver Builder's global button TEXT
+	   colour and renders dark on a dark drawer: 1.14:1 on absolutevb.com, 1.12:1 on
+	   dsstormbball, i.e. an invisible mobile menu. Only the :hover state was ever
+	   emitted for .is-root. $otext always resolves (it defaults to white), so this is
+	   safe to emit unconditionally. The label is named explicitly because BB's
+	   `button *` paints the span, not the button. */ ?>
+	<?php echo $node; ?> .ds-drill .ds-drill-panel.is-root .ds-drill-row:not(.ds-drill-cta),
+	<?php echo $node; ?> .ds-drill .ds-drill-panel.is-root .ds-drill-row:not(.ds-drill-cta) .ds-drill-label { color: <?php echo $otext; ?> !important; }
 	<?php /* Full parity with the overlay's Style-tab semantics:
 	   subtext colours the deeper (submenu-equivalent) panels, the hover colours
 	   apply per level, and the CTA honours Full Width in Mobile Overlay. */ ?>
 	<?php if ( $osub && $osub !== $otext ) : ?>
-	<?php echo $node; ?> .ds-drill .ds-drill-panel:not(.is-root) .ds-drill-row:not(.ds-drill-cta) { color: <?php echo $osub; ?> !important; }
+	<?php echo $node; ?> .ds-drill .ds-drill-panel:not(.is-root) .ds-drill-row:not(.ds-drill-cta),
+	<?php echo $node; ?> .ds-drill .ds-drill-panel:not(.is-root) .ds-drill-row:not(.ds-drill-cta) .ds-drill-label { color: <?php echo $osub; ?> !important; }
 	<?php endif; ?>
 	<?php if ( $osubbg ) : ?>
 	<?php echo $node; ?> .ds-drill .ds-drill-panel:not(.is-root) .ds-drill-row:not(.ds-drill-cta) { background: <?php echo $osubbg; ?> !important; }
