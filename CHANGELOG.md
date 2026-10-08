@@ -4,6 +4,10 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.31] - 2026-10-08
+### Changed
+- **LeagueApps Table: settings say "color", and the header's color field is "Header background color"** (Zay, 2026-10-07: "Please update this in the table to say \"color\" and lets say header background color"). Every label and help line in the Table module's Style tab used the British "colour"; all 13 now read "color", and Header row > "Header colour" is now "Header background color" so it is clear it paints the band, not the text. Wording only: no setting key changed, so every saved table looks and behaves exactly as before.
+
 ## [1.10.30] - 2026-10-08
 ### Added
 - **Programs: a Locations scope, so one page can list one location out of a region** (Tiny Troops Soccer, ticket 464663, 2026-10-06). One LeagueApps site often covers many locations: Tiny Troops' Eastern site alone holds Fort Bragg, Camp Lejeune, Quantico, Shaw AFB, Fort Belvoir and more, and each base has its own page. The hosted widget scopes those pages with a hidden Location filter. The module could only scope by site, so a base page listed the whole region, which blocked the module from replacing the widget there.
