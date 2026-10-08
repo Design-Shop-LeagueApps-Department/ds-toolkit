@@ -4,6 +4,14 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.32] - 2026-10-09
+### Fixed
+- **ds-menu: the mobile drill drawer's top-level labels were invisible on a dark drawer** (Alipio, 2026-10-09, from a partner-facing screenshot of absolutevb.com the day after launch: *"why we keep having contrast issue in mobile menu after launch"*). Measured **1.14:1** there (`rgb(20,20,20)` on `rgb(33,33,33)`) across all 8 top-level items, and **1.12:1** on dsstormbball on 2026-09-22, where it was patched per-site with scoped CSS and the cause was never fixed upstream.
+  - **Cause:** `frontend.css.php` emitted a colour for `.ds-drill-panel:not(.is-root) .ds-drill-row` and for `.is-root .ds-drill-row:hover`, but **never a resting colour for `.is-root`**. The label is a `<span>` inside a `<button>`, so with no rule of its own it inherited Beaver Builder's global button TEXT colour. Any site whose global button text is dark (the normal fix for AA on a light brand button) therefore got a dark menu on a dark drawer. The one item with no children renders as an `<a>`, not a `<button>`, which is why a single label stayed white and the rest went dark.
+  - **Fix:** emit the resting colour for root rows from `overlay_text` (`$otext`, which always resolves and defaults to white), naming `.ds-drill-label` explicitly because BB's `button *` paints the span rather than the button. The deeper panels' `overlay_subtext` rule now names the label for the same reason. `.ds-drill-cta` stays excluded, so the CTA pill is never repainted, and the existing `overlay_text_hover` rule is untouched.
+  - Fleet-wide: every site using the drill drawer (the default mobile style) with a dark global button text colour was affected. No site-level change is needed after updating; sites carrying the dsstormbball-style scoped CSS workaround can drop it.
+  - New: `tests/ds-menu-drill-root-colour-test.php` (9 checks: the root label and row get a colour, it follows `overlay_text` rather than a hardcoded value, the sub-panels still follow `overlay_subtext`, the CTA is never targeted, the hover rule survives, and `mobile_menu_style=overlay` emits no drill rules). **4 of the 9 fail against the previous template.**
+
 ## [1.10.31] - 2026-10-08
 ### Changed
 - **LeagueApps Table: settings say "color", and the header's color field is "Header background color"** (Zay, 2026-10-07: "Please update this in the table to say \"color\" and lets say header background color"). Every label and help line in the Table module's Style tab used the British "colour"; all 13 now read "color", and Header row > "Header colour" is now "Header background color" so it is clear it paints the band, not the text. Wording only: no setting key changed, so every saved table looks and behaves exactly as before.
