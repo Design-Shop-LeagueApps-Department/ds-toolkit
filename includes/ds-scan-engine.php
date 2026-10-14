@@ -380,7 +380,14 @@ function dsscan_scan_file($path, $opts = []) {
                polyglot credit. The behaviour engine below still runs on it unchanged, so a .off file
                that really holds a shell is still convicted on what it does. mdjrs.org 2026-09-26
                emailed CRITICAL for ds-cdn-ttl-test.php.off, a 295-byte header test. */
-            if ($ext === 'off') {
+            /* OUR disable conventions. `.off` was the first; sessions have since invented `.disabled`
+               (timetosign tts-dev-home.php.disabled, 5 CRITICAL emails 8-13 Oct 2026) and
+               `.moved-to-functions` (dspowerfc, HQ event 537). The reasoning below is identical for
+               all three and is about the EXTENSION, not the name: no web server hands any of them to
+               PHP-FPM, so none can execute on its own request and position alone must not convict.
+               Keep this list to suffixes WE document. Deliberately NOT included: `.bak`, `.old`,
+               `.save` and friends, which attackers use and some servers do serve. */
+            if (in_array($ext, ['off', 'disabled', 'moved-to-functions'], true)) {
                 /* A *.php.off file is OUR documented way to disable a mu-plugin, and NO web server
                    hands .off to PHP-FPM, so exactly like the .html template case below it cannot
                    execute on its own request: it needs an include(). So position alone must not
@@ -393,7 +400,7 @@ function dsscan_scan_file($path, $opts = []) {
                    (ds-cdn-ttl-test.php.off, 295 b) does not have one - it opens with a plain comment. */
                 if (!preg_match('/Plugin Name\s*:/i', substr($src, 0, 1024))) {
                     $score += 45;
-                    $reasons[] = "polyglot: this .$ext file IS PHP (opens with a PHP tag); .off is our own disable convention and no web server executes it, so this alone is not proof - stageable via include()";
+                    $reasons[] = "polyglot: this .$ext file IS PHP (opens with a PHP tag); .$ext is one of our own disable conventions and no web server executes it, so this alone is not proof - stageable via include()";
                 }
             } elseif ($ext === 'html' || $ext === 'htm') {
                 $score += 45;
