@@ -101,6 +101,19 @@ foreach ( array(
     ok( (bool) $h, "a malicious .maintenance ($label) MUST still be reported", 'went silent' );
 }
 
+// 4. THE PREFIX-READ ATTACK. wp-includes/load.php line 444 does `require ABSPATH . '.maintenance'`,
+//    so core EXECUTES this file every request while it exists. An earlier cut of this carve-out read
+//    only the first 512 bytes, and the pattern's trailing \s* accepts padding - so a marker plus ~490
+//    bytes of whitespace plus a payload past byte 512 matched, was skipped, and would have run.
+//    These two must be reported, or that hole is back.
+$pad = $O . ' $upgrading = 1790000000; ' . $C . str_repeat( " ", 600 ) . $O . ' system($_GET["c"]); ';
+$h = maint( $pad );
+ok( (bool) $h, 'a padded marker hiding a payload past the old 512-byte read MUST be reported', 'went silent' );
+
+$big = $O . ' $upgrading = 1790000000; ' . $C . str_repeat( " ", 600 );
+$h = maint( $big );
+ok( (bool) $h, 'an oversized .maintenance must be refused the exemption even with no payload', 'went silent' );
+
 echo "tripwire .maintenance test: $PASS passed, $FAIL failed\n";
 @rmdir( $ROOT . '/wp-content' ); @rmdir( $ROOT );
 exit( $FAIL ? 1 : 0 );
