@@ -331,7 +331,16 @@ function dsscan_scan_file($path, $opts = []) {
            zip dropped in a doubled vendor directory is a real IOC we have seen. Nothing is weakened
            for these files either: they are not executable by any web server, and the behaviour rules
            still fire in full on whatever would have to include() one. */
-        $backup_ext = in_array($ext, ['wpstg','wpstgtmp','wpress'], true);
+        /* Tightened in review: the extension ALONE is not evidence - that would hand a free pass to
+           any binary an attacker simply names .wpstg, and on a binary the polyglot test is the ONLY
+           test we run, so the file would get no content check at all. Require the format's magic
+           bytes as well, so the carve-out is earned by the file's SHAPE, which is the same standard
+           the .maintenance rule above uses. WP Staging archives open with "wpstg" (verified on
+           thepaohio.com's two 2.1 GB archives, 2026-10-04).
+           `.wpress` (All-in-One WP Migration) is deliberately NOT here: we have never seen one in the
+           fleet and its header is a 255-byte filename field with no magic string to verify, so there
+           is nothing to earn the exemption with. Add it only with a verified sample. */
+        $backup_ext = in_array($ext, ['wpstg','wpstgtmp'], true) && 0 === strncmp($src, 'wpstg', 5);
         if (!$php_ext && !$backup_ext && preg_match('/<\?php(\s|$)/', $src)) {
             $score += 120;
             $reasons[] = "polyglot: real PHP open tag inside a .$ext binary (extension is camouflage; stageable via include())";
