@@ -7,7 +7,7 @@ function parse(d){var p=d.split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
 function ymd(dt){return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');}
 function shift(ym,n){var p=ym.split('-');var d=new Date(+p[0],+p[1]-1+n,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function label(ym){var p=ym.split('-');return MONTHS[+p[1]-1]+' '+p[0];}
-function cls(e){return e.type==='Tournament'?'t-tour':(e.type==='Game'?'t-game':'t-other');}
+function cls(e){return e.type==='Tournament'?'t-tour':((e.type==='Game'||e.type==='League')?'t-game':'t-other');}
 var UI='fl-content-ui-button ';
 
 function init(root){
@@ -26,30 +26,46 @@ function init(root){
   if(title){root.style.setProperty('--dslc-head',getComputedStyle(title).fontFamily);}
 
   if(sel){
-    var teams=data.teams||[];
+    var teams=data.teams||[], progs=data.programs||[];
+    function add(parent,label,value){var o=document.createElement('option');o.value=value;o.textContent=label;parent.appendChild(o);}
     if(cfg.groupByAge){
       var groups={};
       teams.forEach(function(t){var m=/^(\d+)/.exec(t);var k=m?m[1]+'s':'Other';(groups[k]=groups[k]||[]).push(t);});
       Object.keys(groups).sort(function(a,b){return (parseInt(a)||999)-(parseInt(b)||999);}).forEach(function(k){
         var og=document.createElement('optgroup');og.label=k;
-        groups[k].forEach(function(t){var o=document.createElement('option');o.value=t;o.textContent=t;og.appendChild(o);});
+        groups[k].forEach(function(t){add(og,t,'t:'+t);});
         sel.appendChild(og);
       });
-    }else{
-      teams.forEach(function(t){var o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
+    }else if(teams.length){
+      var tg=progs.length?document.createElement('optgroup'):sel; if(progs.length){tg.label=cfg.teamsLabel||'Teams';sel.appendChild(tg);}
+      teams.forEach(function(t){add(tg,t,'t:'+t);});
+    }
+    if(progs.length){
+      var pg=document.createElement('optgroup');pg.label=cfg.programsLabel||'Programs';
+      progs.forEach(function(t){add(pg,t,'p:'+t);});
+      sel.appendChild(pg);
     }
   }
 
+  function isProg(e){return e.kind==='prog'||e.kind==='deadline';}
   function visible(){
     if(!state.team){return events;}
-    return events.filter(function(e){return e.teams.some(function(t){return t.n===state.team;});});
+    var v=state.team.slice(2);
+    if(state.team.indexOf('p:')===0){return events.filter(function(e){return isProg(e)&&e.grp===v;});}
+    return events.filter(function(e){return !isProg(e)&&e.teams.some(function(t){return t.n===v;});});
   }
-  function teamTime(e){var t=e.teams.filter(function(x){return x.n===state.team;})[0];return t&&t.t?t.t:'';}
+  function markText(e){return e.kind==='deadline'?'Registration closes':(e.mark==='start'?'Starts':(e.mark==='end'?'Ends':''));}
+  function curTeam(){return state.team.indexOf('t:')===0?state.team.slice(2):'';}
+  function teamTime(e){var t=e.teams.filter(function(x){return x.n===curTeam();})[0];return t&&t.t?t.t:'';}
   function teamText(e){
-    if(state.team){var tt=teamTime(e);return state.team+(tt?' · '+tt:'');}
+    if(isProg(e)){var m=markText(e);if(m){return m;}var n=e.teams.length;return e.time||(e.times?'Times vary':(n>1?n+' groups':(n===1?e.teams[0].n:'')));}
+    if(curTeam()){var tt=teamTime(e);return curTeam()+(tt?' · '+tt:'');}
     var n=e.teams.length;return n?(n===1?e.teams[0].n:n+' teams'):(e.time||'');
   }
-  function whenText(e){return (state.team&&teamTime(e))||e.time||(e.times?'Times vary by team':'All day');}
+  function whenText(e){
+    if(isProg(e)){var m=markText(e);return m?(e.kind==='deadline'?m:'Season '+m.toLowerCase())+(e.time?' · '+e.time:''):(e.time||(e.times?'Times vary by group':'All day'));}
+    return (curTeam()&&teamTime(e))||e.time||(e.times?'Times vary by team':'All day');
+  }
   function byDay(list){var m={};list.forEach(function(e){(m[e.d]=m[e.d]||[]).push(e);});return m;}
 
   var upcoming=events.filter(function(e){return e.d>=today;});
@@ -60,17 +76,17 @@ function init(root){
   function chip(e){
     return '<button type="button" class="'+UI+'dslc-chip '+cls(e)+'" data-i="'+events.indexOf(e)+'"><b>'+esc(e.title)+'</b><span>'+esc(teamText(e))+'</span></button>';
   }
-  function teamsHtml(teams){
+  function teamsHtml(teams,prog,vary){
     if(!cfg.showTeams||!teams.length){return '';}
-    var ul='<ul class="dslc-teams">'+teams.map(function(t){return '<li>'+esc(t.n)+'</li>';}).join('')+'</ul>';
-    return teams.length>cfg.collapseAfter?'<details class="dslc-tm"><summary>'+teams.length+' teams</summary>'+ul+'</details>':ul;
+    var ul='<ul class="dslc-teams">'+teams.map(function(t){return '<li>'+esc(t.n)+(prog&&vary&&t.t?' <span>· '+esc(t.t)+'</span>':'')+'</li>';}).join('')+'</ul>';
+    return teams.length>cfg.collapseAfter?'<details class="dslc-tm"><summary>'+teams.length+(prog?' groups':' teams')+'</summary>'+ul+'</details>':ul;
   }
   // Consecutive days of the same event at the same place read as one list entry ("Jan 16-17").
   function spans(list){
     var out=[];
     list.forEach(function(e){
       var p=out[out.length-1];
-      if(p&&p.e.title===e.title&&p.e.loc===e.loc){
+      if(p&&p.e.title===e.title&&p.e.loc===e.loc&&(p.e.kind||'')===(e.kind||'')&&!markText(e)&&!markText(p.e)){
         var nd=parse(p.end);nd.setDate(nd.getDate()+1);
         if(ymd(nd)===e.d){
           p.end=e.d;
@@ -85,13 +101,13 @@ function init(root){
   }
   function rowHtml(s){
     var e=s.e,d=parse(e.d),end=parse(s.end),multi=s.end!==e.d;
-    var when=state.team?whenText(e):(multi?(s.time||'All days'):whenText(e));
+    var when=curTeam()?whenText(e):(multi?(s.time||'All days'):whenText(e));
     var num=multi?(d.getMonth()===end.getMonth()?d.getDate()+'–'+end.getDate():d.getDate()+'+'):d.getDate();
     var dow=multi?DOW[d.getDay()]+'–'+DOW[end.getDay()]:DOW[d.getDay()];
     return '<div class="dslc-row"><div class="dslc-date'+(multi?' is-multi':'')+'"><small>'+dow+'</small><strong>'+num+'</strong><small>'+MONTHS[d.getMonth()].slice(0,3)+'</small></div><div>'+
       '<h3><button type="button" class="'+UI+'" data-i="'+events.indexOf(e)+'">'+esc(e.title)+'</button></h3>'+
-      '<p class="dslc-meta"><span class="dslc-tag '+cls(e)+'">'+esc(e.label||e.type)+'</span>'+esc(when)+(e.loc?' · '+esc(e.loc):'')+'</p>'+
-      (state.team?'':teamsHtml(s.teams))+'</div></div>';
+      '<p class="dslc-meta"><span class="dslc-tag '+cls(e)+'">'+esc(e.label||e.type)+'</span>'+esc(isProg(e)?whenText(e):when)+(e.loc?' · '+esc(e.loc):'')+'</p>'+
+      (curTeam()&&!isProg(e)?'':teamsHtml(s.teams,isProg(e),!!e.times))+'</div></div>';
   }
   function listHtml(list,months){
     var h='',cur='';
@@ -144,16 +160,19 @@ function init(root){
   function open(e){
     var d=parse(e.d), map=(e.lat&&e.lng)?'https://www.google.com/maps/search/?api=1&query='+e.lat+','+e.lng:(e.loc?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(e.loc):'');
     var bodyEl=root.querySelector('.dslc-dialog-body'), tid=bodyEl.dataset.titleId;
-    var teams=cfg.showTeams?e.teams.map(function(t){return '<li>'+esc(t.n)+(e.times&&t.t?' <span>· '+esc(t.t)+'</span>':'')+'</li>';}).join(''):'';
+    var prog=isProg(e), word=prog?'group':'team';
+    var teams=cfg.showTeams?e.teams.map(function(t){return '<li>'+esc(t.n)+((e.times||prog)&&t.t&&!e.time?' <span>· '+esc(t.t)+'</span>':'')+'</li>';}).join(''):'';
     bodyEl.innerHTML=
       '<span class="dslc-tag '+cls(e)+'">'+esc(e.label||e.type)+'</span>'+
       '<h3 id="'+esc(tid)+'">'+esc(e.title)+'</h3>'+
       '<dl class="dslc-dl"><dt>Date</dt><dd>'+DOW[d.getDay()]+', '+MONTHS[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()+'</dd>'+
-      '<dt>Time</dt><dd>'+esc(e.time||(e.times?'Times vary by team':'All day'))+'</dd>'+
+      '<dt>Time</dt><dd>'+esc(prog?whenText(e):(e.time||(e.times?'Times vary by team':'All day')))+'</dd>'+
       (e.loc?'<dt>Where</dt><dd>'+esc(e.loc)+'</dd>':'')+
       (e.note?'<dt>Notes</dt><dd>'+esc(e.note)+'</dd>':'')+'</dl>'+
-      (teams?'<p class="dslc-meta" style="margin-top:16px;font-weight:600;color:var(--c-text)">'+e.teams.length+' team'+(e.teams.length>1?'s':'')+'</p><ul class="dslc-teams">'+teams+'</ul>':'')+
-      '<div class="dslc-links">'+(e.url&&cfg.websiteText?'<a class="dslc-btn" href="'+esc(e.url)+'" target="_blank" rel="noopener">'+esc(cfg.websiteText)+'</a>':'')+
+      (teams?'<p class="dslc-meta" style="margin-top:16px;font-weight:600;color:var(--c-text)">'+e.teams.length+' '+word+(e.teams.length>1?'s':'')+'</p><ul class="dslc-teams">'+teams+'</ul>':'')+
+      '<div class="dslc-links">'+(e.reg&&cfg.registerText?'<a class="dslc-btn" href="'+esc(e.reg)+'" target="_blank" rel="noopener">'+esc(cfg.registerText)+'</a>':'')+
+      (e.more&&cfg.detailsText&&e.more!==e.reg?'<a class="dslc-btn alt" href="'+esc(e.more)+'" target="_blank" rel="noopener">'+esc(cfg.detailsText)+'</a>':'')+
+      (e.url&&cfg.websiteText?'<a class="dslc-btn" href="'+esc(e.url)+'" target="_blank" rel="noopener">'+esc(cfg.websiteText)+'</a>':'')+
       (map&&cfg.directionsText?'<a class="dslc-btn alt" href="'+esc(map)+'" target="_blank" rel="noopener">'+esc(cfg.directionsText)+'</a>':'')+'</div>';
     if(dlg.showModal){dlg.showModal();}else{dlg.setAttribute('open','');}
   }

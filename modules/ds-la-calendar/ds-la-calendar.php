@@ -33,13 +33,24 @@ class DS_Calendar_Module extends FLBuilderModule {
 		$s     = $this->settings;
 		$ids   = ( 'pick' === ( $s->sites_mode ?? 'all' ) ) ? array_filter( (array) ( $s->sites_pick ?? array() ) ) : array();
 		$data  = DS_Calendar_Data::get( array_map( 'strval', $ids ) );
+		$data  = DS_Calendar_Data::apply_program_settings( $data, array(
+			'show'      => 'no' !== ( $s->prog_show ?? 'yes' ),
+			'types'     => self::list_value( $s->prog_types ?? '' ),
+			'mode'      => (string) ( $s->prog_mode ?? 'sessions' ),
+			'deadlines' => 'yes' === ( $s->prog_deadlines ?? 'no' ),
+			'register'  => 'no' !== ( $s->prog_register ?? 'yes' ),
+		) );
 		$types = self::list_value( $s->types ?? '' );
 		$teams = ( 'pick' === ( $s->teams_mode ?? 'all' ) ) ? self::list_value( $s->teams_pick ?? '' ) : array();
 
 		if ( $types || $teams ) {
 			$data['events'] = array_values( array_filter( $data['events'], function ( $e ) use ( $types, $teams ) {
-				if ( $types && ! in_array( $e['type'], $types, true ) ) {
-					return false;
+				$kind = $e['kind'] ?? '';
+				if ( $teams && ( 'prog' === $kind || 'deadline' === $kind ) ) {
+					return false; // a one-team calendar is that team's schedule only
+				}
+				if ( $types && 'deadline' !== $kind && ! in_array( $e['type'], $types, true ) ) {
+					return false; // deadlines follow the Program dates switch, not the type list
 				}
 				if ( $teams ) {
 					$e_teams = wp_list_pluck( $e['teams'], 'n' );
@@ -50,7 +61,8 @@ class DS_Calendar_Module extends FLBuilderModule {
 				return true;
 			} ) );
 			if ( $teams ) {
-				$data['teams'] = array_values( array_intersect( $data['teams'], $teams ) );
+				$data['teams']    = array_values( array_intersect( $data['teams'], $teams ) );
+				$data['programs'] = array(); // a one-team calendar is that team's schedule only
 			}
 		}
 		return $data;
@@ -75,7 +87,7 @@ class DS_Calendar_Module extends FLBuilderModule {
 
 	public static function type_options() {
 		$out = array();
-		foreach ( array_unique( array_merge( array( 'Tournament', 'Game', 'Practice' ), DS_Calendar_Data::known( 'types' ) ) ) as $t ) {
+		foreach ( array_unique( array_merge( array( 'Tournament', 'Game', 'Practice', 'League', 'Camp', 'Clinic', 'Class', 'Event' ), DS_Calendar_Data::known( 'types' ) ) ) as $t ) {
 			$out[ $t ] = $t;
 		}
 		return $out;
@@ -223,6 +235,49 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 					),
 				),
 			),
+			'programs' => array(
+				'title'  => __( 'Program dates', 'ds-toolkit' ),
+				'fields' => array(
+					'prog_show' => array(
+						'type'    => 'button-group',
+						'label'   => __( 'Show camps, clinics, classes, leagues, tournaments and events', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => $ds_la_cal_yes_no,
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'prog_types', 'prog_mode', 'prog_register', 'register_text', 'details_text', 'prog_deadlines' ) ) ),
+						'help'    => __( 'From their LeagueApps program dates, so families see everything in one place, not only team schedules. A program that has its own schedule in LeagueApps shows that schedule instead. Club teams always come from their schedules.', 'ds-toolkit' ),
+					),
+					'prog_types' => array(
+						'type'         => 'select',
+						'label'        => __( 'Program types', 'ds-toolkit' ),
+						'options'      => array( 'Camp' => __( 'Camps', 'ds-toolkit' ), 'Clinic' => __( 'Clinics', 'ds-toolkit' ), 'Class' => __( 'Classes', 'ds-toolkit' ), 'League' => __( 'Leagues', 'ds-toolkit' ), 'Tournament' => __( 'Tournaments', 'ds-toolkit' ), 'Event' => __( 'Events', 'ds-toolkit' ) ),
+						'multi-select' => true,
+						'help'         => __( 'Leave empty to show every type.', 'ds-toolkit' ),
+					),
+					'prog_mode' => array(
+						'type'    => 'select',
+						'label'   => __( 'Show each program as', 'ds-toolkit' ),
+						'default' => 'sessions',
+						'options' => array( 'sessions' => __( 'Every session (each camp day, each league night)', 'ds-toolkit' ), 'first' => __( 'Its first day only', 'ds-toolkit' ), 'startend' => __( 'Its first and last day', 'ds-toolkit' ) ),
+						'help'    => __( 'Season-long programs (a league that plays most days, or one with no set days) always show as a start and an end.', 'ds-toolkit' ),
+					),
+					'prog_register' => array(
+						'type'    => 'button-group',
+						'label'   => __( 'Register button in the pop-up', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => $ds_la_cal_yes_no,
+						'help'    => __( 'Only while registration is open in LeagueApps.', 'ds-toolkit' ),
+					),
+					'register_text'  => array( 'type' => 'text', 'label' => __( 'Register button text', 'ds-toolkit' ), 'default' => __( 'Register', 'ds-toolkit' ), 'size' => 14 ),
+					'details_text'   => array( 'type' => 'text', 'label' => __( 'Program page button text', 'ds-toolkit' ), 'default' => __( 'Program details', 'ds-toolkit' ), 'size' => 18, 'help' => __( 'Links to the program on LeagueApps. Leave empty to hide.', 'ds-toolkit' ) ),
+					'prog_deadlines' => array(
+						'type'    => 'button-group',
+						'label'   => __( 'Show registration deadlines', 'ds-toolkit' ),
+						'default' => 'no',
+						'options' => $ds_la_cal_yes_no,
+						'help'    => __( 'Adds a "Registration closes" entry on the last day to register.', 'ds-toolkit' ),
+					),
+				),
+			),
 			'views' => array(
 				'title'  => __( 'Views', 'ds-toolkit' ),
 				'fields' => array(
@@ -315,7 +370,7 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 				'fields' => array(
 					'c_tour'  => $ds_la_cal_color( __( 'Tournaments', 'ds-toolkit' ), __( 'Empty = Global Styles Secondary. Events show as a soft tint of this colour with dark text, so any colour stays readable.', 'ds-toolkit' ) ),
 					'c_game'  => $ds_la_cal_color( __( 'Games', 'ds-toolkit' ) ),
-					'c_other' => $ds_la_cal_color( __( 'Practices and everything else', 'ds-toolkit' ) ),
+					'c_other' => $ds_la_cal_color( __( 'Practices, camps, clinics and everything else', 'ds-toolkit' ), __( 'Leagues use the Games colour.', 'ds-toolkit' ) ),
 					'chip_style' => array(
 						'type'    => 'button-group',
 						'label'   => __( 'Event style', 'ds-toolkit' ),
