@@ -4,6 +4,17 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.34] - 2026-10-16
+### Changed
+- **A site that is still being BUILT no longer emails for our own build work.** Alipio, 2026-10-16: *"im fed up with this, staging link, we have staging link because we are continuesly creating partner website, it keep notifying us."* Measured first, over 90 days of Design Shop HQ findings: temp-URL hosts produced **99 alerts across 63 sites and not one was ever verdict `real`**, while **all 204** real compromises were on live custom domains. Three good rules simply cannot tell a build from an intrusion — a new site-specific mu-plugin, a build script or `_dsmig_*` dir in the web root, and the partner's own staff being made administrators at handover (goldstarlax raised three of those in 70 seconds on 2026-10-15).
+  - **This is a notification policy, never a detection policy.** On a pre-launch site the four build-shaped findings are demoted to `REVIEW`, which is the same mechanism the web-root scan already uses for a repeat entry: they stay in the findings array, so **HQ still receives every one of them** through `ds_tripwire_checked`. They are delivered to the dashboard instead of the inbox.
+  - **Nothing malware-shaped is ever suppressed, anywhere.** A web shell found by behaviour, a known-bad hash, a guard `.htaccess`, a doubled-directory nest, an attacker toolbox folder and a fake Search Console token all still mail from a build site, because a build site can absolutely be compromised — it has simply never been compromised through those four rules.
+  - **Lifecycle is read from `home_url()`**, which is the signal we already trust: launching *is* moving `home_url()` to the partner's domain (QA-REVIEW F7/H11), so launch re-arms everything automatically with no flag to remember to clear. `*.wpenginepowered.com`, `*.flywheelsites.com`, `.local`, `.test` and `localhost` count as pre-launch; a hostname that merely *contains* one of those strings does not.
+  - `DS_Tripwire::alert()` gains a record-only mode so the immediate new-administrator alert can reach HQ without mailing, and every suppression writes `ds_tripwire_prelaunch_quiet` (time, host, how many held) — a scanner that goes quiet has to be able to say why.
+  - New: `tests/tripwire-prelaunch-test.php` (26 checks). Beyond the happy path it pins the safety line: **eight real malware strings from this fleet must still mail**, a live domain must never read as pre-launch, suffix spoofs (`wpenginepowered.com.evil.net`, `notwpenginepowered.com`) must not match, and `BUILD_NOISE` must stay at four entries with nothing malware-shaped in it.
+
+---
+
 ## [1.10.33] - 2026-10-14
 ### Fixed
 - **Three Tripwire rules that mailed CRITICAL for files that were never malware.** Measured over 30 days of Design Shop HQ findings before changing anything: these three classes produced **25 findings across 10 sites and have never once been a true positive** (every one closed `ours` or `vendor`). The two noisiest classes overall — the character-table rule and web-root strays — were deliberately left alone, because each *has* caught real malware; those stay suppressed by known-good hash, never by softening a rule.

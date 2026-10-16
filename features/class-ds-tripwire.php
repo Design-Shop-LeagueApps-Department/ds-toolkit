@@ -247,6 +247,58 @@ class DS_Tripwire {
 
     /* ---------------------------------------------------------------- cron */
 
+    /**
+     * Is this site still pre-launch? A site that has not launched is still serving on the platform's
+     * own temp hostname, because launching IS moving home_url() to the partner's domain
+     * (QA-REVIEW F7/H11). So home_url() is the lifecycle signal, and it is one we already trust.
+     *
+     * Measured 2026-10-16 over 90 days of HQ findings: temp-URL hosts produced 99 alerts across 63
+     * sites and **not one** was ever verdict `real`, while every compromise we have ever had (204)
+     * was on a live custom domain. Build work simply looks like an intrusion to a few rules.
+     */
+    public static function prelaunch() {
+        $host = strtolower( (string) wp_parse_url( (string) home_url(), PHP_URL_HOST ) );
+        if ( '' === $host ) {
+            return false; // cannot tell: treat as live and keep mailing
+        }
+        if ( 'localhost' === $host || '.local' === substr( $host, -6 ) || '.test' === substr( $host, -5 ) ) {
+            return true;
+        }
+        foreach ( array( '.wpenginepowered.com', '.flywheelsites.com' ) as $suffix ) {
+            if ( substr( $host, -strlen( $suffix ) ) === $suffix ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Findings that OUR OWN build work produces, and which therefore must not page anyone while a
+     * site is still being built. Matched on the literal lead phrase, anchored at position 0, so the
+     * interpolated filename that follows can never earn or dodge the match.
+     *
+     * This list is deliberately tiny and contains NO malware-shaped rule. A web shell found by
+     * behaviour, a known-bad hash, a guard .htaccess, a doubled-directory nest, an attacker toolbox
+     * folder or a fake Search Console token still mails from a build site, because a build site can
+     * absolutely be compromised - it has just never been compromised through these four.
+     */
+    const BUILD_NOISE = array(
+        'A new PHP file appeared in mu-plugins since yesterday:',
+        'Unexpected executable file in the web root:',
+        'Unexpected folder ',
+        'A new administrator just appeared on this site:',
+    );
+
+    /** True when $text is one of the build-shaped findings above. */
+    public static function is_build_noise( $text ) {
+        foreach ( self::BUILD_NOISE as $lead ) {
+            if ( 0 === strpos( (string) $text, $lead ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public function run_checks() {
         $state  = get_option( self::STATE_OPT, array() );
         if ( ! is_array( $state ) ) {
@@ -282,6 +334,29 @@ class DS_Tripwire {
         $state['last_run']      = time();
         $state['last_findings'] = array_map( function ( $p ) { return $p[0] . ': ' . $p[1]; }, $f );
         update_option( self::STATE_OPT, $state, false );
+
+        /* Pre-launch: the build-shaped findings are RECORDED but not mailed. Demoting to REVIEW is
+           the mechanism the web-root scan already uses for a repeat entry, and REVIEW stays in $f,
+           so HQ still receives every one of them through ds_tripwire_checked below. Nothing is
+           hidden - it is delivered to the dashboard instead of the inbox, and the launch gate
+           reviews the build-period findings before go-live. */
+        if ( self::prelaunch() ) {
+            $quiet = 0;
+            foreach ( $f as $i => $p ) {
+                if ( 'REVIEW' !== $p[0] && self::is_build_noise( $p[1] ) ) {
+                    $f[ $i ][0] = 'REVIEW';
+                    $quiet++;
+                }
+            }
+            if ( $quiet ) {
+                // A scanner that goes quiet has to be able to say why.
+                update_option( 'ds_tripwire_prelaunch_quiet', array(
+                    'time' => gmdate( 'c' ),
+                    'host' => (string) wp_parse_url( (string) home_url(), PHP_URL_HOST ),
+                    'held' => $quiet,
+                ), false );
+            }
+        }
 
         $mail = array_filter( $f, function ( $p ) { return 'REVIEW' !== $p[0]; } );
         // After the alert below has gone out, so a slow HQ can never delay the email.
@@ -1117,13 +1192,19 @@ class DS_Tripwire {
             return;
         }
 
+        /* On a pre-launch build the producer is often newly added themselves, so actor_is_established()
+           above cannot help: goldstarlax raised three of these in 70 seconds on 2026-10-15 while
+           onboarding the partner's own staff. Record it for HQ, do not mail it. */
         $this->alert(
             'HIGH',
             array(
                 "A new administrator just appeared on this site: {$user->user_login} <{$user->user_email}> ({$how}).",
                 "Created by: {$actor}.",
                 'If nobody on the team did this, the site may be compromised. In the recent attack a rogue admin account appeared two hours before the malware. Flag it to the Design Shop point person for security right away.',
-            )
+            ),
+            array(),
+            false,
+            ! self::prelaunch()
         );
     }
 
@@ -1561,7 +1642,18 @@ class DS_Tripwire {
      * (DS_HQ_Link::ask_mail). Any other answer, no answer, a timeout or an error sends the email now. Nothing is held
      * for later, so nothing can be lost; a new file, an admin alert or a toolkit integrity alert always emails.
      */
-    private function alert( $tier, array $lines, array $files = array(), $repeat = false ) {
+    private function alert( $tier, array $lines, array $files = array(), $repeat = false, $mail_ok = true ) {
+        /* Record-only: hand the finding to HQ and send no email. Used for build-shaped findings on a
+           pre-launch site. The HQ hook still fires, so the dashboard and the launch review see it. */
+        if ( ! $mail_ok ) {
+            update_option( 'ds_tripwire_prelaunch_quiet', array(
+                'time' => gmdate( 'c' ),
+                'host' => (string) wp_parse_url( (string) home_url(), PHP_URL_HOST ),
+                'held' => count( $lines ),
+            ), false );
+            do_action( 'ds_tripwire_alert', $tier, $lines, $files );
+            return;
+        }
         $asked = array( false, false ); // [ HQ has this alert, HQ signed a skip ]
         if ( $repeat && class_exists( 'DS_HQ_Link' ) && ( wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) ) {
             try {
