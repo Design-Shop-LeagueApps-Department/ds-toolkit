@@ -221,6 +221,26 @@ class DS_Programs_Data {
 	}
 
 	/**
+	 * The raw programs for these sites, through the same cache, lock, back-off and
+	 * ledger as the table. The LeagueApps Calendar module reads its program list
+	 * here, so a page with both modules costs LeagueApps one listing call, not two.
+	 *
+	 * @return array( 'rows' => raw program arrays with _site/_label, 'stale', 'errors', 'fetched' )
+	 */
+	public static function raw( array $sites ) {
+		$sites = self::clean_sites( $sites );
+		if ( empty( $sites ) ) {
+			return array( 'rows' => array(), 'stale' => false, 'errors' => array(), 'fetched' => 0 );
+		}
+		return self::raw_feed( $sites );
+	}
+
+	/** Add another LeagueApps request batch (the Calendar's schedules) to the shared fetch ledger. */
+	public static function log_fetch( array $e ) {
+		self::record( array_merge( array( 'site' => '', 'ok' => true, 'code' => 200, 'tries' => 1, 'ms' => 0, 'rows' => 0, 'err' => '', 'why' => '' ), $e ) );
+	}
+
+	/**
 	 * The raw merged feed, cached. Kept raw (not normalised) so a change to the
 	 * module's field mapping or date format never needs a refetch.
 	 */
@@ -749,6 +769,8 @@ class DS_Programs_Data {
 			delete_transient( $k );
 			delete_transient( $k . '_lock' );
 		}
+		// The Calendar module keeps its own schedule cache; one refresh clears both.
+		do_action( 'ds_programs_flushed' );
 		// Belt and braces for database-backed rows written before the registry existed.
 		$wpdb->query(
 			"DELETE FROM {$wpdb->options}
@@ -793,7 +815,9 @@ class DS_Programs_Data {
 		// above stays short. Keys sort as strings, so pruning is a compare.
 		$h = gmdate( 'YmdH', $e['t'] );
 		if ( ! isset( $hours[ $h ] ) || ! is_array( $hours[ $h ] ) ) { $hours[ $h ] = array( 0, 0, 0 ); }
-		$hours[ $h ][0]++;
+		// A Calendar schedule batch counts its requests and failures, but not as a listing
+		// fetch, so it never pushes the Programs "fetches vs budget" check over.
+		if ( 0 !== strpos( (string) ( $e['why'] ?? '' ), 'calendar' ) ) { $hours[ $h ][0]++; }
 		$hours[ $h ][1] += max( 1, (int) $e['tries'] );
 		if ( empty( $e['ok'] ) ) { $hours[ $h ][2]++; }
 		$cut = gmdate( 'YmdH', $e['t'] - DAY_IN_SECONDS );

@@ -211,6 +211,13 @@ class DS_Toolkit {
             'class'         => 'DS_Programs',
             'min_blueprint' => 6,
         ),
+        // LeagueApps team schedules as a calendar. Opt-in like Programs; reads the
+        // same saved site and the same cached program list.
+        'ds_la_calendar_module_enabled' => array(
+            'file'          => 'features/class-ds-la-calendar.php',
+            'class'         => 'DS_LA_Calendar',
+            'min_blueprint' => 6,
+        ),
         'ds_table_module_enabled' => array(
             'file'          => 'features/class-ds-table.php',
             'class'         => 'DS_Table',
@@ -326,6 +333,7 @@ class DS_Toolkit {
             'ds_social_module_enabled'         => array( 'label' => 'Partner Social',  'desc' => "A row of the partner's social-media links." ),
             'ds_table_module_enabled'          => array( 'label' => 'Table',           'desc' => 'A sortable, searchable table typed in the builder, uploaded as a CSV, or kept in sync with a CSV file or a Google Sheet.' ),
             'ds_programs_module_enabled'       => array( 'label' => 'LeagueApps Programs', 'desc' => 'Live tournament, league, camp and clinic listings from LeagueApps as a filterable table. Needs a site ID and API key on the LeagueApps tab.' ),
+            'ds_la_calendar_module_enabled'    => array( 'label' => 'LeagueApps Calendar', 'desc' => 'Team schedules from LeagueApps (tournaments, games, practices) as a month calendar and an upcoming list. Uses the site ID and API key on the LeagueApps tab.' ),
         );
     }
 

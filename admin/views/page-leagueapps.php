@@ -1,6 +1,6 @@
 <?php
 /**
- * LeagueApps tab: the site IDs and public API keys the Programs module reads.
+ * LeagueApps tab: the site IDs and public API keys the Programs and Calendar modules read.
  * Rendered inside the shared wrap + header + tabs in DS_Toolkit_Admin::render_page().
  * Variables available: $leagueapps_sites, $programs_module_on, $la_sports,
  * $la_activity (DS_Programs_Data::ledger_summary()), $la_ledger (recent fetches)
@@ -18,10 +18,10 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
             <div class="dst-card-info">
-                <strong>Sites the Programs module can list</strong>
+                <strong>Sites the LeagueApps modules can read</strong>
                 <span>One row per LeagueApps site. The <em>site ID</em> is the number in the LeagueApps manager URL (<code>manager.leagueapps.com/console/sites/<strong>46287</strong></code>). The <em>API key</em> is the public widget key from Connect &rarr; API Settings (the same key the hosted listing widget uses). Keys are read server-side only and never reach a visitor's browser. A partner with several LeagueApps sites (a main club plus a facility) lists each; a module can show all of them merged or pick one.</span>
                 <?php if ( ! $programs_module_on ) : ?>
-                    <span style="display:block;margin-top:8px"><strong>The LeagueApps Programs block is switched off.</strong> Turn it on under Features &rarr; LeagueApps Modules for these settings to have any effect.</span>
+                    <span style="display:block;margin-top:8px"><strong>The LeagueApps Programs and Calendar blocks are both switched off.</strong> Turn one on under Features &rarr; LeagueApps Modules for these settings to have any effect.</span>
                 <?php endif; ?>
             </div>
         </div>
