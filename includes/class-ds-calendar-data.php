@@ -309,7 +309,25 @@ class DS_Calendar_Data {
 				}
 			}
 		}
-		$norm           = self::normalise( $items );
+		$norm = self::normalise( $items );
+
+		// Camps, clinics, classes, leagues, tournaments and events with no schedule of their own
+		// come from their PROGRAM dates (already in the feed: no extra request). A program whose
+		// schedule has items is skipped here, so its games are never doubled.
+		$has = array();
+		foreach ( $stores as $sid => $st ) {
+			foreach ( $st['p'] as $pid => $e ) {
+				if ( ! empty( $e['items'] ) ) {
+					$has[ $sid . ':' . $pid ] = true;
+				}
+			}
+		}
+		$prog           = self::program_events( (array) $feed['rows'], $has );
+		$norm['events'] = array_merge( $norm['events'], $prog['events'] );
+		usort( $norm['events'], function ( $a, $b ) { return strcmp( $a['d'] . $a['sort'] . $a['title'], $b['d'] . $b['sort'] . $b['title'] ); } );
+		$norm['types']    = array_values( array_unique( array_merge( $norm['types'], $prog['types'] ) ) );
+		$norm['programs'] = $prog['groups'];
+		$norm['checks']   = $prog['checks'];
 		$cut            = self::month_start_day();
 		$norm['events'] = array_slice( array_values( array_filter( $norm['events'], function ( $e ) use ( $cut ) { return $e['d'] >= $cut; } ) ), 0, self::MAX_EVENTS );
 		$out            = self::pack( $norm, array( 'errors' => $errors, 'stale' => ! empty( $feed['stale'] ), 'fetched' => $now ) );
@@ -431,7 +449,7 @@ class DS_Calendar_Data {
 	}
 
 	private static function pack( array $n, array $extra = array() ) {
-		return array_merge( array( 'events' => array(), 'teams' => array(), 'types' => array(), 'stale' => false, 'errors' => array(), 'no_sites' => false, 'fetched' => 0 ), $n, $extra );
+		return array_merge( array( 'events' => array(), 'teams' => array(), 'programs' => array(), 'checks' => array(), 'types' => array(), 'stale' => false, 'errors' => array(), 'no_sites' => false, 'fetched' => 0 ), $n, $extra );
 	}
 
 	private static function serve_stale( $stale_key, array $errors ) {
@@ -451,6 +469,411 @@ class DS_Calendar_Data {
 			$keys[] = $key;
 			set_transient( 'ds_calendar_keys', $keys, self::STALE_TTL );
 		}
+	}
+
+	/* ------------------------------------------------------------------ program dates */
+
+	const MAX_SESSIONS = 40; // per program
+
+	/** LeagueApps program type -> the label a family reads. Club teams are left to schedules. */
+	private static function type_label( $raw ) {
+		$map = array( 'TOURNAMENT' => 'Tournament', 'LEAGUE' => 'League', 'CLASS' => 'Class', 'CAMP' => 'Camp', 'CLINIC' => 'Clinic', 'EVENT' => 'Event' );
+		$raw = strtoupper( (string) $raw );
+		return $map[ $raw ] ?? '';
+	}
+
+	private static function link_url( $u ) {
+		$u = trim( (string) $u );
+		if ( '' === $u ) {
+			return '';
+		}
+		if ( 0 === strpos( $u, '//' ) ) {
+			$u = 'https:' . $u;
+		}
+		return (string) esc_url_raw( $u, array( 'http', 'https' ) );
+	}
+
+	/** Registration open now, by the same rules the Programs table uses. */
+	private static function reg_open( array $row, $now ) {
+		$last = is_numeric( $row['endTime'] ?? null ) ? $row['endTime'] : ( $row['startTime'] ?? null );
+		if ( is_numeric( $last ) && (int) floor( $last / 1000 ) + DAY_IN_SECONDS < $now ) {
+			return false; // over: nothing left to register for
+		}
+		$stat = strtoupper( (string) ( $row['registrationStatus'] ?? '' ) );
+		if ( in_array( $stat, array( 'CANCELED', 'CANCELLED', 'CLOSED', 'SOLD_OUT' ), true ) ) {
+			return false;
+		}
+		if ( is_numeric( $row['endRegistrationTime'] ?? null ) && (int) floor( $row['endRegistrationTime'] / 1000 ) < $now ) {
+			return false;
+		}
+		if ( is_numeric( $row['publicRegistrationTime'] ?? null ) && (int) floor( $row['publicRegistrationTime'] / 1000 ) > $now ) {
+			return false;
+		}
+		if ( isset( $row['remainingFreeAgents'], $row['enforceMaxFreeAgentsCount'] ) && $row['enforceMaxFreeAgentsCount'] && (int) $row['remainingFreeAgents'] <= 0 ) {
+			return false;
+		}
+		return '' !== self::link_url( $row['registerUrlHtml'] ?? '' ) || '' !== self::link_url( $row['programUrlHtml'] ?? '' );
+	}
+
+	/** "5:30PM to 7:00PM" -> "5:30 PM – 7 PM"; anything else is shown as LeagueApps typed it. */
+	private static function times_text( $raw ) {
+		$raw = trim( wp_strip_all_tags( (string) $raw ) );
+		$fmt = function ( $h, $m, $ap ) { return (int) $h . ( '00' === $m || '' === $m ? '' : ':' . $m ) . ' ' . strtoupper( $ap ); };
+		if ( preg_match( '/^(\d{1,2})(?::(\d{2}))?\s*([ap]m)\s*(?:to|-|–)\s*(\d{1,2})(?::(\d{2}))?\s*([ap]m)$/i', $raw, $m ) ) {
+			return $fmt( $m[1], $m[2], $m[3] ) . ' – ' . $fmt( $m[4], $m[5], $m[6] );
+		}
+		if ( preg_match( '/^(\d{1,2})(?::(\d{2}))?\s*([ap]m)$/i', $raw, $m ) ) {
+			return $fmt( $m[1], $m[2], $m[3] );
+		}
+		return $raw;
+	}
+
+	/** "Sun,Sat" -> array( 0, 6 ) (PHP 'w' weekday numbers). */
+	private static function weekdays( $raw ) {
+		$map = array( 'sun' => 0, 'mon' => 1, 'tue' => 2, 'wed' => 3, 'thu' => 4, 'fri' => 5, 'sat' => 6 );
+		$out = array();
+		foreach ( preg_split( '/[\s,]+/', strtolower( (string) $raw ) ) as $d ) {
+			$k = substr( $d, 0, 3 );
+			if ( isset( $map[ $k ] ) ) {
+				$out[ $map[ $k ] ] = true;
+			}
+		}
+		return array_keys( $out );
+	}
+
+	/** A single date written in a program's title ("10/13/26", "Oct 16th, 2026", "November 15th"), as Y-m-d, or ''. */
+	private static function title_date( $title, DateTime $start ) {
+		$found = array();
+		if ( preg_match_all( '~\b(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?\b~', $title, $mm, PREG_SET_ORDER ) ) {
+			foreach ( $mm as $m ) {
+				$y = isset( $m[3] ) && '' !== $m[3] ? ( strlen( $m[3] ) === 2 ? 2000 + (int) $m[3] : (int) $m[3] ) : (int) $start->format( 'Y' );
+				if ( checkdate( (int) $m[1], (int) $m[2], $y ) ) {
+					$found[] = sprintf( '%04d-%02d-%02d', $y, $m[1], $m[2] );
+				}
+			}
+		}
+		if ( preg_match_all( '~\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b(?:,?\s*(\d{4}))?~i', $title, $mm, PREG_SET_ORDER ) ) {
+			foreach ( $mm as $m ) {
+				$mon = (int) date( 'n', strtotime( '1 ' . substr( $m[1], 0, 3 ) . ' 2000' ) );
+				$y   = isset( $m[3] ) && '' !== $m[3] ? (int) $m[3] : (int) $start->format( 'Y' );
+				if ( checkdate( $mon, (int) $m[2], $y ) ) {
+					$found[] = sprintf( '%04d-%02d-%02d', $y, $mon, $m[2] );
+				}
+			}
+		}
+		$found = array_values( array_unique( $found ) );
+		return 1 === count( $found ) ? $found[0] : '';
+	}
+
+	/** True when a title is only a date ("Oct 16th, 2026"): such a name adds nothing under its parent. */
+	private static function title_is_date( $title ) {
+		$t = trim( (string) preg_replace( '~\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(st|nd|rd|th)?(,?\s*\d{4})?|\b\d{1,2}/\d{1,2}(/\d{2,4})?|\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*\b~i', '', (string) $title ) );
+		return '' === trim( $t, " ,-–" );
+	}
+
+	/**
+	 * Calendar entries from program dates, for programs without a schedule.
+	 *
+	 * Shapes seen across the fleet (2026-10-17: Inspire, Absolute, Salt City, Carrier Park, Lamorinda,
+	 * DS Storm, LSW) and what each becomes:
+	 *   - one date (start = end, or no end) ............................ that day
+	 *   - a "rolling session": children of one parent that all carry the parent's END date but start on
+	 *     different dates (tryouts / open gyms registered per night) ..... their start date only
+	 *   - a range with weekdays (weekly camps, league nights) ............ every listed weekday in range
+	 *   - a short range with no weekdays (a weekend) ...................... every day in range
+	 *   - a season (5+ weekdays, or no weekdays over more than a week) .... a start and an end marker
+	 * Children of one parent on the same day merge into one entry named after the parent, listing the
+	 * children (age groups, divisions, sessions) with their own times.
+	 */
+	public static function program_events( array $rows, array $has_schedule ) {
+		$now  = time();
+		$cut  = self::month_start_day();
+		$keep = array();
+		$kids = array();
+		foreach ( $rows as $r ) {
+			if ( ! is_array( $r ) || empty( $r['programId'] ) || '' === self::type_label( $r['type'] ?? '' ) ) {
+				continue; // club teams and unknown types: schedules only
+			}
+			$vis  = (string) ( $r['visibility'] ?? '' );
+			$stat = strtoupper( (string) ( $r['registrationStatus'] ?? '' ) );
+			if ( ( '' !== $vis && 0 !== strcasecmp( $vis, 'Public' ) ) || in_array( $stat, array( 'CANCELED', 'CANCELLED' ), true ) || 'ARCHIVED' === strtoupper( (string) ( $r['state'] ?? '' ) ) ) {
+				continue;
+			}
+			$r['name']   = wp_strip_all_tags( (string) ( $r['name'] ?? '' ) );
+			$sid         = (string) ( $r['_site'] ?? '' );
+			$id          = $sid . ':' . preg_replace( '/\D+/', '', (string) $r['programId'] );
+			$keep[ $id ] = $r;
+			$mid         = preg_replace( '/\D+/', '', (string) ( $r['masterProgramId'] ?? '' ) );
+			if ( '' !== $mid && '0' !== $mid ) {
+				$kids[ $sid . ':' . $mid ][] = $id;
+			}
+		}
+
+		// Rolling sessions: within one parent, children that end on the family's last day but start on
+		// two or more different dates are one-night registrations, not weekly programs. When some of
+		// those children name a single date in their title and others do not ("All Sessions", a
+		// drop-in), only the dated ones are sessions: the others keep their weekly run.
+		$rolling = array();
+		foreach ( $kids as $mid => $ids ) {
+			$ends = array();
+			foreach ( $ids as $id ) {
+				$ends[ $id ] = is_numeric( $keep[ $id ]['endTime'] ?? null ) ? (int) $keep[ $id ]['endTime'] : 0;
+			}
+			$max  = $ends ? max( $ends ) : 0;
+			$cand = array();
+			foreach ( $ids as $id ) {
+				if ( $max > 0 && $ends[ $id ] === $max && is_numeric( $keep[ $id ]['startTime'] ?? null ) ) {
+					$cand[ $id ] = self::dt( (int) $keep[ $id ]['startTime'] )->format( 'Y-m-d' );
+				}
+			}
+			if ( count( array_unique( $cand ) ) < 2 ) {
+				continue;
+			}
+			$dated = array();
+			foreach ( array_keys( $cand ) as $id ) {
+				if ( '' !== self::title_date( $keep[ $id ]['name'], self::dt( (int) $keep[ $id ]['startTime'] ) ) ) {
+					$dated[ $id ] = true;
+				}
+			}
+			foreach ( array_keys( $cand ) as $id ) {
+				if ( ! $dated || isset( $dated[ $id ] ) ) {
+					$rolling[ $id ] = true;
+				}
+			}
+		}
+
+		$groups = array();
+		$checks = array();
+		$types  = array();
+		$span_of = array(); // real program (site:parent-or-own id) => [first, last] day it occupies
+		foreach ( $keep as $id => $r ) {
+			if ( ! empty( $kids[ $id ] ) ) {
+				continue; // a parent whose children are listed: the children carry its dates
+			}
+			list( $sid ) = explode( ':', $id );
+			$mid    = preg_replace( '/\D+/', '', (string) ( $r['masterProgramId'] ?? '' ) );
+			$pkey   = ( '' !== $mid && '0' !== $mid ) ? $sid . ':' . $mid : '';
+			if ( isset( $has_schedule[ $id ] ) || ( '' !== $pkey && isset( $has_schedule[ $pkey ] ) ) || ! is_numeric( $r['startTime'] ?? null ) ) {
+				continue; // a real schedule (its own or its parent's) wins; no start date, nothing to place
+			}
+			$parent = ( '' !== $pkey && isset( $keep[ $pkey ] ) ) ? $keep[ $pkey ] : null;
+			$gid    = $parent ? $pkey : $id;
+			$title  = $parent ? $parent['name'] : $r['name'];
+			$child  = $parent ? $r['name'] : '';
+			if ( '' === $title ) {
+				continue;
+			}
+			$label           = self::type_label( $r['type'] ?? '' );
+			$types[ $label ] = 1;
+
+			$start = self::dt( (int) $r['startTime'] );
+			$end   = ( is_numeric( $r['endTime'] ?? null ) && $r['endTime'] >= $r['startTime'] ) ? self::dt( (int) $r['endTime'] ) : null;
+			$days  = self::weekdays( $r['scheduleDays'] ?? '' );
+			$time  = self::times_text( $r['scheduleTimes'] ?? '' );
+			$sd    = $start->format( 'Y-m-d' );
+			$ed    = $end ? $end->format( 'Y-m-d' ) : $sd;
+			$span  = (int) round( ( strtotime( $ed ) - strtotime( $sd ) ) / DAY_IN_SECONDS );
+			// Venue: the parent's when it has one, so divisions of one program at different fields stay
+			// one entry; otherwise the program's own.
+			$ploc  = $parent ? wp_strip_all_tags( (string) ( $parent['location'] ?? '' ) ) : '';
+			$loc   = '' !== $ploc ? $ploc : wp_strip_all_tags( (string) ( $r['location'] ?? '' ) );
+			// Merge key venue: the parent's; a parent with no venue keys by itself, so its divisions
+			// (some with a field, some without) stay one entry.
+			$kloc  = '' !== $ploc ? $ploc : ( $parent ? '#' . $gid : $loc );
+
+			$td = self::title_date( $r['name'], $start );
+			if ( '' !== $td && $td !== $sd && ( $ed === $sd || isset( $rolling[ $id ] ) ) ) {
+				$checks[] = sprintf( '"%s": the title says %s, LeagueApps start date is %s', $r['name'], $td, $sd );
+			}
+
+			$occ = array(); // Y-m-d => marker ('' | 'start' | 'end')
+			if ( $ed === $sd || isset( $rolling[ $id ] ) ) {
+				$occ[ $sd ] = '';
+			} elseif ( count( $days ) >= 5 || ( ! $days && $span > 7 ) ) {
+				$occ[ $sd ] = 'start';
+				$occ[ $ed ] = 'end';
+			} else {
+				// Weekly (or every day of a short range), counted from this month, not from the start:
+				// a year-long class must still show this month. Too many to list = a season.
+				$c = clone $start;
+				$c->setTime( 0, 0 );
+				if ( $c->format( 'Y-m-d' ) < $cut ) {
+					$c = new DateTime( $cut . ' 00:00:00', new DateTimeZone( self::TZ ) );
+				}
+				$list = array();
+				for ( $i = 0; $i <= 800 && $c->format( 'Y-m-d' ) <= $ed; $i++ ) {
+					if ( ! $days || in_array( (int) $c->format( 'w' ), $days, true ) ) {
+						$list[] = $c->format( 'Y-m-d' );
+					}
+					$c->modify( '+1 day' );
+				}
+				if ( count( $list ) > self::MAX_SESSIONS ) {
+					$occ[ $sd ] = 'start';
+					$occ[ $ed ] = 'end';
+				} else {
+					foreach ( $list as $d ) {
+						$occ[ $d ] = '';
+					}
+				}
+			}
+
+			$open = self::reg_open( $r, $now );
+			$reg  = $parent ? self::link_url( $parent['programUrlHtml'] ?? '' ) : self::link_url( $r['registerUrlHtml'] ?? '' );
+			$reg  = '' !== $reg ? $reg : self::link_url( $r['programUrlHtml'] ?? '' );
+			$more = self::link_url( $parent ? ( $parent['programUrlHtml'] ?? '' ) : ( $r['programUrlHtml'] ?? '' ) );
+			// One entry per program name + venue per day: a club that lists the same tournament on two
+			// of its LeagueApps sites gets it once, while same-named events at different venues stay apart.
+			$tkey = strtolower( $title ) . '|' . strtolower( $kloc );
+			foreach ( $occ as $day => $mark ) {
+				$span_of[ $gid ] = isset( $span_of[ $gid ] ) ? array( min( $span_of[ $gid ][0], $day ), max( $span_of[ $gid ][1], $day ) ) : array( $day, $day );
+				$key             = $tkey . '|' . $day . '|' . $mark;
+				if ( ! isset( $groups[ $key ] ) ) {
+					$groups[ $key ] = array(
+						'd'     => $day,
+						'title' => $title,
+						'type'  => $label,
+						'label' => '',
+						'kind'  => 'prog',
+						'grp'   => $title,
+						'mark'  => $mark,
+						'loc'   => $loc,
+						'lat'   => null,
+						'lng'   => null,
+						'url'   => '',
+						'more'  => $more,
+						'reg'   => '',
+						'note'  => '',
+						'teams' => array(),
+						'sort'  => self::sort_time( $time ),
+						'gids'  => array(),
+						'tkey'  => $tkey,
+					);
+				}
+				$g =& $groups[ $key ];
+				$g['gids'][ $gid ] = true;
+				if ( '' === $g['loc'] && '' !== $loc ) {
+					$g['loc'] = $loc;
+				}
+				if ( $open && '' === $g['reg'] ) {
+					$g['reg'] = $reg;
+				}
+				$nm = ( '' !== $child && ! self::title_is_date( $child ) && $child !== $title ) ? $child : '';
+				// Unnamed rows still carry their time; "\0" keys mark them so they never show as a name.
+				$g['teams'][ '' !== $nm ? $nm : "\0" . count( $g['teams'] ) ] = ( 'end' === $mark ) ? '' : $time;
+				unset( $g );
+			}
+
+			// Registration deadline, offered as its own optional entry. LeagueApps closes at midnight
+			// AFTER the last day, so a 00:00 close belongs to the day before.
+			if ( is_numeric( $r['endRegistrationTime'] ?? null ) && (int) floor( $r['endRegistrationTime'] / 1000 ) >= $now ) {
+				$close = self::dt( (int) $r['endRegistrationTime'] );
+				if ( '00:00' === $close->format( 'H:i' ) ) {
+					$close->modify( '-1 minute' );
+				}
+				$dd  = $close->format( 'Y-m-d' );
+				$key = $tkey . '|' . $dd . '|deadline';
+				if ( ! isset( $groups[ $key ] ) ) {
+					$groups[ $key ] = array( 'd' => $dd, 'title' => $title, 'type' => 'Deadline', 'label' => 'Registration closes', 'kind' => 'deadline', 'grp' => $title, 'mark' => '', 'loc' => '', 'lat' => null, 'lng' => null, 'url' => '', 'more' => $more, 'reg' => $open ? $reg : '', 'note' => '', 'teams' => array(), 'sort' => '23:59', 'gids' => array( $gid => true ), 'tkey' => $tkey );
+				}
+			}
+		}
+
+		// A season marker on a day that already has a session of the same program says nothing new.
+		$session = array();
+		foreach ( $groups as $g ) {
+			if ( 'prog' === $g['kind'] && '' === $g['mark'] ) {
+				$session[ $g['tkey'] . '|' . $g['d'] ] = true;
+			}
+		}
+
+		$events = array();
+		$names  = array();
+		foreach ( $groups as $g ) {
+			if ( 'prog' === $g['kind'] && '' !== $g['mark'] && isset( $session[ $g['tkey'] . '|' . $g['d'] ] ) ) {
+				continue;
+			}
+			$times      = array_values( array_unique( array_filter( array_values( $g['teams'] ), 'strlen' ) ) );
+			$g['time']  = 1 === count( $times ) ? $times[0] : '';
+			$g['times'] = 1 < count( $times );
+			$list       = array();
+			foreach ( $g['teams'] as $n => $t ) {
+				$n = (string) $n;
+				if ( '' !== trim( $n ) && "\0" !== $n[0] ) {
+					$list[] = array( 'n' => $n, 't' => $t );
+				}
+			}
+			usort( $list, function ( $a, $b ) { return strnatcasecmp( $a['n'], $b['n'] ); } );
+			$g['teams'] = $list;
+			// First / last day of the REAL program (not of every program sharing its name).
+			$g['first'] = false;
+			$g['last']  = false;
+			if ( 'prog' === $g['kind'] ) {
+				foreach ( array_keys( $g['gids'] ) as $gid ) {
+					$g['first'] = $g['first'] || $g['d'] === $span_of[ $gid ][0];
+					$g['last']  = $g['last'] || $g['d'] === $span_of[ $gid ][1];
+				}
+			}
+			if ( $g['d'] >= $cut ) {
+				$names[ $g['grp'] ] = true;
+			}
+			unset( $g['gids'], $g['tkey'] );
+			$events[] = $g;
+		}
+		$programs = array_keys( $names );
+		natcasesort( $programs );
+		return array( 'events' => $events, 'types' => array_keys( $types ), 'groups' => array_values( $programs ), 'checks' => array_slice( $checks, 0, 10 ) );
+	}
+
+	private static function sort_time( $time ) {
+		return preg_match( '/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/', (string) $time, $m ) ? sprintf( '%02d:%02d', ( (int) $m[1] % 12 ) + ( 'PM' === $m[3] ? 12 : 0 ), (int) ( $m[2] ?? 0 ) ) : '00:01';
+	}
+
+	/**
+	 * Apply one module's program-date settings to a calendar (pure, so it is tested without BB).
+	 *
+	 * @param array $data  get() output.
+	 * @param array $o     show (bool), types (labels; empty = all), mode (sessions|first|startend), deadlines (bool), register (bool).
+	 */
+	public static function apply_program_settings( array $data, array $o ) {
+		$show  = ! empty( $o['show'] );
+		$types = isset( $o['types'] ) ? (array) $o['types'] : array();
+		$mode  = (string) ( $o['mode'] ?? 'sessions' );
+		$mode  = in_array( $mode, array( 'sessions', 'first', 'startend' ), true ) ? $mode : 'sessions';
+		$out   = array();
+		foreach ( $data['events'] as $e ) {
+			$kind = $e['kind'] ?? '';
+			if ( 'prog' === $kind ) {
+				if ( ! $show || ( $types && ! in_array( $e['type'], $types, true ) ) ) {
+					continue;
+				}
+				if ( 'first' === $mode && empty( $e['first'] ) ) {
+					continue;
+				}
+				if ( 'startend' === $mode && empty( $e['first'] ) && empty( $e['last'] ) && '' === ( $e['mark'] ?? '' ) ) {
+					continue;
+				}
+			} elseif ( 'deadline' === $kind ) {
+				if ( ! $show || empty( $o['deadlines'] ) ) {
+					continue;
+				}
+			}
+			if ( empty( $o['register'] ) ) {
+				$e['reg'] = '';
+			}
+			$out[] = $e;
+		}
+		$data['events'] = $out;
+		// The visitor dropdown lists only programs that still have something on this calendar.
+		$names = array();
+		foreach ( $out as $e ) {
+			if ( in_array( $e['kind'] ?? '', array( 'prog', 'deadline' ), true ) ) {
+				$names[ $e['grp'] ] = true;
+			}
+		}
+		$names = array_keys( $names );
+		natcasesort( $names );
+		$data['programs'] = array_values( $names );
+		return $data;
 	}
 
 	/* ------------------------------------------------------------------ normalise */
