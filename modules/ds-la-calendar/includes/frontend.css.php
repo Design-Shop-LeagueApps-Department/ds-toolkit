@@ -35,16 +35,22 @@ if ( '' === $vars['--c-on-brand'] ) {
 		$vars['--c-on-brand'] = ( $white >= 4.5 || $white >= $dark ) ? '#ffffff' : '#0e1b2f';
 	}
 }
-// The main colour as TEXT (outlined button, unselected toggle, arrows, links): darkened until 4.6:1 on light grey.
+// The main colour as TEXT (event times, links, "Today", badges): darkened until 4.6:1 on light grey AND on its
+// own tint. Light grey, not white: the calendar often sits in a #f4f4f4 section (designshopdemo 2026-10-17:
+// "13 teams" read 4.29:1 there with an ink tuned for white). Passing on #ececec passes on white.
 $brand_rgb = DS_Calendar_Module::rgb( '' !== $vars['--c-brand'] ? $vars['--c-brand'] : 'var(--fl-global-primary)' );
 if ( $brand_rgb ) {
-	$ink = $brand_rgb;
-	// Checked against light grey, not white: the calendar often sits in a #f4f4f4 section (designshopdemo
-	// 2026-10-17: "13 teams" read 4.29:1 there with an ink tuned for white). Passing on #ececec passes on white.
-	for ( $i = 0; $i < 12 && DS_Calendar_Module::ratio( $ink, array( 236, 236, 236 ) ) < 4.6; $i++ ) {
+	$tint = DS_Calendar_Module::mix( $brand_rgb, array( 255, 255, 255 ), 0.1 );
+	$ink  = $brand_rgb;
+	for ( $i = 0; $i < 12 && min( DS_Calendar_Module::ratio( $ink, array( 236, 236, 236 ) ), DS_Calendar_Module::ratio( $ink, $tint ) ) < 4.6; $i++ ) {
 		$ink = DS_Calendar_Module::mix( $ink, array( 0, 0, 0 ), 0.85 );
 	}
-	$vars['--c-brand-ink'] = DS_Calendar_Module::hex( $ink );
+	$vars['--c-brand-ink']  = DS_Calendar_Module::hex( $ink );
+	$vars['--c-brand-tint'] = DS_Calendar_Module::hex( $tint );
+	$vars['--c-brand-line'] = DS_Calendar_Module::hex( DS_Calendar_Module::mix( $brand_rgb, array( 255, 255, 255 ), 0.4 ) );
+}
+if ( '' !== $vars['--c-muted'] ) {
+	$vars['--c-faint'] = $vars['--c-muted']; // one setting for both small-text greys
 }
 foreach ( array(
 	'tour'  => array( $c( 'c_tour' ), 'var(--fl-global-secondary)', '#f78d1e' ),
@@ -56,13 +62,17 @@ foreach ( array(
 	if ( $pair ) {
 		$vars[ '--c-' . $k . '-tint' ] = $pair[0];
 		$vars[ '--c-' . $k . '-ink' ]  = $pair[1];
+		$vars[ '--c-' . $k . '-line' ] = $pair[2];
 	}
 }
 if ( isset( $settings->cell_height ) && '' !== $settings->cell_height ) {
 	$vars['--cell-h'] = max( 40, min( 400, (int) $settings->cell_height ) ) . 'px';
 }
 if ( isset( $settings->radius ) && '' !== $settings->radius ) {
-	$vars['--radius'] = max( 0, min( 40, (int) $settings->radius ) ) . 'px';
+	$r = max( 0, min( 40, (int) $settings->radius ) );
+	$vars['--radius'] = $r . 'px';
+	$vars['--rs']     = round( $r * 0.75 ) . 'px'; // buttons and boxes
+	$vars['--rx']     = round( $r * 0.6 ) . 'px';  // events and small pieces
 }
 
 $decl = '';
@@ -83,5 +93,5 @@ FLBuilderCSS::typography_field_rule( array(
 FLBuilderCSS::typography_field_rule( array(
 	'settings'     => $settings,
 	'setting_name' => 'event_typo',
-	'selector'     => ".fl-node-$id .dslc .dslc-row h3",
+	'selector'     => ".fl-node-$id .dslc .dslc-lname",
 ) );

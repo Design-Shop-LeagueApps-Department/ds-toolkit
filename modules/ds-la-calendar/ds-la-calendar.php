@@ -10,7 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * Settings > DS Toolkit > LeagueApps). Nothing about LeagueApps reaches the
  * browser except the events themselves.
  *
- * Origin: inspireclvb preview, 2026-10-16.
+ * Origin: inspireclvb preview, 2026-10-16. Look: the Design Shop calendar prototype,
+ * 2026-10-17 (white card, toolbar, Coming up rail, phone mini-month).
  *
  * @class DS_Calendar_Module
  */
@@ -30,7 +31,12 @@ class DS_Calendar_Module extends FLBuilderModule {
 
 	/** Events for this module's settings, filtered by type and team. */
 	public function calendar_data() {
-		$s     = $this->settings;
+		return self::data_for( $this->settings );
+	}
+
+	/** The same for any saved settings object (the page, and the Subscribe feed). */
+	public static function data_for( $s ) {
+		$s     = is_object( $s ) ? $s : (object) array();
 		$ids   = ( 'pick' === ( $s->sites_mode ?? 'all' ) ) ? array_filter( (array) ( $s->sites_pick ?? array() ) ) : array();
 		$data  = DS_Calendar_Data::get( array_map( 'strval', $ids ) );
 		$data  = DS_Calendar_Data::apply_program_settings( $data, array(
@@ -155,21 +161,31 @@ class DS_Calendar_Module extends FLBuilderModule {
 	}
 
 	/**
-	 * A soft tint of an event colour and a label colour that is guaranteed 4.5:1 on it,
-	 * as plain hex (CSS color-mix() would do the tint, but contrast tools misread it and
-	 * it cannot promise the label stays readable for any colour a partner picks).
+	 * A soft tint of an event colour, a label colour that is guaranteed 4.5:1 on it AND on
+	 * light grey, and a light outline colour, as plain hex (CSS color-mix() would do the tint,
+	 * but contrast tools misread it and it cannot promise the label stays readable for any
+	 * colour a partner picks).
 	 */
 	public static function tint_pair( $color ) {
 		$base = self::rgb( $color );
 		if ( ! $base ) {
 			return null;
 		}
-		$tint = self::mix( $base, array( 255, 255, 255 ), 0.13 );
+		$tint = self::mix( $base, array( 255, 255, 255 ), 0.1 );
 		$ink  = self::mix( $base, array( 0, 0, 0 ), 0.55 );
-		for ( $i = 0; $i < 12 && self::ratio( $ink, $tint ) < 4.6; $i++ ) {
+		for ( $i = 0; $i < 12 && min( self::ratio( $ink, $tint ), self::ratio( $ink, array( 236, 236, 236 ) ) ) < 4.6; $i++ ) {
 			$ink = self::mix( $ink, array( 0, 0, 0 ), 0.8 );
 		}
-		return array( self::hex( $tint ), self::hex( $ink ) );
+		return array( self::hex( $tint ), self::hex( $ink ), self::hex( self::mix( $base, array( 255, 255, 255 ), 0.4 ) ) );
+	}
+
+	/** "One colour" unless set, or unless an older calendar already picked type colours. */
+	public static function color_mode( $s ) {
+		$mode = (string) ( $s->color_mode ?? '' );
+		if ( 'one' === $mode || 'type' === $mode ) {
+			return $mode;
+		}
+		return ( ! empty( $s->c_tour ) || ! empty( $s->c_game ) || ! empty( $s->c_other ) ) ? 'type' : 'one';
 	}
 }
 
@@ -309,6 +325,22 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 						'default' => '3',
 						'slider'  => array( 'min' => 1, 'max' => 6, 'step' => 1 ),
 					),
+					'show_today' => array( 'type' => 'button-group', 'label' => __( 'Today button', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_la_cal_yes_no, 'help' => __( 'Jumps back to this month. Hidden on phones, where today is always marked.', 'ds-toolkit' ) ),
+					'show_rail'  => array(
+						'type'    => 'button-group',
+						'label'   => __( 'Show "Coming up" next to the month', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => $ds_la_cal_yes_no,
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'rail_title', 'rail_count' ) ) ),
+						'help'    => __( 'The next few events beside the month on wide screens, and as a scrolling row under it on tablets.', 'ds-toolkit' ),
+					),
+					'rail_title' => array( 'type' => 'text', 'label' => __( '"Coming up" heading', 'ds-toolkit' ), 'default' => __( 'Coming up', 'ds-toolkit' ), 'size' => 18 ),
+					'rail_count' => array(
+						'type'    => 'unit',
+						'label'   => __( 'How many', 'ds-toolkit' ),
+						'default' => '5',
+						'slider'  => array( 'min' => 2, 'max' => 10, 'step' => 1 ),
+					),
 				),
 			),
 			'filter' => array(
@@ -341,6 +373,29 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 					'directions_text' => array( 'type' => 'text', 'label' => __( 'Directions button', 'ds-toolkit' ), 'default' => __( 'Directions', 'ds-toolkit' ), 'help' => __( 'Opens Google Maps at the venue. Leave empty to hide.', 'ds-toolkit' ) ),
 				),
 			),
+			'cal_buttons' => array(
+				'title'  => __( 'Calendar buttons', 'ds-toolkit' ),
+				'fields' => array(
+					'add_show' => array(
+						'type'    => 'button-group',
+						'label'   => __( 'Add to calendar button in the pop-up', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => $ds_la_cal_yes_no,
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'add_text' ) ) ),
+						'help'    => __( 'Saves that one event to Google Calendar, Apple Calendar, Outlook or any calendar app.', 'ds-toolkit' ),
+					),
+					'add_text' => array( 'type' => 'text', 'label' => __( 'Add to calendar text', 'ds-toolkit' ), 'default' => __( 'Add to calendar', 'ds-toolkit' ), 'size' => 18 ),
+					'sub_show' => array(
+						'type'    => 'button-group',
+						'label'   => __( 'Subscribe button', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => $ds_la_cal_yes_no,
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'sub_text' ) ) ),
+						'help'    => __( 'Families add this whole calendar, or just the team picked in the dropdown, to their phone or computer calendar. It keeps itself up to date when the schedule changes in LeagueApps. Shows once the page is published.', 'ds-toolkit' ),
+					),
+					'sub_text' => array( 'type' => 'text', 'label' => __( 'Subscribe text', 'ds-toolkit' ), 'default' => __( 'Subscribe', 'ds-toolkit' ), 'size' => 14 ),
+				),
+			),
 			'text' => array(
 				'title'     => __( 'Messages', 'ds-toolkit' ),
 				'collapsed' => true,
@@ -358,16 +413,24 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 			'colors' => array(
 				'title'  => __( 'Colours', 'ds-toolkit' ),
 				'fields' => array(
-					'c_brand'  => $ds_la_cal_color( __( 'Main colour', 'ds-toolkit' ), __( 'Selected button, today, date blocks and buttons. Empty = your Global Styles Primary colour.', 'ds-toolkit' ) ),
+					'c_brand'  => $ds_la_cal_color( __( 'Main colour', 'ds-toolkit' ), __( 'Events, today, the selected Month/List button and the main pop-up button. Empty = your Global Styles Primary colour. Light tints and readable text versions are worked out from it.', 'ds-toolkit' ) ),
 					'c_brand_text' => $ds_la_cal_color( __( 'Text on the main colour', 'ds-toolkit' ), __( 'Empty = picked for you: white, or dark when white would be hard to read on your main colour.', 'ds-toolkit' ) ),
-					'c_line'   => $ds_la_cal_color( __( 'Accent line', 'ds-toolkit' ), __( 'The line under each month in the list. Empty = Global Styles Secondary.', 'ds-toolkit' ) ),
+					'c_line'   => $ds_la_cal_color( __( 'Accent line', 'ds-toolkit' ), __( 'A line under each month in the list. Empty = no line.', 'ds-toolkit' ) ),
 					'c_text'   => $ds_la_cal_color( __( 'Text', 'ds-toolkit' ) ),
 					'c_muted'  => $ds_la_cal_color( __( 'Small text (venue, times)', 'ds-toolkit' ) ),
 				),
 			),
 			'type_colors' => array(
-				'title'  => __( 'Event type colours', 'ds-toolkit' ),
+				'title'  => __( 'Event colours', 'ds-toolkit' ),
 				'fields' => array(
+					'color_mode' => array(
+						'type'    => 'button-group',
+						'label'   => __( 'Colour events by', 'ds-toolkit' ),
+						'default' => 'one',
+						'options' => array( 'one' => __( 'One colour', 'ds-toolkit' ), 'type' => __( 'Event type', 'ds-toolkit' ) ),
+						'toggle'  => array( 'type' => array( 'fields' => array( 'c_tour', 'c_game', 'c_other' ) ) ),
+						'help'    => __( 'One colour uses the main colour for every event. Event type gives tournaments, games and everything else their own colour, with a key under the calendar.', 'ds-toolkit' ),
+					),
 					'c_tour'  => $ds_la_cal_color( __( 'Tournaments', 'ds-toolkit' ), __( 'Empty = Global Styles Secondary. Events show as a soft tint of this colour with dark text, so any colour stays readable.', 'ds-toolkit' ) ),
 					'c_game'  => $ds_la_cal_color( __( 'Games', 'ds-toolkit' ) ),
 					'c_other' => $ds_la_cal_color( __( 'Practices, camps, clinics and everything else', 'ds-toolkit' ), __( 'Leagues use the Games colour.', 'ds-toolkit' ) ),
@@ -382,8 +445,8 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 			'grid' => array(
 				'title'  => __( 'Month grid', 'ds-toolkit' ),
 				'fields' => array(
-					'c_grid'      => $ds_la_cal_color( __( 'Grid lines', 'ds-toolkit' ) ),
-					'c_cell'      => $ds_la_cal_color( __( 'Day background', 'ds-toolkit' ) ),
+					'c_grid'      => $ds_la_cal_color( __( 'Lines', 'ds-toolkit' ), __( 'Grid lines and the border around the calendar.', 'ds-toolkit' ) ),
+					'c_cell'      => $ds_la_cal_color( __( 'Calendar background', 'ds-toolkit' ), __( 'Empty = white. Keep it light: the text colours are dark.', 'ds-toolkit' ) ),
 					'c_head'      => $ds_la_cal_color( __( 'Weekday row background', 'ds-toolkit' ) ),
 					'cell_height' => array(
 						'type'       => 'unit',
@@ -396,7 +459,7 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 					'radius' => array(
 						'type'    => 'unit',
 						'label'   => __( 'Corner rounding', 'ds-toolkit' ),
-						'default' => '6',
+						'default' => '12',
 						'units'   => array( 'px' ),
 						'slider'  => array( 'min' => 0, 'max' => 20, 'step' => 1 ),
 					),
@@ -416,7 +479,7 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 						'type'       => 'typography',
 						'label'      => __( 'Event names in the list', 'ds-toolkit' ),
 						'responsive' => true,
-						'preview'    => array( 'type' => 'css', 'selector' => '{node} .dslc-row h3' ),
+						'preview'    => array( 'type' => 'css', 'selector' => '{node} .dslc-lname' ),
 					),
 				),
 			),

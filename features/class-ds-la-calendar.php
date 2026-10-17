@@ -22,7 +22,9 @@ class DS_LA_Calendar {
 	public function init() {
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-calendar-data.php';
+		require_once DS_TOOLKIT_PATH . 'includes/class-ds-calendar-ics.php';
 		add_action( 'init', array( $this, 'register_module' ), 20 );
+		add_action( 'rest_api_init', array( $this, 'routes' ) );
 		add_action( 'ds_programs_flushed', array( 'DS_Calendar_Data', 'flush' ) );
 		add_action( 'ds_calendar_refresh', array( 'DS_Calendar_Data', 'refresh' ) ); // background refresh queued by get()
 		// Without the Programs module there is no "Refresh LeagueApps listings" link; offer the same one.
@@ -36,6 +38,72 @@ class DS_LA_Calendar {
 		if ( class_exists( 'FLBuilder' ) && class_exists( 'FLBuilderModule' ) ) {
 			require_once DS_TOOLKIT_PATH . 'modules/ds-la-calendar/ds-la-calendar.php';
 		}
+	}
+
+	/**
+	 * Subscribe feed: GET /wp-json/ds-toolkit/v1/calendar/<post>/<node>[?team=t:Name|p:Name]
+	 * answers text/calendar for one placed calendar module, with that module's own settings
+	 * (sites, types, teams, program dates). Read-only and public like the page itself: it
+	 * serves the cached schedule (a stale copy queues the usual background refresh), so a
+	 * calendar app polling it never adds LeagueApps requests beyond the hourly refresh.
+	 */
+	public function routes() {
+		register_rest_route( 'ds-toolkit/v1', '/calendar/(?P<post>\\d{1,20})/(?P<node>[a-z0-9]{1,32})', array(
+			'methods'             => 'GET',
+			'permission_callback' => '__return_true',
+			'callback'            => array( $this, 'feed' ),
+			'args'                => array( 'team' => array( 'type' => 'string', 'default' => '' ) ),
+		) );
+		add_filter( 'rest_pre_serve_request', array( $this, 'serve_ics' ), 10, 3 );
+	}
+
+	/** The saved settings of a calendar module on a published, public post; null otherwise. */
+	public static function node_settings( $post_id, $node_id ) {
+		$post = get_post( (int) $post_id );
+		if ( ! $post || 'publish' !== $post->post_status || '' !== (string) $post->post_password ) {
+			return null;
+		}
+		// Themer layouts and saved rows are not public post types, but render on public pages.
+		if ( ! in_array( $post->post_type, array( 'fl-theme-layout', 'fl-builder-template' ), true ) && ! is_post_publicly_viewable( $post ) ) {
+			return null;
+		}
+		$data = get_post_meta( $post->ID, '_fl_builder_data', true );
+		$node = is_array( $data ) && isset( $data[ $node_id ] ) ? $data[ $node_id ] : null;
+		if ( ! is_object( $node ) || 'module' !== ( $node->type ?? '' ) || ! isset( $node->settings ) || ! is_object( $node->settings ) || 'ds-la-calendar' !== ( $node->settings->type ?? '' ) ) {
+			return null;
+		}
+		return $node->settings;
+	}
+
+	public function feed( $request ) {
+		$settings = self::node_settings( (int) $request['post'], (string) $request['node'] );
+		if ( ! $settings || 'no' === ( $settings->sub_show ?? 'yes' ) || ! class_exists( 'DS_Calendar_Module' ) ) {
+			return new WP_Error( 'ds_calendar_not_found', 'No calendar here.', array( 'status' => 404 ) );
+		}
+		$filter = (string) $request['team'];
+		$filter = preg_match( '/^[tp]:.{1,200}$/s', $filter ) ? sanitize_text_field( $filter ) : '';
+		$data   = DS_Calendar_Module::data_for( $settings );
+		$name   = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
+		$name   = trim( $name . ( '' !== $filter ? ' (' . substr( $filter, 2 ) . ')' : '' ) );
+		$ics    = DS_Calendar_ICS::build( (array) $data['events'], $filter, '' !== $name ? $name : 'Calendar', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+		$res    = new WP_REST_Response( $ics, 200 );
+		$res->header( 'Content-Type', 'text/calendar; charset=utf-8' );
+		$res->header( 'Content-Disposition', 'inline; filename="calendar.ics"' );
+		$res->header( 'Cache-Control', 'public, max-age=1800' );
+		$res->header( 'X-Robots-Tag', 'noindex' );
+		return $res;
+	}
+
+	/** Send the feed as plain iCalendar text instead of a JSON string. */
+	public function serve_ics( $served, $result, $request ) {
+		if ( $served || ! ( $result instanceof WP_REST_Response ) || 200 !== $result->get_status() || ! is_string( $result->get_data() ) ) {
+			return $served;
+		}
+		if ( 0 !== strpos( (string) $request->get_route(), '/ds-toolkit/v1/calendar/' ) ) {
+			return $served;
+		}
+		echo $result->get_data(); // phpcs:ignore WordPress.Security.EscapeOutput -- iCalendar text built and escaped by DS_Calendar_ICS
+		return true;
 	}
 
 	public function flush() {
