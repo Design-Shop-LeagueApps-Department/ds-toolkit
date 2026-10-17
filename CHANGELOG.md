@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.37] - 2026-10-17
+### Fixed
+- **LeagueApps Calendar: links and labels in the main colour failed contrast on grey sections.** The main colour used as text ("13 teams", the outlined pop-up button, the unselected Month/List toggle, the arrows) was darkened only until it passed on white. Calendars usually sit in a light grey section (#f4f4f4 on the LP7 blueprint), where LP7's green measured **4.29:1** (designshopdemo, 2026-10-17). It is now darkened until it passes 4.6:1 on light grey (#ececec), which also passes on white. Nothing changes on sites whose colours already passed. New `tests/calendar-ink-test.php` renders the real `frontend.css.php` for four main colours (LP7 green, light lime, orange, navy) and checks white and #f4f4f4; it fails against the previous code.
+
+---
+
 ## [1.10.36] - 2026-10-17
 ### Added
 - **LeagueApps Calendar: camps, clinics, classes, leagues, tournaments and events from their program dates** (Mel, 2026-10-17: *"The calendar should be able to show all program types because it helps allow the parent to view it all at a birds eye view... clinics usually run between leagues so when its holiday season and a league ends/pauses, clinics are running"*). Until now the calendar showed only team schedules; most programs have no LeagueApps schedule, so camps and clinics never appeared. They are now placed from the program fields the module already receives (start/end, days, times), so **this adds no requests to LeagueApps**. On by default; a program with its own schedule keeps that schedule, and club teams always come from schedules.

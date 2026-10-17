@@ -35,11 +35,13 @@ if ( '' === $vars['--c-on-brand'] ) {
 		$vars['--c-on-brand'] = ( $white >= 4.5 || $white >= $dark ) ? '#ffffff' : '#0e1b2f';
 	}
 }
-// The main colour as TEXT on white (outlined button, unselected toggle, arrows, links): darkened until 4.5:1.
+// The main colour as TEXT (outlined button, unselected toggle, arrows, links): darkened until 4.6:1 on light grey.
 $brand_rgb = DS_Calendar_Module::rgb( '' !== $vars['--c-brand'] ? $vars['--c-brand'] : 'var(--fl-global-primary)' );
 if ( $brand_rgb ) {
 	$ink = $brand_rgb;
-	for ( $i = 0; $i < 12 && DS_Calendar_Module::ratio( $ink, array( 255, 255, 255 ) ) < 4.6; $i++ ) {
+	// Checked against light grey, not white: the calendar often sits in a #f4f4f4 section (designshopdemo
+	// 2026-10-17: "13 teams" read 4.29:1 there with an ink tuned for white). Passing on #ececec passes on white.
+	for ( $i = 0; $i < 12 && DS_Calendar_Module::ratio( $ink, array( 236, 236, 236 ) ) < 4.6; $i++ ) {
 		$ink = DS_Calendar_Module::mix( $ink, array( 0, 0, 0 ), 0.85 );
 	}
 	$vars['--c-brand-ink'] = DS_Calendar_Module::hex( $ink );
