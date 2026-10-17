@@ -351,7 +351,11 @@ class DS_Toolkit {
         if ( DS_TOOLKIT_VERSION === get_option( 'ds_toolkit_assets_version' ) ) {
             return;
         }
-        update_option( 'ds_toolkit_assets_version', DS_TOOLKIT_VERSION, true );
+        // Only clear once the new version is saved: if the option cannot be written (read-only DB),
+        // clearing anyway would wipe the builder cache on every request.
+        if ( ! update_option( 'ds_toolkit_assets_version', DS_TOOLKIT_VERSION, true ) ) {
+            return;
+        }
         if ( class_exists( 'FLBuilderModel' ) && method_exists( 'FLBuilderModel', 'delete_asset_cache_for_all_posts' ) ) {
             FLBuilderModel::delete_asset_cache_for_all_posts();
             do_action( 'fl_builder_cache_cleared' );
