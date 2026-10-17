@@ -337,6 +337,27 @@ class DS_Toolkit {
         );
     }
 
+    /**
+     * Beaver Builder caches every page's module CSS and JS in uploads/bb-plugin/cache and rebuilds
+     * it only when ITS cache is cleared (its own updates do that), never when another plugin
+     * updates. A toolkit release that changes a module's markup together with its script or
+     * styles would pair the new markup with the old cached assets until someone clicked Clear
+     * cache: designshopdemo, 1.10.38-rc.1, the calendar's old script threw on the new markup and
+     * the calendar stayed empty. So clear it once per toolkit version, exactly as BB does after
+     * its own update (delete the asset files, then fl_builder_cache_cleared, which also purges
+     * the host's page cache through BB's cache helper). One autoloaded option read per request.
+     */
+    public static function maybe_clear_builder_cache() {
+        if ( DS_TOOLKIT_VERSION === get_option( 'ds_toolkit_assets_version' ) ) {
+            return;
+        }
+        update_option( 'ds_toolkit_assets_version', DS_TOOLKIT_VERSION, true );
+        if ( class_exists( 'FLBuilderModel' ) && method_exists( 'FLBuilderModel', 'delete_asset_cache_for_all_posts' ) ) {
+            FLBuilderModel::delete_asset_cache_for_all_posts();
+            do_action( 'fl_builder_cache_cleared' );
+        }
+    }
+
     public static function activate() {
         $settings = get_option( 'ds_toolkit_settings', array() );
 
@@ -549,6 +570,8 @@ class DS_Toolkit {
 
     public function run() {
         $settings = $this->maybe_set_defaults();
+
+        add_action( 'init', array( __CLASS__, 'maybe_clear_builder_cache' ), 99 );
 
         // The MCP server only needs to be alive for REST requests. Defer loading the
         // 2.8k-line class file until rest_api_init fires so non-REST page loads

@@ -15,6 +15,9 @@ All notable changes to DS Toolkit are documented here.
 - Settings: Views > Today button, Show "Coming up" (heading, how many); new section **Calendar buttons** (Add to calendar on/off and text, Subscribe on/off and text).
 - `tests/calendar-ics-test.php` (39 checks: time text to UTC across daylight saving, cross-day times, merged weekends, team and program filters, escaping, 75-octet folding, unsafe URLs). `tests/calendar-ink-test.php` gains checks for text on the new tints, type colours on light grey, the rounding steps and the colour-mode rule.
 
+### Fixed
+- **Module changes now reach pages right after a toolkit update.** Beaver Builder caches each page's module CSS and JS (`uploads/bb-plugin/cache`) and rebuilds them only when its own cache is cleared, never when another plugin updates. A release that changes a module's markup together with its script or styles therefore ran new markup with the old cached script until someone clicked Clear cache. On designshopdemo with this release's test build, the old calendar script threw on the new markup and the calendar stayed empty. The toolkit now clears Beaver Builder's asset cache once per toolkit version, the same way Beaver Builder does after its own updates (asset files deleted, then `fl_builder_cache_cleared`, which also purges the host's page cache). New `tests/builder-cache-clear-test.php`.
+
 ---
 
 ## [1.10.37] - 2026-10-17
