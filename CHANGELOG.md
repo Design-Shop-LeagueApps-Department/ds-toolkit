@@ -4,6 +4,20 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.40] - 2026-10-19
+### Added
+- **LeagueApps Programs: "Only some seasons or levels"** in the Programs tab (Alipio: *"zay or partner should have an option to select what season or level also to show"*). One Yes / No question under What to show; **Yes** reveals two pickers, **Seasons** and **Levels**, filled with the values the club set on its programs in LeagueApps (Season and Experience Level). The list shows only programs in the picked seasons and levels; nothing picked shows all; switching back to No shows everything again without clearing the picks. Matching is exact, against LeagueApps' own values (a field mapping that rewrites the shown Season does not change it), a sub-program uses its parent's value when it has none of its own, and a program with the field left empty is not in a picked season or level. The visitor filter bar keeps working inside the scope, so its Season dropdown only offers the picked seasons. Built for Core 5 Flag Football, whose one LeagueApps site types the location into Season ("Anthem Fall", "N. Peoria Paloma Winter") and the division into Level ("Girls Flag Football"): a location page is now Seasons = Anthem Fall + Anthem Winter, like their hosted "Anthem Friday Nights" widget.
+- The pickers learn every season and level LeagueApps has sent on the site, added together across sites and module instances (kept a week, capped at 200), and also from a copy cached before this version, so the lists fill in right after the update.
+
+### Changed
+- **Programs tab tidied:** the display options (order, maximum rows, date format, link, messages) moved from What to show into their own **List** section, and **Field mapping (advanced)** starts collapsed. Same setting keys, so placed modules keep their settings.
+
+### Fixed
+- Uninstall now removes the Programs module's cached feeds and remembered sports, seasons and levels (`ds_programs_*` transients) instead of leaving them to expire.
+- New `tests/programs-season-level-test.php` (18 checks on Core 5's real values: remembered values, raw values beside mapped ones, parent inheritance, the scope on/off, exact matching, empty fields, old-cache fallback; mutation-checked).
+
+---
+
 ## [1.10.39] - 2026-10-19
 ### Added
 - **LeagueApps Calendar: "Show team schedules" switch, for a programs-only calendar** (Alipio: *"add option to toggle team off only program types"*). Calendar → What to show → **Show team schedules → No** hides the club teams' games, practices and tournaments and keeps camps, clinics, classes, leagues, tournaments and events. The dropdown then lists programs as a plain list, and its untouched default wording becomes "Program" / "All programs". Subscribe and Add to calendar follow the same setting. On by default, so existing calendars do not change.

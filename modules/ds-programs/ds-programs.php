@@ -61,6 +61,38 @@ class DS_Programs_Module extends FLBuilderModule {
 		return $out;
 	}
 
+	/** Season / Level picker: the values LeagueApps has sent on this site. */
+	public static function value_options( $field ) {
+		$out = array();
+		foreach ( DS_Programs_Data::known_values( $field ) as $v ) { $out[ $v ] = $v; }
+		return $out ? $out : array( '' => __( '(the list fills in once the programs have loaded on this site)', 'ds-toolkit' ) );
+	}
+
+	/** The picked seasons and levels, when "Only some seasons or levels" is on. */
+	public static function season_level_scope( $s ) {
+		if ( 'yes' !== (string) ( $s->season_level ?? 'no' ) ) {
+			return array( array(), array() );
+		}
+		return array( self::type_list_plain( $s->seasons_pick ?? array() ), self::type_list_plain( $s->levels_pick ?? array() ) );
+	}
+
+	/**
+	 * Does a row fall in the picked seasons and levels? Compared with LeagueApps' own Season /
+	 * Experience Level exactly as the club typed them (a mapping that rewrites the shown "season"
+	 * does not change it). A program with the field left empty is in no picked season or level.
+	 */
+	public static function in_season_level( array $r, array $seasons, array $levels ) {
+		if ( $seasons && ! in_array( (string) ( $r['seasonRaw'] ?? $r['season'] ?? '' ), $seasons, true ) ) { return false; }
+		if ( $levels && ! in_array( (string) ( $r['levelRaw'] ?? $r['level'] ?? '' ), $levels, true ) ) { return false; }
+		return true;
+	}
+
+	/** A multi-select value as a clean list of exact strings (case kept, unlike type_list). */
+	public static function type_list_plain( $v ) {
+		if ( is_string( $v ) ) { $v = explode( ',', $v ); }
+		return array_values( array_filter( array_map( function ( $x ) { return trim( (string) $x ); }, (array) $v ), 'strlen' ) );
+	}
+
 	/** Configured LeagueApps sites as a multi-select option list. */
 	public static function site_options() {
 		$out = array();
@@ -115,13 +147,15 @@ class DS_Programs_Module extends FLBuilderModule {
 		$hide_sold   = 'yes' === ( $s->hide_sold_out ?? 'no' );
 		$hide_closed = 'yes' === ( $s->hide_closed ?? 'no' );
 		$hide_canc   = 'yes' === ( $s->hide_canceled ?? 'no' );
+		list( $seasons, $levels ) = self::season_level_scope( $s );
 
-		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $state, $sport, $locs, $hide_sold, $hide_closed, $hide_canc ) {
+		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $state, $sport, $locs, $hide_sold, $hide_closed, $hide_canc, $seasons, $levels ) {
 			if ( $types && ! in_array( $r['typeRaw'], $types, true ) ) { return false; }
 			if ( $mode && $r['modeRaw'] !== $mode ) { return false; }
 			if ( $state && $r['stateRaw'] !== $state ) { return false; }
 			if ( '' !== $sport && 0 !== strcasecmp( $r['sport'], $sport ) ) { return false; }
 			if ( $locs && ! self::location_matches( (string) ( $r['location'] ?? '' ), $locs ) ) { return false; }
+			if ( ! self::in_season_level( $r, $seasons, $levels ) ) { return false; }
 			if ( $hide_sold && $r['soldOut'] ) { return false; }
 			if ( $hide_canc && ! empty( $r['canceled'] ) ) { return false; }
 			if ( $hide_closed && 'CLOSED' === $r['statusRaw'] ) { return false; }
@@ -487,6 +521,28 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 						'placeholder' => "Fort Bragg\nHoneycutt Park",
 						'help'        => __( 'One per line. Lists only programs whose LeagueApps location contains one of these words, e.g. "Fort Bragg" keeps every Fort Bragg field and drops the rest of the region. A field renamed in LeagueApps (Fort Liberty) needs its own line. Not case sensitive. Blank = every location.', 'ds-toolkit' ),
 					),
+					'season_level' => array(
+						'type'    => 'button-group',
+						'label'   => __( 'Only some seasons or levels', 'ds-toolkit' ),
+						'default' => 'no',
+						'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'seasons_pick', 'levels_pick' ) ) ),
+						'help'    => __( 'Uses the Season and Experience Level the club set on each program in LeagueApps, for example one location\'s page or a girls-only page.', 'ds-toolkit' ),
+					),
+					'seasons_pick' => array(
+						'type'         => 'select',
+						'label'        => __( 'Seasons', 'ds-toolkit' ),
+						'multi-select' => true,
+						'options'      => DS_Programs_Module::value_options( 'season' ),
+						'help'         => __( 'Pick one or more. Nothing picked = every season.', 'ds-toolkit' ),
+					),
+					'levels_pick' => array(
+						'type'         => 'select',
+						'label'        => __( 'Levels', 'ds-toolkit' ),
+						'multi-select' => true,
+						'options'      => DS_Programs_Module::value_options( 'level' ),
+						'help'         => __( 'Pick one or more. Nothing picked = every level.', 'ds-toolkit' ),
+					),
 					'state_filter' => array(
 						'type'    => 'select',
 						'label'   => __( 'Season status', 'ds-toolkit' ),
@@ -496,6 +552,11 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					'hide_sold_out' => array( 'type' => 'select', 'label' => __( 'Hide sold-out programs', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ) ),
 					'hide_canceled' => array( 'type' => 'select', 'label' => __( 'Hide cancelled programs', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them marked cancelled', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ), 'help' => __( 'Cancelled programs never show a register button either way.', 'ds-toolkit' ) ),
 					'hide_closed'   => array( 'type' => 'select', 'label' => __( 'Hide programs whose registration has closed', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ) ),
+				),
+			),
+			'list' => array(
+				'title'  => __( 'List', 'ds-toolkit' ),
+				'fields' => array(
 					'sort_by'       => array( 'type' => 'select', 'label' => __( 'Order', 'ds-toolkit' ), 'default' => 'date_asc', 'options' => array( 'date_asc' => __( 'Soonest first', 'ds-toolkit' ), 'date_desc' => __( 'Latest first', 'ds-toolkit' ), 'name' => __( 'Program name A to Z', 'ds-toolkit' ) ), 'help' => __( 'Age groups always sort youngest to oldest within a program.', 'ds-toolkit' ) ),
 					'max_rows'      => array( 'type' => 'unit', 'label' => __( 'Maximum rows', 'ds-toolkit' ), 'default' => '', 'placeholder' => __( 'all', 'ds-toolkit' ), 'slider' => array( 'min' => 0, 'max' => 200, 'step' => 5 ) ),
 					'date_format'   => array( 'type' => 'select', 'label' => __( 'Date format', 'ds-toolkit' ), 'default' => 'numeric', 'options' => array( 'numeric' => '09/19/2026-09/20/2026', 'short' => 'Sep 19-20, 2026', 'long' => 'September 19-20, 2026' ) ),
@@ -506,6 +567,7 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 			),
 			'mapping' => array(
 				'title'       => __( 'Field mapping (advanced)', 'ds-toolkit' ),
+				'collapsed'   => true,
 				'description' => __( 'Only for a partner whose admins type meaning into an unrelated LeagueApps field, e.g. event dates typed into Sponsor. Dates, months and days are otherwise read from the program itself.', 'ds-toolkit' ),
 				'fields'      => array(
 					'field_map' => array(
