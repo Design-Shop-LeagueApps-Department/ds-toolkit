@@ -48,6 +48,7 @@ class DS_Calendar_Data {
 	const BATCH         = 8;
 	const MAX_PROGRAMS  = 150;
 	const MAX_EVENTS    = 3000;
+	const SHAPE         = 2; // cached copies older than this lack fields the module needs (2: schedule src/grp)
 	const MAX_SPAN_DAYS = 31;
 	const TZ            = 'America/New_York';
 
@@ -83,7 +84,7 @@ class DS_Calendar_Data {
 		list( $key, $stale_key ) = self::keys( $ids );
 
 		$hit = get_transient( $key );
-		if ( is_array( $hit ) && isset( $hit['events'] ) ) {
+		if ( self::current( $hit ) ) {
 			return $hit;
 		}
 		$stale   = get_transient( $stale_key );
@@ -102,7 +103,7 @@ class DS_Calendar_Data {
 			return;
 		}
 		list( $key ) = self::keys( $ids );
-		if ( is_array( get_transient( $key ) ) ) {
+		if ( self::current( get_transient( $key ) ) ) {
 			return;
 		}
 		self::refresh_now( $sites, $ids );
@@ -132,6 +133,11 @@ class DS_Calendar_Data {
 		$ids = $sites ? array_map( 'strval', wp_list_pluck( $sites, 'site_id' ) ) : array();
 		sort( $ids );
 		return array( $sites, $ids );
+	}
+
+	/** A cached calendar built by this version's code (older copies are shown stale while they rebuild). */
+	private static function current( $copy ) {
+		return is_array( $copy ) && isset( $copy['events'] ) && (int) ( $copy['v'] ?? 1 ) >= self::SHAPE;
 	}
 
 	private static function keys( array $ids ) {
@@ -300,11 +306,26 @@ class DS_Calendar_Data {
 			) );
 		}
 
-		// Merge every stored schedule (a program that failed keeps its last good copy).
+		// Merge every stored schedule (a program that failed keeps its last good copy), tagging each
+		// item with where it came from: a club team, or a program (a league, camp...) that has its own
+		// schedule, with that program's name (its parent's for a division) for the Programs dropdown.
+		$rows_by = array();
+		foreach ( (array) $feed['rows'] as $p ) {
+			$psid = (string) ( $p['_site'] ?? '' );
+			$ppid = preg_replace( '/\D+/', '', (string) ( $p['programId'] ?? '' ) );
+			if ( '' !== $psid && '' !== $ppid && is_array( $p ) ) {
+				$rows_by[ $psid . ':' . $ppid ] = $p;
+			}
+		}
 		$items = array();
-		foreach ( $stores as $st ) {
-			foreach ( $st['p'] as $e ) {
+		foreach ( $stores as $sid => $st ) {
+			foreach ( $st['p'] as $pid => $e ) {
+				list( $src, $grp ) = self::schedule_source( $rows_by, $sid . ':' . $pid );
 				foreach ( (array) $e['items'] as $it ) {
+					if ( is_array( $it ) ) {
+						$it['_src'] = $src;
+						$it['_grp'] = $grp;
+					}
 					$items[] = $it;
 				}
 			}
@@ -449,7 +470,7 @@ class DS_Calendar_Data {
 	}
 
 	private static function pack( array $n, array $extra = array() ) {
-		return array_merge( array( 'events' => array(), 'teams' => array(), 'programs' => array(), 'checks' => array(), 'types' => array(), 'stale' => false, 'errors' => array(), 'no_sites' => false, 'fetched' => 0 ), $n, $extra );
+		return array_merge( array( 'events' => array(), 'teams' => array(), 'programs' => array(), 'checks' => array(), 'types' => array(), 'stale' => false, 'errors' => array(), 'no_sites' => false, 'fetched' => 0, 'v' => self::SHAPE ), $n, $extra );
 	}
 
 	private static function serve_stale( $stale_key, array $errors ) {
@@ -824,6 +845,39 @@ class DS_Calendar_Data {
 		return array( 'events' => $events, 'types' => array_keys( $types ), 'groups' => array_values( $programs ), 'checks' => array_slice( $checks, 0, 10 ) );
 	}
 
+	/**
+	 * Whose schedule a program's items are: array( 'team', '' ) for a club team (or a type the
+	 * calendar does not know), array( 'program', <name> ) for a league, camp, clinic, class,
+	 * tournament or event with its own schedule (the parent's name for one of its divisions).
+	 */
+	public static function schedule_source( array $rows_by, $key ) {
+		$r = $rows_by[ $key ] ?? null;
+		if ( ! is_array( $r ) || '' === self::type_label( $r['type'] ?? '' ) ) {
+			return array( 'team', '' );
+		}
+		$sid = (string) strstr( (string) $key, ':', true );
+		$mid = preg_replace( '/\D+/', '', (string) ( $r['masterProgramId'] ?? '' ) );
+		$par = ( '' !== $mid && '0' !== $mid && isset( $rows_by[ $sid . ':' . $mid ] ) ) ? $rows_by[ $sid . ':' . $mid ] : null;
+		return array( 'program', wp_strip_all_tags( (string) ( $par ? ( $par['name'] ?? '' ) : ( $r['name'] ?? '' ) ) ) );
+	}
+
+	/**
+	 * "Show team schedules" off: keep program dates, deadlines and the schedules of programs that are
+	 * not club teams; drop club-team schedules and the team list (the dropdown then offers programs).
+	 * A cached copy from before items were tagged has no src: those read as team schedules.
+	 */
+	public static function apply_team_setting( array $data, $show_teams ) {
+		if ( $show_teams ) {
+			return $data;
+		}
+		$data['events'] = array_values( array_filter( (array) $data['events'], function ( $e ) {
+			$kind = $e['kind'] ?? '';
+			return 'prog' === $kind || 'deadline' === $kind || 'program' === ( $e['src'] ?? '' );
+		} ) );
+		$data['teams'] = array();
+		return $data;
+	}
+
 	private static function sort_time( $time ) {
 		return preg_match( '/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/', (string) $time, $m ) ? sprintf( '%02d:%02d', ( (int) $m[1] % 12 ) + ( 'PM' === $m[3] ? 12 : 0 ), (int) ( $m[2] ?? 0 ) ) : '00:01';
 	}
@@ -866,7 +920,7 @@ class DS_Calendar_Data {
 		// The visitor dropdown lists only programs that still have something on this calendar.
 		$names = array();
 		foreach ( $out as $e ) {
-			if ( in_array( $e['kind'] ?? '', array( 'prog', 'deadline' ), true ) ) {
+			if ( in_array( $e['kind'] ?? '', array( 'prog', 'deadline' ), true ) || ( 'program' === ( $e['src'] ?? '' ) && '' !== ( $e['grp'] ?? '' ) ) ) {
 				$names[ $e['grp'] ] = true;
 			}
 		}
@@ -986,6 +1040,8 @@ class DS_Calendar_Data {
 				$teams[ $tn ] = 1;
 			}
 
+			$src  = 'program' === ( $it['_src'] ?? '' ) ? 'program' : 'team';
+			$sgrp = 'program' === $src ? wp_strip_all_tags( (string) ( $it['_grp'] ?? '' ) ) : '';
 			$base = strtolower( trim( (string) preg_replace( '/\s*\([^)]*\)\s*$/', '', $title ) ) );
 			foreach ( $days as $day ) {
 				$key = $is_game ? $uid . '|' . $day : $day . '|' . strtolower( $loc ) . '|' . $base;
@@ -1002,9 +1058,15 @@ class DS_Calendar_Data {
 						'note'  => $note,
 						'teams' => array(),
 						'sort'  => $all_day ? '00:00' : $start->format( 'H:i' ),
+						'src'   => $src,
+						'grp'   => $sgrp,
 					);
 				}
 				$g =& $groups[ $key ];
+				if ( 'team' === $src ) {
+					$g['src'] = 'team'; // a day a club team shares with a program reads as a team entry
+					$g['grp'] = '';
+				}
 				if ( strlen( $title ) < strlen( $g['title'] ) ) {
 					$g['title'] = $title;
 				}

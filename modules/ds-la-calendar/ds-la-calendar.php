@@ -46,8 +46,9 @@ class DS_Calendar_Module extends FLBuilderModule {
 			'deadlines' => 'yes' === ( $s->prog_deadlines ?? 'no' ),
 			'register'  => 'no' !== ( $s->prog_register ?? 'yes' ),
 		) );
+		$data  = DS_Calendar_Data::apply_team_setting( $data, self::show_teams( $s ) );
 		$types = self::list_value( $s->types ?? '' );
-		$teams = ( 'pick' === ( $s->teams_mode ?? 'all' ) ) ? self::list_value( $s->teams_pick ?? '' ) : array();
+		$teams = ( self::show_teams( $s ) && 'pick' === ( $s->teams_mode ?? 'all' ) ) ? self::list_value( $s->teams_pick ?? '' ) : array();
 
 		if ( $types || $teams ) {
 			$data['events'] = array_values( array_filter( $data['events'], function ( $e ) use ( $types, $teams ) {
@@ -72,6 +73,11 @@ class DS_Calendar_Module extends FLBuilderModule {
 			}
 		}
 		return $data;
+	}
+
+	/** "Show team schedules" (on unless switched off). Off = camps, clinics, leagues... only. */
+	public static function show_teams( $s ) {
+		return 'no' !== (string) ( $s->team_show ?? 'yes' );
 	}
 
 	/** BB multi-selects arrive as arrays, button groups as comma strings. */
@@ -234,6 +240,14 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 						'options'      => DS_Calendar_Module::type_options(),
 						'multi-select' => true,
 						'help'         => __( 'Leave empty to show every type. Pick one or more to show only those (for example only Tournaments).', 'ds-toolkit' ),
+					),
+					'team_show' => array(
+						'type'    => 'button-group',
+						'label'   => __( 'Show team schedules', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => $ds_la_cal_yes_no,
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'teams_mode' ) ) ),
+						'help'    => __( 'Turn off for a programs-only calendar: camps, clinics, classes, leagues, tournaments and events, without the club teams\' games, practices and tournaments. The dropdown then lists programs instead of teams.', 'ds-toolkit' ),
 					),
 					'teams_mode' => array(
 						'type'    => 'select',

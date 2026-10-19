@@ -69,6 +69,8 @@ chk( 'team filter: 13 Twilight played Saturday only', $one[0]['end'], '2026-10-1
 chk( 'team filter: that team\'s own practice time', utc( array( $one[1]['start'] ), 0 ), '2026-10-20 23:30' );
 $p = DS_Calendar_ICS::entries( $events, 'p:Winter League', 'example.org' );
 chk( 'program filter: that program\'s dates and deadline', wp_list_pluck( $p, 'summary' ), array( 'Registration closes: Winter League', 'Winter League starts' ) );
+$lg = array_merge( $events, array( ev( '2026-10-22', 'U12 Lions vs U12 Tigers', array( 'type' => 'Game', 'src' => 'program', 'grp' => 'Spring League', 'time' => '6 PM', 'teams' => array( array( 'n' => 'U12 Lions', 't' => '' ) ) ) ), ev( '2026-11-08', 'Spring League', array( 'kind' => 'prog', 'grp' => 'Spring League', 'type' => 'League', 'mark' => 'start' ) ) ) );
+chk( 'program filter: a league\'s own schedule comes with its program dates', wp_list_pluck( DS_Calendar_ICS::entries( $lg, 'p:Spring League', 'example.org' ), 'summary' ), array( 'U12 Lions vs U12 Tigers', 'Spring League starts' ) );
 chk( 'unknown filter shape = everything', count( DS_Calendar_ICS::entries( $events, 'x:1', 'example.org' ) ), count( $all ) );
 
 $cross = array( ev( '2026-10-17', 'Overnight Camp', array( 'time' => 'Sat 9 AM – Sun 5 PM' ) ), ev( '2026-10-18', 'Overnight Camp', array( 'time' => 'Sat 9 AM – Sun 5 PM' ) ) );

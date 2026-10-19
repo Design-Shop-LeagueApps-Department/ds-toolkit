@@ -48,6 +48,13 @@ $by_type  = 'type' === DS_Calendar_Module::color_mode( $settings );
 $note     = $txt( 'note_text', __( 'Times are Eastern.', 'ds-toolkit' ) );
 $title_id = 'dslc-dt-' . $module->node;
 $filter   = $yes( 'show_team_filter' ) && count( $data['teams'] ) + count( (array) $data['programs'] ) > 1;
+// A programs-only calendar's dropdown lists programs: its untouched default wording follows.
+$progs_only = ! DS_Calendar_Module::show_teams( $settings );
+$f_label    = $txt( 'team_label', __( 'Team', 'ds-toolkit' ) );
+$f_label    = $progs_only && in_array( $f_label, array( '', 'Team', __( 'Team', 'ds-toolkit' ) ), true ) ? __( 'Program', 'ds-toolkit' ) : $f_label;
+if ( $progs_only && in_array( $config['teamAll'], array( '', 'All teams', __( 'All teams', 'ds-toolkit' ) ), true ) ) {
+	$config['teamAll'] = __( 'All programs', 'ds-toolkit' );
+}
 $switch   = $yes( 'show_switch' );
 $svg      = function ( $d ) { return '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false"><path d="' . $d . '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'; };
 ?>
@@ -79,7 +86,7 @@ $svg      = function ( $d ) { return '<svg width="16" height="16" viewBox="0 0 1
 					<div class="dslc-ctrls">
 						<?php if ( $filter ) : ?>
 							<label class="dslc-filter">
-								<span><?php echo esc_html( $txt( 'team_label', __( 'Team', 'ds-toolkit' ) ) ); ?></span>
+								<span><?php echo esc_html( $f_label ); ?></span>
 								<select class="dslc-team"><option value=""><?php echo esc_html( $config['teamAll'] ); ?></option></select>
 							</label>
 						<?php endif; ?>

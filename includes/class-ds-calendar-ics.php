@@ -89,7 +89,7 @@ class DS_Calendar_ICS {
 		return array_values( array_filter( $events, function ( $e ) use ( $m ) {
 			$prog = in_array( $e['kind'] ?? '', array( 'prog', 'deadline' ), true );
 			if ( 'p' === $m[1] ) {
-				return $prog && ( $e['grp'] ?? '' ) === $m[2];
+				return ( $e['grp'] ?? '' ) === $m[2]; // program dates, deadlines and the program's own schedule
 			}
 			return ! $prog && in_array( $m[2], wp_list_pluck( (array) ( $e['teams'] ?? array() ), 'n' ), true );
 		} ) );

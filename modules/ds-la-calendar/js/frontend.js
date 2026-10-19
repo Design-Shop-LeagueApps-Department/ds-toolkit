@@ -112,9 +112,10 @@ function init(root){
       teams.forEach(function(t){add(tg,t,'t:'+t);});
     }
     if(progs.length){
-      var pg=document.createElement('optgroup');pg.label=cfg.programsLabel||'Programs';
+      var pg=teams.length?document.createElement('optgroup'):sel; // programs only: a plain list
+      if(teams.length){pg.label=cfg.programsLabel||'Programs';}
       progs.forEach(function(t){add(pg,t,'p:'+t);});
-      sel.appendChild(pg);
+      if(teams.length){sel.appendChild(pg);}
     }
   }
 
@@ -122,7 +123,7 @@ function init(root){
   function visible(){
     if(!state.team){return events;}
     var v=state.team.slice(2);
-    if(state.team.indexOf('p:')===0){return events.filter(function(e){return isProg(e)&&e.grp===v;});}
+    if(state.team.indexOf('p:')===0){return events.filter(function(e){return e.grp===v;});} // program dates + its own schedule
     return events.filter(function(e){return !isProg(e)&&e.teams.some(function(t){return t.n===v;});});
   }
   function teamName(){return state.team?state.team.slice(2):'';}
