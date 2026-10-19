@@ -91,6 +91,7 @@ $GLOBALS['sched'][2]=array('code'=>200,'body'=>json_encode(array('games'=>array(
   $ev(6,'14 Sunrise','Data URL',$ny("$Y-02-08 00:00"),null,'see data:text/html,x'),
 ))));
 $GLOBALS['sched'][3]=array('code'=>200,'body'=>json_encode(array('games'=>array())));
+$sched0 = $GLOBALS['sched']; // the sections below change these answers
 
 echo "cold load\n";
 $r = DS_Calendar_Data::get();
@@ -205,6 +206,37 @@ echo "no saved site\n";
 $GLOBALS['opts']['ds_toolkit_settings']=array(); reset_reqs();
 $r4=DS_Calendar_Data::get();
 chk('no site configured -> no_sites, no requests', array($r4['no_sites'], count($r4['events']), reqs()), array(true,0,0));
+
+echo "where each schedule came from (team or program)\n";
+$GLOBALS['opts']['ds_toolkit_settings'] = array( 'leagueapps_sites' => array( array( 'site_id'=>'57065', 'api_key'=>'secretkey123', 'label'=>'Club' ) ) );
+$progs2 = $progs; $progs2[1]['type'] = 'LEAGUE'; $progs2[1]['name'] = 'Spring League U12'; $progs2[1]['masterProgramId'] = 21;
+$progs2[] = array('programId'=>21,'name'=>'Spring League','type'=>'LEAGUE','state'=>'LIVE','startTime'=>1790000000000,'endTime'=>1791000000000);
+$GLOBALS['list_body'] = json_encode($progs2);
+foreach ( array_keys( $GLOBALS['tr'] ) as $k ) { if ( 0 === strpos( $k, 'ds_calendar' ) || 0 === strpos( $k, 'ds_programs' ) ) { unset( $GLOBALS['tr'][ $k ] ); } }
+$wpdb->rows = array(); reset_reqs(); $GLOBALS['sched'] = $sched0;
+$r5 = DS_Calendar_Data::get();
+$by = array(); foreach ( $r5['events'] as $e ) { if ( '' === ( $e['kind'] ?? '' ) ) { $by[ $e['title'] ] = array( $e['src'] ?? '?', $e['grp'] ?? '?' ); } }
+chk('club team tournament = team, no program name', $by['Winter Warm-Up'] ?? null, array( 'team', '' ));
+chk('league division game = program, named after its parent league', $by['14 Sunrise vs Rivals'] ?? null, array( 'program', 'Spring League' ));
+chk('the league joins the Programs dropdown', in_array( 'Spring League', DS_Calendar_Data::apply_program_settings( $r5, array( 'show' => true, 'register' => true ) )['programs'], true ), true );
+chk('the calendar copy carries the current shape', $r5['v'] ?? null, DS_Calendar_Data::SHAPE);
+$off = DS_Calendar_Data::apply_team_setting( $r5, false );
+$titles = array(); foreach ( $off['events'] as $e ) { $titles[ $e['title'] ] = 1; }
+chk('teams off: club team tournaments gone', isset( $titles['Winter Warm-Up'] ), false);
+chk('teams off: the league\'s own schedule stays', isset( $titles['14 Sunrise vs Rivals'] ), true);
+chk('teams off: no team list for the dropdown', $off['teams'], array());
+
+echo "a cached copy from before the tags is rebuilt, not served as current\n";
+$k = 'ds_calendar_'.md5(json_encode(array('57065')));
+$old = $r5; unset( $old['v'] ); foreach ( $old['events'] as $i => $e ) { unset( $old['events'][ $i ]['src'], $old['events'][ $i ]['grp'] ); }
+set_transient( $k, $old, 3600 ); set_transient( $k.'_stale', $old, 3600 ); reset_reqs();
+$r6 = DS_Calendar_Data::get();
+chk('old copy shown meanwhile (no visitor wait, no requests now)', array( isset( $r6['v'] ), reqs() ), array( false, 0 ));
+chk('and a background rebuild is queued', count( $GLOBALS['cron'] ), 1);
+DS_Calendar_Data::refresh();
+chk('the rebuild runs (refresh does not skip an old-shape copy)', ( get_transient( $k )['v'] ?? null ), DS_Calendar_Data::SHAPE);
+$oldoff = DS_Calendar_Data::apply_team_setting( $old, false );
+chk('untagged old events read as team schedules when teams are off', count( array_filter( $oldoff['events'], function ( $e ) { return '' === ( $e['kind'] ?? '' ); } ) ), 0);
 
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit( $fails ? 1 : 0 );

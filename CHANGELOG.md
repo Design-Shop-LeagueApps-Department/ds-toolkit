@@ -4,6 +4,17 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.39] - 2026-10-19
+### Added
+- **LeagueApps Calendar: "Show team schedules" switch, for a programs-only calendar** (Alipio: *"add option to toggle team off only program types"*). Calendar → What to show → **Show team schedules → No** hides the club teams' games, practices and tournaments and keeps camps, clinics, classes, leagues, tournaments and events. The dropdown then lists programs as a plain list, and its untouched default wording becomes "Program" / "All programs". Subscribe and Add to calendar follow the same setting. On by default, so existing calendars do not change.
+- Each schedule entry now records where it came from: a club team, or a program (a league, camp...) with its own LeagueApps schedule. That is what makes the switch exact: picking only program types with Event types could not tell a club team's "Event" from a program's, and still listed every team. A league that has a schedule now also appears under **Programs** in the dropdown (named after its parent league for a division), and picking it shows its games together with its program dates, on the page and in the Subscribe feed.
+
+### Changed
+- Calendar copies cached before this version are shown while a background refresh rebuilds them (`DS_Calendar_Data::SHAPE`), so no visitor waits and no copy without the new tags is treated as current. Until that refresh, untagged entries count as team schedules.
+- `tests/calendar-feed-test.php` gains 11 checks (team vs program tagging with a league division, the Programs dropdown, the switch, the cache rebuild; mutation-checked), `tests/calendar-ics-test.php` 1 (a league's own schedule in its program feed).
+
+---
+
 ## [1.10.38] - 2026-10-17
 ### Changed
 - **LeagueApps Calendar: new default look, from the Design Shop calendar prototype.** The calendar is now one white card that reads on any section colour: a toolbar with the month title and its event count, a Today button, round-cornered arrow buttons, a "Team" box and a Month / List switch filled in the main colour. Events are soft chips with the time on top in the main colour and the name underneath (up to three lines), and weeks with nothing on them are short. A **"Coming up"** column beside the month lists the next events (Style it under Views: on/off, heading, how many); on tablet widths it becomes a scrolling row under the month. On phones the month is a mini calendar with a dot on each busy day and the picked day's events as cards underneath. The list has a date block per row (multi-day events read "Sat-Sun 17-18"), a type badge and a Details button, and turns into cards on phones. The pop-up has the type badge, a large title, the date and place with icons, the teams going, and a button bar with the main action filled. **Layout now follows the calendar's own width** (under 1100px and under 700px), so a calendar placed in a narrow column gets the phone layout on a desktop screen too.
