@@ -216,6 +216,9 @@ class DS_Programs_Data {
 		}
 
 		$raw = self::raw_feed( $sites );
+		if ( false === get_transient( 'ds_programs_seasons' ) ) {
+			self::remember_values( $raw['rows'] ); // a copy cached before 1.10.40 teaches the builder pickers at once
+		}
 		$programs = self::build_rows( $raw['rows'], $overrides, $format, $grouping );
 		return array( 'programs' => $programs, 'stale' => $raw['stale'], 'errors' => $raw['errors'], 'fetched' => $raw['fetched'] );
 	}
@@ -336,6 +339,7 @@ class DS_Programs_Data {
 		set_transient( $stale_key, $pack, self::STALE_TTL );
 		self::remember_key( $key );
 		self::remember_sports( $rows );
+		self::remember_values( $rows );
 		delete_transient( $lock_key );
 
 		return array( 'rows' => $rows, 'stale' => false, 'errors' => $errors, 'fetched' => $pack['fetched'] );
@@ -554,6 +558,10 @@ class DS_Programs_Data {
 			'city'       => $inherit( 'locationCity' ),
 			'season'     => $inherit( 'season' ),
 			'level'      => $inherit( 'experienceLevel' ),
+			// LeagueApps' own Season / Experience Level, kept apart from the shown values so a field
+			// mapping that rewrites "season" for display never changes what the Programs tab scope matches.
+			'seasonRaw'  => $inherit( 'season' ),
+			'levelRaw'   => $inherit( 'experienceLevel' ),
 			'format'     => $inherit( 'leagueFormat' ),
 			'sponsor'    => $inherit( 'sponsor' ),
 			'price'      => $children ? self::price_of_group( $row, $children ) : self::price( $row, $master ),
@@ -890,6 +898,30 @@ class DS_Programs_Data {
 	public static function known_sports() {
 		$cached = get_transient( 'ds_programs_sports' );
 		return ( is_array( $cached ) ) ? $cached : array();
+	}
+
+	/** Seasons or levels LeagueApps has sent on this site (for the Programs tab pickers). */
+	public static function known_values( $field ) {
+		$cached = get_transient( 'season' === $field ? 'ds_programs_seasons' : 'ds_programs_levels' );
+		return is_array( $cached ) ? $cached : array();
+	}
+
+	/**
+	 * Remember every Season and Experience Level value seen, ADDED to what is already known, so a
+	 * site with two LeagueApps accounts (or two modules pulling different ones) offers all of them.
+	 * Kept a week after last seen, capped so a club typing a new value per program cannot grow it forever.
+	 */
+	private static function remember_values( array $raw ) {
+		foreach ( array( 'season' => 'season', 'level' => 'experienceLevel' ) as $field => $src ) {
+			$known = array_fill_keys( self::known_values( $field ), true );
+			foreach ( $raw as $r ) {
+				$v = is_array( $r ) ? trim( wp_strip_all_tags( (string) ( $r[ $src ] ?? '' ) ) ) : '';
+				if ( '' !== $v ) { $known[ $v ] = true; }
+			}
+			$known = array_keys( $known );
+			natcasesort( $known );
+			set_transient( 'season' === $field ? 'ds_programs_seasons' : 'ds_programs_levels', array_slice( array_values( $known ), 0, 200 ), self::STALE_TTL );
+		}
 	}
 
 	private static function remember_sports( array $raw ) {
