@@ -69,7 +69,7 @@ $reg = function ( $over = array() ) {
 		'email' => 'SENTINEL-EMAIL@x.com', 'parentEmail' => 'SENTINEL-PARENT@x.com', 'birthDate' => 'SENTINEL-DOB', 'address1' => 'SENTINEL-ADDRESS', 'phone' => 'SENTINEL-PHONE', 'School' => 'SENTINEL-SCHOOL', 'city' => 'SENTINEL-CITY', 'amountPaid' => 999.99,
 		'Jersey Number Preference 1 (Returning Players Receive Priority)' => '7' ), $over );
 };
-chk( 'player row: name cased, position, grad year, height, captain', DS_Roster_Data::public_row( $reg() ), array( 'f' => 'Lauren', 'l' => 'Becker', 'r' => 'player', 'pos' => 'Outside', 'gy' => '2027', 'ht' => "5'10\"", 'cap' => true ) );
+chk( 'player row: name cased, position, grad year, height, captain', DS_Roster_Data::public_row( $reg() ), array( 'f' => 'Lauren', 'l' => 'Becker', 'r' => 'player', 'pos' => 'Outside', 'gy' => '2027', 'ht' => "5'10\"", 'cap' => true, 'ph' => '' ) );
 chk( 'the jersey PREFERENCE is not taken as a position', DS_Roster_Data::custom_value( array( 'Jersey Number Preference 1' => '7', 'Position' => 'Setter' ), 'position' ), 'Setter' );
 chk( 'free agent (registered, not rostered) is left out', DS_Roster_Data::public_row( $reg( array( 'role' => 'FREEAGENT' ) ) ), null );
 chk( 'waiting list is left out', DS_Roster_Data::public_row( $reg( array( 'registrationStatus' => 'WAITING_LIST' ) ) ), null );
@@ -201,6 +201,14 @@ define( 'DS_LA_KEY_SECRET', str_repeat( 'k', 64 ) );
 chk( 'new keys are sealed under the dedicated secret', DS_Roster_Data::kek_in_use(), 'constant' );
 chk( 'a key sealed under the salts before it was added still opens', DS_Roster_Data::key_status( '52078' )['readable'], true );
 chk( '... and is moved to the dedicated secret by itself', $keys()['52078']['kek'], 'constant' );
+
+echo "teams without an end date\n";
+$nt = DS_Roster_Data::apply( array(), array(
+	$reg( array( 'id' => 71, 'registrationId' => 71, 'teamId' => 501, 'team' => 'AJV 16 Molten', 'programEndDate' => null, 'programStartDate' => ( time() - 3 * 365 * 86400 ) * 1000 ) ),
+	$reg( array( 'id' => 72, 'registrationId' => 72, 'teamId' => 502, 'team' => '15 Navy', 'programEndDate' => null, 'programStartDate' => ( time() - 100 * 86400 ) * 1000 ) ),
+	$reg( array( 'id' => 73, 'registrationId' => 73, 'teamId' => 503, 'team' => 'Undated', 'programEndDate' => null, 'programStartDate' => null ) ),
+) );
+chk( 'no end date: a one-year season from its start (3-year-old team dropped, this season kept)', array_keys( $nt['teams'] ), array( 502, 503 ) );
 
 echo "large clubs (Austin Junior VB)\n";
 $slow = function () { return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 15001 milliseconds with 0 bytes received' ); };

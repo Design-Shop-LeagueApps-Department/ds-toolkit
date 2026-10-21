@@ -34,7 +34,10 @@
 .dsr--med-tint .dsr-med{background:var(--r-tint);border:2px solid var(--r-brand)}
 .dsr--med-solid .dsr-med{background:var(--r-brand);color:var(--r-on-brand)}
 .dsr--med-ring .dsr-med{background:var(--r-card);border:2px solid var(--r-brand)}
-.dsr-cap{position:absolute;right:-4px;bottom:-2px;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--r-ink);color:#fff;font-family:inherit;font-size:12px;font-weight:800;box-shadow:0 0 0 3px var(--r-card)}
+/* A LeagueApps photo fills the badge (the ring and the captain badge stay on top). */
+.dsr .dsr-med--photo{overflow:visible}
+.dsr .dsr-med--photo img{position:absolute;inset:0;width:100%;height:100%;max-width:none;margin:0;border-radius:50%;object-fit:cover;object-position:50% 30%}
+.dsr-cap{z-index:1;position:absolute;right:-4px;bottom:-2px;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--r-ink);color:#fff;font-family:inherit;font-size:12px;font-weight:800;box-shadow:0 0 0 3px var(--r-card)}
 .dsr-body{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;width:100%}
 .dsr-pname{font-family:var(--r-head);font-weight:var(--r-head-w);font-size:20px;line-height:1.1;text-transform:uppercase;letter-spacing:.01em;color:var(--r-text);overflow-wrap:anywhere}
 .dsr-pos{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--r-tint);color:var(--r-ink);font-size:12px;font-weight:700;line-height:1.2;letter-spacing:.06em;text-transform:uppercase}

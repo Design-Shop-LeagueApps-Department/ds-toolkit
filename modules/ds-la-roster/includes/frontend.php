@@ -62,7 +62,7 @@ $htag  = in_array( (string) ( $settings->title_tag ?? '' ), array( 'h2', 'h3', '
 				if ( $yes( 'show_height' ) && '' !== $p['ht'] ) { $meta[] = $p['ht']; }
 				?>
 				<li class="dsr-card" data-pos="<?php echo esc_attr( $slug( $p['pos'] ) ); ?>">
-					<span class="dsr-med" aria-hidden="true"><?php echo esc_html( $p['ini'] ); ?><?php if ( $p['cap'] ) : ?><span class="dsr-cap" title="<?php esc_attr_e( 'Captain', 'ds-toolkit' ); ?>">C</span><?php endif; ?></span>
+					<span class="dsr-med<?php echo ! empty( $p['img'] ) ? ' dsr-med--photo' : ''; ?>" aria-hidden="true"><?php if ( ! empty( $p['img'] ) ) : ?><img src="<?php echo esc_url( $p['img'] ); ?>" alt="" width="76" height="76" loading="lazy" decoding="async"><?php else : echo esc_html( $p['ini'] ); endif; ?><?php if ( $p['cap'] ) : ?><span class="dsr-cap" title="<?php esc_attr_e( 'Captain', 'ds-toolkit' ); ?>">C</span><?php endif; ?></span>
 					<span class="dsr-body">
 						<span class="dsr-pname"><?php echo esc_html( $p['name'] ); ?><?php if ( $p['cap'] ) : ?><span class="screen-reader-text"> (<?php esc_html_e( 'Captain', 'ds-toolkit' ); ?>)</span><?php endif; ?></span>
 						<?php if ( $show_pos && '' !== $p['pos'] ) : ?><span class="dsr-pos"><?php echo esc_html( $p['pos'] ); ?></span><?php endif; ?>
@@ -78,7 +78,7 @@ $htag  = in_array( (string) ( $settings->title_tag ?? '' ), array( 'h2', 'h3', '
 			<h3 class="dsr-sub"><?php echo esc_html( $txt( 'coaches_title', __( 'Coaches', 'ds-toolkit' ) ) ); ?></h3>
 			<ul class="dsr-clist">
 				<?php foreach ( $coaches as $c ) : ?>
-					<li class="dsr-coach"><span class="dsr-med dsr-med--sm" aria-hidden="true"><?php echo esc_html( $c['ini'] ); ?></span><span class="dsr-cname"><?php echo esc_html( $c['name'] ); ?><small><?php esc_html_e( 'Coach', 'ds-toolkit' ); ?></small></span></li>
+					<li class="dsr-coach"><span class="dsr-med dsr-med--sm<?php echo ! empty( $c['img'] ) ? ' dsr-med--photo' : ''; ?>" aria-hidden="true"><?php if ( ! empty( $c['img'] ) ) : ?><img src="<?php echo esc_url( $c['img'] ); ?>" alt="" width="44" height="44" loading="lazy" decoding="async"><?php else : echo esc_html( $c['ini'] ); endif; ?></span><span class="dsr-cname"><?php echo esc_html( $c['name'] ); ?><small><?php esc_html_e( 'Coach', 'ds-toolkit' ); ?></small></span></li>
 				<?php endforeach; ?>
 			</ul>
 		</div>

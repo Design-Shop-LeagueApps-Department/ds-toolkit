@@ -21,6 +21,10 @@ class DS_LA_Roster {
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-roster-data.php';
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-la-colors.php';
+		require_once DS_TOOLKIT_PATH . 'includes/class-ds-roster-photos.php';
+		add_action( DS_Roster_Photos::HOOK, array( 'DS_Roster_Photos', 'run' ) );
+		add_action( 'ds_la_roster_sync', array( 'DS_Roster_Photos', 'run' ), 20 ); // hourly: changed photos, leavers, forgotten teams
+		add_action( 'fl_builder_after_save_layout', array( 'DS_Roster_Photos', 'after_save' ), 10, 3 );
 		add_action( 'init', array( $this, 'register_module' ), 20 );
 		add_action( 'ds_la_roster_sync', array( 'DS_Roster_Data', 'cron' ) );
 		add_action( 'ds_la_roster_continue', array( 'DS_Roster_Data', 'cron' ) ); // a long first sync carrying on

@@ -47,6 +47,20 @@ class DS_Roster_Module extends FLBuilderModule {
 		};
 		$t['players'] = $people( $t['players'], $initial );
 		$t['coaches'] = $people( $t['coaches'], false );
+		if ( 'yes' === (string) ( $s->show_photos ?? 'no' ) && class_exists( 'DS_Roster_Photos' ) ) {
+			list( $sid, $tid ) = explode( ':', (string) $s->team, 2 );
+			// Picked in the builder (the block was just saved): fetch this team's photos now, briefly.
+			// For a visitor a missing photo only queues the background job.
+			$builder = class_exists( 'FLBuilderModel' ) && ( FLBuilderModel::is_builder_active() || ( class_exists( 'FLBuilderAJAX' ) && FLBuilderAJAX::doing_ajax() ) ) && current_user_can( 'edit_posts' );
+			DS_Roster_Photos::want( $sid, $tid, $builder );
+			$urls = array_filter( array_column( array_merge( $t['players'], $t['coaches'] ), 'ph' ) );
+			$map  = DS_Roster_Photos::local( $sid, $urls );
+			foreach ( array( 'players', 'coaches' ) as $g ) {
+				foreach ( $t[ $g ] as $i => $p ) {
+					$t[ $g ][ $i ]['img'] = ( '' !== (string) ( $p['ph'] ?? '' ) && isset( $map[ $p['ph'] ] ) ) ? $map[ $p['ph'] ] : '';
+				}
+			}
+		}
 		if ( 'position' === (string) ( $s->sort_by ?? 'name' ) ) {
 			$order = self::position_order( $t['players'] );
 			usort( $t['players'], function ( $a, $b ) use ( $order ) {
@@ -138,6 +152,7 @@ FLBuilder::register_module( 'DS_Roster_Module', array(
 					'show_position' => array( 'type' => 'button-group', 'label' => __( 'Position', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_ros_yes_no ),
 					'show_grad'     => array( 'type' => 'button-group', 'label' => __( 'Graduation year', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_ros_yes_no ),
 					'show_height'   => array( 'type' => 'button-group', 'label' => __( 'Height', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_ros_yes_no, 'help' => __( 'Position, graduation year and height come from the club\'s registration questions; players who did not answer show without them.', 'ds-toolkit' ) ),
+					'show_photos'   => array( 'type' => 'button-group', 'label' => __( 'Player photos', 'ds-toolkit' ), 'default' => 'no', 'options' => $ds_ros_yes_no, 'help' => __( 'The profile photo from LeagueApps in the round badge (LeagueApps keeps them at 150 px at most); people without one keep their initials. Only this team\'s photos are downloaded, when you save this block with the team picked, into a private folder (not the Media Library). Most players are minors: use it when the club agrees.', 'ds-toolkit' ) ),
 					'show_filter'   => array( 'type' => 'button-group', 'label' => __( 'Position filter', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_ros_yes_no, 'help' => __( 'Buttons above the roster (All, Outside, Setter...). Hidden when there is only one position.', 'ds-toolkit' ) ),
 					'sort_by'       => array(
 						'type'    => 'button-group',

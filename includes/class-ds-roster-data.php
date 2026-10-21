@@ -39,7 +39,8 @@ class DS_Roster_Data {
 	const KEEP_DAYS  = 400;                  // teams whose season ended longer ago are dropped
 	// A full rebuild reads registrations updated in the last two years, not the club's whole history:
 	// in Surfside's real export the oldest registration still on a current roster was 452 days old
-	// (none over 550), while a club like Austin Junior VB has years of history before that.
+	// (none over 550). Checked against Austin Junior VB's whole history (2019 on, 56 pages): every
+	// team kept by the rule below has exactly the same roster from the two-year window.
 	const FULL_FROM_DAYS = 730;
 	const RETRY_WAIT     = 2 * MINUTE_IN_SECONDS; // a first sync that hit a slow page carries on this soon
 	const RETRY_MAX      = 5;                     // ... this many times in a row, then at the hourly run
@@ -222,6 +223,9 @@ class DS_Roster_Data {
 		update_option( self::KEYS_OPT, $keys, false );
 		delete_transient( 'ds_la_roster_tok_' . $site_id );
 		delete_option( self::STORE_PRE . $site_id );
+		if ( class_exists( 'DS_Roster_Photos' ) ) {
+			DS_Roster_Photos::purge( $site_id );
+		}
 		if ( '' !== $print ) {
 			self::audit( 'removed', $site_id, $print );
 		}
@@ -466,14 +470,49 @@ class DS_Roster_Data {
 			'gy'  => 'player' === $role ? self::custom_value( $r, 'grad' ) : '',
 			'ht'  => 'player' === $role ? self::custom_value( $r, 'height' ) : '',
 			'cap' => ! empty( $r['isCoCaptain'] ),
+			'ph'  => self::photo_url( $r['photo'] ?? '' ), // the address only; a photo is downloaded only for a team a block shows
 		);
+	}
+
+	/**
+	 * LeagueApps' profile photo address, or ''. Only their own photo storage and file name are
+	 * accepted (https://svite-league-apps-img.s3.amazonaws.com/profile-<id>-s3.jpg), so a value in
+	 * the export can never make the site fetch anything else. The "?type=" query changes nothing
+	 * there and is dropped.
+	 */
+	public static function photo_url( $u ) {
+		$u = trim( (string) $u );
+		if ( preg_match( '~^https://svite-league-apps-img\.s3\.amazonaws\.com/(profile-[A-Za-z0-9_-]{4,80}-s3\.(?:jpe?g|png))(?:\?[A-Za-z0-9=&_-]*)?$~', $u, $m ) ) {
+			return 'https://svite-league-apps-img.s3.amazonaws.com/' . $m[1];
+		}
+		return '';
 	}
 
 	/* ------------------------------------------------------------------ store + sync */
 
-	public static function store( $site_id ) {
-		$s = get_option( self::STORE_PRE . preg_replace( '/\D+/', '', (string) $site_id ), array() );
+	public static function store( $site_id, $fresh = false ) {
+		$name = self::STORE_PRE . preg_replace( '/\D+/', '', (string) $site_id );
+		$s    = $fresh ? self::fresh_option( $name, array() ) : get_option( $name, array() );
 		return is_array( $s ) ? $s : array();
+	}
+
+	/**
+	 * An option read from the database, not the object cache. WP Engine runs memcached per container
+	 * (unix:///tmp/memcached.sock), so a cached copy can be older than what another container saved
+	 * (seen on designshopdemo 2026-10-21: one page view read an empty photo list the database already
+	 * had 11 entries in). Anything read in order to be changed and saved again is read this way, so a
+	 * stale copy can never be written back over newer data.
+	 */
+	public static function fresh_option( $name, $default = false ) {
+		if ( function_exists( 'wp_cache_delete' ) ) {
+			wp_cache_delete( $name, 'options' );
+			$no = wp_cache_get( 'notoptions', 'options' );
+			if ( is_array( $no ) && isset( $no[ $name ] ) ) {
+				unset( $no[ $name ] );
+				wp_cache_set( 'notoptions', $no, 'options' );
+			}
+		}
+		return get_option( $name, $default );
 	}
 
 	/**
@@ -515,10 +554,14 @@ class DS_Roster_Data {
 			unset( $t );
 			$where[ $rid ] = $tid;
 		}
-		// Teams whose season ended long ago, and teams left empty, are dropped.
+		// Teams whose season ended long ago, and teams left empty, are dropped. A program with no end
+		// date in LeagueApps counts as a one-year season from its start: Austin Junior VB has old teams
+		// (2019-2024) without one, which otherwise stayed in the team list forever, with only the part
+		// of their roster updated in the last two years.
 		$cut = time() - self::KEEP_DAYS * DAY_IN_SECONDS;
 		foreach ( $store['teams'] as $tid => $t ) {
-			if ( empty( $t['m'] ) || ( ! empty( $t['end'] ) && $t['end'] < $cut ) ) {
+			$end = ! empty( $t['end'] ) ? (int) $t['end'] : ( ! empty( $t['start'] ) ? (int) $t['start'] + 365 * DAY_IN_SECONDS : 0 );
+			if ( empty( $t['m'] ) || ( $end && $end < $cut ) ) {
 				foreach ( array_keys( (array) ( $t['m'] ?? array() ) ) as $rid ) {
 					unset( $where[ $rid ] );
 				}
@@ -545,7 +588,7 @@ class DS_Roster_Data {
 		}
 		set_transient( $lock, 1, self::BUDGET + 30 );
 
-		$old  = self::store( $site_id );
+		$old  = self::store( $site_id, true );
 		// A rebuild that stopped half-way is always carried on first, or it would never be swapped in.
 		$full = $force_full || ! empty( $old['partial'] ) || empty( $old['full'] ) || time() - (int) $old['full'] > self::FULL_EVERY;
 		$work = $full ? ( (array) ( $old['partial'] ?? array() ) ?: array( 'cur' => self::full_start() ) ) : $old;

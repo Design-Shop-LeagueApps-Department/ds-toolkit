@@ -23,6 +23,16 @@ delete_option( 'ds_la_key_audit' );
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'ds\_la\_roster\_%' OR option_name LIKE '\_transient\_ds\_la\_roster\_%' OR option_name LIKE '\_transient\_timeout\_ds\_la\_roster\_%'" );
 wp_clear_scheduled_hook( 'ds_la_roster_sync' );
 wp_clear_scheduled_hook( 'ds_la_roster_continue' );
+wp_unschedule_hook( 'ds_la_roster_photos' );
+// LeagueApps Roster photos: uploads/ds-la-roster/<site>/ (lists are ds_la_roster_ph_<site>, removed above).
+$ds_up = wp_upload_dir( null, false );
+foreach ( (array) glob( trailingslashit( $ds_up['basedir'] ) . 'ds-la-roster/*', GLOB_ONLYDIR ) as $ds_dir ) {
+	foreach ( (array) glob( $ds_dir . '/*' ) as $ds_f ) {
+		if ( is_file( $ds_f ) ) { @unlink( $ds_f ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors
+	}
+	@rmdir( $ds_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+}
+@rmdir( trailingslashit( $ds_up['basedir'] ) . 'ds-la-roster' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 // LeagueApps Team Schedule: one stored schedule per program, its locks and its refresh job.
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'ds\_la\_sched\_%' OR option_name LIKE '\_transient\_ds\_la\_sched\_%' OR option_name LIKE '\_transient\_timeout\_ds\_la\_sched\_%'" );
 wp_unschedule_hook( 'ds_la_schedule_refresh' );
