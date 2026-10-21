@@ -197,6 +197,23 @@ $only = DS_Schedule_Data::rows($items, '17 legends', $now);
 chk('team filter keeps that team\'s items, drops the other game', count($only), 7);
 chk('team filter matches team2 too (case-insensitive)', count(DS_Schedule_Data::rows($items, 'RIVALS', $now)), 2);
 
+echo "a tournament entered one item per day\n";
+$day = function ($id, $d, $from, $to, $title = 'Winter Warm-Up (Saturday-Sunday)', $loc = 'Cedar Point Sports Center') use ($ny) { return array('scheduleItemType'=>'EVENT','eventId'=>$id,'teamName'=>'14 Sunrise','type'=>'Tournament','title'=>$title,'startDate'=>$ny("$d $from"),'endDate'=>$ny("$d $to"),'location'=>$loc,'latitude'=>41.48,'longitude'=>-82.68); };
+$rr = DS_Schedule_Data::rows(array( $day(1,"$Y-01-02",'08:00','22:00'), $day(2,"$Y-01-03",'08:00','22:00'), $day(3,"$Y-01-09",'08:00','22:00','Rock N Rumble'), $day(4,"$Y-01-10",'09:00','18:00','Rock N Rumble') ), '', $now);
+chk('Saturday + Sunday entries of one tournament are ONE row with a range', array(count($rr), $rr[0]['day'], $rr[0]['last']), array(2, "$Y-01-02", "$Y-01-03"));
+chk('... the hours stay when both days have the same ones', $rr[0]['time'], '8 AM – 10 PM');
+chk('... and are left out when the days differ', array($rr[1]['last'], $rr[1]['time']), array("$Y-01-10", ''));
+$rr = DS_Schedule_Data::rows(array( $day(1,"$Y-01-02",'08:00','22:00'), $day(2,"$Y-01-09",'08:00','22:00') ), '', $now);
+chk('the same tournament a week apart stays two rows', count($rr), 2);
+$rr = DS_Schedule_Data::rows(array( $day(1,"$Y-01-02",'08:00','22:00'), $day(2,"$Y-01-03",'08:00','22:00','Winter Warm-Up (Saturday-Sunday)','Other Gym') ), '', $now);
+chk('the same name at another place stays two rows', count($rr), 2);
+$g = function ($id, $d) use ($ny) { return array('scheduleItemType'=>'STRUCTURED_GAME','gameId'=>$id,'startTime'=>$ny("$d 18:00"),'endTime'=>$ny("$d 20:00"),'team1'=>'14 Sunrise','team2'=>'Rivals','locationName'=>'Gym'); };
+$pr = function ($id, $d) use ($ny) { return array('scheduleItemType'=>'EVENT','eventId'=>$id,'teamName'=>'17 Legends','type'=>'Practice','title'=>'17L - Practice - ECC North','startDate'=>$ny("$d 19:00"),'endDate'=>$ny("$d 21:00"),'location'=>'El Camino College, North Gym'); };
+chk('practices on back-to-back days stay separate sessions', count(DS_Schedule_Data::rows(array($pr(1,"$Y-01-04"), $pr(2,"$Y-01-05")), '', $now)), 2);
+chk('two games on back-to-back days (a series) stay two games', count(DS_Schedule_Data::rows(array($g(1,"$Y-02-06"), $g(2,"$Y-02-07")), '', $now)), 2);
+$d = DS_Schedule_Data::date_parts(array('day'=>"$Y-01-02",'last'=>"$Y-01-03"));
+chk('the merged row reads "Sat–Sun 2–3"', array($d['dow'], $d['num']), array('Sat–Sun', '2–3'));
+
 echo "labels\n";
 chk('team code "17 Legends" -> 17L', DS_Schedule_Data::team_code('17 Legends'), '17L');
 chk('team code "12U Black Diamond" -> 12BD', DS_Schedule_Data::team_code('12U Black Diamond'), '12BD');

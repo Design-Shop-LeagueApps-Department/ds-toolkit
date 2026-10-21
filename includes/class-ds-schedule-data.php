@@ -447,6 +447,7 @@ class DS_Schedule_Data {
 				'loc'     => $tbd ? '' : $loc,
 				'map'     => $tbd ? '' : $map,
 				'past'    => $last->format( 'Y-m-d' ) < $today,
+				'game'    => $is_game,
 			);
 			if ( ! $is_game && isset( $rows[ $dkey ] ) ) {
 				// Same event, same first day, same place: one row. A multi-day entry keeps its date
@@ -467,7 +468,32 @@ class DS_Schedule_Data {
 		}
 		$rows = array_values( $rows );
 		usort( $rows, function ( $a, $b ) { return strcmp( $a['day'] . $a['sort'] . $a['title'], $b['day'] . $b['sort'] . $b['title'] ); } );
-		return $rows;
+
+		// Many clubs enter a weekend tournament as one item PER DAY (Inspire: "Winter Warm-Up (Saturday-Sunday)"
+		// on Sat 8 AM-10 PM and again on Sun 8 AM-10 PM). The same event at the same place on back-to-back days
+		// is one row with a date range; the hours stay when every day has the same ones.
+		$out  = array();
+		$open = array(); // title|place|type => index in $out of the row that ended most recently
+		foreach ( $rows as $r ) {
+			$k = strtolower( $r['type'] . '|' . $r['title'] . '|' . $r['loc'] );
+			// Games and practices on back-to-back days are separate sessions, never one event.
+			if ( empty( $r['game'] ) && ! preg_match( '/practice|training/i', $r['type'] ) && isset( $open[ $k ] ) ) {
+				$prev = $out[ $open[ $k ] ];
+				$next = ( new DateTime( $prev['last'] . ' 12:00', new DateTimeZone( self::TZ ) ) )->modify( '+1 day' )->format( 'Y-m-d' );
+				if ( $r['day'] === $next || $r['day'] === $prev['last'] ) {
+					$prev['last']  = max( $prev['last'], $r['last'] );
+					$prev['time']  = $prev['time'] === $r['time'] ? $prev['time'] : '';
+					$prev['all_day'] = $prev['all_day'] && $r['all_day'];
+					$prev['map']   = '' !== $prev['map'] ? $prev['map'] : $r['map'];
+					$prev['past']  = $prev['last'] < $today;
+					$out[ $open[ $k ] ] = $prev;
+					continue;
+				}
+			}
+			$out[]      = $r;
+			$open[ $k ] = count( $out ) - 1;
+		}
+		return $out;
 	}
 
 	/** Date label pieces for a row: weekday, day number(s), month, and the full date for screen readers. */

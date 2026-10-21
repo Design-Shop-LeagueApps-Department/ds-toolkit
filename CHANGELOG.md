@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.42] - 2026-10-22
+### Fixed
+- **Schedule: a tournament entered one day at a time is one row.** Many clubs enter a weekend tournament as one LeagueApps item per day (Inspire CLE: "Winter Warm-Up (Saturday-Sunday)" on Saturday 8 AM-10 PM and again on Sunday), which showed as the same tournament twice in a row. The same event at the same place on back-to-back days is now one row with a date range ("Sat–Sun 2–3"), keeping the hours when every day has the same ones. Games and practices on back-to-back days stay separate sessions. Found on the HQ doc's live example; `tests/schedule-data-test.php` gains 8 checks (mutation-checked) and the real Surfside feed is unchanged (77 rows, 68 practices, 9 tournaments).
+
+---
+
 ## [1.10.41] - 2026-10-22
 ### Added
 - **New module: LeagueApps Roster.** One LeagueApps team's players and coaches as a designed roster, replacing the hosted LeagueApps roster page (Alipio, 2026-10-21: *"the roster of team of leagueapps present so shitty... design and ux sucks"*). A team header (season, team name, player and coach counts), position filter buttons with counts (All, Setter, Outside, Opposite, Middle, DS/Libero, or whatever the club uses), and a card per player: initials medallion on a brand tint (LeagueApps holds almost no photos: 2 of 333 Surfside rows), the name in the site's heading font, a position tag, "Class of 2027 · 5'10\"", and a C badge for captains (`isCoCaptain`). Coaches in their own row with full names. Settings: team picker (newest season first, with player counts), header on/off and title, player names in full or with last initial ("Lauren B.", for minors on a public site), position / graduation year / height on or off, filter on/off, order by last name or position, cards or list, coaches on/off; Style: main colour (tints and readable text worked out in PHP, contrast-safe for any colour), text, small text, card background and border, medallion style (soft, solid, outline), cards per row per device (4 / 3 / 2) and corner rounding, team name and player name typography. Opt-in under Features > LeagueApps Modules.
