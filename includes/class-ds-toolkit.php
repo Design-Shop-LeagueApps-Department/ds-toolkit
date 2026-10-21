@@ -225,13 +225,11 @@ class DS_Toolkit {
             'class'         => 'DS_LA_Roster',
             'min_blueprint' => 6,
         ),
-        // One LeagueApps team's (or program's) schedule as a table or a "next up" list. Opt-in;
-        // public data, asks LeagueApps about the one program a module shows.
-        'ds_la_schedule_module_enabled' => array(
-            'file'          => 'features/class-ds-la-schedule.php',
-            'class'         => 'DS_LA_Schedule',
-            'min_blueprint' => 6,
-        ),
+        // LeagueApps Schedule (ds_la_schedule_module_enabled) is DEPRECATED since 1.10.44 and no
+        // longer loads anywhere, whatever its saved switch says (Alipio, 2026-10-22: "we dont need
+        // that module for now"). Its code stays in features/class-ds-la-schedule.php and
+        // modules/ds-la-schedule/ so it can come back by restoring this entry and its row in
+        // module_features(). Team pages use the Table module for a game schedule.
         'ds_table_module_enabled' => array(
             'file'          => 'features/class-ds-table.php',
             'class'         => 'DS_Table',
@@ -348,7 +346,6 @@ class DS_Toolkit {
             'ds_table_module_enabled'          => array( 'label' => 'Table',           'desc' => 'A sortable, searchable table typed in the builder, uploaded as a CSV, or kept in sync with a CSV file or a Google Sheet.' ),
             'ds_programs_module_enabled'       => array( 'label' => 'LeagueApps Programs', 'desc' => 'Live tournament, league, camp and clinic listings from LeagueApps as a filterable table. Needs a site ID and API key on the LeagueApps tab.' ),
             'ds_la_calendar_module_enabled'    => array( 'label' => 'LeagueApps Calendar', 'desc' => 'Team schedules from LeagueApps (tournaments, games, practices) as a month calendar and an upcoming list. Uses the site ID and API key on the LeagueApps tab.' ),
-            'ds_la_schedule_module_enabled'    => array( 'label' => 'LeagueApps Schedule', 'desc' => 'One team\'s games, tournaments and practices from LeagueApps as a table with a type filter, or a short "next up" list for a sidebar. Uses the site ID and API key on the LeagueApps tab.' ),
             'ds_la_roster_module_enabled'      => array( 'label' => 'LeagueApps Roster', 'desc' => 'A team\'s players and coaches from LeagueApps as a designed roster (name, position, grad year, height). Needs the club\'s private LeagueApps key, uploaded on the LeagueApps tab by an administrator.' ),
         );
     }

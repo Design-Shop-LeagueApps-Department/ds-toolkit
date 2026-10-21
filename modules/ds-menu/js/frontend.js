@@ -561,15 +561,42 @@
 				return; // mega items never use the flyout flip below
 			}
 
-			var sub = null;
-			for ( var i = 0; i < li.children.length; i++ ) {
-				if ( li.children[ i ].classList && li.children[ i ].classList.contains( 'ds-submenu' ) ) { sub = li.children[ i ]; break; }
-			}
-			if ( ! sub ) { return; }
-			li.classList.remove( 'ds-flip' );
-			var r = sub.getBoundingClientRect();
-			if ( r.width > 0 && r.right > window.innerWidth - 8 ) { li.classList.add( 'ds-flip' ); }
+			flipOne( li );
 		} );
+
+		/* Also on load and on resize, not only on hover: a CLOSED flyout still has layout
+		   (it is only invisible), so one that sticks out past the right edge widens the
+		   whole page and every desktop page scrolls sideways until someone happens to hover
+		   it (supernovaasvb: Resources > News reached x=1658 in a 1440 window). Desktop
+		   dropdowns only: in the mobile overlay and the off-canvas drawer submenus are not
+		   absolutely positioned, and mega panels have their own clamp. Document order puts
+		   a parent before its flyouts, so a nested flyout is measured after its parent moved. */
+		var flipAll = function () {
+			if ( wrap.classList.contains( 'ds-menu-open' ) ) { return; }
+			var items = wrap.querySelectorAll( '.ds-menu-item.has-children' );
+			for ( var k = 0; k < items.length; k++ ) {
+				if ( items[ k ].classList.contains( 'is-mega' ) || items[ k ].closest( '.ds-mega' ) ) { continue; }
+				flipOne( items[ k ] );
+			}
+		};
+		flipAll();
+		window.addEventListener( 'load', flipAll );
+		var ft = null;
+		window.addEventListener( 'resize', function () {
+			if ( ft ) { clearTimeout( ft ); }
+			ft = setTimeout( function () { ft = null; flipAll(); }, 150 );
+		} );
+	}
+
+	function flipOne( li ) {
+		var sub = null;
+		for ( var i = 0; i < li.children.length; i++ ) {
+			if ( li.children[ i ].classList && li.children[ i ].classList.contains( 'ds-submenu' ) ) { sub = li.children[ i ]; break; }
+		}
+		if ( ! sub || 'absolute' !== window.getComputedStyle( sub ).position ) { return; }
+		li.classList.remove( 'ds-flip' );
+		var r = sub.getBoundingClientRect();
+		if ( r.width > 0 && r.right > window.innerWidth - 8 ) { li.classList.add( 'ds-flip' ); }
 	}
 
 	function boot() { document.querySelectorAll( '.ds-menu-wrap' ).forEach( function ( w ) { init( w ); initHoverIntent( w ); initFlip( w ); initMegaClamp( w ); } ); }

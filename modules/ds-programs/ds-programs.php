@@ -345,6 +345,7 @@ class DS_Programs_Module extends FLBuilderModule {
 	 */
 	public static function presets() {
 		return array(
+			'modern'   => array( 'table_bg' => '#ffffff', 'table_border' => 'outer_horizontal', 'table_border_color' => '#e4e7ec', 'table_border_width' => '1', 'table_radius' => '12', 'table_shadow' => 'subtle', 'head_bg' => '#f5f7fa', 'head_color' => '#4a5568', 'row_color' => '#1f2937', 'row_hover' => '#f8fafc', 'cell_pad' => '14', 'select_bg' => '#ffffff', 'select_color' => '#1f2937', 'select_border' => '#d0d5dd', 'select_radius' => '10', 'pager_border' => '#d0d5dd', 'pager_radius' => '10', 'mob_card_bg' => '#ffffff', 'mob_card_radius' => '12', 'mob_card_gap' => '12' ),
 			'striped'  => array( 'table_border' => 'horizontal', 'table_border_color' => 'rgba(0,0,0,.10)', 'table_border_width' => '1', 'row_stripe' => 'rgba(0,0,0,.035)', 'head_bg' => 'rgba(0,0,0,.06)' ),
 			'bordered' => array( 'table_border' => 'grid', 'table_border_color' => 'rgba(0,0,0,.14)', 'table_border_width' => '1', 'head_bg' => 'rgba(0,0,0,.06)' ),
 			'minimal'  => array( 'table_border' => 'horizontal', 'table_border_color' => 'rgba(0,0,0,.08)', 'table_border_width' => '1', 'head_border_width' => '2', 'head_border_color' => 'rgba(0,0,0,.55)', 'cell_pad' => '14' ),
@@ -729,8 +730,9 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					'style_preset' => array(
 						'type'    => 'select',
 						'label'   => __( 'Table preset', 'ds-toolkit' ),
-						'default' => 'striped',
+						'default' => 'modern',
 						'options' => array(
+							'modern'   => __( 'Modern (white card, soft header)', 'ds-toolkit' ),
 							'striped'  => __( 'Striped rows', 'ds-toolkit' ),
 							'bordered' => __( 'Bordered grid', 'ds-toolkit' ),
 							'minimal'  => __( 'Minimal lines', 'ds-toolkit' ),
@@ -749,7 +751,7 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					'table_border_width' => $ds_prg_unit( __( 'Border width', 'ds-toolkit' ), 1, 6 ),
 					'table_border_color' => $ds_prg_colour( __( 'Border colour', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
 					'table_radius'       => $ds_prg_unit( __( 'Corner radius', 'ds-toolkit' ), 0, 32 ),
-					'table_shadow'       => array( 'type' => 'select', 'label' => __( 'Shadow', 'ds-toolkit' ), 'default' => '', 'options' => array( '' => __( 'Preset default', 'ds-toolkit' ), 'none' => __( 'None', 'ds-toolkit' ), 'soft' => __( 'Soft', 'ds-toolkit' ), 'medium' => __( 'Medium', 'ds-toolkit' ) ) ),
+					'table_shadow'       => array( 'type' => 'select', 'label' => __( 'Shadow', 'ds-toolkit' ), 'default' => '', 'options' => array( '' => __( 'Preset default', 'ds-toolkit' ), 'none' => __( 'None', 'ds-toolkit' ), 'subtle' => __( 'Subtle', 'ds-toolkit' ), 'soft' => __( 'Soft', 'ds-toolkit' ), 'medium' => __( 'Medium', 'ds-toolkit' ) ) ),
 				),
 			),
 			'head_sec' => array(

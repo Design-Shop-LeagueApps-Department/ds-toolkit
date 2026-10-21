@@ -235,7 +235,7 @@ class DS_Toolkit_Admin {
             } elseif ( $active_tab === 'leagueapps' ) {
                 require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
                 $leagueapps_sites   = DS_Programs_Data::configured_sites();
-                $programs_module_on = ! empty( $opts['ds_programs_module_enabled'] ) || ! empty( $opts['ds_la_calendar_module_enabled'] ) || ! empty( $opts['ds_la_roster_module_enabled'] ) || ! empty( $opts['ds_la_schedule_module_enabled'] );
+                $programs_module_on = ! empty( $opts['ds_programs_module_enabled'] ) || ! empty( $opts['ds_la_calendar_module_enabled'] ) || ! empty( $opts['ds_la_roster_module_enabled'] );
                 $roster_module_on   = ! empty( $opts['ds_la_roster_module_enabled'] );
                 $la_sports          = DS_Programs_Data::known_sports();
                 $la_activity        = DS_Programs_Data::ledger_summary();

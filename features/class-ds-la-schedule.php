@@ -2,6 +2,9 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
+ * DEPRECATED since 1.10.44: not loaded (see the note in DS_Toolkit's feature list). Kept so the
+ * module can be brought back without rebuilding it.
+ *
  * Registers the in-house "LeagueApps Team Schedule" Beaver Builder module
  * (modules/ds-la-schedule/): one team's or program's LeagueApps schedule as a table
  * or a compact "next up" list, for team pages.

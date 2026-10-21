@@ -31,6 +31,7 @@ class DS_Table_Module extends FLBuilderModule {
 	/** Palette-neutral base layers; brand = the site's Accent header. A field the editor sets always wins. */
 	public static function presets() {
 		return array(
+			'modern'   => array( 'table_bg' => '#ffffff', 'table_border' => 'outer_horizontal', 'table_border_color' => '#e4e7ec', 'table_radius' => '12', 'table_shadow' => 'subtle', 'head_bg' => '#f5f7fa', 'head_color' => '#4a5568', 'row_color' => '#1f2937', 'row_hover' => '#f8fafc', 'cell_pad' => '14', 'control_bg' => '#ffffff', 'control_border' => '#d0d5dd', 'control_radius' => '10', 'card_bg' => '#ffffff', 'card_border' => '#e4e7ec', 'card_radius' => '12', 'label_color' => '#5b6472' ),
 			'striped'  => array( 'table_border' => 'horizontal', 'table_border_color' => 'rgba(0,0,0,.09)', 'row_stripe' => 'rgba(0,0,0,.035)', 'head_border_width' => '2', 'head_border_color' => 'rgba(0,0,0,.22)' ),
 			'bordered' => array( 'table_border' => 'grid', 'table_border_color' => 'rgba(0,0,0,.14)', 'head_bg' => 'rgba(0,0,0,.04)' ),
 			'minimal'  => array( 'table_border' => 'horizontal', 'table_border_color' => 'rgba(0,0,0,.08)', 'head_border_width' => '2', 'head_border_color' => 'rgba(0,0,0,.55)', 'cell_pad' => '14' ),
@@ -620,8 +621,9 @@ FLBuilder::register_module( 'DS_Table_Module', array(
 					'style_preset' => array(
 						'type'    => 'select',
 						'label'   => __( 'Table preset', 'ds-toolkit' ),
-						'default' => 'striped',
+						'default' => 'modern',
 						'options' => array(
+							'modern'   => __( 'Modern (white card, soft header)', 'ds-toolkit' ),
 							'striped'  => __( 'Striped rows', 'ds-toolkit' ),
 							'brand'    => __( 'Brand header (Accent color)', 'ds-toolkit' ),
 							'framed'   => __( 'Framed (rounded, shadow)', 'ds-toolkit' ),
@@ -641,7 +643,7 @@ FLBuilder::register_module( 'DS_Table_Module', array(
 					'table_border_width' => $ds_tbl_unit( __( 'Border width', 'ds-toolkit' ), 1, 6 ),
 					'table_border_color' => $ds_tbl_colour( __( 'Border color', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
 					'table_radius'       => $ds_tbl_unit( __( 'Corner radius', 'ds-toolkit' ), 0, 32 ),
-					'table_shadow'       => array( 'type' => 'select', 'label' => __( 'Shadow', 'ds-toolkit' ), 'default' => '', 'options' => array( '' => __( 'Preset default', 'ds-toolkit' ), 'none' => __( 'None', 'ds-toolkit' ), 'soft' => __( 'Soft', 'ds-toolkit' ), 'medium' => __( 'Medium', 'ds-toolkit' ) ) ),
+					'table_shadow'       => array( 'type' => 'select', 'label' => __( 'Shadow', 'ds-toolkit' ), 'default' => '', 'options' => array( '' => __( 'Preset default', 'ds-toolkit' ), 'none' => __( 'None', 'ds-toolkit' ), 'subtle' => __( 'Subtle', 'ds-toolkit' ), 'soft' => __( 'Soft', 'ds-toolkit' ), 'medium' => __( 'Medium', 'ds-toolkit' ) ) ),
 				),
 			),
 			'head_sec' => array(
