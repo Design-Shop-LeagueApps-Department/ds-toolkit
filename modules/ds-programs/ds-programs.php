@@ -40,7 +40,7 @@ class DS_Programs_Module extends FLBuilderModule {
 
 	public function __construct() {
 		parent::__construct( array(
-			'name'            => __( 'LeagueApps Programs', 'ds-toolkit' ),
+			'name'            => __( 'Programs', 'ds-toolkit' ),
 			'description'     => __( 'Live tournament, league, camp and clinic listings from LeagueApps as a filterable table you control.', 'ds-toolkit' ),
 			'category'        => __( 'LeagueApps', 'ds-toolkit' ),
 			'dir'             => DS_TOOLKIT_PATH . 'modules/ds-programs/',

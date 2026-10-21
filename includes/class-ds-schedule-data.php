@@ -209,17 +209,18 @@ class DS_Schedule_Data {
 		$r   = self::http( DS_Programs_Data::API_BASE . rawurlencode( $sid ) . '/programs/' . rawurlencode( $pid ) . '/schedule?x-api-key=' . rawurlencode( $site['api_key'] ) );
 		$code = (int) $r['code'];
 		$err  = '';
-		if ( 200 === $code ) {
-			$json = json_decode( (string) $r['body'], true );
-			$list = ( is_array( $json ) && isset( $json['games'] ) && is_array( $json['games'] ) ) ? $json['games'] : array();
-			$e    = array( 't' => $now, 'items' => array_slice( self::prune( $list, $now ), 0, self::MAX_ITEMS ), 'nf' => 0, 'fails' => 0, 'retry' => 0 );
+		$json = 200 === $code ? json_decode( (string) $r['body'], true ) : null;
+		if ( 200 === $code && is_array( $json ) && isset( $json['games'] ) && is_array( $json['games'] ) ) {
+			$e = array( 't' => $now, 'items' => array_slice( self::prune( $json['games'], $now ), 0, self::MAX_ITEMS ), 'nf' => 0, 'fails' => 0, 'retry' => 0 );
 		} elseif ( 404 === $code ) {
 			$e = array( 't' => $now, 'items' => array(), 'nf' => 1, 'fails' => 0, 'retry' => 0 );
 		} else {
 			$e['fails'] = (int) $e['fails'] + 1;
 			$wait       = 429 === $code ? max( (int) $r['retry_after'], self::FAIL_TTL ) : self::FAIL_TTL * ( 2 ** min( 6, $e['fails'] - 1 ) );
 			$e['retry'] = $now + min( $wait, self::FAIL_TTL_MAX );
-			$err        = 429 === $code ? __( 'LeagueApps is rate limiting requests (429)', 'ds-toolkit' ) : ( 0 === $code ? __( 'LeagueApps did not answer', 'ds-toolkit' ) : 'HTTP ' . $code );
+			// A 200 that is not a schedule (a maintenance page, a cut-off body) is a failure too: the last good
+			// copy keeps showing instead of "posted soon" for an hour.
+			$err        = 429 === $code ? __( 'LeagueApps is rate limiting requests (429)', 'ds-toolkit' ) : ( 0 === $code ? __( 'LeagueApps did not answer', 'ds-toolkit' ) : ( 200 === $code ? __( 'LeagueApps sent something that is not a schedule', 'ds-toolkit' ) : 'HTTP ' . $code ) );
 		}
 		self::store_put( $sid, $pid, $e );
 		self::unlock( $lock );

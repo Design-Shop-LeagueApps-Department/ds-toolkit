@@ -85,10 +85,11 @@ $htag  = in_array( (string) ( $settings->title_tag ?? '' ), array( 'h2', 'h3', '
 
 	<?php if ( $coaches ) : ?>
 		<div class="dsr-coaches">
-			<h3 class="dsr-sub"><?php echo esc_html( $txt( 'coaches_title', __( 'Coaches', 'ds-toolkit' ) ) ); ?></h3>
+			<?php $stag = array( 'h2' => 'h3', 'h3' => 'h4', 'h4' => 'h5' )[ $htag ]; // one level under the team name ?>
+			<<?php echo $stag; ?> class="dsr-sub"><?php echo esc_html( $txt( 'coaches_title', __( 'Coaches', 'ds-toolkit' ) ) ); ?></<?php echo $stag; ?>>
 			<ul class="dsr-clist">
 				<?php foreach ( $coaches as $c ) : ?>
-					<li class="dsr-coach"><span class="dsr-med dsr-med--sm<?php echo ! empty( $c['img'] ) ? ' dsr-med--photo' : ''; ?>" aria-hidden="true"><?php if ( ! empty( $c['img'] ) ) : ?><img src="<?php echo esc_url( $c['img'] ); ?>" alt="" width="44" height="44" loading="lazy" decoding="async"><?php else : echo esc_html( $c['ini'] ); endif; ?></span><span class="dsr-cname"><?php echo esc_html( $c['name'] ); ?><small><?php esc_html_e( 'Coach', 'ds-toolkit' ); ?></small></span></li>
+					<li class="dsr-coach"><span class="dsr-med dsr-med--sm<?php echo ! empty( $c['img'] ) ? ' dsr-med--photo' : ''; ?>" aria-hidden="true"><?php if ( ! empty( $c['img'] ) ) : ?><img src="<?php echo esc_url( $c['img'] ); ?>" alt="" width="44" height="44" loading="lazy" decoding="async"><?php else : echo esc_html( $c['ini'] ); endif; ?></span><span class="dsr-cname"><?php echo esc_html( $c['name'] ); ?><small><?php echo esc_html( '' !== (string) ( $c['rl'] ?? '' ) ? $c['rl'] : __( 'Coach', 'ds-toolkit' ) ); ?></small></span></li>
 				<?php endforeach; ?>
 			</ul>
 		</div>

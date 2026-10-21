@@ -23,7 +23,6 @@ class DS_LA_Roster {
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-la-colors.php';
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-roster-photos.php';
 		add_action( DS_Roster_Photos::HOOK, array( 'DS_Roster_Photos', 'run' ) );
-		add_action( 'ds_la_roster_sync', array( 'DS_Roster_Photos', 'run' ), 20 ); // hourly: changed photos, leavers, forgotten teams
 		add_action( 'fl_builder_after_save_layout', array( 'DS_Roster_Photos', 'after_save' ), 10, 3 );
 		add_action( 'init', array( $this, 'register_module' ), 20 );
 		add_action( 'ds_la_roster_sync', array( 'DS_Roster_Data', 'cron' ) );
@@ -88,12 +87,12 @@ class DS_LA_Roster {
 			$client = $m[1]; // LeagueApps names the file after the client ID
 		}
 		$pem = DS_Roster_Data::pem_from_upload( $bytes );
-		sodium_memzero( $bytes );
+		DS_Roster_Data::wipe( $bytes );
 		if ( is_wp_error( $pem ) ) {
 			$this->back( $pem->get_error_message(), false );
 		}
 		$ok = DS_Roster_Data::save_key( $site, $client, $pem );
-		sodium_memzero( $pem );
+		DS_Roster_Data::wipe( $pem );
 		if ( is_wp_error( $ok ) ) {
 			$this->back( $ok->get_error_message(), false );
 		}
@@ -113,11 +112,12 @@ class DS_LA_Roster {
 
 	public function sync_now() {
 		$this->guard( 'ds_la_roster_sync' );
-		$site  = preg_replace( '/\D+/', '', (string) wp_unslash( $_POST['site_id'] ?? '' ) );
-		$store = DS_Roster_Data::store( $site );
-		$store['full'] = 0; // "Sync now" = a full rebuild, so removed players drop off too
-		update_option( DS_Roster_Data::STORE_PRE . $site, $store, false );
-		DS_Roster_Data::sync_soon();
+		$site = preg_replace( '/\D+/', '', (string) wp_unslash( $_POST['site_id'] ?? '' ) );
+		// "Sync now" = a full rebuild (so removed players drop off too), asked for through a flag: the stored
+		// roster is never rewritten from here, so a sync running at the same moment loses nothing.
+		if ( ! DS_Roster_Data::request_full( $site ) ) {
+			$this->back( __( 'This site has no private key to sync with.', 'ds-toolkit' ), false );
+		}
 		$this->back( __( 'Rosters are syncing in the background; reload in a minute or two to see the result.', 'ds-toolkit' ) );
 	}
 }

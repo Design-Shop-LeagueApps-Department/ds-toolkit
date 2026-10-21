@@ -63,9 +63,12 @@
 .dsr--carousel .dsr-card{flex:0 0 calc((100% - (var(--r-in) - 1) * var(--r-gap)) / var(--r-in));scroll-snap-align:start}
 .dsr .dsr-nav{position:absolute;top:calc(50% - 22px);z-index:2;display:grid;place-items:center;width:44px;height:44px;min-height:0;margin:0;padding:0;border:1px solid var(--r-line);border-radius:50%;background:var(--r-card);color:var(--r-text);box-shadow:0 4px 14px rgba(14,27,47,.14);cursor:pointer;line-height:1}
 .dsr .dsr-nav:hover,.dsr .dsr-nav:focus{background:var(--r-brand);border-color:var(--r-brand);color:var(--r-on-brand)}
-.dsr .dsr-nav[disabled]{opacity:0;pointer-events:none}
+.dsr .dsr-nav[disabled]{opacity:.35;cursor:default;box-shadow:none}
+.dsr .dsr-nav[disabled]:hover{background:var(--r-card);border-color:var(--r-line);color:var(--r-text)}
 .dsr .dsr-prev{left:-14px}
 .dsr .dsr-next{right:-14px}
+[dir="rtl"] .dsr .dsr-prev,.dsr[dir="rtl"] .dsr-prev{left:auto;right:-14px;transform:scaleX(-1)}
+[dir="rtl"] .dsr .dsr-next,.dsr[dir="rtl"] .dsr-next{right:auto;left:-14px;transform:scaleX(-1)}
 
 /* Coaches */
 .dsr-coaches{margin-top:28px}

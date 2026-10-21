@@ -17,7 +17,7 @@ function init(root){
     rows.forEach(function(r){
       var match=!f||r.getAttribute('data-g')===f;
       if(match){n++;}
-      r.hidden=!match||(more?n>limit:false);
+      r.hidden=!match||n>limit; // the row limit holds with or without a "Show more" button
     });
     root.querySelectorAll('.dss-table tbody').forEach(function(b){
       b.hidden=!b.querySelector('.dss-row:not([hidden])');

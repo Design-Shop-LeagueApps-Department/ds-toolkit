@@ -21,11 +21,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *    team on another page, or a player on two teams, finds it already there; a file already in the
  *    folder is taken back without a request even if the list was lost; and one fetch runs at a time
  *    per site (an atomic database lock), so the builder, the publish hook and the background job never
- *    fetch the same photo at once. A team taken off a page keeps its photos for FORGET (a year), so
- *    putting it back later costs nothing.
- *  - The hourly roster sync re-checks wanted teams; the photo of someone no shown team has any more
- *    (they left), and a team no block has shown for FORGET, are deleted. Removing the key deletes the
- *    site's folder.
+ *    fetch the same photo at once.
+ *  - Each wanted team records the pages that show it. Publishing a page whose block no longer shows
+ *    photos (or no longer has the block) takes that page off; a team no page shows any more has its
+ *    photos deleted at once, so switching photos off is enough to take them down. A team nobody has
+ *    viewed for FORGET (90 days: a page deleted without being saved) is forgotten too.
+ *  - After each hourly roster sync a separate job re-checks wanted teams (new players, changed photos);
+ *    the photo of someone no shown team has any more (they left) is deleted. Removing the key deletes the
+ *    site's folder. The folder is public like the rest of uploads (not listed in the Media Library):
+ *    file names are a hash of the LeagueApps address, so they cannot be guessed.
  */
 class DS_Roster_Photos {
 
@@ -35,7 +39,8 @@ class DS_Roster_Photos {
 	const MAX_BYTES      = 300000;
 	const MAX_DIM        = 600;
 	const OUT            = 150;
-	const FORGET         = 365 * DAY_IN_SECONDS; // a team off every page keeps its photos this long
+	const FORGET         = 90 * DAY_IN_SECONDS;  // a team no page has shown for this long is forgotten
+	const RETRY_GONE     = 30 * DAY_IN_SECONDS;  // a photo LeagueApps did not have is asked for again after this
 	const LOCK_TTL       = 60;
 	const BUDGET         = 20;
 	const BUILDER_BUDGET = 8;
@@ -92,17 +97,22 @@ class DS_Roster_Photos {
 	 * A block shows this team with photos: remember it, and get what is missing. $now = in the
 	 * builder (fetch right away, briefly); otherwise only queue the background job.
 	 */
-	public static function want( $site_id, $team_id, $now = false ) {
+	public static function want( $site_id, $team_id, $now = false, $post_id = 0 ) {
 		$site_id = preg_replace( '/\D+/', '', (string) $site_id );
 		$team_id = preg_replace( '/\D+/', '', (string) $team_id );
+		$post_id = (int) $post_id;
 		if ( '' === $site_id || '' === $team_id ) {
 			return;
 		}
 		$m    = self::manifest( $site_id );
 		$seen = (int) ( $m['teams'][ $team_id ]['seen'] ?? 0 );
-		if ( time() - $seen > DAY_IN_SECONDS ) { // one write a day per team at most, not one per page view
+		$new  = $post_id && ! isset( $m['teams'][ $team_id ]['by'][ $post_id ] );
+		if ( $new || time() - $seen > DAY_IN_SECONDS ) { // one write a day per team at most, not one per page view
 			$m = self::manifest( $site_id, true );
 			$m['teams'][ $team_id ]['seen'] = time();
+			if ( $post_id ) {
+				$m['teams'][ $team_id ]['by'][ $post_id ] = time();
+			}
 			self::save( $site_id, $m );
 		}
 		$missing = array_diff( array_map( array( __CLASS__, 'hash' ), self::team_urls( $site_id, $team_id ) ), array_keys( $m['files'] ) );
@@ -119,9 +129,21 @@ class DS_Roster_Photos {
 		}
 	}
 
-	/** Background job (and the hourly sync): fetch what wanted teams lack, forget old teams, delete unused photos. */
+	/** After the hourly roster sync: check the wanted teams in a separate request a minute later. */
+	public static function queue() {
+		foreach ( DS_Roster_Data::sites_with_keys() as $sid ) {
+			if ( self::manifest( $sid )['teams'] ) {
+				if ( ! wp_next_scheduled( self::HOOK ) ) {
+					wp_schedule_single_event( time() + MINUTE_IN_SECONDS, self::HOOK );
+				}
+				return;
+			}
+		}
+	}
+
+	/** Background job: fetch what wanted teams lack, forget old teams, delete unused photos. */
 	public static function run() {
-		$deadline = microtime( true ) + self::BUDGET;
+		$deadline = microtime( true ) + min( self::BUDGET, DS_Roster_Data::budget() ); // inside the host's time limit
 		foreach ( DS_Roster_Data::sites_with_keys() as $sid ) {
 			$m = self::manifest( $sid, true );
 			if ( ! $m['teams'] && ! $m['files'] ) {
@@ -129,7 +151,7 @@ class DS_Roster_Photos {
 			}
 			foreach ( $m['teams'] as $tid => $t ) {
 				if ( time() - (int) ( $t['seen'] ?? 0 ) > self::FORGET ) {
-					unset( $m['teams'][ $tid ] ); // no block has shown it for a year
+					unset( $m['teams'][ $tid ] ); // no page has shown it for 90 days
 				}
 			}
 			self::save( $sid, $m );
@@ -148,7 +170,7 @@ class DS_Roster_Photos {
 
 	private static function fetch_team( $site_id, $team_id, $deadline ) {
 		$lock = self::OPT . 'lock_' . $site_id;
-		if ( ! self::lock( $lock ) ) {
+		if ( ! DS_Roster_Data::lock( $lock, self::LOCK_TTL ) ) {
 			return; // another request is fetching this site's photos right now: it will get these too
 		}
 		list( $dir ) = self::dir( $site_id );
@@ -158,8 +180,8 @@ class DS_Roster_Photos {
 				break;
 			}
 			$h = self::hash( $url );
-			if ( isset( $m['files'][ $h ] ) ) {
-				continue; // already here (or known to be unavailable): never asked again
+			if ( isset( $m['files'][ $h ] ) && ( '' !== (string) $m['files'][ $h ]['f'] || time() - (int) $m['files'][ $h ]['t'] < self::RETRY_GONE ) ) {
+				continue; // already here, or LeagueApps did not have it this month: not asked again
 			}
 			// Already in the folder but missing from the list (the list was lost or reset): take it back, no request.
 			$on_disk = $dir . '/' . $h . '.jpg';
@@ -169,6 +191,10 @@ class DS_Roster_Photos {
 				self::save( $site_id, $m );
 				continue;
 			}
+			$keys = DS_Roster_Data::fresh_option( DS_Roster_Data::KEYS_OPT, array() );
+			if ( ! is_array( $keys ) || ! isset( $keys[ $site_id ] ) ) {
+				break; // the key was removed while this ran: the folder was purged, do not recreate it
+			}
 			$file = self::download( $site_id, $url );
 			if ( null === $file ) {
 				continue; // LeagueApps did not answer: asked again next run
@@ -177,31 +203,7 @@ class DS_Roster_Photos {
 			$m['files'][ $h ] = array( 'f' => $file, 't' => time() ); // '' = gone or not an image: not asked again until the address changes
 			self::save( $site_id, $m );
 		}
-		self::unlock( $lock );
-	}
-
-	/** Atomic lock in the options table (memcached is per container on WP Engine, so a transient would not do). */
-	private static function lock( $name ) {
-		global $wpdb;
-		if ( ! is_object( $wpdb ) ) {
-			return true;
-		}
-		$now = time();
-		if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) $now ) ) ) {
-			return true;
-		}
-		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
-		if ( $now - $held > self::LOCK_TTL ) { // a run that died: take it over
-			return 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", (string) $now, $name, (string) $held ) );
-		}
-		return false;
-	}
-
-	private static function unlock( $name ) {
-		global $wpdb;
-		if ( is_object( $wpdb ) ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", $name ) );
-		}
+		DS_Roster_Data::unlock( $lock );
 	}
 
 	/**
@@ -239,7 +241,9 @@ class DS_Roster_Photos {
 		if ( ! file_exists( $dir . '/index.php' ) ) {
 			file_put_contents( $dir . '/index.php', "<?php\n// Silence is golden.\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 		}
-		$tmp = wp_tempnam( 'ds-la-photo' );
+		// tempnam() + get_temp_dir(), not wp_tempnam(): that one lives in wp-admin/includes/file.php, which
+		// WP-cron does not load (the background job died there).
+		$tmp = @tempnam( get_temp_dir(), 'dslaph' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 		if ( ! $tmp ) {
 			return null;
 		}
@@ -258,6 +262,10 @@ class DS_Roster_Photos {
 
 	/** Delete photos no wanted team uses any more (players who left, teams nobody shows). */
 	public static function gc( $site_id ) {
+		$st = DS_Roster_Data::store( $site_id, true );
+		if ( empty( $st['teams'] ) || ! empty( $st['partial'] ) ) {
+			return; // a roster being rebuilt (or not there yet) says nothing about who left
+		}
 		$m    = self::manifest( $site_id, true );
 		$keep = array();
 		foreach ( array_keys( $m['teams'] ) as $tid ) {
@@ -281,7 +289,7 @@ class DS_Roster_Photos {
 	public static function purge( $site_id ) {
 		$site_id = preg_replace( '/\D+/', '', (string) $site_id );
 		list( $dir ) = self::dir( $site_id );
-		foreach ( (array) glob( $dir . '/*' ) as $f ) {
+		foreach ( glob( $dir . '/*' ) ?: array() as $f ) {
 			if ( is_file( $f ) ) {
 				@unlink( $f ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 			}
@@ -291,14 +299,43 @@ class DS_Roster_Photos {
 	}
 
 	/**
-	 * A page was saved in the builder: every Roster block on it with photos on wants its team.
-	 * (fl_builder_after_save_layout)
+	 * A page was published in the builder (fl_builder_after_save_layout): every Roster block on it with
+	 * photos on wants its team; a team this page wanted before and does not any more (photos switched off,
+	 * the team changed, the block removed) loses this page, and a team no page wants then has its photos
+	 * deleted straight away. A draft save changes nothing: the published page still shows what it showed.
 	 */
 	public static function after_save( $post_id, $publish, $data ) {
+		if ( ! $publish ) {
+			return;
+		}
+		$post_id = (int) $post_id;
+		$wanted  = array(); // site => team => true
 		foreach ( (array) $data as $n ) {
 			$s = is_object( $n ) ? ( $n->settings ?? null ) : null;
 			if ( $s && 'ds-la-roster' === ( $s->type ?? '' ) && 'yes' === ( $s->show_photos ?? 'no' ) && preg_match( '/^(\d+):(\d+)$/', (string) ( $s->team ?? '' ), $m ) ) {
-				self::want( $m[1], $m[2], false );
+				$wanted[ $m[1] ][ $m[2] ] = true;
+			}
+		}
+		foreach ( DS_Roster_Data::sites_with_keys() as $sid ) {
+			$m       = self::manifest( $sid, true );
+			$changed = false;
+			foreach ( $m['teams'] as $tid => $t ) {
+				if ( $post_id && isset( $t['by'][ $post_id ] ) && empty( $wanted[ $sid ][ $tid ] ) ) {
+					unset( $m['teams'][ $tid ]['by'][ $post_id ] );
+					if ( empty( $m['teams'][ $tid ]['by'] ) ) {
+						unset( $m['teams'][ $tid ] ); // no page shows these photos any more: they go now
+					}
+					$changed = true;
+				}
+			}
+			if ( $changed ) {
+				self::save( $sid, $m );
+				self::gc( $sid );
+			}
+		}
+		foreach ( $wanted as $sid => $teams ) {
+			foreach ( array_keys( $teams ) as $tid ) {
+				self::want( (string) $sid, (string) $tid, false, $post_id );
 			}
 		}
 	}

@@ -15,7 +15,7 @@ class DS_Schedule_Module extends FLBuilderModule {
 
 	public function __construct() {
 		parent::__construct( array(
-			'name'            => __( 'LeagueApps Team Schedule', 'ds-toolkit' ),
+			'name'            => __( 'Schedule', 'ds-toolkit' ),
 			'description'     => __( 'One team\'s games, tournaments and practices from LeagueApps.', 'ds-toolkit' ),
 			'category'        => __( 'LeagueApps', 'ds-toolkit' ),
 			'dir'             => DS_TOOLKIT_PATH . 'modules/ds-la-schedule/',
@@ -116,7 +116,8 @@ $ds_sch_color  = function ( $label, $help = '' ) {
 	}
 	return $f;
 };
-$ds_sch_programs = DS_Schedule_Data::program_options();
+// Built only where the form is shown (the builder), never on a visitor's page view, where this file is loaded too.
+$ds_sch_programs = ( class_exists( 'FLBuilderModel' ) && ( FLBuilderModel::is_builder_active() || ( class_exists( 'FLBuilderAJAX' ) && FLBuilderAJAX::doing_ajax() ) ) ) ? DS_Schedule_Data::program_options() : array();
 
 FLBuilder::register_module( 'DS_Schedule_Module', array(
 

@@ -26,8 +26,8 @@ wp_clear_scheduled_hook( 'ds_la_roster_continue' );
 wp_unschedule_hook( 'ds_la_roster_photos' );
 // LeagueApps Roster photos: uploads/ds-la-roster/<site>/ (lists are ds_la_roster_ph_<site>, removed above).
 $ds_up = wp_upload_dir( null, false );
-foreach ( (array) glob( trailingslashit( $ds_up['basedir'] ) . 'ds-la-roster/*', GLOB_ONLYDIR ) as $ds_dir ) {
-	foreach ( (array) glob( $ds_dir . '/*' ) as $ds_f ) {
+foreach ( glob( trailingslashit( $ds_up['basedir'] ) . 'ds-la-roster/*', GLOB_ONLYDIR ) ?: array() as $ds_dir ) {
+	foreach ( glob( $ds_dir . '/*' ) ?: array() as $ds_f ) {
 		if ( is_file( $ds_f ) ) { @unlink( $ds_f ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors
 	}
 	@rmdir( $ds_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors

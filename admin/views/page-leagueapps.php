@@ -145,7 +145,7 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-groups"></span></div>
         <div class="dst-card-info">
-            <strong>For the LeagueApps Roster block</strong>
+            <strong>For the Roster block (LeagueApps group in the builder)</strong>
             <span>Team rosters are only in LeagueApps' private API. In LeagueApps: Connect &rarr; API Settings &rarr; <em>Generate Private API Key</em> downloads a <code>.p12</code> file named after the client ID. Upload it here for the matching site. The key can read every family's details, so it is stored encrypted (bound to this site and this install, so a copied database cannot use it), is never shown again, is only sent to LeagueApps' login, and only an administrator can add or remove it, over HTTPS. Only names, positions, graduation years and heights of rostered players and coaches are kept; nothing else is saved. Rosters refresh every hour in the background.</span>
             <?php $ds_kek = DS_Roster_Data::kek_in_use(); ?>
             <span style="display:block;margin-top:8px">Encryption secret: <?php echo 'salts' === $ds_kek ? 'this site\'s WordPress salts. <em>Stronger: add <code>define( \'DS_LA_KEY_SECRET\', \'&lt;64 random characters&gt;\' );</code> to wp-config.php; it keeps the secret out of reach of a salt rotation by a security plugin. Saved keys switch over by themselves.</em>' : ( 'constant' === $ds_kek ? '<code>DS_LA_KEY_SECRET</code> in wp-config.php.' : '<code>DS_LA_KEY_SECRET</code> environment variable.' ); // phpcs:ignore WordPress.Security.EscapeOutput -- fixed strings ?></span>

@@ -16,7 +16,7 @@ class DS_Roster_Module extends FLBuilderModule {
 
 	public function __construct() {
 		parent::__construct( array(
-			'name'            => __( 'LeagueApps Roster', 'ds-toolkit' ),
+			'name'            => __( 'Roster', 'ds-toolkit' ),
 			'description'     => __( 'A team\'s players and coaches from LeagueApps.', 'ds-toolkit' ),
 			'category'        => __( 'LeagueApps', 'ds-toolkit' ),
 			'dir'             => DS_TOOLKIT_PATH . 'modules/ds-la-roster/',
@@ -52,7 +52,8 @@ class DS_Roster_Module extends FLBuilderModule {
 			// Picked in the builder (the block was just saved): fetch this team's photos now, briefly.
 			// For a visitor a missing photo only queues the background job.
 			$builder = class_exists( 'FLBuilderModel' ) && ( FLBuilderModel::is_builder_active() || ( class_exists( 'FLBuilderAJAX' ) && FLBuilderAJAX::doing_ajax() ) ) && current_user_can( 'edit_posts' );
-			DS_Roster_Photos::want( $sid, $tid, $builder );
+			$pid     = class_exists( 'FLBuilderModel' ) ? (int) FLBuilderModel::get_post_id() : (int) get_the_ID();
+			DS_Roster_Photos::want( $sid, $tid, $builder, $pid ); // remembers which page shows the team
 			$urls = array_filter( array_column( array_merge( $t['players'], $t['coaches'] ), 'ph' ) );
 			$map  = DS_Roster_Photos::local( $sid, $urls );
 			foreach ( array( 'players', 'coaches' ) as $g ) {
@@ -104,7 +105,9 @@ $ds_ros_color  = function ( $label, $help = '' ) {
 	}
 	return $f;
 };
-$ds_ros_teams = DS_Roster_Data::team_options();
+// The team list reads every stored roster: built only where the form is shown (the builder), never on a
+// visitor's page view, where this file is loaded too.
+$ds_ros_teams = ( class_exists( 'FLBuilderModel' ) && ( FLBuilderModel::is_builder_active() || ( class_exists( 'FLBuilderAJAX' ) && FLBuilderAJAX::doing_ajax() ) ) ) ? DS_Roster_Data::team_options() : array();
 
 FLBuilder::register_module( 'DS_Roster_Module', array(
 
@@ -145,14 +148,14 @@ FLBuilder::register_module( 'DS_Roster_Module', array(
 					'name_format' => array(
 						'type'    => 'button-group',
 						'label'   => __( 'Player names', 'ds-toolkit' ),
-						'default' => 'full',
+						'default' => 'initial',
 						'options' => array( 'full' => __( 'Full name', 'ds-toolkit' ), 'initial' => __( 'Last initial', 'ds-toolkit' ) ),
 						'help'    => __( '"Lauren B." keeps young players\' surnames off the public site. Coaches always show their full name.', 'ds-toolkit' ),
 					),
 					'show_position' => array( 'type' => 'button-group', 'label' => __( 'Position', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_ros_yes_no ),
 					'show_grad'     => array( 'type' => 'button-group', 'label' => __( 'Graduation year', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_ros_yes_no ),
 					'show_height'   => array( 'type' => 'button-group', 'label' => __( 'Height', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_ros_yes_no, 'help' => __( 'Position, graduation year and height come from the club\'s registration questions; players who did not answer show without them.', 'ds-toolkit' ) ),
-					'show_photos'   => array( 'type' => 'button-group', 'label' => __( 'Player photos', 'ds-toolkit' ), 'default' => 'no', 'options' => $ds_ros_yes_no, 'help' => __( 'The profile photo from LeagueApps in the round badge (LeagueApps keeps them at 150 px at most); people without one keep their initials. Only this team\'s photos are downloaded, when you save this block with the team picked, into a private folder (not the Media Library). Most players are minors: use it when the club agrees.', 'ds-toolkit' ) ),
+					'show_photos'   => array( 'type' => 'button-group', 'label' => __( 'Player photos', 'ds-toolkit' ), 'default' => 'no', 'options' => $ds_ros_yes_no, 'help' => __( 'The profile photo from LeagueApps in the round badge (LeagueApps keeps them at 150 px at most); people without one keep their initials. Only this team\'s photos are downloaded, when you save this block with the team picked, into a folder of the site\'s uploads (not listed in the Media Library). Switching this off and publishing removes them. Most players are minors: use it only when the club agrees.', 'ds-toolkit' ) ),
 					'show_filter'   => array( 'type' => 'button-group', 'label' => __( 'Position filter', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_ros_yes_no, 'help' => __( 'Buttons above the roster (All, Outside, Setter...). Hidden when there is only one position.', 'ds-toolkit' ) ),
 					'sort_by'       => array(
 						'type'    => 'button-group',

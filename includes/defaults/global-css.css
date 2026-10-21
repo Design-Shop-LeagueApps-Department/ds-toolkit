@@ -379,16 +379,16 @@ div.fl-callout-text-wrap > .fl-callout-text {
 
 /* Image shape: the same proportion at every width, so whatever photo is uploaded
    (a tall phone shot, a wide banner) fills the slot the same way. */
-.ratio-landscape img,
-.ratio-square img,
-.ratio-portrait img {
+.ds-ratio-landscape img,
+.ds-ratio-square img,
+.ds-ratio-portrait img {
   width: 100%;
   height: auto !important;
   object-fit: cover;
 }
-.ratio-landscape img { aspect-ratio: 3 / 2; }
-.ratio-square img    { aspect-ratio: 1 / 1; }
-.ratio-portrait img  { aspect-ratio: 4 / 5; }
+.ds-ratio-landscape img { aspect-ratio: 3 / 2; }
+.ds-ratio-square img    { aspect-ratio: 1 / 1; }
+.ds-ratio-portrait img  { aspect-ratio: 4 / 5; }
 
 /*─────────────────────────────────────────────────────────────────────────────
   Grid List

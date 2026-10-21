@@ -31,11 +31,12 @@ function is_wp_error( $e ) { return $e instanceof WP_Error; }
 class WP_Error { private $c, $m; function __construct( $c = '', $m = '' ) { $this->c = $c; $this->m = $m; } function get_error_message() { return $this->m; } function get_error_code() { return $this->c; } }
 function wp_next_scheduled( $h ) { foreach ( $GLOBALS['cron'] as $c ) { if ( $c[1] === $h ) { return $c[0]; } } return false; }
 function wp_schedule_single_event( $t, $h ) { $GLOBALS['cron'][] = array( $t, $h ); return true; }
+function get_the_ID() { return 0; }
 function wp_upload_dir( $a = null, $b = true ) { global $UP; return array( 'basedir' => $UP, 'baseurl' => 'https://example.org/wp-content/uploads' ); }
 function trailingslashit( $s ) { return rtrim( $s, '/' ) . '/'; }
 function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0755, true ); }
-function wp_tempnam( $p ) { return tempnam( sys_get_temp_dir(), $p ); }
-function wp_remote_get( $url, $args ) { $GLOBALS['fetched'][] = $url; $GLOBALS['last_args'] = $args; return array_shift( $GLOBALS['answers'] ) ?? new WP_Error( 'x', 'no answer' ); }
+function get_temp_dir() { return sys_get_temp_dir() . '/'; } // wp-includes/functions.php (loaded in WP-cron). No wp_tempnam stub on purpose: it is not loaded in WP-cron.
+function wp_remote_get( $url, $args ) { if ( isset( $GLOBALS['on_get'] ) ) { ( $GLOBALS['on_get'] )(); } $GLOBALS['fetched'][] = $url; $GLOBALS['last_args'] = $args; return array_shift( $GLOBALS['answers'] ) ?? new WP_Error( 'x', 'no answer' ); }
 function wp_remote_retrieve_response_code( $r ) { return $r['code'] ?? 0; }
 function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
 // A minimal image editor over GD, like WP_Image_Editor_GD: load, resize, save as JPEG.
@@ -166,6 +167,45 @@ chk( 'a team no block has shown for a year is forgotten, its photos deleted', ar
 $GLOBALS['answers'] = array( array( 'code' => 200, 'body' => $png( 150, 150 ) ) );
 DS_Roster_Photos::after_save( 1, true, array( (object) array( 'settings' => (object) array( 'type' => 'ds-la-roster', 'show_photos' => 'yes', 'team' => '33682:8' ) ), (object) array( 'settings' => (object) array( 'type' => 'ds-la-roster', 'show_photos' => 'no', 'team' => '33682:7' ) ) ) );
 chk( 'saving a page: only blocks with photos on want their team', array_keys( DS_Roster_Photos::manifest( '33682' )['teams'] ), array( 8 ) );
+echo "audit fixes\n";
+$GLOBALS['opts']['ds_la_roster_33682']['teams']['7']['m'] = array( 1 => $m( 'Ana', 'p1aaaa' ), 3 => $m( 'Coach Cal', 'c3cccc', 'coach' ) );
+$blk = function ( $team, $photos ) { return (object) array( 'settings' => (object) array( 'type' => 'ds-la-roster', 'show_photos' => $photos, 'team' => '33682:' . $team ) ); };
+$GLOBALS['answers'] = array_fill( 0, 4, array( 'code' => 200, 'body' => $png( 150, 150 ) ) ); // team 8 (still shown elsewhere) is re-checked too
+DS_Roster_Photos::after_save( 101, true, array( $blk( 7, 'yes' ) ) );
+DS_Roster_Photos::after_save( 102, true, array( $blk( 7, 'yes' ) ) );
+DS_Roster_Photos::run();
+// Team 7's own two photos on disk (team 8 is still shown by another page from an earlier check, and keeps its photo).
+$jpgs = function () use ( $UP, $h ) { return count( array_filter( array( $h( 'p1aaaa' ), $h( 'c3cccc' ) ), function ( $x ) use ( $UP ) { return is_file( $UP . '/ds-la-roster/33682/' . $x . '.jpg' ); } ) ); };
+chk( 'setup: two pages show team 7 with photos, its 2 photos are here', array( array_keys( DS_Roster_Photos::manifest( '33682' )['teams'][7]['by'] ?? array() ), $jpgs() ), array( array( 101, 102 ), 2 ) );
+DS_Roster_Photos::after_save( 101, false, array( $blk( 7, 'no' ) ) );
+chk( 'a DRAFT save with photos off changes nothing (the published page still shows them)', array_keys( DS_Roster_Photos::manifest( '33682' )['teams'][7]['by'] ), array( 101, 102 ) );
+DS_Roster_Photos::after_save( 101, true, array( $blk( 7, 'no' ) ) );
+chk( 'page 101 published with photos off: still shown by page 102, photos kept', array( array_keys( DS_Roster_Photos::manifest( '33682' )['teams'][7]['by'] ), $jpgs() ), array( array( 102 ), 2 ) );
+DS_Roster_Photos::after_save( 102, true, array() ); // the block removed from page 102
+chk( '... page 102 published without the block: no page shows them, photos deleted at once', array( isset( DS_Roster_Photos::manifest( '33682' )['teams'][7] ), $jpgs() ), array( false, 0 ) );
+$GLOBALS['answers'] = array( array( 'code' => 200, 'body' => $png( 150, 150 ) ), array( 'code' => 200, 'body' => $png( 150, 150 ) ) );
+DS_Roster_Photos::after_save( 103, true, array( $blk( 7, 'yes' ) ) ); DS_Roster_Photos::run();
+$keep_store = $GLOBALS['opts']['ds_la_roster_33682'];
+$GLOBALS['opts']['ds_la_roster_33682']['partial'] = array( 'teams' => array() );
+unset( $GLOBALS['opts']['ds_la_roster_33682']['teams']['7']['m'][1] );
+DS_Roster_Photos::gc( '33682' );
+chk( 'while a roster rebuild is running, clean-up deletes nothing', $jpgs(), 2 );
+$GLOBALS['opts']['ds_la_roster_33682'] = $keep_store;
+$GLOBALS['cron'] = array(); DS_Roster_Photos::queue();
+chk( 'after the hourly sync, photos are queued as their own job a minute later', array( $GLOBALS['cron'][0][1] ?? '', ( $GLOBALS['cron'][0][0] ?? 0 ) - time() ), array( 'ds_la_roster_photos', 60 ) );
+$GLOBALS['opts']['ds_la_roster_33682']['teams']['7']['m'][9] = $m( 'Ivy', 'p9iiii' );
+$mf = DS_Roster_Photos::manifest( '33682' ); $mf['files'][ $h( 'p9iiii' ) ] = array( 'f' => '', 't' => time() - 31 * DAY_IN_SECONDS ); update_option( 'ds_la_roster_ph_33682', $mf );
+$GLOBALS['fetched'] = array(); $GLOBALS['answers'] = array( array( 'code' => 200, 'body' => $png( 150, 150 ) ) );
+DS_Roster_Photos::run();
+chk( 'a photo LeagueApps did not have a month ago is asked for again (and arrives)', array( in_array( $S3 . 'profile-p9iiii-s3.jpg', $GLOBALS['fetched'], true ), '' !== ( DS_Roster_Photos::manifest( '33682' )['files'][ $h( 'p9iiii' ) ]['f'] ?? '' ) ), array( true, true ) );
+$GLOBALS['opts']['ds_la_roster_33682']['teams']['7']['m'][10] = $m( 'Jo', 'p10jjjj' );
+$GLOBALS['opts']['ds_la_roster_33682']['teams']['7']['m'][11] = $m( 'Kai', 'p11kkkk' );
+$GLOBALS['fetched'] = array(); $GLOBALS['answers'] = array( array( 'code' => 200, 'body' => $png( 150, 150 ) ), array( 'code' => 200, 'body' => $png( 150, 150 ) ) );
+$GLOBALS['on_get'] = function () { unset( $GLOBALS['opts']['ds_la_private_keys']['33682'] ); unset( $GLOBALS['on_get'] ); };
+DS_Roster_Photos::run();
+chk( 'the key removed while photos download: no further download', count( $GLOBALS['fetched'] ), 1 );
+$GLOBALS['opts']['ds_la_private_keys']['33682'] = array( 'client_id' => 'c', 'key' => 'x', 'print' => 'p' );
+
 DS_Roster_Data::delete_key( '33682' );
 chk( 'removing the key deletes the folder and the list', array( is_dir( $UP . '/ds-la-roster/33682' ), get_option( 'ds_la_roster_ph_33682', 'gone' ) ), array( false, 'gone' ) );
 

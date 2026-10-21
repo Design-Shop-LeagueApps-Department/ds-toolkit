@@ -84,8 +84,9 @@ $GLOBALS['answer'] = array('code'=>200,'body'=>json_encode(array('games'=>$items
 
 echo "requests\n";
 $r = DS_Schedule_Data::items($K);
+$asked = $GLOBALS['urls'];
 chk('cold load: one request for this one program', reqs(), 1);
-chk('asks only for /programs/5079447/schedule', true, true);
+chk('asks only for /programs/5079447/schedule', (bool) preg_match('~/sites/52078/programs/5079447/schedule\?~', $asked[0] ?? ''), true);
 chk('copy stored without autoload', isset($GLOBALS['opts']['ds_la_sched_52078_5079447']), true);
 chk('the 2020 item is pruned before storing', count(store()['items']), count($items)-1);
 DS_Schedule_Data::items($K);
@@ -124,6 +125,16 @@ chk('429: holds for Retry-After (30 min)', store()['retry'] - time() >= 1795, tr
 DS_Schedule_Data::items($K);
 chk('429: nothing more until then', reqs(), 0);
 chk('every request is in the ledger', count(DS_Programs_Data::ledger()) >= 6, true);
+
+echo "a 200 that is not a schedule\n";
+$GLOBALS['answer'] = array('code'=>200,'body'=>json_encode(array('games'=>$items)),'retry_after'=>0);
+unset($GLOBALS['opts']['ds_la_sched_52078_5079447']); DS_Schedule_Data::items($K); reqs();
+$good = count(store()['items']);
+age(7*HOUR_IN_SECONDS);
+$GLOBALS['answer'] = array('code'=>200,'body'=>'<html>maintenance</html>','retry_after'=>0);
+$r = DS_Schedule_Data::items($K); reqs();
+chk('a maintenance page with HTTP 200: the last good schedule keeps showing', count($r['items']), $good);
+chk('... and it is retried on the failure timer, not trusted for an hour', store()['retry'] > time(), true);
 
 echo "404\n";
 $GLOBALS['answer'] = array('code'=>404,'body'=>'{"errorCode":40003}','retry_after'=>0);
@@ -208,6 +219,7 @@ chk('options: club teams first, master programs and unsaved sites left out', arr
 chk('option label', $opt['52078:5079447'], '2026/2027 Surfside Volleyball: 17 Legends · Club team');
 chk('LeagueApps schedule link, https', DS_Schedule_Data::schedule_url(DS_Schedule_Data::program_row('52078','5079447')), 'https://surfsidevolleyball.leagueapps.com/clubteams/5079447/schedule');
 chk('a javascript: link is refused', DS_Schedule_Data::schedule_url(DS_Schedule_Data::program_row('52078','4992241')), '');
+chk('a plain http:// link is refused (https only)', DS_Schedule_Data::schedule_url(array('scheduleUrlHtml'=>'http://surfsidevolleyball.leagueapps.com/clubteams/5079447/schedule')), '');
 
 echo "link lookup\n";
 $GLOBALS['tr']=array(); $GLOBALS['list_calls']=0;

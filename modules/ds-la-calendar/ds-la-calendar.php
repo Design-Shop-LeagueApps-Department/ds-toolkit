@@ -19,7 +19,7 @@ class DS_Calendar_Module extends FLBuilderModule {
 
 	public function __construct() {
 		parent::__construct( array(
-			'name'            => __( 'LeagueApps Calendar', 'ds-toolkit' ),
+			'name'            => __( 'Calendar', 'ds-toolkit' ),
 			'description'     => __( 'Your teams\' LeagueApps schedules as a month calendar and an upcoming list.', 'ds-toolkit' ),
 			'category'        => __( 'LeagueApps', 'ds-toolkit' ),
 			'dir'             => DS_TOOLKIT_PATH . 'modules/ds-la-calendar/',

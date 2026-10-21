@@ -48,6 +48,8 @@ class DS_Roster_Data {
 	/* ------------------------------------------------------------------ the key */
 
 	const SEAL_V2   = 'v2.';
+	const FORCE_PRE = 'ds_la_roster_force_'; // + site id: "Sync now" / a rotated key asks the next run for a full rebuild
+	const LOCK_TTL  = 90;
 	const AUDIT_OPT = 'ds_la_key_audit';
 	const AUDIT_MAX = 50;
 
@@ -70,9 +72,60 @@ class DS_Roster_Data {
 		}
 		$salts = '';
 		foreach ( array( 'AUTH_KEY', 'SECURE_AUTH_KEY', 'LOGGED_IN_KEY', 'NONCE_KEY' ) as $c ) {
-			$salts .= ( defined( $c ) ? constant( $c ) : '' ) . '|';
+			$v      = defined( $c ) ? (string) constant( $c ) : '';
+			$salts .= ( self::secret_ok( $v ) ? $v : '' ) . '|'; // a missing or placeholder salt adds nothing
 		}
 		return array( 'secret' => $salts, 'source' => 'salts' );
+	}
+
+	/** A secret worth encrypting with: 32+ characters and not WordPress's sample "put your unique phrase here". */
+	public static function secret_ok( $secret ) {
+		$secret = (string) $secret;
+		return strlen( str_replace( '|', '', $secret ) ) >= 32 && false === stripos( $secret, 'put your unique phrase here' );
+	}
+
+	/** Can this site seal a key at all? (A site without real salts and without DS_LA_KEY_SECRET cannot.) */
+	public static function can_seal() {
+		return self::secret_ok( self::kek_source()['secret'] );
+	}
+
+	/** Wipe a secret from memory. sodium_compat (hosts without the sodium extension) throws instead of wiping. */
+	public static function wipe( &$secret ) {
+		if ( ! is_string( $secret ) || '' === $secret ) {
+			return;
+		}
+		try {
+			sodium_memzero( $secret );
+		} catch ( \Throwable $e ) {
+			$secret = ''; // the best PHP can do without the extension: drop the reference
+		}
+	}
+
+	/**
+	 * Atomic lock in the options table. Transients are not enough on hosts that keep the object cache per
+	 * container (WP Engine runs memcached on a local socket): two containers would both "get" the lock.
+	 */
+	public static function lock( $name, $ttl ) {
+		global $wpdb;
+		if ( ! is_object( $wpdb ) ) {
+			return true;
+		}
+		$now = time();
+		if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) $now ) ) ) {
+			return true;
+		}
+		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		if ( $now - $held > $ttl ) { // a run that died: take it over
+			return 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", (string) $now, $name, (string) $held ) );
+		}
+		return false;
+	}
+
+	public static function unlock( $name ) {
+		global $wpdb;
+		if ( is_object( $wpdb ) ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		}
 	}
 
 	/** Subkey for one purpose ('pkey' or 'token'): a keyed BLAKE2b of the secret, so the two never share a key. */
@@ -80,7 +133,7 @@ class DS_Roster_Data {
 		$src  = self::kek_source( $force_salts );
 		$root = sodium_crypto_generichash( $src['secret'], '', SODIUM_CRYPTO_GENERICHASH_KEYBYTES );
 		$key  = sodium_crypto_generichash( 'ds-la-key|v2|' . $purpose, $root, SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES );
-		sodium_memzero( $root );
+		self::wipe( $root );
 		return $key;
 	}
 
@@ -92,7 +145,7 @@ class DS_Roster_Data {
 	 */
 	private static function binding( $site_id, $client_id ) {
 		global $wpdb, $table_prefix;
-		$prefix  = ( is_object( $wpdb ) && isset( $wpdb->base_prefix ) ) ? (string) $wpdb->base_prefix : (string) $table_prefix;
+		$prefix  = ( is_object( $wpdb ) && isset( $wpdb->prefix ) ) ? (string) $wpdb->prefix : (string) $table_prefix; // per subsite on multisite
 		$install = hash( 'sha256', ( defined( 'DB_NAME' ) ? DB_NAME : '' ) . '|' . $prefix );
 		return 'site:' . $site_id . '|client:' . $client_id . '|install:' . $install;
 	}
@@ -101,7 +154,7 @@ class DS_Roster_Data {
 		$key   = self::subkey( $purpose );
 		$nonce = random_bytes( SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES );
 		$out   = self::SEAL_V2 . base64_encode( $nonce . sodium_crypto_aead_xchacha20poly1305_ietf_encrypt( $plain, $ad, $nonce, $key ) );
-		sodium_memzero( $key );
+		self::wipe( $key );
 		return $out;
 	}
 
@@ -116,27 +169,18 @@ class DS_Roster_Data {
 			return '';
 		}
 		$key   = self::subkey( $purpose, $force_salts );
-		$plain = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt( substr( $raw, $nl ), $ad, substr( $raw, 0, $nl ), $key );
-		sodium_memzero( $key );
-		return false === $plain ? '' : $plain;
-	}
-
-	/** The 1.10.41-rc format (secretbox under the salts, unbound): read once, then re-sealed as v2. */
-	private static function open_v1( $sealed ) {
-		$raw = base64_decode( (string) $sealed, true );
-		if ( false === $raw || strlen( $raw ) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ) {
-			return '';
+		try {
+			$plain = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt( substr( $raw, $nl ), $ad, substr( $raw, 0, $nl ), $key );
+		} catch ( \Throwable $e ) {
+			$plain = false;
 		}
-		$seed  = ( defined( 'AUTH_KEY' ) ? AUTH_KEY : '' ) . '|' . ( defined( 'SECURE_AUTH_KEY' ) ? SECURE_AUTH_KEY : '' ) . '|' . ( defined( 'LOGGED_IN_KEY' ) ? LOGGED_IN_KEY : '' ) . '|ds-la-roster';
-		$key   = sodium_crypto_generichash( $seed, '', SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
-		$plain = sodium_crypto_secretbox_open( substr( $raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ), substr( $raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ), $key );
-		sodium_memzero( $key );
+		self::wipe( $key );
 		return false === $plain ? '' : $plain;
 	}
 
 	/**
-	 * A site's private key in PEM, or ''. A key sealed in an older way (the rc format, or under the
-	 * salts before DS_LA_KEY_SECRET was added) is re-sealed the current way the first time it opens.
+	 * A site's private key in PEM, or ''. A key sealed under the salts before DS_LA_KEY_SECRET was added is
+	 * re-sealed under the dedicated secret the first time it opens.
 	 */
 	private static function pem( $site_id ) {
 		$k = self::keys_raw()[ $site_id ] ?? null;
@@ -148,8 +192,7 @@ class DS_Roster_Data {
 		if ( '' !== $pem ) {
 			return $pem;
 		}
-		$pem = self::open_v1( $k['key'] );
-		if ( '' === $pem && 'salts' !== self::kek_source()['source'] ) {
+		if ( 'salts' !== self::kek_source()['source'] ) {
 			$pem = self::open_v2( $k['key'], 'pkey', $ad, true ); // sealed under the salts, a dedicated secret added since
 		}
 		if ( '' !== $pem ) {
@@ -197,8 +240,12 @@ class DS_Roster_Data {
 		if ( OPENSSL_KEYTYPE_RSA !== (int) ( $det['type'] ?? -1 ) || (int) ( $det['bits'] ?? 0 ) < 2048 ) {
 			return new WP_Error( 'ds_roster_pem', __( 'That is not a LeagueApps private key (an RSA key of 2048 bits or more is expected).', 'ds-toolkit' ) );
 		}
+		if ( ! self::can_seal() ) {
+			return new WP_Error( 'ds_roster_secret', __( 'This site has no secret keys to encrypt the key with. Add WordPress\'s secret keys (or DS_LA_KEY_SECRET) to wp-config.php first.', 'ds-toolkit' ) );
+		}
 		$keys     = self::keys_raw();
 		$replaced = isset( $keys[ $site_id ] );
+		$same     = $replaced && (string) $keys[ $site_id ]['client_id'] === $client_id;
 		$print    = substr( hash( 'sha256', (string) ( $det['key'] ?? '' ) ), 0, 12 ); // public-key fingerprint, safe to show
 		$keys[ $site_id ] = array(
 			'client_id' => $client_id,
@@ -210,7 +257,16 @@ class DS_Roster_Data {
 		);
 		update_option( self::KEYS_OPT, $keys, false );
 		delete_transient( 'ds_la_roster_tok_' . $site_id ); // a token from the previous key must not outlive it
-		delete_option( self::STORE_PRE . $site_id );        // a new account starts a fresh roster
+		if ( $same ) {
+			// A new key for the same LeagueApps client (a rotation): rosters keep showing and the photos stay,
+			// while a full rebuild runs with the new key.
+			update_option( self::FORCE_PRE . $site_id, time(), false );
+		} else {
+			delete_option( self::STORE_PRE . $site_id ); // a different account starts a fresh roster
+			if ( $replaced && class_exists( 'DS_Roster_Photos' ) ) {
+				DS_Roster_Photos::purge( $site_id );
+			}
+		}
 		self::audit( $replaced ? 'replaced' : 'saved', $site_id, $print );
 		return true;
 	}
@@ -223,6 +279,7 @@ class DS_Roster_Data {
 		update_option( self::KEYS_OPT, $keys, false );
 		delete_transient( 'ds_la_roster_tok_' . $site_id );
 		delete_option( self::STORE_PRE . $site_id );
+		delete_option( self::FORCE_PRE . $site_id );
 		if ( class_exists( 'DS_Roster_Photos' ) ) {
 			DS_Roster_Photos::purge( $site_id );
 		}
@@ -276,7 +333,7 @@ class DS_Roster_Data {
 		$pem   = self::pem( (string) $site_id );
 		$ok    = '' !== $pem;
 		if ( $ok ) {
-			sodium_memzero( $pem );
+			self::wipe( $pem );
 		}
 		$k = self::keys_raw()[ (string) $site_id ]; // pem() may have re-sealed it
 		return array(
@@ -350,7 +407,7 @@ class DS_Roster_Data {
 		$claims = self::b64url( wp_json_encode( array( 'aud' => self::AUTH_URL, 'iss' => $k['client_id'], 'sub' => $k['client_id'], 'iat' => $now, 'exp' => $now + 300 ) ) );
 		$sig    = '';
 		$signed = openssl_sign( $head . '.' . $claims, $sig, $pem, OPENSSL_ALGO_SHA256 );
-		sodium_memzero( $pem ); // the key is only in memory for the signature
+		self::wipe( $pem ); // the key is only in memory for the signature
 		if ( ! $signed ) {
 			return new WP_Error( 'ds_roster_sign', __( 'Could not sign the LeagueApps login with this key.', 'ds-toolkit' ) );
 		}
@@ -388,22 +445,52 @@ class DS_Roster_Data {
 			}
 			return new WP_Error( 'ds_roster_http', 'HTTP ' . $code );
 		}
+		// Only a JSON list of registrations is data. A maintenance page, a cut-off body or an error object
+		// must never read as "no more registrations", which would swap a half-built roster in.
 		$rows = json_decode( (string) wp_remote_retrieve_body( $res ), true );
-		return is_array( $rows ) ? $rows : array();
+		if ( ! is_array( $rows ) || array_values( $rows ) !== $rows ) {
+			return new WP_Error( 'ds_roster_bad', __( 'LeagueApps sent something that is not a list of registrations.', 'ds-toolkit' ) );
+		}
+		return $rows;
+	}
+
+	/** The key this site has right now (client and fingerprint), read from the database. */
+	private static function key_sig( $site_id ) {
+		$k = self::fresh_option( self::KEYS_OPT, array() );
+		$e = is_array( $k ) ? ( $k[ $site_id ] ?? null ) : null;
+		return $e ? (string) $e['client_id'] . '|' . (string) $e['print'] : '';
 	}
 
 	/* ------------------------------------------------------------------ keeping only public fields */
 
 	/** The club's own question for a field, found by its label ("Position", "High School Graduation Year", "Height"). */
 	public static function custom_value( array $r, $what ) {
+		if ( 'position' === $what ) {
+			// Exact "Position" first, then "Primary Position", then any other position question that is not a
+			// second choice, a preference or a parent/volunteer question (Austin has Position, Primary Position
+			// and Secondary Position on the same form).
+			$best = array();
+			foreach ( $r as $k => $v ) {
+				if ( ! is_scalar( $v ) || '' === trim( (string) $v ) ) {
+					continue;
+				}
+				$k = strtolower( trim( (string) $k ) );
+				if ( 'position' === $k ) {
+					$best[0] = $v;
+				} elseif ( 'primary position' === $k ) {
+					$best[1] = $v;
+				} elseif ( false !== strpos( $k, 'position' ) && ! preg_match( '/secondary|second|prefer|volunteer|parent|guardian|coach/', $k ) ) {
+					$best[2] = $best[2] ?? $v;
+				}
+			}
+			ksort( $best );
+			return $best ? trim( (string) reset( $best ) ) : '';
+		}
 		foreach ( $r as $k => $v ) {
 			if ( ! is_scalar( $v ) || '' === trim( (string) $v ) ) {
 				continue;
 			}
 			$k = strtolower( (string) $k );
-			if ( 'position' === $what && false !== strpos( $k, 'position' ) && false === strpos( $k, 'prefer' ) ) {
-				return trim( (string) $v );
-			}
 			if ( 'grad' === $what && ( false !== strpos( $k, 'graduat' ) || false !== strpos( $k, 'grad year' ) || false !== strpos( $k, 'class of' ) ) ) {
 				return preg_match( '/(19|20)\d\d/', (string) $v, $m ) ? $m[0] : '';
 			}
@@ -448,15 +535,34 @@ class DS_Roster_Data {
 	 * A registration -> the stored public row, or null when it is not a roster spot
 	 * (free agents, waitlist, admins, directors, no team).
 	 */
+	/** Registration statuses that mean a spot on the team (an allowlist: anything else stays off public pages). */
+	const ROSTER_STATUSES = array( 'SPOT_RESERVED', 'SPOT_PENDING' );
+
+	/**
+	 * A registration role -> 'player', 'coach' (team staff) or '' (not on a public roster). Clubs name staff
+	 * roles themselves: Surfside uses "Coach", Austin "HEAD COACH", "ASSISTANT COACH" and "TRAINER". Admins,
+	 * directors, coordinators and volunteers are club staff, not a team's roster.
+	 */
+	public static function role_kind( $role ) {
+		$role = strtolower( trim( (string) $role ) );
+		if ( 'player' === $role ) {
+			return 'player';
+		}
+		if ( false !== strpos( $role, 'coach' ) && false === strpos( $role, 'coordinator' ) || 'trainer' === $role || 'assistant trainer' === $role ) {
+			return 'coach';
+		}
+		return '';
+	}
+
 	public static function public_row( array $r ) {
-		$role = strtolower( (string) ( $r['role'] ?? '' ) );
-		if ( empty( $r['teamId'] ) || ! in_array( $role, array( 'player', 'coach' ), true ) ) {
+		$kind = self::role_kind( $r['role'] ?? '' );
+		if ( empty( $r['teamId'] ) || '' === $kind ) {
 			return null;
 		}
-		$status = strtoupper( (string) ( $r['registrationStatus'] ?? '' ) );
-		if ( in_array( $status, array( 'WAITING_LIST', 'CANCELLED', 'CANCELED', 'DECLINED', 'REMOVED' ), true ) ) {
+		if ( ! in_array( strtoupper( (string) ( $r['registrationStatus'] ?? '' ) ), self::ROSTER_STATUSES, true ) ) {
 			return null;
 		}
+		$role = $kind;
 		$first = self::name_case( $r['firstName'] ?? '' );
 		$last  = self::name_case( $r['lastName'] ?? '' );
 		if ( '' === $first && '' === $last ) {
@@ -471,6 +577,7 @@ class DS_Roster_Data {
 			'ht'  => 'player' === $role ? self::custom_value( $r, 'height' ) : '',
 			'cap' => ! empty( $r['isCoCaptain'] ),
 			'ph'  => self::photo_url( $r['photo'] ?? '' ), // the address only; a photo is downloaded only for a team a block shows
+			'rl'  => 'coach' === $role ? mb_substr( ucwords( strtolower( trim( wp_strip_all_tags( (string) ( $r['role'] ?? '' ) ) ) ) ), 0, 30 ) : '', // "Head Coach", "Trainer"
 		);
 	}
 
@@ -583,21 +690,27 @@ class DS_Roster_Data {
 			return new WP_Error( 'ds_roster_key', __( 'No private key saved for this site.', 'ds-toolkit' ) );
 		}
 		$lock = 'ds_la_roster_lock_' . $site_id;
-		if ( false !== get_transient( $lock ) ) {
+		if ( ! self::lock( $lock, self::LOCK_TTL ) ) {
 			return new WP_Error( 'ds_roster_busy', __( 'A roster sync is already running.', 'ds-toolkit' ) );
 		}
-		set_transient( $lock, 1, self::BUDGET + 30 );
+		$sig = self::key_sig( $site_id ); // the key this run works for: if it is removed or replaced meanwhile, nothing is saved
 
 		$old  = self::store( $site_id, true );
+		// "Sync now" or a rotated key asks for a full rebuild through a flag, never by rewriting the store.
+		$forced = (bool) self::fresh_option( self::FORCE_PRE . $site_id, false );
+		if ( $forced ) {
+			unset( $old['partial'] ); // start the rebuild from the beginning
+			delete_option( self::FORCE_PRE . $site_id );
+		}
 		// A rebuild that stopped half-way is always carried on first, or it would never be swapped in.
-		$full = $force_full || ! empty( $old['partial'] ) || empty( $old['full'] ) || time() - (int) $old['full'] > self::FULL_EVERY;
+		$full = $force_full || $forced || ! empty( $old['partial'] ) || empty( $old['full'] ) || time() - (int) $old['full'] > self::FULL_EVERY;
 		$work = $full ? ( (array) ( $old['partial'] ?? array() ) ?: array( 'cur' => self::full_start() ) ) : $old;
 		$cur  = (array) ( $work['cur'] ?? array( 0, 0 ) );
 		$t0   = microtime( true );
 		$budget = self::budget();
 		$done = false;
 		$err  = '';
-		$tok  = self::token( $site_id );
+		$tok  = '' === $sig ? new WP_Error( 'ds_roster_key', __( 'No private key saved for this site.', 'ds-toolkit' ) ) : self::token( $site_id );
 		if ( is_wp_error( $tok ) ) {
 			$err = $tok->get_error_message();
 		} else {
@@ -623,13 +736,22 @@ class DS_Roster_Data {
 					$done = true;
 					break;
 				}
-				$work = self::apply( $work, $rows );
 				$last = end( $rows );
-				$cur  = array( (int) ( $last['lastUpdated'] ?? 0 ), (int) ( $last['id'] ?? 0 ) );
+				$next = array( (int) ( $last['lastUpdated'] ?? 0 ), (int) ( $last['id'] ?? 0 ) );
+				if ( $next[0] < $cur[0] || ( $next[0] === $cur[0] && $next[1] <= $cur[1] ) ) {
+					$err = __( 'LeagueApps sent the registrations out of order; this sync stopped.', 'ds-toolkit' );
+					break; // a cursor that does not move forward would loop or restart the history
+				}
+				$work = self::apply( $work, $rows );
+				$cur  = $next;
 				// Progress is saved page by page: if the host stops this request anyway, the next run
 				// carries on from here instead of starting over.
 				$work['cur'] = $cur;
-				$keep        = $full ? array_merge( $old, array( 'partial' => $work ) ) : $work;
+				if ( self::key_sig( $site_id ) !== $sig ) {
+					self::unlock( $lock );
+					return new WP_Error( 'ds_roster_key_changed', __( 'The private key was removed or replaced during the sync; nothing was saved.', 'ds-toolkit' ) );
+				}
+				$keep = $full ? array_merge( $old, array( 'partial' => $work ) ) : $work;
 				update_option( self::STORE_PRE . $site_id, $keep, false );
 			}
 		}
@@ -660,8 +782,12 @@ class DS_Roster_Data {
 			$new['synced'] = $err ? (int) ( $old['synced'] ?? 0 ) : time();
 			$new['error']  = $err;
 		}
+		if ( self::key_sig( $site_id ) !== $sig ) {
+			self::unlock( $lock );
+			return new WP_Error( 'ds_roster_key_changed', __( 'The private key was removed or replaced during the sync; nothing was saved.', 'ds-toolkit' ) );
+		}
 		update_option( self::STORE_PRE . $site_id, $new, false );
-		delete_transient( $lock );
+		self::unlock( $lock );
 		return $err && empty( $new['teams'] ) ? new WP_Error( 'ds_roster_sync', $err ) : $new;
 	}
 
@@ -697,11 +823,26 @@ class DS_Roster_Data {
 	/** WP-cron handler: every site with a key that is due. */
 	public static function cron() {
 		foreach ( self::sites_with_keys() as $sid ) {
-			$s = self::store( $sid );
-			if ( empty( $s['synced'] ) || empty( $s['full'] ) || time() - (int) $s['synced'] >= self::SYNC_EVERY || ! empty( $s['partial'] ) ) {
+			$s = self::store( $sid, true );
+			if ( empty( $s['synced'] ) || empty( $s['full'] ) || time() - (int) $s['synced'] >= self::SYNC_EVERY || ! empty( $s['partial'] ) || false !== self::fresh_option( self::FORCE_PRE . $sid, false ) ) {
 				self::sync( $sid );
 			}
 		}
+		// Photos (new players, changed photos) in their own request, so the two never share one time limit.
+		if ( class_exists( 'DS_Roster_Photos' ) ) {
+			DS_Roster_Photos::queue();
+		}
+	}
+
+	/** "Sync rosters now": ask the next run for a full rebuild and start it in the background. */
+	public static function request_full( $site_id ) {
+		$site_id = preg_replace( '/\D+/', '', (string) $site_id );
+		if ( ! isset( self::keys_raw()[ $site_id ] ) ) {
+			return false;
+		}
+		update_option( self::FORCE_PRE . $site_id, time(), false );
+		self::sync_soon();
+		return true;
 	}
 
 	/* ------------------------------------------------------------------ reading */
@@ -725,6 +866,9 @@ class DS_Roster_Data {
 		if ( ! preg_match( '/^(\d+):(\d+)$/', (string) $key, $m ) ) {
 			return null;
 		}
+		if ( ! isset( self::keys_raw()[ $m[1] ] ) ) {
+			return null; // the key was removed: nothing from that account is shown, whatever is still stored
+		}
 		$t = self::store( $m[1] )['teams'][ $m[2] ] ?? null;
 		if ( ! $t ) {
 			return null;
@@ -740,7 +884,12 @@ class DS_Roster_Data {
 		}
 		$by = function ( $a, $b ) { return strnatcasecmp( $a['l'] . ' ' . $a['f'], $b['l'] . ' ' . $b['f'] ); };
 		usort( $players, $by );
-		usort( $coaches, $by );
+		// Head coach first, then coaches, assistants, trainers; by name within each.
+		$rank = function ( $c ) {
+			$l = strtolower( (string) ( $c['rl'] ?? '' ) );
+			return false !== strpos( $l, 'head' ) ? 0 : ( false !== strpos( $l, 'assistant' ) ? 2 : ( false !== strpos( $l, 'trainer' ) ? 3 : 1 ) );
+		};
+		usort( $coaches, function ( $a, $b ) use ( $rank, $by ) { return $rank( $a ) <=> $rank( $b ) ?: $by( $a, $b ); } );
 		return array( 'name' => $t['name'], 'program' => $t['program'], 'sport' => $t['sport'] ?? '', 'start' => $t['start'] ?? 0, 'end' => $t['end'] ?? 0, 'players' => $players, 'coaches' => $coaches );
 	}
 }
