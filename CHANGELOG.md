@@ -4,6 +4,15 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.44] - 2026-10-22
+### Added
+- **Table and Programs: a "Modern" style, the default for new blocks** (Alipio: *"can we improve the leagueapps table and programs Default style? it looks old and weak design... just the default style so that it doesnt have big impact in fleet update"*). A white card with a hairline frame, 12 px corners and a soft shadow; a pale header row with small uppercase labels; roomy rows with hairline dividers and a light hover; dropdowns and search boxes 44 px tall with 10 px corners, a dropdown arrow and a search icon; and the site's Primary colour (darkened by itself when it is too pale to carry white text) for the current page, the active sort arrow, links and focus. Programs also sets prices in bold with even-width digits, keeps the result count and "Clear filters" on the dropdowns' line, and on phones frames each program as a card. Under 1200 px a full eight-column Programs table now fits its box with the Register column in view (the date range breaks after its dash, headings may wrap, cells are 12/10 px), where before it scrolled sideways at 1024 px; on wide screens program names and places get room so they stop wrapping to four lines.
+- **Existing blocks do not change.** Every Table and Programs block already on a page has its preset saved (the field has existed since each module's first release), so it keeps Striped / Bordered / Minimal / Framed / Brand exactly as it was: the CSS each old preset produces is byte-for-byte the same as 1.10.43's (all 7 presets of both modules compared), and the static stylesheets are unchanged. To move a block to the new look, pick **Style > Preset > Modern**. Every Style field still overrides the preset, as before.
+- **Shadow > Subtle** joins None / Soft / Medium on both modules (Modern's default).
+- `tests/table-preset-modern-test.php` (75 checks, mutation-checked): Modern's rules appear for Modern and never for another preset, the editor's fields still win, "Keep on one line" on the date column and an editor's own cell padding or phone-card line are respected, and white text on the brand colour reads at 4.5:1 even for a pale yellow Primary.
+
+---
+
 ## [1.10.43] - 2026-10-22
 ### Fixed
 - **Seasons, Levels and other multi-select lists can be unticked** (ClickUp 868mkp2ky, reported by Iris Gomez: "you can switch to a different option, but there is no way to unselect"). Beaver Builder draws these fields as the browser's own list box, where a plain click picks one option and drops the others, and only Cmd-click (Ctrl-click) unticks, which nobody knows. In DS Toolkit modules (Programs: Sites, Seasons, Levels; Calendar: Sites, Event types, Teams, Program types) a plain click now ticks or unticks the option it lands on, ticked options show in WordPress blue, the list shows up to 8 options instead of a 3-line scroll box, and under it "2 picked · **Clear**" (Clear empties it: nothing picked = all). Shift / Cmd / Ctrl clicks keep the browser's behaviour.

@@ -17,6 +17,39 @@ $sc   = function ( $key ) use ( $st, $col ) { return call_user_func( $col, $st( 
 $px   = function ( $key, $default = '' ) use ( $st ) { $v = $st( $key, $default ); return ( '' !== $v && is_numeric( $v ) ) ? (int) $v . 'px' : ''; };
 list( $bp_md, $bp_sm ) = DS_Module_UI::breakpoints();
 
+/* ---------- Modern preset (the default for new modules) ----------
+ * Only what the preset fields cannot carry: small-caps headings and labels, the dropdown arrow
+ * and search icon, tidy numbers, and the site's Primary colour (made readable on white) for the
+ * current page, the active sort arrow and focus. Emitted first, at the weight of the Style
+ * fields below, so a field the editor sets still wins. Modules saved on another preset never
+ * get these rules. */
+$modern = 'modern' === (string) ( $settings->style_preset ?? '' );
+if ( $modern ) {
+	require_once DS_TOOLKIT_PATH . 'includes/class-ds-la-colors.php';
+	$pal = DS_LA_Colors::palette( '', '#ffffff' );
+	$ink = $pal ? $pal['ink'] : '#1f2937';
+	$arrow = "url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%235b6472' d='M4 6l4 4 4-4z'/%3E%3C/svg%3E\")";
+	$lens  = "url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='%235b6472' d='M8.5 3a5.5 5.5 0 014.38 8.82l3.65 3.65-1.06 1.06-3.65-3.65A5.5 5.5 0 118.5 3zm0 1.5a4 4 0 100 8 4 4 0 000-8z'/%3E%3C/svg%3E\")";
+	echo "$node .ds-programs-th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;}\n";
+	echo "$node .ds-programs-th .ds-programs-sortbtn{text-transform:inherit !important;letter-spacing:inherit !important;}\n";
+	echo "$node .ds-programs-label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;}\n";
+	// The count and Clear sit on the dropdowns' line, not halfway up their labels.
+	echo "$node .ds-programs-bar .ds-programs-count{align-self:flex-end;margin-bottom:13px;}\n";
+	echo "$node .ds-programs-bar .ds-programs-clear{align-self:flex-end;margin:0 0 7px !important;}\n";
+	echo "$node .ds-programs-td{line-height:1.45;}\n";
+	echo "$node .ds-programs-td--dateRange,$node .ds-programs-td--price,$node .ds-programs-td--spots{font-variant-numeric:tabular-nums;}\n";
+	echo "$node .ds-programs-td--price{font-weight:700;}\n";
+	// Wide screens only: long program names and places otherwise wrap to four lines beside a
+	// no-wrap date range. Narrower, the table must still fit its box with the Register column.
+	echo "@media(min-width:1200px){{$node} .ds-programs-td--program{min-width:220px;}{$node} .ds-programs-td--location{min-width:150px;}}\n";
+	echo "$node .ds-programs-table tbody tr{transition:background-color .15s ease;}\n";
+	echo "$node .ds-programs-field .ds-programs-select{padding:11px 38px 11px 14px !important;background-image:$arrow !important;background-repeat:no-repeat !important;background-position:right 12px center !important;background-size:16px 16px !important;}\n";
+	echo "$node .ds-programs-field .ds-programs-input{padding:11px 14px 11px 38px !important;background-image:$lens !important;background-repeat:no-repeat !important;background-position:12px center !important;background-size:17px 17px !important;}\n";
+	echo "$node .ds-programs-field .ds-programs-select:focus,$node .ds-programs-field .ds-programs-input:focus{outline:2px solid $ink;outline-offset:1px;border-color:$ink;}\n";
+	echo "$node .ds-programs-pager .ds-programs-page.is-current{background-color:$ink;border-color:$ink;color:#ffffff;text-decoration:none;}\n";
+	echo "$node .ds-programs-sortbtn.is-asc .ds-programs-sorticon,$node .ds-programs-sortbtn.is-desc .ds-programs-sorticon{color:$ink;}\n";
+}
+
 /* ---------- table frame ---------- */
 $table_bg = $sc( 'table_bg' );
 $tprops   = array();
@@ -26,6 +59,7 @@ if ( $radius ) { $tprops[] = "border-radius:$radius"; $tprops[] = 'overflow:hidd
 $shadow = (string) $st( 'table_shadow', 'none' );
 if ( 'soft' === $shadow )   { $tprops[] = 'box-shadow:0 2px 10px rgba(0,0,0,.08)'; }
 if ( 'medium' === $shadow ) { $tprops[] = 'box-shadow:0 6px 24px rgba(0,0,0,.14)'; }
+if ( 'subtle' === $shadow ) { $tprops[] = 'box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.05)'; }
 
 $bmode = (string) $st( 'table_border', 'none' );
 $bw    = $px( 'table_border_width', 1 ) ?: '1px';
@@ -78,6 +112,9 @@ if ( $nested ) { echo "$node .ds-programs-row.is-child .ds-programs-td.ds-progra
 /* cell padding: responsive; the preset supplies a default the field may be blank on */
 $pad_base = $px( 'cell_pad', 12 );
 if ( $pad_base ) { echo "$node .ds-programs-th,$node .ds-programs-td{padding:$pad_base;}\n"; }
+// Modern, under 1200px: tighter cells so a full LeagueApps table (8 columns) still fits its box
+// with the Register column in view. The editor's own tablet / phone padding, emitted next, wins.
+if ( $modern && '' === (string) ( $settings->cell_pad ?? '' ) ) { echo "@media(max-width:1199px){{$node} .ds-programs-th,{$node} .ds-programs-td{padding:12px 10px;}}\n"; }
 foreach ( array( 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
 	$pv = $settings->{"cell_pad_$suffix"} ?? '';
 	if ( '' !== $pv && is_numeric( $pv ) ) { echo "@media(max-width:{$bp}px){{$node} .ds-programs-th,{$node} .ds-programs-td{padding:" . (int) $pv . "px;}}\n"; }
@@ -90,6 +127,17 @@ foreach ( $module->chosen_columns() as $ckey => $c ) {
 	if ( ! empty( $c['width'] ) ) { $props[] = 'width:' . $c['width']; }
 	if ( ! empty( $c['nowrap'] ) ) { $props[] = 'white-space:nowrap'; }
 	if ( $props ) { echo "$node .ds-programs-th--$ckey,$node .ds-programs-td--$ckey{" . implode( ';', $props ) . ";}\n"; }
+}
+// Modern, under 1200px: the date range may break after its dash ("10/03/2026-" / "11/20/2026")
+// unless the editor chose "Keep on one line" for that column.
+if ( $modern ) {
+	$date_kept = false;
+	foreach ( (array) ( $settings->columns ?? array() ) as $row ) {
+		$row = (array) $row;
+		if ( 'dateRange' === ( $row['col_key'] ?? '' ) && 'yes' === ( $row['col_nowrap'] ?? '' ) ) { $date_kept = true; }
+	}
+	if ( ! $date_kept ) { echo "@media(max-width:1199px){{$node} .ds-programs-td--dateRange{white-space:normal;min-width:7em;}}\n"; }
+	echo "@media(max-width:1199px){{$node} .ds-programs-th,{$node} .ds-programs-th .ds-programs-sortbtn{white-space:normal !important;}}\n";
 }
 
 /* ---------- filter bar ---------- */
@@ -283,9 +331,10 @@ $m[] = ".ds-programs-scroll{overflow-x:visible;border:0;box-shadow:none;backgrou
 $m[] = ".ds-programs-table,.ds-programs-table tbody{display:block;width:auto;}";
 $m[] = ".ds-programs-table tr{display:flex;flex-direction:column;width:auto;}";
 $m[] = ".ds-programs-table thead{display:none;}";
-$card = array( 'margin:0 0 ' . ( $px( 'mob_card_gap' ) ?: '18px' ), 'padding:' . ( $px( 'mob_card_pad' ) ?: '2px 0 12px' ) );
+$card = array( 'margin:0 0 ' . ( $px( 'mob_card_gap' ) ?: '18px' ), 'padding:' . ( $px( 'mob_card_pad' ) ?: ( $modern ? '4px 16px 16px' : '2px 0 12px' ) ) );
 $mcb = $st( 'mob_card_border', '2' );
-$card[] = 'border-width:0 0 ' . ( is_numeric( $mcb ) ? (int) $mcb : 2 ) . 'px';
+// Modern: a framed card unless the editor set the bottom line's width themselves.
+$card[] = ( $modern && '' === (string) ( $settings->mob_card_border ?? '' ) ) ? 'border-width:1px;box-shadow:0 1px 2px rgba(16,24,40,.05)' : 'border-width:0 0 ' . ( is_numeric( $mcb ) ? (int) $mcb : 2 ) . 'px';
 $card[] = 'border-style:solid';
 $card[] = 'border-color:' . ( $sc( 'table_border_color' ) ?: 'rgba(0,0,0,.12)' );
 $v = $sc( 'mob_card_bg' );    if ( $v ) { $card[] = "background-color:$v"; }
@@ -301,6 +350,7 @@ $v = $sc( 'mob_label_color' ); $lbl[] = $v ? "color:$v;opacity:1" : 'opacity:.65
 $m[] = ".ds-programs-td::before{" . implode( ';', $lbl ) . ";}";
 $m[] = ".ds-programs-table .ds-programs-td--program{display:block;order:-1;padding:6px 0;font-size:" . ( $px( 'mob_name_size' ) ?: '19px' ) . ";line-height:1.25;font-weight:" . ( is_numeric( $nw ) ? $nw : 700 ) . ";}";
 $m[] = ".ds-programs-td--program::before{display:none;}";
+if ( $modern ) { $m[] = ".ds-programs-table .ds-programs-td--program{padding:14px 0 10px;margin-bottom:4px;border-bottom:1px solid #eef1f4;}"; }
 if ( $nested ) {
 	// A phone card stands alone, so the main program's name becomes an eyebrow
 	// and the tree indent goes.

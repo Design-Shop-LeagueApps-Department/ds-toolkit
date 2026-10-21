@@ -17,6 +17,27 @@ $px   = function ( $key, $default = '' ) use ( $st ) { $v = $st( $key, $default 
 list( $bp_md, $bp_sm ) = DS_Module_UI::breakpoints();
 $cards = 'scroll' !== ( $settings->mobile_mode ?? 'cards' );
 
+/* ---------- Modern preset (the default for new tables) ----------
+ * Only what the preset fields cannot carry: the header's small caps, and the site's Primary
+ * colour (made readable on white) for links, the current page and focus. Emitted first, at the
+ * same weight as the Style fields below, so any field the editor sets still wins. Tables saved
+ * on another preset never get these rules. */
+$modern = 'modern' === (string) ( $settings->style_preset ?? '' );
+$ink    = '#1f2937';
+if ( $modern ) {
+	require_once DS_TOOLKIT_PATH . 'includes/class-ds-la-colors.php';
+	$pal = DS_LA_Colors::palette( '', '#ffffff' );
+	$ink = $pal ? $pal['ink'] : $ink;
+	echo "$w .ds-table-t .ds-table-th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;}\n";
+	echo "$w .ds-table-t .ds-table-td{line-height:1.45;}\n";
+	echo "$w .ds-table-t tbody tr{transition:background-color .15s ease;}\n";
+	echo "$w .ds-table-t a.ds-table-link{color:$ink;}\n";
+	echo "$w .ds-table-field .ds-table-input,$w .ds-table-field .ds-table-select{padding-top:11px;padding-bottom:11px;}\n";
+	echo "$w .ds-table-field .ds-table-input:focus,$w .ds-table-field .ds-table-select:focus{outline:2px solid $ink;outline-offset:1px;border-color:$ink;}\n";
+	echo "$w .ds-table-pager .ds-table-page.is-current{background-color:$ink !important;border-color:$ink !important;color:#ffffff !important;}\n";
+	echo "$w .ds-table-sortbtn.is-asc .ds-table-sorticon,$w .ds-table-sortbtn.is-desc .ds-table-sorticon{color:$ink;}\n";
+}
+
 /* ---------- table frame ---------- */
 $tprops = array();
 $v = $sc( 'table_bg' ); if ( $v ) { $tprops[] = "background-color:$v"; }
@@ -25,6 +46,7 @@ if ( $radius ) { $tprops[] = "border-radius:$radius"; }
 $shadow = (string) $st( 'table_shadow', 'none' );
 if ( 'soft' === $shadow )   { $tprops[] = 'box-shadow:0 2px 12px rgba(0,0,0,.08)'; }
 if ( 'medium' === $shadow ) { $tprops[] = 'box-shadow:0 8px 28px rgba(0,0,0,.14)'; }
+if ( 'subtle' === $shadow ) { $tprops[] = 'box-shadow:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.05)'; }
 $bmode = (string) $st( 'table_border', 'none' );
 $bw    = $px( 'table_border_width', 1 ) ?: '1px';
 $bc    = $sc( 'table_border_color' ) ?: 'rgba(0,0,0,.1)';
@@ -164,5 +186,9 @@ if ( $cards ) {
 	$m[] = "$c .ds-table-t .ds-table-td .ds-table-v{min-width:0;}";
 	$m[] = "$c .ds-table-t .ds-table-type-button .ds-table-v,$c .ds-table-t .ds-table-type-image .ds-table-v{display:block;}";
 	$m[] = "$c .ds-table-t .ds-table-td.ds-table-type-button a.fl-button.ds-table-btn{display:block;width:100%;text-align:center;}";
+	if ( $modern ) {
+		$m[] = "$c .ds-table-t tbody tr{box-shadow:0 1px 2px rgba(16,24,40,.05);}";
+		$m[] = "$c .ds-table-t .ds-table-td{border-bottom-color:#eef1f4;}";
+	}
 }
 if ( $m ) { echo "@media(max-width:{$bp_sm}px){" . implode( '', $m ) . "}\n"; }
