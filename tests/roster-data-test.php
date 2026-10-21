@@ -25,9 +25,12 @@ function wp_json_encode( $v, $f = 0 ) { return json_encode( $v, $f ); }
 function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); }
 function get_current_user_id() { return 7; }
 function is_wp_error( $e ) { return $e instanceof WP_Error; }
-class WP_Error { private $m; function __construct( $c = '', $m = '' ) { $this->m = $m; } function get_error_message() { return $this->m; } }
+class WP_Error { private $c, $m; function __construct( $c = '', $m = '' ) { $this->c = $c; $this->m = $m; } function get_error_message() { return $this->m; } function get_error_code() { return $this->c; } }
+$GLOBALS['cron'] = array();
+function wp_next_scheduled( $h ) { foreach ( $GLOBALS['cron'] as $c ) { if ( $c[1] === $h ) { return $c[0]; } } return false; }
+function wp_schedule_single_event( $t, $h ) { $GLOBALS['cron'][] = array( $t, $h ); return true; }
 function wp_remote_post( $url, $args ) { $GLOBALS['post_args'] = $args; $GLOBALS['jwt'] = $args['body']['assertion'] ?? null; return $GLOBALS['auth'] ?? array( 'code' => 200, 'body' => json_encode( array( 'access_token' => 'tok-123', 'expires_in' => 900 ) ) ); }
-function wp_remote_get( $url, $args ) { $GLOBALS['get_args'] = $args; $GLOBALS['urls'][] = $url; $GLOBALS['hdr'] = $args['headers'] ?? array(); return array_shift( $GLOBALS['http'] ) ?? array( 'code' => 200, 'body' => '[]' ); }
+function wp_remote_get( $url, $args ) { $GLOBALS['get_args'] = $args; $GLOBALS['urls'][] = $url; $GLOBALS['hdr'] = $args['headers'] ?? array(); return array_shift( $GLOBALS['http'] ) ?? array( 'code' => 200, 'body' => '[]' ); } // an entry may be a WP_Error (timeout)
 function wp_remote_retrieve_response_code( $r ) { return $r['code'] ?? 0; }
 function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
 require __DIR__ . '/../includes/class-ds-roster-data.php';
@@ -135,7 +138,7 @@ chk( 'the hourly job skips a site synced minutes ago', count( $GLOBALS['urls'] )
 $st2 = $GLOBALS['opts']['ds_la_roster_52078']; $st2['full'] = 0; $GLOBALS['opts']['ds_la_roster_52078'] = $st2;
 $GLOBALS['urls'] = array(); $GLOBALS['http'] = array( array( 'code' => 200, 'body' => '[]' ) );
 DS_Roster_Data::cron();
-chk( '"Sync now" (full = 0) is picked up by the next background run, as a full rebuild', array( count( $GLOBALS['urls'] ), substr( $GLOBALS['urls'][0] ?? '', strpos( $GLOBALS['urls'][0] ?? '?', '?' ) ) ), array( 1, '?last-updated=0&last-id=0' ) );
+chk( '"Sync now" (full = 0) is picked up by the next background run, as a full rebuild', array( count( $GLOBALS['urls'] ), substr( $GLOBALS['urls'][0] ?? '', strpos( $GLOBALS['urls'][0] ?? '?', '?' ) ) ), array( 1, '?last-updated=' . DS_Roster_Data::full_start()[0] . '&last-id=0' ) );
 ini_set( 'max_execution_time', '30' ); $_SERVER['REQUEST_TIME_FLOAT'] = microtime( true ) - 1.5;
 chk( 'budget fits a 30 s host limit (30 - 1.5 used - 15 page wait - 3 = 10)', DS_Roster_Data::budget(), 10 );
 ini_set( 'max_execution_time', '60' );
@@ -198,6 +201,35 @@ define( 'DS_LA_KEY_SECRET', str_repeat( 'k', 64 ) );
 chk( 'new keys are sealed under the dedicated secret', DS_Roster_Data::kek_in_use(), 'constant' );
 chk( 'a key sealed under the salts before it was added still opens', DS_Roster_Data::key_status( '52078' )['readable'], true );
 chk( '... and is moved to the dedicated secret by itself', $keys()['52078']['kek'], 'constant' );
+
+echo "large clubs (Austin Junior VB)\n";
+$slow = function () { return new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 15001 milliseconds with 0 bytes received' ); };
+$pg   = function ( $id, $lu ) use ( $reg ) { return array( 'code' => 200, 'body' => json_encode( array( $reg( array( 'id' => $id, 'registrationId' => 900 + $id, 'lastUpdated' => $lu ) ) ) ) ); };
+$run  = function ( $force = false ) { delete_transient( 'ds_la_roster_lock_52078' ); $GLOBALS['urls'] = array(); $GLOBALS['cron'] = array(); return DS_Roster_Data::sync( '52078', $force ); };
+$q    = function ( $u ) { return substr( $u, strpos( $u, '?' ) ); };
+delete_option( 'ds_la_roster_52078' );
+$GLOBALS['http'] = array( $pg( 1, 2000 ), array( 'code' => 200, 'body' => '[]' ) );
+$run( true );
+chk( 'a full rebuild reads the last two years, not the whole history', $q( $GLOBALS['urls'][0] ), '?last-updated=' . DS_Roster_Data::full_start()[0] . '&last-id=0' );
+chk( 'full_start is 730 days back', (int) round( ( time() * 1000 - DS_Roster_Data::full_start()[0] ) / 86400000 ), 730 );
+$GLOBALS['http'] = array( $pg( 1, 2000 ), $slow(), $pg( 2, 3000 ), array( 'code' => 200, 'body' => '[]' ) );
+$r = $run( true );
+chk( 'one slow page is asked again in the same run and the sync finishes', array( count( $GLOBALS['urls'] ), $q( $GLOBALS['urls'][1] ) === $q( $GLOBALS['urls'][2] ), $r['error'] ?? 'x', isset( $r['partial'] ) ), array( 4, true, '', false ) );
+delete_option( 'ds_la_roster_52078' );
+$GLOBALS['http'] = array( $pg( 1, 2000 ), $slow(), $slow() );
+$run( true );
+$st = DS_Roster_Data::key_status( '52078' );
+chk( 'two slow pages in a row: the run stops, keeps its progress', array( $st['partial']['teams'], $st['partial']['retries'], false !== strpos( $st['error'], '15 seconds' ) ), array( 1, 1, true ) );
+chk( '... and carries on by itself in two minutes (not at the hourly run)', array( $GLOBALS['cron'][0][1] ?? '', ( $GLOBALS['cron'][0][0] ?? 0 ) - time() ), array( 'ds_la_roster_continue', 120 ) );
+$GLOBALS['http'] = array( $pg( 2, 3000 ), array( 'code' => 200, 'body' => '[]' ) );
+$r = $run();
+chk( 'the next run carries on from the saved page and finishes', array( $q( $GLOBALS['urls'][0] ), $r['error'], isset( $r['partial'] ), isset( $r['retries'] ), count( $r['teams']['8039511']['m'] ?? array() ) ), array( '?last-updated=2000&last-id=1', '', false, false, 2 ) );
+delete_option( 'ds_la_roster_52078' );
+for ( $i = 1; $i <= DS_Roster_Data::RETRY_MAX + 1; $i++ ) { $GLOBALS['http'] = array( $slow(), $slow() ); $run( 1 === $i ); }
+chk( 'after ' . ( DS_Roster_Data::RETRY_MAX + 1 ) . ' failed runs in a row it waits for the hourly sync', array( DS_Roster_Data::key_status( '52078' )['partial']['retries'], count( $GLOBALS['cron'] ) ), array( DS_Roster_Data::RETRY_MAX + 1, 0 ) );
+$GLOBALS['http'] = array( new WP_Error( 'http_request_failed', 'cURL error 6: Could not resolve host' ) );
+$run();
+chk( 'an unreachable server is not asked twice in one run, and says so', array( count( $GLOBALS['urls'] ), DS_Roster_Data::key_status( '52078' )['error'] ), array( 1, 'LeagueApps could not be reached.' ) );
 
 function wp_list_pluck_t( $l, $f ) { return array_map( function ( $x ) use ( $f ) { return $x[ $f ]; }, $l ); }
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

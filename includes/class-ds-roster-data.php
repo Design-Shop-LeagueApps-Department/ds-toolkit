@@ -37,6 +37,12 @@ class DS_Roster_Data {
 	const PAGE_WAIT  = 15;                   // seconds one LeagueApps page may take
 	const PAGES_MAX  = 60;                   // 60 000 registrations per run at most
 	const KEEP_DAYS  = 400;                  // teams whose season ended longer ago are dropped
+	// A full rebuild reads registrations updated in the last two years, not the club's whole history:
+	// in Surfside's real export the oldest registration still on a current roster was 452 days old
+	// (none over 550), while a club like Austin Junior VB has years of history before that.
+	const FULL_FROM_DAYS = 730;
+	const RETRY_WAIT     = 2 * MINUTE_IN_SECONDS; // a first sync that hit a slow page carries on this soon
+	const RETRY_MAX      = 5;                     // ... this many times in a row, then at the hourly run
 
 	/* ------------------------------------------------------------------ the key */
 
@@ -279,6 +285,12 @@ class DS_Roster_Data {
 			'full'      => (int) ( $store['full'] ?? 0 ),
 			'teams'     => count( (array) ( $store['teams'] ?? array() ) ),
 			'error'     => (string) ( $store['error'] ?? '' ),
+			// A full pull in progress: teams read so far, how far it has read, failed runs in a row.
+			'partial'   => empty( $store['partial'] ) ? null : array(
+				'teams'   => count( (array) ( $store['partial']['teams'] ?? array() ) ),
+				'upto'    => (int) floor( (int) ( $store['partial']['cur'][0] ?? 0 ) / 1000 ),
+				'retries' => (int) ( $store['partial']['retries'] ?? 0 ),
+			),
 		);
 	}
 
@@ -360,7 +372,10 @@ class DS_Roster_Data {
 		$url = sprintf( self::EXPORT_URL, rawurlencode( $site_id ) ) . '?last-updated=' . (int) $updated . '&last-id=' . (int) $id;
 		$res = wp_remote_get( $url, self::http_args( array( 'timeout' => self::PAGE_WAIT, 'headers' => array( 'Authorization' => 'Bearer ' . $token ) ) ) );
 		if ( is_wp_error( $res ) ) {
-			return new WP_Error( 'ds_roster_http', __( 'LeagueApps did not answer.', 'ds-toolkit' ) );
+			$slow = false !== stripos( $res->get_error_message(), 'timed out' ) || false !== stripos( $res->get_error_message(), 'timeout' );
+			return $slow
+				? new WP_Error( 'ds_roster_slow', sprintf( /* translators: %d seconds */ __( 'LeagueApps took longer than %d seconds to send a page.', 'ds-toolkit' ), self::PAGE_WAIT ) )
+				: new WP_Error( 'ds_roster_http', __( 'LeagueApps could not be reached.', 'ds-toolkit' ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $res );
 		if ( 200 !== $code ) {
@@ -533,7 +548,7 @@ class DS_Roster_Data {
 		$old  = self::store( $site_id );
 		// A rebuild that stopped half-way is always carried on first, or it would never be swapped in.
 		$full = $force_full || ! empty( $old['partial'] ) || empty( $old['full'] ) || time() - (int) $old['full'] > self::FULL_EVERY;
-		$work = $full ? ( (array) ( $old['partial'] ?? array() ) ?: array( 'cur' => array( 0, 0 ) ) ) : $old;
+		$work = $full ? ( (array) ( $old['partial'] ?? array() ) ?: array( 'cur' => self::full_start() ) ) : $old;
 		$cur  = (array) ( $work['cur'] ?? array( 0, 0 ) );
 		$t0   = microtime( true );
 		$budget = self::budget();
@@ -548,6 +563,11 @@ class DS_Roster_Data {
 					break;
 				}
 				$rows = self::page( $site_id, $tok, $cur[0], $cur[1] );
+				// One slow page is usually a blip: ask again once, if the run is still inside its budget (the
+				// budget leaves room for one more page under the host's time limit).
+				if ( is_wp_error( $rows ) && 'ds_roster_slow' === $rows->get_error_code() && microtime( true ) - $t0 <= $budget ) {
+					$rows = self::page( $site_id, $tok, $cur[0], $cur[1] );
+				}
 				if ( is_wp_error( $rows ) ) {
 					$err = $rows->get_error_message();
 					break;
@@ -575,17 +595,21 @@ class DS_Roster_Data {
 		if ( $full ) {
 			if ( $done ) {
 				$new = $work;
-				unset( $new['partial'] );
+				unset( $new['partial'], $new['retries'] );
 				$new['full']   = time();
 				$new['synced'] = time();
 				$new['error']  = '';
 			} else {
+				// A failed run keeps its progress; the retry count says how many failed in a row.
+				$work['retries'] = '' === $err ? 0 : (int) ( $work['retries'] ?? 0 ) + 1;
 				$new            = $old; // keep showing the last complete roster
 				$new['partial'] = $work; // and carry on from here next run
 				$new['error']   = $err;
-				// A big club needs more than one run: carry on in a minute, not at the next hourly tick.
-				if ( '' === $err && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( 'ds_la_roster_continue' ) ) {
-					wp_schedule_single_event( time() + MINUTE_IN_SECONDS, 'ds_la_roster_continue' );
+				// A big club needs more than one run: carry on in a minute, not at the next hourly tick. A run
+				// that LeagueApps was slow for carries on in two minutes, up to RETRY_MAX times in a row.
+				$wait = '' === $err ? MINUTE_IN_SECONDS : ( $work['retries'] <= self::RETRY_MAX ? self::RETRY_WAIT : 0 );
+				if ( $wait && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( 'ds_la_roster_continue' ) ) {
+					wp_schedule_single_event( time() + $wait, 'ds_la_roster_continue' );
 				}
 			}
 		} else {
@@ -603,6 +627,11 @@ class DS_Roster_Data {
 	 * time limit (measured from the start of the request) minus one page's wait. A local php -S
 	 * stops requests at 30 s, WP Engine at about 60 s.
 	 */
+	/** Where a full rebuild starts reading: registrations updated in the last FULL_FROM_DAYS. */
+	public static function full_start() {
+		return array( ( time() - self::FULL_FROM_DAYS * DAY_IN_SECONDS ) * 1000, 0 );
+	}
+
 	public static function budget() {
 		$limit = (int) ini_get( 'max_execution_time' );
 		if ( $limit <= 0 ) {

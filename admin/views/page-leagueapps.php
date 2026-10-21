@@ -167,8 +167,14 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
                 <?php else : ?>
                     Key saved <?php echo esc_html( human_time_diff( $st['added'], time() ) ); ?> ago (client ID <?php echo esc_html( substr( $st['client_id'], 0, 6 ) ); ?>&hellip;, fingerprint <?php echo esc_html( $st['print'] ); ?>).
                     <?php if ( ! $st['readable'] ) : ?><strong style="color:#b32d2e">It cannot be read on this install (the site was copied or moved, or its secret keys changed): upload it again.</strong><?php endif; ?>
-                    <?php echo $st['synced'] ? esc_html( sprintf( 'Last sync %s ago, %d teams with rosters.', human_time_diff( $st['synced'], time() ), $st['teams'] ) ) : 'Syncing in the background (a large club takes a few minutes).'; ?>
-                    <?php if ( '' !== $st['error'] ) : ?><strong style="color:#b32d2e"><?php echo esc_html( 'Last sync problem: ' . $st['error'] ); ?></strong><?php endif; ?>
+                    <?php echo $st['synced'] ? esc_html( sprintf( 'Last sync %s ago, %d teams with rosters.', human_time_diff( $st['synced'], time() ), $st['teams'] ) ) : ''; ?>
+                    <?php if ( $st['partial'] ) : ?>
+                        <?php echo esc_html( sprintf( '%s in progress: %d teams read so far, registrations up to %s. It runs in the background a minute at a time; a large club takes several minutes.', $st['synced'] ? 'Daily full sync' : 'First sync', $st['partial']['teams'], wp_date( 'M j, Y', $st['partial']['upto'] ) ) ); ?>
+                        <?php if ( '' !== $st['error'] ) : ?><strong style="color:#996800"><?php echo esc_html( $st['partial']['retries'] <= DS_Roster_Data::RETRY_MAX ? $st['error'] . ' It carries on by itself in two minutes.' : $st['error'] . ' It tries again at the next hourly sync.' ); ?></strong><?php endif; ?>
+                    <?php elseif ( ! $st['synced'] ) : ?>
+                        Syncing in the background (a large club takes a few minutes).
+                    <?php endif; ?>
+                    <?php if ( '' !== $st['error'] && ! $st['partial'] ) : ?><strong style="color:#b32d2e"><?php echo esc_html( 'Last sync problem: ' . $st['error'] ); ?></strong><?php endif; ?>
                 <?php endif; ?>
                 </span>
             </div>
