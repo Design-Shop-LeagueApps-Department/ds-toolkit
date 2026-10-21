@@ -33,6 +33,7 @@ if ( '' !== ( $settings->section_gap_responsive ?? '' ) ) {
 
 /* ---- Section colours (blank inherits theme) ---- */
 if ( $c = $col( $settings->title_color ?? '' ) ) { echo "$node .ds-teamdetail-title{color:$c;}\n"; }
+if ( $c = $col( $settings->title_accent_color ?? '' ) ) { echo "$node .ds-teamdetail-title .ds-teamdetail-accent{color:$c;}\n"; }
 if ( $c = $col( $settings->body_color ?? '' ) )  { echo "$node .ds-teamdetail-body,$node .ds-teamdetail-body p,$node .ds-teamdetail-body li{color:$c;}\n"; }
 
 /* ---- Divider ---- */
