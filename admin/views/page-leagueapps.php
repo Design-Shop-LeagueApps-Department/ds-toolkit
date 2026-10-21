@@ -146,7 +146,9 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
         <div class="dst-card-icon"><span class="dashicons dashicons-groups"></span></div>
         <div class="dst-card-info">
             <strong>For the LeagueApps Roster block</strong>
-            <span>Team rosters are only in LeagueApps' private API. In LeagueApps: Connect &rarr; API Settings &rarr; <em>Generate Private API Key</em> downloads a <code>.p12</code> file named after the client ID. Upload it here for the matching site. The key can read every family's details, so it is stored encrypted with this site's secret keys, is never shown again, and only an administrator can add or remove it. Only names, positions, graduation years and heights of rostered players and coaches are kept; nothing else is saved. Rosters refresh every hour in the background.</span>
+            <span>Team rosters are only in LeagueApps' private API. In LeagueApps: Connect &rarr; API Settings &rarr; <em>Generate Private API Key</em> downloads a <code>.p12</code> file named after the client ID. Upload it here for the matching site. The key can read every family's details, so it is stored encrypted (bound to this site and this install, so a copied database cannot use it), is never shown again, is only sent to LeagueApps' login, and only an administrator can add or remove it, over HTTPS. Only names, positions, graduation years and heights of rostered players and coaches are kept; nothing else is saved. Rosters refresh every hour in the background.</span>
+            <?php $ds_kek = DS_Roster_Data::kek_in_use(); ?>
+            <span style="display:block;margin-top:8px">Encryption secret: <?php echo 'salts' === $ds_kek ? 'this site\'s WordPress salts. <em>Stronger: add <code>define( \'DS_LA_KEY_SECRET\', \'&lt;64 random characters&gt;\' );</code> to wp-config.php; it keeps the secret out of reach of a salt rotation by a security plugin. Saved keys switch over by themselves.</em>' : ( 'constant' === $ds_kek ? '<code>DS_LA_KEY_SECRET</code> in wp-config.php.' : '<code>DS_LA_KEY_SECRET</code> environment variable.' ); // phpcs:ignore WordPress.Security.EscapeOutput -- fixed strings ?></span>
             <?php if ( '' !== $ds_roster_msg ) : ?>
                 <span style="display:block;margin-top:8px;font-weight:600;color:<?php echo $ds_roster_ok ? '#1a7f37' : '#b32d2e'; ?>"><?php echo esc_html( $ds_roster_msg ); ?></span>
             <?php endif; ?>
@@ -164,7 +166,7 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
                     No private key.
                 <?php else : ?>
                     Key saved <?php echo esc_html( human_time_diff( $st['added'], time() ) ); ?> ago (client ID <?php echo esc_html( substr( $st['client_id'], 0, 6 ) ); ?>&hellip;, fingerprint <?php echo esc_html( $st['print'] ); ?>).
-                    <?php if ( ! $st['readable'] ) : ?><strong style="color:#b32d2e">It can no longer be read on this server (the site's secret keys changed): upload it again.</strong><?php endif; ?>
+                    <?php if ( ! $st['readable'] ) : ?><strong style="color:#b32d2e">It cannot be read on this install (the site was copied or moved, or its secret keys changed): upload it again.</strong><?php endif; ?>
                     <?php echo $st['synced'] ? esc_html( sprintf( 'Last sync %s ago, %d teams with rosters.', human_time_diff( $st['synced'], time() ), $st['teams'] ) ) : 'Syncing in the background (a large club takes a few minutes).'; ?>
                     <?php if ( '' !== $st['error'] ) : ?><strong style="color:#b32d2e"><?php echo esc_html( 'Last sync problem: ' . $st['error'] ); ?></strong><?php endif; ?>
                 <?php endif; ?>
@@ -194,6 +196,15 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
                 </form>
                 <?php endif; ?>
             </div>
+            <?php $ds_audit = array_slice( DS_Roster_Data::audit_log( $site['site_id'] ), 0, 5 ); if ( $ds_audit ) : ?>
+                <details style="margin-top:10px"><summary style="cursor:pointer">Key history</summary>
+                    <ul style="margin:6px 0 0 18px;list-style:disc">
+                    <?php foreach ( $ds_audit as $ds_e ) : ?>
+                        <li><?php echo esc_html( sprintf( '%s: %s by %s (fingerprint %s)', wp_date( 'Y-m-d H:i', (int) $ds_e['t'] ), $ds_e['event'], $ds_e['user'], '' !== $ds_e['print'] ? $ds_e['print'] : '-' ) ); ?></li>
+                    <?php endforeach; ?>
+                    </ul>
+                </details>
+            <?php endif; ?>
         </div>
     <?php endforeach; endif; ?>
 </div>

@@ -8,8 +8,14 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * teams and schedules but no roster (every roster path 404s; Surfside, 2026-10-21). The private
  * key can read every family's emails, birthdays, addresses and payments, so this class:
  *
- *  - keeps the key ENCRYPTED in its own option (not autoloaded), with a key derived from the
- *    site's wp-config secrets: a database dump alone cannot use it. It is never rendered.
+ *  - keeps the key ENCRYPTED in its own option (not autoloaded): XChaCha20-Poly1305 (libsodium
+ *    AEAD) under a key derived from a secret that is NOT in the database (DS_LA_KEY_SECRET in
+ *    wp-config.php or the environment, else the site's wp-config salts), and bound to the site ID,
+ *    the client ID and this install, so a database dump, a copied site or a blob pasted into another
+ *    slot cannot use it. It is never rendered, logged or sent anywhere but to LeagueApps' login.
+ *  - talks only to two fixed LeagueApps HTTPS endpoints, TLS verified, no redirects followed (a
+ *    bearer token is never forwarded to another host).
+ *  - keeps an audit trail of key changes and refused logins (who, when, fingerprint; no secrets).
  *  - reads registrations in memory and keeps ONLY the public fields (first name, last name,
  *    position, graduation year, height, captain, role) for rostered players and coaches.
  *    Emails, birthdays, addresses, phones, schools, cities and payments are never stored.
@@ -34,24 +40,119 @@ class DS_Roster_Data {
 
 	/* ------------------------------------------------------------------ the key */
 
-	/** sodium secretbox key from the site's own secrets (AUTH_KEY etc. in wp-config). */
-	private static function box_key() {
-		$seed = ( defined( 'AUTH_KEY' ) ? AUTH_KEY : '' ) . '|' . ( defined( 'SECURE_AUTH_KEY' ) ? SECURE_AUTH_KEY : '' ) . '|' . ( defined( 'LOGGED_IN_KEY' ) ? LOGGED_IN_KEY : '' ) . '|ds-la-roster';
-		return sodium_crypto_generichash( $seed, '', SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
+	const SEAL_V2   = 'v2.';
+	const AUDIT_OPT = 'ds_la_key_audit';
+	const AUDIT_MAX = 50;
+
+	/**
+	 * Where the key-encryption secret comes from. A dedicated DS_LA_KEY_SECRET (wp-config.php or the
+	 * environment, 32+ characters) is preferred: it never sits in the database, and it survives a
+	 * security plugin rotating the WordPress salts (which would otherwise make a saved key unreadable).
+	 *
+	 * @return array( 'secret' => string, 'source' => 'constant'|'env'|'salts' )
+	 */
+	private static function kek_source( $force_salts = false ) {
+		if ( ! $force_salts ) {
+			if ( defined( 'DS_LA_KEY_SECRET' ) && strlen( (string) DS_LA_KEY_SECRET ) >= 32 ) {
+				return array( 'secret' => (string) DS_LA_KEY_SECRET, 'source' => 'constant' );
+			}
+			$env = getenv( 'DS_LA_KEY_SECRET' );
+			if ( is_string( $env ) && strlen( $env ) >= 32 ) {
+				return array( 'secret' => $env, 'source' => 'env' );
+			}
+		}
+		$salts = '';
+		foreach ( array( 'AUTH_KEY', 'SECURE_AUTH_KEY', 'LOGGED_IN_KEY', 'NONCE_KEY' ) as $c ) {
+			$salts .= ( defined( $c ) ? constant( $c ) : '' ) . '|';
+		}
+		return array( 'secret' => $salts, 'source' => 'salts' );
 	}
 
-	private static function seal( $plain ) {
-		$nonce = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
-		return base64_encode( $nonce . sodium_crypto_secretbox( $plain, $nonce, self::box_key() ) );
+	/** Subkey for one purpose ('pkey' or 'token'): a keyed BLAKE2b of the secret, so the two never share a key. */
+	private static function subkey( $purpose, $force_salts = false ) {
+		$src  = self::kek_source( $force_salts );
+		$root = sodium_crypto_generichash( $src['secret'], '', SODIUM_CRYPTO_GENERICHASH_KEYBYTES );
+		$key  = sodium_crypto_generichash( 'ds-la-key|v2|' . $purpose, $root, SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES );
+		sodium_memzero( $root );
+		return $key;
 	}
 
-	private static function open_box( $sealed ) {
+	/**
+	 * What a sealed value is bound to: the LeagueApps site, the client and THIS install (its database name
+	 * and table prefix; a copy to another install differs). Authenticated, not secret. Never a file path:
+	 * on WP Engine ABSPATH is /sites/<install>/ under WP-CLI but the real path on web requests, so a key
+	 * sealed by one could not be opened by the other.
+	 */
+	private static function binding( $site_id, $client_id ) {
+		global $wpdb, $table_prefix;
+		$prefix  = ( is_object( $wpdb ) && isset( $wpdb->base_prefix ) ) ? (string) $wpdb->base_prefix : (string) $table_prefix;
+		$install = hash( 'sha256', ( defined( 'DB_NAME' ) ? DB_NAME : '' ) . '|' . $prefix );
+		return 'site:' . $site_id . '|client:' . $client_id . '|install:' . $install;
+	}
+
+	private static function seal( $plain, $purpose, $ad ) {
+		$key   = self::subkey( $purpose );
+		$nonce = random_bytes( SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES );
+		$out   = self::SEAL_V2 . base64_encode( $nonce . sodium_crypto_aead_xchacha20poly1305_ietf_encrypt( $plain, $ad, $nonce, $key ) );
+		sodium_memzero( $key );
+		return $out;
+	}
+
+	/** Open a v2 value ('' when it does not open: wrong secret, other install, other site/client, tampered). */
+	private static function open_v2( $sealed, $purpose, $ad, $force_salts = false ) {
+		if ( 0 !== strpos( (string) $sealed, self::SEAL_V2 ) ) {
+			return '';
+		}
+		$raw = base64_decode( substr( (string) $sealed, strlen( self::SEAL_V2 ) ), true );
+		$nl  = SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES;
+		if ( false === $raw || strlen( $raw ) <= $nl ) {
+			return '';
+		}
+		$key   = self::subkey( $purpose, $force_salts );
+		$plain = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt( substr( $raw, $nl ), $ad, substr( $raw, 0, $nl ), $key );
+		sodium_memzero( $key );
+		return false === $plain ? '' : $plain;
+	}
+
+	/** The 1.10.41-rc format (secretbox under the salts, unbound): read once, then re-sealed as v2. */
+	private static function open_v1( $sealed ) {
 		$raw = base64_decode( (string) $sealed, true );
 		if ( false === $raw || strlen( $raw ) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ) {
 			return '';
 		}
-		$plain = sodium_crypto_secretbox_open( substr( $raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ), substr( $raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ), self::box_key() );
+		$seed  = ( defined( 'AUTH_KEY' ) ? AUTH_KEY : '' ) . '|' . ( defined( 'SECURE_AUTH_KEY' ) ? SECURE_AUTH_KEY : '' ) . '|' . ( defined( 'LOGGED_IN_KEY' ) ? LOGGED_IN_KEY : '' ) . '|ds-la-roster';
+		$key   = sodium_crypto_generichash( $seed, '', SODIUM_CRYPTO_SECRETBOX_KEYBYTES );
+		$plain = sodium_crypto_secretbox_open( substr( $raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ), substr( $raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ), $key );
+		sodium_memzero( $key );
 		return false === $plain ? '' : $plain;
+	}
+
+	/**
+	 * A site's private key in PEM, or ''. A key sealed in an older way (the rc format, or under the
+	 * salts before DS_LA_KEY_SECRET was added) is re-sealed the current way the first time it opens.
+	 */
+	private static function pem( $site_id ) {
+		$k = self::keys_raw()[ $site_id ] ?? null;
+		if ( ! $k ) {
+			return '';
+		}
+		$ad  = self::binding( $site_id, $k['client_id'] );
+		$pem = self::open_v2( $k['key'], 'pkey', $ad );
+		if ( '' !== $pem ) {
+			return $pem;
+		}
+		$pem = self::open_v1( $k['key'] );
+		if ( '' === $pem && 'salts' !== self::kek_source()['source'] ) {
+			$pem = self::open_v2( $k['key'], 'pkey', $ad, true ); // sealed under the salts, a dedicated secret added since
+		}
+		if ( '' !== $pem ) {
+			$keys = self::keys_raw();
+			$keys[ $site_id ]['key'] = self::seal( $pem, 'pkey', $ad );
+			$keys[ $site_id ]['kek'] = self::kek_source()['source'];
+			update_option( self::KEYS_OPT, $keys, false );
+			self::audit( 'resealed', $site_id, $k['print'] );
+		}
+		return $pem;
 	}
 
 	/**
@@ -62,7 +163,7 @@ class DS_Roster_Data {
 	public static function pem_from_upload( $bytes ) {
 		$bytes = (string) $bytes;
 		if ( false !== strpos( $bytes, '-----BEGIN' ) ) {
-			if ( preg_match( '/-----BEGIN (?:RSA |ENCRYPTED )?PRIVATE KEY-----.+?-----END (?:RSA |ENCRYPTED )?PRIVATE KEY-----/s', $bytes, $m ) && openssl_pkey_get_private( $m[0] ) ) {
+			if ( preg_match( '/-----BEGIN (?:RSA )?PRIVATE KEY-----.+?-----END (?:RSA )?PRIVATE KEY-----/s', $bytes, $m ) && openssl_pkey_get_private( $m[0] ) ) {
 				return $m[0];
 			}
 			return new WP_Error( 'ds_roster_pem', __( 'That file has no readable private key in it.', 'ds-toolkit' ) );
@@ -85,31 +186,74 @@ class DS_Roster_Data {
 		if ( ! $pk ) {
 			return new WP_Error( 'ds_roster_pem', __( 'That key could not be read.', 'ds-toolkit' ) );
 		}
-		$det  = openssl_pkey_get_details( $pk );
-		$keys = self::keys_raw();
+		$det = openssl_pkey_get_details( $pk );
+		if ( OPENSSL_KEYTYPE_RSA !== (int) ( $det['type'] ?? -1 ) || (int) ( $det['bits'] ?? 0 ) < 2048 ) {
+			return new WP_Error( 'ds_roster_pem', __( 'That is not a LeagueApps private key (an RSA key of 2048 bits or more is expected).', 'ds-toolkit' ) );
+		}
+		$keys     = self::keys_raw();
+		$replaced = isset( $keys[ $site_id ] );
+		$print    = substr( hash( 'sha256', (string) ( $det['key'] ?? '' ) ), 0, 12 ); // public-key fingerprint, safe to show
 		$keys[ $site_id ] = array(
 			'client_id' => $client_id,
-			'key'       => self::seal( $pem ),
-			'print'     => substr( hash( 'sha256', (string) ( $det['key'] ?? '' ) ), 0, 12 ), // public-key fingerprint, safe to show
+			'key'       => self::seal( $pem, 'pkey', self::binding( $site_id, $client_id ) ),
+			'kek'       => self::kek_source()['source'],
+			'print'     => $print,
 			'added'     => time(),
 			'by'        => (int) get_current_user_id(),
 		);
 		update_option( self::KEYS_OPT, $keys, false );
-		delete_option( self::STORE_PRE . $site_id ); // a new account starts a fresh roster
+		delete_transient( 'ds_la_roster_tok_' . $site_id ); // a token from the previous key must not outlive it
+		delete_option( self::STORE_PRE . $site_id );        // a new account starts a fresh roster
+		self::audit( $replaced ? 'replaced' : 'saved', $site_id, $print );
 		return true;
 	}
 
 	public static function delete_key( $site_id ) {
 		$site_id = preg_replace( '/\D+/', '', (string) $site_id );
 		$keys    = self::keys_raw();
+		$print   = (string) ( $keys[ $site_id ]['print'] ?? '' );
 		unset( $keys[ $site_id ] );
 		update_option( self::KEYS_OPT, $keys, false );
+		delete_transient( 'ds_la_roster_tok_' . $site_id );
 		delete_option( self::STORE_PRE . $site_id );
+		if ( '' !== $print ) {
+			self::audit( 'removed', $site_id, $print );
+		}
 	}
 
 	private static function keys_raw() {
 		$k = get_option( self::KEYS_OPT, array() );
 		return is_array( $k ) ? $k : array();
+	}
+
+	/**
+	 * Key events, newest first (saved, replaced, removed, re-sealed, refused by LeagueApps): when, who,
+	 * which site, the public-key fingerprint. Never the key, a token or anything a family entered.
+	 */
+	public static function audit( $event, $site_id, $print = '' ) {
+		$log = get_option( self::AUDIT_OPT, array() );
+		$log = is_array( $log ) ? $log : array();
+		foreach ( $log as $e ) { // a key LeagueApps keeps refusing is logged once a day, not every hourly sync
+			if ( 0 === strpos( (string) $event, 'refused' ) && ( $e['event'] ?? '' ) === $event && ( $e['site'] ?? '' ) === (string) $site_id && time() - (int) ( $e['t'] ?? 0 ) < DAY_IN_SECONDS ) {
+				return;
+			}
+		}
+		$uid = function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0;
+		$u   = $uid && function_exists( 'get_userdata' ) ? get_userdata( $uid ) : null;
+		array_unshift( $log, array(
+			't'     => time(),
+			'event' => (string) $event,
+			'site'  => (string) $site_id,
+			'print' => (string) $print,
+			'user'  => $u ? (string) $u->user_login : ( $uid ? '#' . $uid : 'system' ),
+		) );
+		update_option( self::AUDIT_OPT, array_slice( $log, 0, self::AUDIT_MAX ), false );
+	}
+
+	public static function audit_log( $site_id = null ) {
+		$log = get_option( self::AUDIT_OPT, array() );
+		$log = is_array( $log ) ? $log : array();
+		return null === $site_id ? $log : array_values( array_filter( $log, function ( $e ) use ( $site_id ) { return (string) ( $e['site'] ?? '' ) === (string) $site_id; } ) );
 	}
 
 	/** What the settings screen may show: never the key itself. */
@@ -119,16 +263,28 @@ class DS_Roster_Data {
 			return null;
 		}
 		$store = self::store( $site_id );
+		$pem   = self::pem( (string) $site_id );
+		$ok    = '' !== $pem;
+		if ( $ok ) {
+			sodium_memzero( $pem );
+		}
+		$k = self::keys_raw()[ (string) $site_id ]; // pem() may have re-sealed it
 		return array(
 			'client_id' => $k['client_id'],
 			'print'     => $k['print'],
 			'added'     => (int) $k['added'],
-			'readable'  => '' !== self::open_box( $k['key'] ),
+			'readable'  => $ok,
+			'kek'       => (string) ( $k['kek'] ?? 'salts' ),
 			'synced'    => (int) ( $store['synced'] ?? 0 ),
 			'full'      => (int) ( $store['full'] ?? 0 ),
 			'teams'     => count( (array) ( $store['teams'] ?? array() ) ),
 			'error'     => (string) ( $store['error'] ?? '' ),
 		);
+	}
+
+	/** Where new keys are sealed from: 'constant', 'env' or 'salts'. */
+	public static function kek_in_use() {
+		return self::kek_source()['source'];
 	}
 
 	/** Site ids that have a usable private key. */
@@ -142,44 +298,67 @@ class DS_Roster_Data {
 		return rtrim( strtr( base64_encode( $s ), '+/', '-_' ), '=' );
 	}
 
-	/** Bearer token for a site (cached 12 of its 15 minutes), or WP_Error. */
+	/**
+	 * Request options for LeagueApps: TLS verified, and NO redirects, so the signed login and the bearer
+	 * token can only ever reach the two fixed https://*.leagueapps.io endpoints above.
+	 */
+	private static function http_args( array $args ) {
+		return array_merge( $args, array(
+			'sslverify'          => true,
+			'redirection'        => 0,
+			'reject_unsafe_urls' => true,
+			'user-agent'         => 'ds-toolkit-roster/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '0' ),
+		) );
+	}
+
+	/** Bearer token for a site (cached sealed for 12 of its 15 minutes), or WP_Error. */
 	private static function token( $site_id ) {
+		$k = self::keys_raw()[ $site_id ] ?? null;
+		if ( ! $k ) {
+			return new WP_Error( 'ds_roster_key', __( 'No private key saved for this site.', 'ds-toolkit' ) );
+		}
+		$tok_ad = self::binding( $site_id, $k['client_id'] ) . '|token';
 		$cached = get_transient( 'ds_la_roster_tok_' . $site_id );
 		if ( is_string( $cached ) && '' !== $cached ) {
-			return self::open_box( $cached );
+			$tok = self::open_v2( $cached, 'token', $tok_ad );
+			if ( '' !== $tok ) {
+				return $tok;
+			}
 		}
-		$k = self::keys_raw()[ $site_id ] ?? null;
-		$pem = $k ? self::open_box( $k['key'] ) : '';
+		$pem = self::pem( $site_id );
 		if ( '' === $pem ) {
-			return new WP_Error( 'ds_roster_key', __( 'The private key cannot be read on this server (the site\'s secret keys changed, or it was never saved). Upload it again on the LeagueApps tab.', 'ds-toolkit' ) );
+			return new WP_Error( 'ds_roster_key', __( 'The private key cannot be read on this install (the site was copied or moved, or its secret keys changed). Upload it again on the LeagueApps tab.', 'ds-toolkit' ) );
 		}
 		$now    = time();
 		$head   = self::b64url( wp_json_encode( array( 'alg' => 'RS256', 'typ' => 'JWT' ) ) );
 		$claims = self::b64url( wp_json_encode( array( 'aud' => self::AUTH_URL, 'iss' => $k['client_id'], 'sub' => $k['client_id'], 'iat' => $now, 'exp' => $now + 300 ) ) );
 		$sig    = '';
-		if ( ! openssl_sign( $head . '.' . $claims, $sig, $pem, OPENSSL_ALGO_SHA256 ) ) {
+		$signed = openssl_sign( $head . '.' . $claims, $sig, $pem, OPENSSL_ALGO_SHA256 );
+		sodium_memzero( $pem ); // the key is only in memory for the signature
+		if ( ! $signed ) {
 			return new WP_Error( 'ds_roster_sign', __( 'Could not sign the LeagueApps login with this key.', 'ds-toolkit' ) );
 		}
-		$res = wp_remote_post( self::AUTH_URL, array(
+		$res = wp_remote_post( self::AUTH_URL, self::http_args( array(
 			'timeout' => 15,
 			'body'    => array( 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'assertion' => $head . '.' . $claims . '.' . self::b64url( $sig ) ),
-		) );
+		) ) );
 		if ( is_wp_error( $res ) ) {
 			return new WP_Error( 'ds_roster_auth', __( 'LeagueApps login did not answer.', 'ds-toolkit' ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $res );
 		$json = json_decode( (string) wp_remote_retrieve_body( $res ), true );
 		if ( 200 !== $code || empty( $json['access_token'] ) ) {
+			self::audit( 'refused ' . $code, $site_id, (string) ( $k['print'] ?? '' ) );
 			return new WP_Error( 'ds_roster_auth', sprintf( /* translators: %d HTTP status */ __( 'LeagueApps refused the private key (HTTP %d). Check the client ID belongs to this site.', 'ds-toolkit' ), $code ) );
 		}
-		set_transient( 'ds_la_roster_tok_' . $site_id, self::seal( (string) $json['access_token'] ), 12 * MINUTE_IN_SECONDS );
+		set_transient( 'ds_la_roster_tok_' . $site_id, self::seal( (string) $json['access_token'], 'token', $tok_ad ), 12 * MINUTE_IN_SECONDS );
 		return (string) $json['access_token'];
 	}
 
 	/** One page of registrations after the cursor, or WP_Error. */
 	private static function page( $site_id, $token, $updated, $id ) {
 		$url = sprintf( self::EXPORT_URL, rawurlencode( $site_id ) ) . '?last-updated=' . (int) $updated . '&last-id=' . (int) $id;
-		$res = wp_remote_get( $url, array( 'timeout' => self::PAGE_WAIT, 'headers' => array( 'Authorization' => 'Bearer ' . $token ) ) );
+		$res = wp_remote_get( $url, self::http_args( array( 'timeout' => self::PAGE_WAIT, 'headers' => array( 'Authorization' => 'Bearer ' . $token ) ) ) );
 		if ( is_wp_error( $res ) ) {
 			return new WP_Error( 'ds_roster_http', __( 'LeagueApps did not answer.', 'ds-toolkit' ) );
 		}

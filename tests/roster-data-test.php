@@ -11,6 +11,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
 define( 'ABSPATH', '/tmp/fake-wp/' );
 define( 'MINUTE_IN_SECONDS', 60 ); define( 'HOUR_IN_SECONDS', 3600 ); define( 'DAY_IN_SECONDS', 86400 );
 define( 'AUTH_KEY', 'test-auth-key' ); define( 'SECURE_AUTH_KEY', 'test-secure' ); define( 'LOGGED_IN_KEY', 'test-logged-in' );
+define( 'DB_NAME', 'wp_testsite' ); $table_prefix = 'wp_';
 
 $GLOBALS['opts'] = array(); $GLOBALS['tr'] = array(); $GLOBALS['http'] = array(); $GLOBALS['urls'] = array(); $GLOBALS['jwt'] = null;
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['opts'] ) ? $GLOBALS['opts'][ $k ] : $d; }
@@ -25,8 +26,8 @@ function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); }
 function get_current_user_id() { return 7; }
 function is_wp_error( $e ) { return $e instanceof WP_Error; }
 class WP_Error { private $m; function __construct( $c = '', $m = '' ) { $this->m = $m; } function get_error_message() { return $this->m; } }
-function wp_remote_post( $url, $args ) { $GLOBALS['jwt'] = $args['body']['assertion'] ?? null; return $GLOBALS['auth'] ?? array( 'code' => 200, 'body' => json_encode( array( 'access_token' => 'tok-123', 'expires_in' => 900 ) ) ); }
-function wp_remote_get( $url, $args ) { $GLOBALS['urls'][] = $url; $GLOBALS['hdr'] = $args['headers'] ?? array(); return array_shift( $GLOBALS['http'] ) ?? array( 'code' => 200, 'body' => '[]' ); }
+function wp_remote_post( $url, $args ) { $GLOBALS['post_args'] = $args; $GLOBALS['jwt'] = $args['body']['assertion'] ?? null; return $GLOBALS['auth'] ?? array( 'code' => 200, 'body' => json_encode( array( 'access_token' => 'tok-123', 'expires_in' => 900 ) ) ); }
+function wp_remote_get( $url, $args ) { $GLOBALS['get_args'] = $args; $GLOBALS['urls'][] = $url; $GLOBALS['hdr'] = $args['headers'] ?? array(); return array_shift( $GLOBALS['http'] ) ?? array( 'code' => 200, 'body' => '[]' ); }
 function wp_remote_retrieve_response_code( $r ) { return $r['code'] ?? 0; }
 function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
 require __DIR__ . '/../includes/class-ds-roster-data.php';
@@ -140,8 +141,63 @@ chk( 'budget fits a 30 s host limit (30 - 1.5 used - 15 page wait - 3 = 10)', DS
 ini_set( 'max_execution_time', '60' );
 chk( 'budget on a 60 s host = the 25 s cap', DS_Roster_Data::budget(), 25 );
 ini_set( 'max_execution_time', '0' );
+
+echo "key security\n";
+$keys = function () { return $GLOBALS['opts']['ds_la_private_keys']; };
+$put  = function ( $k ) { $GLOBALS['opts']['ds_la_private_keys'] = $k; };
+chk( 'sealed with XChaCha20-Poly1305 (v2 format), secret source recorded', array( substr( $keys()['52078']['key'], 0, 3 ), $keys()['52078']['kek'] ), array( 'v2.', 'salts' ) );
+$good = $keys();
+$k = $good; $k['11111'] = $k['52078']; $put( $k );
+chk( 'the sealed key copied to another LeagueApps site does not open', DS_Roster_Data::key_status( '11111' )['readable'], false );
+$k = $good; $k['52078']['client_id'] = 'otherclient'; $put( $k );
+chk( 'a changed client ID does not open it', DS_Roster_Data::key_status( '52078' )['readable'], false );
+$put( $good ); $table_prefix = 'copy_';
+chk( 'another install (a copied or migrated database) cannot open it', DS_Roster_Data::key_status( '52078' )['readable'], false );
+$table_prefix = 'wp_';
+chk( '... and back on its own install it opens', DS_Roster_Data::key_status( '52078' )['readable'], true );
+$k = $good; $b = base64_decode( substr( $k['52078']['key'], 3 ) ); $b[30] = chr( ord( $b[30] ) ^ 1 ); $k['52078']['key'] = 'v2.' . base64_encode( $b ); $put( $k );
+chk( 'one flipped bit (tampering) and it does not open', DS_Roster_Data::key_status( '52078' )['readable'], false );
+$put( $good );
+// The format used by the rc builds: secretbox under the salts, unbound. It must still open once, then be re-sealed.
+$n = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
+$v1 = base64_encode( $n . sodium_crypto_secretbox( $pem, $n, sodium_crypto_generichash( 'test-auth-key|test-secure|test-logged-in|ds-la-roster', '', SODIUM_CRYPTO_SECRETBOX_KEYBYTES ) ) );
+$k = $good; $k['52078']['key'] = $v1; unset( $k['52078']['kek'] ); $put( $k );
+chk( 'a key saved by an rc build still opens', DS_Roster_Data::key_status( '52078' )['readable'], true );
+chk( '... and is re-sealed in the current format at once, with an audit entry', array( substr( $keys()['52078']['key'], 0, 3 ), DS_Roster_Data::audit_log( '52078' )[0]['event'] ), array( 'v2.', 'resealed' ) );
+$GLOBALS['tr'] = array(); $GLOBALS['http'] = array( array( 'code' => 200, 'body' => '[]' ) );
+DS_Roster_Data::sync( '52078' );
+chk( 'login: TLS verified, no redirects followed (the assertion cannot be forwarded)', array( $GLOBALS['post_args']['sslverify'], $GLOBALS['post_args']['redirection'], $GLOBALS['post_args']['reject_unsafe_urls'] ), array( true, 0, true ) );
+chk( 'export: same for the bearer token', array( $GLOBALS['get_args']['sslverify'], $GLOBALS['get_args']['redirection'] ), array( true, 0 ) );
+chk( 'the token is sealed v2 too', substr( (string) $GLOBALS['tr']['ds_la_roster_tok_52078'], 0, 3 ), 'v2.' );
+$GLOBALS['tr']['ds_la_roster_tok_11111'] = $GLOBALS['tr']['ds_la_roster_tok_52078']; $k = $keys(); $k['11111'] = $k['52078']; $put( $k );
+$GLOBALS['auth'] = array( 'code' => 401, 'body' => '{}' ); $GLOBALS['http'] = array();
+chk( 'a token copied to another site is not used (a fresh login is asked, and refused here)', is_wp_error( DS_Roster_Data::sync( '11111' ) ), true );
+$k = $keys(); unset( $k['11111'] ); $put( $k ); unset( $GLOBALS['tr']['ds_la_roster_tok_11111'] );
+delete_transient( 'ds_la_roster_lock_52078' ); delete_transient( 'ds_la_roster_tok_52078' );
+DS_Roster_Data::sync( '52078' ); delete_transient( 'ds_la_roster_lock_52078' ); DS_Roster_Data::sync( '52078' );
+$refused = array_filter( DS_Roster_Data::audit_log( '52078' ), function ( $e ) { return 'refused 401' === $e['event']; } );
+chk( 'a refused login is in the audit trail once a day, not every sync', count( $refused ), 1 );
+unset( $GLOBALS['auth'] );
+$ec = openssl_pkey_new( array( 'private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1' ) ); openssl_pkey_export( $ec, $ecpem );
+$sm = openssl_pkey_new( array( 'private_key_bits' => 1024, 'private_key_type' => OPENSSL_KEYTYPE_RSA ) ); openssl_pkey_export( $sm, $smpem );
+chk( 'a non-RSA key or an RSA key under 2048 bits is refused', array( is_wp_error( DS_Roster_Data::save_key( '52078', 'abc123client', $ecpem ) ), is_wp_error( DS_Roster_Data::save_key( '52078', 'abc123client', $smpem ) ) ), array( true, true ) );
+$GLOBALS['tr']['ds_la_roster_tok_52078'] = 'v2.a-token-from-the-old-key';
+DS_Roster_Data::save_key( '52078', 'abc123client', $pem );
+chk( 'replacing a key drops the old token', isset( $GLOBALS['tr']['ds_la_roster_tok_52078'] ), false );
+$audit = serialize( DS_Roster_Data::audit_log() );
+chk( 'audit trail: saved/replaced/resealed with user and fingerprint, never key or token', array( DS_Roster_Data::audit_log( '52078' )[0]['event'], false === strpos( $audit, 'PRIVATE' ) && false === strpos( $audit, 'tok-123' ) ), array( 'replaced', true ) );
+
+$GLOBALS['tr']['ds_la_roster_tok_52078'] = 'v2.a-live-token';
 DS_Roster_Data::delete_key( '52078' );
 chk( 'removing the key removes the stored rosters too', array( DS_Roster_Data::key_status( '52078' ), isset( $GLOBALS['opts']['ds_la_roster_52078'] ) ), array( null, false ) );
+chk( '... and its cached token, with an audit entry', array( isset( $GLOBALS['tr']['ds_la_roster_tok_52078'] ), DS_Roster_Data::audit_log( '52078' )[0]['event'] ), array( false, 'removed' ) );
+
+echo "dedicated secret (DS_LA_KEY_SECRET)\n";
+DS_Roster_Data::save_key( '52078', 'abc123client', $pem );
+define( 'DS_LA_KEY_SECRET', str_repeat( 'k', 64 ) );
+chk( 'new keys are sealed under the dedicated secret', DS_Roster_Data::kek_in_use(), 'constant' );
+chk( 'a key sealed under the salts before it was added still opens', DS_Roster_Data::key_status( '52078' )['readable'], true );
+chk( '... and is moved to the dedicated secret by itself', $keys()['52078']['kek'], 'constant' );
 
 function wp_list_pluck_t( $l, $f ) { return array_map( function ( $x ) use ( $f ) { return $x[ $f ]; }, $l ); }
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";

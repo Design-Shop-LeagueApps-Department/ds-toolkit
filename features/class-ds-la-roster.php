@@ -71,6 +71,9 @@ class DS_LA_Roster {
 		if ( ! in_array( $site, array_map( 'strval', $known ), true ) ) {
 			$this->back( __( 'Pick one of the sites saved above.', 'ds-toolkit' ), false );
 		}
+		if ( ! is_ssl() && 'local' !== wp_get_environment_type() ) {
+			$this->back( __( 'For safety the key can only be uploaded over HTTPS. Open this screen on the https:// address and try again.', 'ds-toolkit' ), false );
+		}
 		$file = $_FILES['key_file'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- read as bytes, never stored as a file
 		if ( ! $file || ! empty( $file['error'] ) || ! is_uploaded_file( $file['tmp_name'] ) || (int) $file['size'] > 20000 ) {
 			$this->back( __( 'Choose the .p12 (or .pem) key file LeagueApps gave you.', 'ds-toolkit' ), false );
@@ -81,10 +84,12 @@ class DS_LA_Roster {
 			$client = $m[1]; // LeagueApps names the file after the client ID
 		}
 		$pem = DS_Roster_Data::pem_from_upload( $bytes );
+		sodium_memzero( $bytes );
 		if ( is_wp_error( $pem ) ) {
 			$this->back( $pem->get_error_message(), false );
 		}
 		$ok = DS_Roster_Data::save_key( $site, $client, $pem );
+		sodium_memzero( $pem );
 		if ( is_wp_error( $ok ) ) {
 			$this->back( $ok->get_error_message(), false );
 		}
