@@ -9,11 +9,13 @@ $t     = $module->roster();
 $yes   = function ( $k, $d = 'yes' ) use ( $settings ) { return 'yes' === ( isset( $settings->$k ) && '' !== $settings->$k ? $settings->$k : $d ); };
 $txt   = function ( $k, $d ) use ( $settings ) { return isset( $settings->$k ) && '' !== trim( (string) $settings->$k ) ? sanitize_text_field( (string) $settings->$k ) : $d; };
 $med   = in_array( (string) ( $settings->medallion ?? 'tint' ), array( 'tint', 'solid', 'ring' ), true ) ? (string) $settings->medallion : 'tint';
-$list  = 'list' === (string) ( $settings->layout ?? 'cards' );
+$view  = in_array( (string) ( $settings->layout ?? 'cards' ), array( 'cards', 'list', 'carousel' ), true ) ? (string) $settings->layout : 'cards';
+$list  = 'list' === $view;
+$car   = 'carousel' === $view;
 $slug  = function ( $s ) { return '' === $s ? 'none' : sanitize_title( $s ); };
 $htag  = in_array( (string) ( $settings->title_tag ?? '' ), array( 'h2', 'h3', 'h4' ), true ) ? (string) $settings->title_tag : 'h3'; // phpcs: allow-listed tag
 ?>
-<div class="dsr dsr--<?php echo $list ? 'list' : 'cards'; ?> dsr--med-<?php echo esc_attr( $med ); ?>">
+<div class="dsr dsr--<?php echo esc_attr( $view ); ?><?php echo $car ? ' dsr--cards' : ''; ?> dsr--med-<?php echo esc_attr( $med ); ?>">
 <?php if ( ! $t ) : ?>
 	<?php if ( is_user_logged_in() && current_user_can( 'edit_posts' ) ) : ?>
 		<p class="dsr-empty"><?php echo esc_html( DS_Roster_Data::sites_with_keys() ? __( 'Editors only: pick the LeagueApps team in this block\'s settings.', 'ds-toolkit' ) : __( 'Editors only: save the club\'s private LeagueApps key under Settings > DS Toolkit > LeagueApps, then pick the team here.', 'ds-toolkit' ) ); ?></p>
@@ -55,7 +57,14 @@ $htag  = in_array( (string) ( $settings->title_tag ?? '' ), array( 'h2', 'h3', '
 				<?php endforeach; ?>
 			</div>
 		<?php endif; ?>
-		<ul class="dsr-grid" aria-live="polite">
+		<?php if ( $car ) : ?>
+		<div class="dsr-car">
+			<?php if ( $yes( 'car_arrows' ) ) : ?>
+				<button type="button" class="fl-content-ui-button dsr-nav dsr-prev" aria-label="<?php esc_attr_e( 'Previous players', 'ds-toolkit' ); ?>" hidden><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7"/></svg></button>
+				<button type="button" class="fl-content-ui-button dsr-nav dsr-next" aria-label="<?php esc_attr_e( 'Next players', 'ds-toolkit' ); ?>" hidden><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+			<?php endif; ?>
+		<?php endif; ?>
+		<ul class="dsr-grid" aria-live="polite"<?php echo $car ? ' tabindex="0" aria-label="' . esc_attr__( 'Players (scroll sideways for more)', 'ds-toolkit' ) . '"' : ''; ?>>
 			<?php foreach ( $players as $p ) :
 				$meta = array();
 				if ( $yes( 'show_grad' ) && '' !== $p['gy'] ) { $meta[] = sprintf( /* translators: %s year */ __( 'Class of %s', 'ds-toolkit' ), $p['gy'] ); }
@@ -71,6 +80,7 @@ $htag  = in_array( (string) ( $settings->title_tag ?? '' ), array( 'h2', 'h3', '
 				</li>
 			<?php endforeach; ?>
 		</ul>
+		<?php if ( $car ) : ?></div><?php endif; ?>
 	<?php endif; ?>
 
 	<?php if ( $coaches ) : ?>

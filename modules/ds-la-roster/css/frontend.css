@@ -54,6 +54,19 @@
 .dsr--list .dsr-meta{grid-area:meta}
 .dsr--list .dsr-pos{grid-area:pos;justify-self:end}
 
+/* Carousel: the same cards in one row that scrolls sideways (swipe, keyboard, arrows). --r-in = cards in view. */
+.dsr--carousel{--r-in:var(--r-cols);--r-gap:16px}
+.dsr .dsr-car{position:relative}
+.dsr--carousel .dsr-grid{display:flex;gap:var(--r-gap);overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding:6px 2px 12px;margin:-6px -2px -12px}
+.dsr--carousel .dsr-grid::-webkit-scrollbar{display:none}
+.dsr--carousel .dsr-grid:focus-visible{outline:3px solid #2563eb;outline-offset:2px;border-radius:var(--r-radius)}
+.dsr--carousel .dsr-card{flex:0 0 calc((100% - (var(--r-in) - 1) * var(--r-gap)) / var(--r-in));scroll-snap-align:start}
+.dsr .dsr-nav{position:absolute;top:calc(50% - 22px);z-index:2;display:grid;place-items:center;width:44px;height:44px;min-height:0;margin:0;padding:0;border:1px solid var(--r-line);border-radius:50%;background:var(--r-card);color:var(--r-text);box-shadow:0 4px 14px rgba(14,27,47,.14);cursor:pointer;line-height:1}
+.dsr .dsr-nav:hover,.dsr .dsr-nav:focus{background:var(--r-brand);border-color:var(--r-brand);color:var(--r-on-brand)}
+.dsr .dsr-nav[disabled]{opacity:0;pointer-events:none}
+.dsr .dsr-prev{left:-14px}
+.dsr .dsr-next{right:-14px}
+
 /* Coaches */
 .dsr-coaches{margin-top:28px}
 .dsr .dsr-sub{margin:0 0 12px;padding:0;font-family:var(--r-head);font-weight:var(--r-head-w);font-size:22px;line-height:1.1;text-transform:uppercase;letter-spacing:.02em;color:var(--r-text)}
@@ -67,6 +80,7 @@
 
 @media (max-width:992px){
  .dsr .dsr-grid{grid-template-columns:repeat(var(--r-cols_medium),minmax(0,1fr))}
+ .dsr--carousel{--r-in:var(--r-cols_medium)}
 }
 @media (max-width:767px){
  .dsr .dsr-grid{grid-template-columns:repeat(var(--r-cols_responsive),minmax(0,1fr));gap:12px}
@@ -76,8 +90,11 @@
  .dsr-pname{font-size:17px}
  .dsr-meta{font-size:13px}
  .dsr .dsr-chip{height:38px;padding:0 13px}
+ /* Phone: a peek of the next card says "swipe"; the arrows give way to the thumb. */
+ .dsr--carousel{--r-in:calc(var(--r-cols_responsive) + .25);--r-gap:12px}
+ .dsr .dsr-nav{display:none}
  .dsr--list .dsr-grid{grid-template-columns:minmax(0,1fr)}
  .dsr--list .dsr-body{grid-template-columns:minmax(0,1fr);grid-template-areas:"name" "pos" "meta";justify-items:start}
  .dsr--list .dsr-pos{justify-self:start}
 }
-@media (prefers-reduced-motion:reduce){.dsr .dsr-card{transition:none}.dsr .dsr-card:hover{transform:none}}
+@media (prefers-reduced-motion:reduce){.dsr .dsr-card{transition:none}.dsr .dsr-card:hover{transform:none}.dsr--carousel .dsr-grid{scroll-behavior:auto}}

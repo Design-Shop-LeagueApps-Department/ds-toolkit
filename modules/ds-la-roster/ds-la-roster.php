@@ -160,12 +160,6 @@ FLBuilder::register_module( 'DS_Roster_Module', array(
 						'default' => 'name',
 						'options' => array( 'name' => __( 'Last name', 'ds-toolkit' ), 'position' => __( 'Position', 'ds-toolkit' ) ),
 					),
-					'layout' => array(
-						'type'    => 'button-group',
-						'label'   => __( 'Layout', 'ds-toolkit' ),
-						'default' => 'cards',
-						'options' => array( 'cards' => __( 'Cards', 'ds-toolkit' ), 'list' => __( 'List', 'ds-toolkit' ) ),
-					),
 				),
 			),
 			'coaches' => array(
@@ -188,6 +182,24 @@ FLBuilder::register_module( 'DS_Roster_Module', array(
 	'style' => array(
 		'title'    => __( 'Style', 'ds-toolkit' ),
 		'sections' => array(
+			'view' => array(
+				'title'  => __( 'View', 'ds-toolkit' ),
+				'fields' => array(
+					'layout' => array( // the key the first builds used for Cards / List: placed blocks keep their view
+						'type'    => 'button-group',
+						'label'   => __( 'View', 'ds-toolkit' ),
+						'default' => 'cards',
+						'options' => array( 'cards' => __( 'Cards', 'ds-toolkit' ), 'list' => __( 'List', 'ds-toolkit' ), 'carousel' => __( 'Carousel', 'ds-toolkit' ) ),
+						'toggle'  => array(
+							'cards'    => array( 'sections' => array( 'grid' ), 'fields' => array( 'medallion' ) ),
+							'carousel' => array( 'sections' => array( 'grid' ), 'fields' => array( 'medallion', 'car_arrows' ) ),
+							'list'     => array( 'fields' => array( 'medallion' ) ),
+						),
+						'help'    => __( 'Cards: a grid. List: one row per player, compact. Carousel: the same cards in a row people swipe or step through with arrows, for a page where the roster should not take much height.', 'ds-toolkit' ),
+					),
+					'car_arrows' => array( 'type' => 'button-group', 'label' => __( 'Arrows', 'ds-toolkit' ), 'default' => 'yes', 'options' => $ds_ros_yes_no, 'help' => __( 'Previous / next buttons beside the carousel. Swiping and the keyboard always work; the arrows hide when every card fits.', 'ds-toolkit' ) ),
+				),
+			),
 			'colors' => array(
 				'title'  => __( 'Colours', 'ds-toolkit' ),
 				'fields' => array(
@@ -209,7 +221,7 @@ FLBuilder::register_module( 'DS_Roster_Module', array(
 				'fields' => array(
 					'columns' => array(
 						'type'       => 'unit',
-						'label'      => __( 'Cards per row', 'ds-toolkit' ),
+						'label'      => __( 'Cards per row (carousel: cards in view)', 'ds-toolkit' ),
 						'default'    => '4',
 						'responsive' => array( 'default' => array( 'default' => '4', 'medium' => '3', 'responsive' => '2' ) ),
 						'slider'     => array( 'min' => 1, 'max' => 6, 'step' => 1 ),

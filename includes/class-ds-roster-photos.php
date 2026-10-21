@@ -17,8 +17,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *    no redirects, at most MAX_BYTES; the image is re-encoded through WordPress's image editor
  *    (proves it is an image, strips metadata) into uploads/ds-la-roster/<site>/, never the Media
  *    Library.
- *  - The hourly roster sync re-checks wanted teams; a photo nobody shows any more, and a team no
- *    block has shown for FORGET, are deleted. Removing the key deletes the site's folder.
+ *  - Nothing is downloaded twice: a photo is filed under a hash of its LeagueApps address, so the same
+ *    team on another page, or a player on two teams, finds it already there; a file already in the
+ *    folder is taken back without a request even if the list was lost; and one fetch runs at a time
+ *    per site (an atomic database lock), so the builder, the publish hook and the background job never
+ *    fetch the same photo at once. A team taken off a page keeps its photos for FORGET (a year), so
+ *    putting it back later costs nothing.
+ *  - The hourly roster sync re-checks wanted teams; the photo of someone no shown team has any more
+ *    (they left), and a team no block has shown for FORGET, are deleted. Removing the key deletes the
+ *    site's folder.
  */
 class DS_Roster_Photos {
 
@@ -28,7 +35,8 @@ class DS_Roster_Photos {
 	const MAX_BYTES      = 300000;
 	const MAX_DIM        = 600;
 	const OUT            = 150;
-	const FORGET         = 30 * DAY_IN_SECONDS;
+	const FORGET         = 365 * DAY_IN_SECONDS; // a team off every page keeps its photos this long
+	const LOCK_TTL       = 60;
 	const BUDGET         = 20;
 	const BUILDER_BUDGET = 8;
 
@@ -121,7 +129,7 @@ class DS_Roster_Photos {
 			}
 			foreach ( $m['teams'] as $tid => $t ) {
 				if ( time() - (int) ( $t['seen'] ?? 0 ) > self::FORGET ) {
-					unset( $m['teams'][ $tid ] ); // no block has shown it for a month
+					unset( $m['teams'][ $tid ] ); // no block has shown it for a year
 				}
 			}
 			self::save( $sid, $m );
@@ -139,12 +147,26 @@ class DS_Roster_Photos {
 	}
 
 	private static function fetch_team( $site_id, $team_id, $deadline ) {
+		$lock = self::OPT . 'lock_' . $site_id;
+		if ( ! self::lock( $lock ) ) {
+			return; // another request is fetching this site's photos right now: it will get these too
+		}
+		list( $dir ) = self::dir( $site_id );
+		$m = self::manifest( $site_id, true );
 		foreach ( self::team_urls( $site_id, $team_id ) as $url ) {
 			if ( microtime( true ) > $deadline ) {
-				return;
+				break;
 			}
-			$m = self::manifest( $site_id );
-			if ( isset( $m['files'][ self::hash( $url ) ] ) ) {
+			$h = self::hash( $url );
+			if ( isset( $m['files'][ $h ] ) ) {
+				continue; // already here (or known to be unavailable): never asked again
+			}
+			// Already in the folder but missing from the list (the list was lost or reset): take it back, no request.
+			$on_disk = $dir . '/' . $h . '.jpg';
+			if ( is_file( $on_disk ) && @getimagesize( $on_disk ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				$m = self::manifest( $site_id, true );
+				$m['files'][ $h ] = array( 'f' => $h . '.jpg', 't' => time() );
+				self::save( $site_id, $m );
 				continue;
 			}
 			$file = self::download( $site_id, $url );
@@ -152,8 +174,33 @@ class DS_Roster_Photos {
 				continue; // LeagueApps did not answer: asked again next run
 			}
 			$m = self::manifest( $site_id, true );
-			$m['files'][ self::hash( $url ) ] = array( 'f' => $file, 't' => time() ); // '' = gone or not an image: not asked again until the address changes
+			$m['files'][ $h ] = array( 'f' => $file, 't' => time() ); // '' = gone or not an image: not asked again until the address changes
 			self::save( $site_id, $m );
+		}
+		self::unlock( $lock );
+	}
+
+	/** Atomic lock in the options table (memcached is per container on WP Engine, so a transient would not do). */
+	private static function lock( $name ) {
+		global $wpdb;
+		if ( ! is_object( $wpdb ) ) {
+			return true;
+		}
+		$now = time();
+		if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) $now ) ) ) {
+			return true;
+		}
+		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		if ( $now - $held > self::LOCK_TTL ) { // a run that died: take it over
+			return 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", (string) $now, $name, (string) $held ) );
+		}
+		return false;
+	}
+
+	private static function unlock( $name ) {
+		global $wpdb;
+		if ( is_object( $wpdb ) ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", $name ) );
 		}
 	}
 

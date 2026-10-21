@@ -43,6 +43,17 @@ class Ed { private $im; function __construct( $f ) { $this->im = @imagecreatefro
   function resize( $w, $h, $c ) { $sw = imagesx( $this->im ); $sh = imagesy( $this->im ); if ( $sw <= $w && $sh <= $h ) { return true; } $r = min( $w / $sw, $h / $sh ); $n = imagecreatetruecolor( (int) ( $sw * $r ), (int) ( $sh * $r ) ); imagecopyresampled( $n, $this->im, 0, 0, 0, 0, (int) ( $sw * $r ), (int) ( $sh * $r ), $sw, $sh ); $this->im = $n; return true; }
   function set_quality( $q ) {} function save( $f, $m ) { return imagejpeg( $this->im, $f, 85 ) ? array( 'path' => $f ) : new WP_Error( 'save', '' ); } }
 function wp_get_image_editor( $f ) { $e = new Ed( $f ); return $e->ok() ? $e : new WP_Error( 'image_no_editor', '' ); }
+// A tiny options table for the atomic lock (INSERT IGNORE / compare-and-swap UPDATE / DELETE).
+class FakeWpdb {
+  public $options = 'wp_options'; public $rows = array();
+  function prepare( $q, ...$a ) { return array( $q, $a ); }
+  function query( $q ) { list( $sql, $a ) = $q;
+    if ( 0 === strpos( $sql, 'INSERT IGNORE' ) ) { if ( isset( $this->rows[ $a[0] ] ) ) { return 0; } $this->rows[ $a[0] ] = $a[1]; return 1; }
+    if ( 0 === strpos( $sql, 'UPDATE' ) ) { if ( ( $this->rows[ $a[1] ] ?? null ) === $a[2] ) { $this->rows[ $a[1] ] = $a[0]; return 1; } return 0; }
+    if ( 0 === strpos( $sql, 'DELETE' ) ) { unset( $this->rows[ $a[0] ] ); return 1; } return 0; }
+  function get_var( $q ) { return $this->rows[ $q[1][0] ] ?? null; }
+}
+$wpdb = new FakeWpdb();
 require __DIR__ . '/../includes/class-ds-roster-data.php';
 require __DIR__ . '/../includes/class-ds-roster-photos.php';
 
@@ -102,6 +113,36 @@ $GLOBALS['answers'] = array( array( 'code' => 200, 'body' => $png( 2000, 2000 ) 
 DS_Roster_Photos::run();
 chk( 'an oversized image is refused', DS_Roster_Photos::manifest( '33682' )['files'][ $h( 'p5eeee' ) ]['f'] ?? 'x', '' );
 
+echo "never downloaded twice\n";
+$GLOBALS['fetched'] = array(); $GLOBALS['answers'] = array();
+DS_Roster_Photos::after_save( 2, true, array( (object) array( 'settings' => (object) array( 'type' => 'ds-la-roster', 'show_photos' => 'yes', 'team' => '33682:7' ) ) ) );
+DS_Roster_Photos::want( '33682', '7', true );
+chk( 'the same team put on another page: no request', count( $GLOBALS['fetched'] ), 0 );
+$GLOBALS['opts']['ds_la_roster_33682']['teams']['9'] = array( 'name' => '15 Gold Beach', 'program' => 'P', 'm' => array( 11 => $m( 'Ana', 'p1aaaa' ), 12 => $m( 'Coach Cal', 'c3cccc', 'coach' ) ) );
+DS_Roster_Photos::want( '33682', '9', true );
+chk( 'a team whose people are already on a shown team: no request', count( $GLOBALS['fetched'] ), 0 );
+$keep = $GLOBALS['opts']['ds_la_roster_ph_33682'];
+$GLOBALS['opts']['ds_la_roster_ph_33682'] = array( 'teams' => array( '7' => array( 'seen' => time() ) ), 'files' => array() ); // the list lost
+$GLOBALS['fetched'] = array(); $GLOBALS['answers'] = array();
+DS_Roster_Photos::want( '33682', '7', true );
+$mf = DS_Roster_Photos::manifest( '33682' );
+$asked_again = array_intersect( $GLOBALS['fetched'], array( $S3 . 'profile-p1aaaa-s3.jpg', $S3 . 'profile-c3cccc-s3.jpg' ) );
+chk( 'list lost but the files are in the folder: taken back, not requested', array( count( $asked_again ), $mf['files'][ $h( 'p1aaaa' ) ]['f'] ?? '', $mf['files'][ $h( 'c3cccc' ) ]['f'] ?? '' ), array( 0, $h( 'p1aaaa' ) . '.jpg', $h( 'c3cccc' ) . '.jpg' ) );
+$GLOBALS['opts']['ds_la_roster_ph_33682'] = $keep;
+$GLOBALS['opts']['ds_la_roster_33682']['teams']['7']['m'][8] = $m( 'Hal', 'p8hhhh' );
+$wpdb->rows['ds_la_roster_ph_lock_33682'] = (string) time(); // another request is fetching
+$GLOBALS['answers'] = array( array( 'code' => 200, 'body' => $png( 150, 150 ) ) ); $GLOBALS['fetched'] = array();
+DS_Roster_Photos::want( '33682', '7', true );
+chk( 'another request already fetching this site: no second download of the same photo', count( $GLOBALS['fetched'] ), 0 );
+unset( $wpdb->rows['ds_la_roster_ph_lock_33682'] );
+DS_Roster_Photos::run();
+chk( '... the photo arrives once the lock is free, lock released after', array( in_array( $S3 . 'profile-p8hhhh-s3.jpg', $GLOBALS['fetched'], true ), count( array_keys( $GLOBALS['fetched'], $S3 . 'profile-p8hhhh-s3.jpg', true ) ), isset( $wpdb->rows['ds_la_roster_ph_lock_33682'] ) ), array( true, 1, false ) );
+$GLOBALS['fetched'] = array();
+DS_Roster_Photos::run();
+chk( '... and is never fetched again on later runs', in_array( $S3 . 'profile-p8hhhh-s3.jpg', $GLOBALS['fetched'], true ), false );
+unset( $GLOBALS['opts']['ds_la_roster_33682']['teams']['9'] );
+$mf = DS_Roster_Photos::manifest( '33682' ); unset( $mf['teams']['9'] ); update_option( 'ds_la_roster_ph_33682', $mf );
+
 echo "stale object cache (WP Engine memcached per container)\n";
 $before = count( $GLOBALS['opts']['ds_la_roster_ph_33682']['files'] );
 $GLOBALS['opts']['ds_la_roster_ph_33682']['teams']['7']['seen'] = time() - 2 * DAY_IN_SECONDS;
@@ -115,9 +156,13 @@ echo "clean-up\n";
 unset( $GLOBALS['opts']['ds_la_roster_33682']['teams']['7']['m'][1] ); // Ana left the team
 DS_Roster_Photos::run();
 chk( 'a player who left: photo file and entry deleted', array( file_exists( $file ), isset( DS_Roster_Photos::manifest( '33682' )['files'][ $h( 'p1aaaa' ) ] ) ), array( false, false ) );
-$mf = DS_Roster_Photos::manifest( '33682' ); $mf['teams']['7']['seen'] = time() - 31 * DAY_IN_SECONDS; update_option( 'ds_la_roster_ph_33682', $mf );
+$mf = DS_Roster_Photos::manifest( '33682' ); $mf['teams']['7']['seen'] = time() - 60 * DAY_IN_SECONDS; update_option( 'ds_la_roster_ph_33682', $mf );
+$files_before = count( glob( $UP . '/ds-la-roster/33682/*.jpg' ) );
 DS_Roster_Photos::run();
-chk( 'a team no block has shown for a month is forgotten, its photos deleted', array( DS_Roster_Photos::manifest( '33682' )['teams'], count( glob( $UP . '/ds-la-roster/33682/*.jpg' ) ) ), array( array(), 0 ) );
+chk( 'a team taken off its page 2 months ago keeps its photos (putting it back costs nothing)', array( array_keys( DS_Roster_Photos::manifest( '33682' )['teams'] ), count( glob( $UP . '/ds-la-roster/33682/*.jpg' ) ) ), array( array( 7 ), $files_before ) );
+$mf = DS_Roster_Photos::manifest( '33682' ); $mf['teams']['7']['seen'] = time() - 366 * DAY_IN_SECONDS; update_option( 'ds_la_roster_ph_33682', $mf );
+DS_Roster_Photos::run();
+chk( 'a team no block has shown for a year is forgotten, its photos deleted', array( DS_Roster_Photos::manifest( '33682' )['teams'], count( glob( $UP . '/ds-la-roster/33682/*.jpg' ) ) ), array( array(), 0 ) );
 $GLOBALS['answers'] = array( array( 'code' => 200, 'body' => $png( 150, 150 ) ) );
 DS_Roster_Photos::after_save( 1, true, array( (object) array( 'settings' => (object) array( 'type' => 'ds-la-roster', 'show_photos' => 'yes', 'team' => '33682:8' ) ), (object) array( 'settings' => (object) array( 'type' => 'ds-la-roster', 'show_photos' => 'no', 'team' => '33682:7' ) ) ) );
 chk( 'saving a page: only blocks with photos on want their team', array_keys( DS_Roster_Photos::manifest( '33682' )['teams'] ), array( 8 ) );
