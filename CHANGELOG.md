@@ -4,6 +4,13 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.43] - 2026-10-22
+### Fixed
+- **Seasons, Levels and other multi-select lists can be unticked** (ClickUp 868mkp2ky, reported by Iris Gomez: "you can switch to a different option, but there is no way to unselect"). Beaver Builder draws these fields as the browser's own list box, where a plain click picks one option and drops the others, and only Cmd-click (Ctrl-click) unticks, which nobody knows. In DS Toolkit modules (Programs: Sites, Seasons, Levels; Calendar: Sites, Event types, Teams, Program types) a plain click now ticks or unticks the option it lands on, ticked options show in WordPress blue, the list shows up to 8 options instead of a 3-line scroll box, and under it "2 picked · **Clear**" (Clear empties it: nothing picked = all). Shift / Cmd / Ctrl clicks keep the browser's behaviour.
+- **Builder only, nothing saved changes.** The field is still Beaver Builder's own multi-select, so blocks already on pages keep exactly their settings and render exactly as before; an empty list saves as `""` as it always did (checked on a live builder: ticked, unticked, cleared, saved). The script (`assets/builder-multiselect.js`) loads only in the builder, only for the Programs and Calendar features, and only touches multi-select lists inside DS Toolkit module forms (`data-type="ds-…"`), never another plugin's.
+
+---
+
 ## [1.10.42] - 2026-10-22
 ### Fixed
 - **Schedule: a tournament entered one day at a time is one row.** Many clubs enter a weekend tournament as one LeagueApps item per day (Inspire CLE: "Winter Warm-Up (Saturday-Sunday)" on Saturday 8 AM-10 PM and again on Sunday), which showed as the same tournament twice in a row. The same event at the same place on back-to-back days is now one row with a date range ("Sat–Sun 2–3"), keeping the hours when every day has the same ones. Games and practices on back-to-back days stay separate sessions. Found on the HQ doc's live example; `tests/schedule-data-test.php` gains 8 checks (mutation-checked) and the real Surfside feed is unchanged (77 rows, 68 practices, 9 tournaments).

@@ -534,14 +534,14 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 						'label'        => __( 'Seasons', 'ds-toolkit' ),
 						'multi-select' => true,
 						'options'      => DS_Programs_Module::value_options( 'season' ),
-						'help'         => __( 'Pick one or more. Nothing picked = every season.', 'ds-toolkit' ),
+						'help'         => __( 'Click a season to tick or untick it. Nothing ticked = every season (Clear under the list).', 'ds-toolkit' ),
 					),
 					'levels_pick' => array(
 						'type'         => 'select',
 						'label'        => __( 'Levels', 'ds-toolkit' ),
 						'multi-select' => true,
 						'options'      => DS_Programs_Module::value_options( 'level' ),
-						'help'         => __( 'Pick one or more. Nothing picked = every level.', 'ds-toolkit' ),
+						'help'         => __( 'Click a level to tick or untick it. Nothing ticked = every level (Clear under the list).', 'ds-toolkit' ),
 					),
 					'state_filter' => array(
 						'type'    => 'select',

@@ -20,8 +20,14 @@ class DS_Programs {
 	public function init() {
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
 		add_action( 'init', array( $this, 'register_module' ), 20 );
+		add_action( 'fl_builder_ui_enqueue_scripts', array( $this, 'builder_multiselect' ) );
 		add_action( 'admin_post_ds_programs_flush', array( $this, 'flush' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 100 );
+	}
+
+	/** Builder only: multi-select lists tick and untick with a plain click, with a Clear link (assets/builder-multiselect.js). */
+	public function builder_multiselect() {
+		wp_enqueue_script( 'ds-builder-multiselect', DS_TOOLKIT_URL . 'assets/builder-multiselect.js', array( 'jquery' ), DS_TOOLKIT_VERSION, true );
 	}
 
 	public function register_module() {
