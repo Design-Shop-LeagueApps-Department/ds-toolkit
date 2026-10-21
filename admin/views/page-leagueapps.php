@@ -133,6 +133,71 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
         </span>
     </div>
 </form>
+
+<?php if ( ! empty( $roster_module_on ) && class_exists( 'DS_Roster_Data' ) ) :
+    $ds_roster_note = get_transient( 'ds_la_roster_msg_' . get_current_user_id() );
+    delete_transient( 'ds_la_roster_msg_' . get_current_user_id() );
+    $ds_roster_msg  = is_array( $ds_roster_note ) ? (string) $ds_roster_note['m'] : '';
+    $ds_roster_ok   = is_array( $ds_roster_note ) && ! empty( $ds_roster_note['ok'] );
+?>
+<p class="dst-section-title" id="ds-la-roster" style="margin-top:40px">Private API key (rosters)</p>
+<div class="dst-card">
+    <div class="dst-card-row">
+        <div class="dst-card-icon"><span class="dashicons dashicons-groups"></span></div>
+        <div class="dst-card-info">
+            <strong>For the LeagueApps Roster block</strong>
+            <span>Team rosters are only in LeagueApps' private API. In LeagueApps: Connect &rarr; API Settings &rarr; <em>Generate Private API Key</em> downloads a <code>.p12</code> file named after the client ID. Upload it here for the matching site. The key can read every family's details, so it is stored encrypted with this site's secret keys, is never shown again, and only an administrator can add or remove it. Only names, positions, graduation years and heights of rostered players and coaches are kept; nothing else is saved. Rosters refresh every hour in the background.</span>
+            <?php if ( '' !== $ds_roster_msg ) : ?>
+                <span style="display:block;margin-top:8px;font-weight:600;color:<?php echo $ds_roster_ok ? '#1a7f37' : '#b32d2e'; ?>"><?php echo esc_html( $ds_roster_msg ); ?></span>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php if ( ! $leagueapps_sites ) : ?>
+        <div class="dst-card-row"><div class="dst-card-info"><span>Add the club's site ID and public key above first.</span></div></div>
+    <?php else : foreach ( $leagueapps_sites as $site ) :
+        $st = DS_Roster_Data::key_status( $site['site_id'] ); ?>
+        <div class="dst-card-row" style="display:block">
+            <div class="dst-card-info" style="max-width:none">
+                <strong><?php echo esc_html( ( '' !== $site['label'] ? $site['label'] . ' ' : '' ) . '(' . $site['site_id'] . ')' ); ?></strong>
+                <span>
+                <?php if ( ! $st ) : ?>
+                    No private key.
+                <?php else : ?>
+                    Key saved <?php echo esc_html( human_time_diff( $st['added'], time() ) ); ?> ago (client ID <?php echo esc_html( substr( $st['client_id'], 0, 6 ) ); ?>&hellip;, fingerprint <?php echo esc_html( $st['print'] ); ?>).
+                    <?php if ( ! $st['readable'] ) : ?><strong style="color:#b32d2e">It can no longer be read on this server (the site's secret keys changed): upload it again.</strong><?php endif; ?>
+                    <?php echo $st['synced'] ? esc_html( sprintf( 'Last sync %s ago, %d teams with rosters.', human_time_diff( $st['synced'], time() ), $st['teams'] ) ) : 'Syncing in the background (a large club takes a few minutes).'; ?>
+                    <?php if ( '' !== $st['error'] ) : ?><strong style="color:#b32d2e"><?php echo esc_html( 'Last sync problem: ' . $st['error'] ); ?></strong><?php endif; ?>
+                <?php endif; ?>
+                </span>
+            </div>
+            <div style="display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;margin-top:12px">
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                    <?php wp_nonce_field( 'ds_la_roster_key' ); ?>
+                    <input type="hidden" name="action" value="ds_la_roster_key">
+                    <input type="hidden" name="site_id" value="<?php echo esc_attr( $site['site_id'] ); ?>">
+                    <input type="text" name="client_id" class="regular-text" style="width:15em" autocomplete="off" spellcheck="false" placeholder="Client ID (blank = from file name)">
+                    <input type="file" name="key_file" accept=".p12,.pem">
+                    <button type="submit" class="button button-primary"><?php echo $st ? 'Replace key' : 'Save key'; ?></button>
+                </form>
+                <?php if ( $st ) : ?>
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                    <?php wp_nonce_field( 'ds_la_roster_sync' ); ?>
+                    <input type="hidden" name="action" value="ds_la_roster_sync">
+                    <input type="hidden" name="site_id" value="<?php echo esc_attr( $site['site_id'] ); ?>">
+                    <button type="submit" class="button">Sync rosters now</button>
+                </form>
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Remove the private key and the stored rosters for this site?');">
+                    <?php wp_nonce_field( 'ds_la_roster_key_delete' ); ?>
+                    <input type="hidden" name="action" value="ds_la_roster_key_delete">
+                    <input type="hidden" name="site_id" value="<?php echo esc_attr( $site['site_id'] ); ?>">
+                    <button type="submit" class="button">Remove key</button>
+                </form>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endforeach; endif; ?>
+</div>
+<?php endif; ?>
 <script>
 ( function () {
     var add = document.getElementById( 'dst-la-add-site' );

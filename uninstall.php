@@ -17,6 +17,11 @@ foreach ( array( 'ds_hq_link_checkin', 'ds_hq_link_flush', 'ds_hq_link_enroll', 
 global $wpdb;
 // LeagueApps Programs: feed copies, locks, known sports / seasons / levels, the key list.
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\_transient\_ds\_programs\_%' OR option_name LIKE '\_transient\_timeout\_ds\_programs\_%'" );
+// LeagueApps Roster: the sealed private keys, the stored public rosters, tokens, locks and the sync job.
+delete_option( 'ds_la_private_keys' );
+$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'ds\_la\_roster\_%' OR option_name LIKE '\_transient\_ds\_la\_roster\_%' OR option_name LIKE '\_transient\_timeout\_ds\_la\_roster\_%'" );
+wp_clear_scheduled_hook( 'ds_la_roster_sync' );
+wp_clear_scheduled_hook( 'ds_la_roster_continue' );
 // LeagueApps Calendar: schedule stores, merged copies, locks and its refresh job.
 $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '\_transient\_ds\_calendar\_%' OR option_name LIKE '\_transient\_timeout\_ds\_calendar\_%' OR option_name LIKE 'ds\_calendar\_lock\_%'" );
 wp_unschedule_hook( 'ds_calendar_refresh' ); // every queued refresh, whatever its site-id arguments
