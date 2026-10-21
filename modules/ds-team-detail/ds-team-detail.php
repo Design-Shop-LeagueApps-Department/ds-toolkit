@@ -57,7 +57,7 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 	private function section_html( $title, $tag, $body, $extra_class = '' ) {
 		$head = '';
 		if ( '' !== trim( (string) $title ) ) {
-			$head  = '<' . $tag . ' class="ds-teamdetail-title">' . DS_Module_UI::inline( $title ) . '</' . $tag . '>';
+			$head  = '<' . $tag . ' class="ds-teamdetail-title">' . self::title_html( $title ) . '</' . $tag . '>';
 			if ( ( $this->settings->divider_show ?? 'yes' ) === 'yes' ) {
 				$head .= '<span class="ds-teamdetail-divider" aria-hidden="true"></span>';
 			}
@@ -141,10 +141,18 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 		$title = (string) ( $s->coach_title ?? 'Coaches' );
 		$head  = '';
 		if ( '' !== trim( $title ) ) {
-			$head  = '<' . $tag . ' class="ds-teamdetail-title">' . DS_Module_UI::inline( $title ) . '</' . $tag . '>';
+			$head  = '<' . $tag . ' class="ds-teamdetail-title">' . self::title_html( $title ) . '</' . $tag . '>';
 			if ( ( $s->divider_show ?? 'yes' ) === 'yes' ) { $head .= '<span class="ds-teamdetail-divider" aria-hidden="true"></span>'; }
 		}
 		return '<section class="ds-teamdetail-section ds-teamdetail-section--coaches">' . $head . '<div class="ds-people-grid ds-people-grid--coaches">' . $cards . '</div></section>';
+	}
+
+	/**
+	 * Section title markup: the usual inline formatting, plus {a}..{/a} for the accent word, the same markup the
+	 * LeagueApps Heading uses, so team pages built from either module read alike. A title without {a} is unchanged.
+	 */
+	private static function title_html( $title ) {
+		return str_replace( array( '{a}', '{/a}' ), array( '<span class="ds-teamdetail-accent">', '</span>' ), DS_Module_UI::inline( $title ) );
 	}
 
 	/** Entry point (called by includes/frontend.php). */
@@ -275,13 +283,13 @@ FLBuilder::register_module( 'DS_Team_Detail_Module', array(
 				'title'  => __( 'Sections (auto-hide when empty)', 'ds-toolkit' ),
 				'fields' => array(
 					'roster_show'  => array( 'type' => 'select', 'label' => __( 'Roster Section', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'roster_title', 'roster_field' ) ) ) ),
-					'roster_title' => array( 'type' => 'text', 'label' => __( 'Roster Title', 'ds-toolkit' ), 'default' => 'Team Roster' ),
+					'roster_title' => array( 'type' => 'text', 'label' => __( 'Roster Title', 'ds-toolkit' ), 'default' => 'Team Roster', 'help' => __( 'Wrap a word in {a}…{/a} to colour it with the accent, e.g. Team {a}Roster{/a}.', 'ds-toolkit' ) ),
 					'roster_field' => array( 'type' => 'text', 'label' => __( 'Roster ACF Field', 'ds-toolkit' ), 'default' => 'team_roster' ),
 					'sched_show'   => array( 'type' => 'select', 'label' => __( 'Schedule Section', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'sched_title', 'sched_field' ) ) ) ),
-					'sched_title'  => array( 'type' => 'text', 'label' => __( 'Schedule Title', 'ds-toolkit' ), 'default' => 'Schedule' ),
+					'sched_title'  => array( 'type' => 'text', 'label' => __( 'Schedule Title', 'ds-toolkit' ), 'default' => 'Schedule', 'help' => __( 'Wrap a word in {a}…{/a} to colour it with the accent, e.g. Team {a}Roster{/a}.', 'ds-toolkit' ) ),
 					'sched_field'  => array( 'type' => 'text', 'label' => __( 'Schedule ACF Field', 'ds-toolkit' ), 'default' => 'schedule' ),
 					'coach_show'   => array( 'type' => 'select', 'label' => __( 'Coaches Section', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'coach_title', 'coach_field', 'coach_cols', 'coach_card_link', 'coach_show_contact' ) ) ) ),
-					'coach_title'  => array( 'type' => 'text', 'label' => __( 'Coaches Title', 'ds-toolkit' ), 'default' => 'Coaches' ),
+					'coach_title'  => array( 'type' => 'text', 'label' => __( 'Coaches Title', 'ds-toolkit' ), 'default' => 'Coaches', 'help' => __( 'Wrap a word in {a}…{/a} to colour it with the accent, e.g. Team {a}Roster{/a}.', 'ds-toolkit' ) ),
 					'coach_field'  => array( 'type' => 'text', 'label' => __( 'Coaches ACF Field (relationship)', 'ds-toolkit' ), 'default' => 'team_coach' ),
 					'coach_cols'   => array( 'type' => 'unit', 'label' => __( 'Coach Columns', 'ds-toolkit' ), 'default' => '2', 'slider' => array( 'min' => 1, 'max' => 4, 'step' => 1 ) ),
 					'coach_card_link' => array( 'type' => 'select', 'label' => __( 'Link Card to Profile', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'help' => __( 'Makes the whole coach card click through to that staff member’s page. Contact icons stay independently clickable.', 'ds-toolkit' ) ),
@@ -297,6 +305,7 @@ FLBuilder::register_module( 'DS_Team_Detail_Module', array(
 				'title'  => __( 'Section Colours', 'ds-toolkit' ),
 				'fields' => array(
 					'title_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Section Title', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
+					'title_accent_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Section Title Accent {a}…{/a}', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Blank = the site Accent colour, like the LeagueApps Heading.', 'ds-toolkit' ) ),
 					'body_color'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Body Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
 					'divider_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Divider', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true ),
 				),

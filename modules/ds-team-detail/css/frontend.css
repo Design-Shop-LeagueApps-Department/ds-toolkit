@@ -9,6 +9,7 @@
 .ds-teamdetail-main{display:flex;flex-direction:column;gap:36px;min-width:0;}
 
 .ds-teamdetail-section{min-width:0;}
+.ds-teamdetail-accent{color:var(--fl-global-accent);}
 .ds-teamdetail-title{margin:0;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--fl-global-headings);line-height:1.1;}
 .ds-teamdetail-divider{display:block;width:48px;height:3px;border-radius:2px;background:var(--fl-global-accent);margin:10px 0 16px;}
 .ds-teamdetail-body{color:var(--fl-global-body);line-height:1.6;}

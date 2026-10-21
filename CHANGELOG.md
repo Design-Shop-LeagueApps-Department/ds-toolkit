@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.45] - 2026-10-22
+### Added
+- **Team Detail: accent word in section titles.** Roster / Schedule / Coaches titles take `{a}…{/a}` like the LeagueApps Heading (e.g. `Team {a}Roster{/a}`), painted in the site Accent colour, with an optional **Section Title Accent** colour on the Style tab. Team pages that use the shared template now match team pages built in Beaver Builder (Alipio, 2026-10-22: "the heading accent is not consistent in other page like team 2"). Titles without `{a}` render exactly as before.
+
+---
+
 ## [1.10.44] - 2026-10-22
 ### Added
 - **Table and Programs: a "Modern" style, the default for new blocks** (Alipio: *"can we improve the leagueapps table and programs Default style? it looks old and weak design... just the default style so that it doesnt have big impact in fleet update"*). A white card with a hairline frame, 12 px corners and a soft shadow; a pale header row with small uppercase labels; roomy rows with hairline dividers and a light hover; dropdowns and search boxes 44 px tall with 10 px corners, a dropdown arrow and a search icon; and the site's Primary colour (darkened by itself when it is too pale to carry white text) for the current page, the active sort arrow, links and focus. Programs also sets prices in bold with even-width digits, keeps the result count and "Clear filters" on the dropdowns' line, and on phones frames each program as a card. Under 1200 px a full eight-column Programs table now fits its box with the Register column in view (the date range breaks after its dash, headings may wrap, cells are 12/10 px), where before it scrolled sideways at 1024 px; on wide screens program names and places get room so they stop wrapping to four lines.
