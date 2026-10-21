@@ -415,7 +415,7 @@ FLBuilder::register_module( 'DS_Calendar_Module', array(
 				'collapsed' => true,
 				'fields'    => array(
 					'empty_text' => array( 'type' => 'text', 'label' => __( 'When nothing is scheduled', 'ds-toolkit' ), 'default' => __( 'No upcoming events yet. Please check back soon.', 'ds-toolkit' ) ),
-					'note_text'  => array( 'type' => 'text', 'label' => __( 'Note under the calendar', 'ds-toolkit' ), 'default' => __( 'Times are Eastern.', 'ds-toolkit' ), 'help' => __( 'Leave empty to hide.', 'ds-toolkit' ) ),
+					'note_text'  => array( 'type' => 'text', 'label' => __( 'Note under the calendar', 'ds-toolkit' ), 'default' => __( 'Times are local.', 'ds-toolkit' ), 'help' => __( 'Times show as the club entered them in LeagueApps, in the club\'s own time zone (for example "Times are Pacific."). Leave empty to hide.', 'ds-toolkit' ) ),
 				),
 			),
 		),

@@ -11,6 +11,13 @@ All notable changes to DS Toolkit are documented here.
 - **Shadow > Subtle** joins None / Soft / Medium on both modules (Modern's default).
 - `tests/table-preset-modern-test.php` (75 checks, mutation-checked): Modern's rules appear for Modern and never for another preset, the editor's fields still win, "Keep on one line" on the date column and an editor's own cell padding or phone-card line are respected, and white text on the brand colour reads at 4.5:1 even for a pale yellow Primary.
 
+### Deprecated
+- **LeagueApps Schedule** (Alipio: *"can we deprecate the leagueapps schedule we dont need that module for now"*). The module no longer loads on any site, whatever its saved switch says, and its switch is gone from Features > LeagueApps Modules, so it is not in the builder either. A Schedule block already on a page renders nothing; it was off by default everywhere and placed only on Design Shop pages (the demo's Single Team Starter, whose Game Schedule now holds a Table block like Example Team 1, and the HQ doc examples). The code stays in `features/class-ds-la-schedule.php` and `modules/ds-la-schedule/` so it can come back by restoring its two registry rows. `tests/la-schedule-deprecated-test.php` (4 checks, mutation-checked) keeps it unloaded.
+
+### Fixed
+- **Menu: a closed flyout no longer widens the page.** Dropdowns and nested flyouts that would run past the right edge were flipped to open leftward only when hovered; until then the closed (invisible) flyout still took up room, so every desktop page scrolled sideways. supernovaasvb: the Resources > News flyout made every page 1658 px wide in a 1440 window (1388 in 1024), found on 2026-09-22 and still there. The same check now also runs on load and on resize, for desktop dropdowns only (the mobile overlay, the off-canvas drawer and mega panels are untouched). Checked on that site's real menu: 1440 and 1024 back to the window width, both panels fully on screen when open, phones unchanged.
+- **Calendar: the note under a new calendar says "Times are local."**, not "Times are Eastern.". LeagueApps stores every time as the club's own wall-clock time (a program date is midnight Eastern whatever the club's zone, and a Pacific club's "9:00AM to 11:00AM" tryout reads 9 AM), so the calendar already shows each club's local times and the old note was wrong for every club outside the Eastern zone (Supernova, Los Angeles). Calendars already on pages keep their saved note; the help text now says to name the club's zone.
+
 ---
 
 ## [1.10.43] - 2026-10-22
