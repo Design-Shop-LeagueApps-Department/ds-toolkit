@@ -17,17 +17,11 @@ $vars = array(
 	'--r-card'  => $c( 'c_card' ),
 	'--r-line'  => $c( 'c_line' ),
 );
-$brand = DS_Roster_Module::rgb( '' !== $vars['--r-brand'] ? $vars['--r-brand'] : 'var(--fl-global-primary)' );
-if ( $brand ) {
-	$card = DS_Roster_Module::rgb( '' !== $vars['--r-card'] ? $vars['--r-card'] : '#ffffff' ) ?: array( 255, 255, 255 );
-	$tint = DS_Roster_Module::mix( $brand, $card, 0.12 );
-	$ink  = DS_Roster_Module::ink( $brand, array( $tint, $card, array( 236, 236, 236 ) ) );
-	$vars['--r-tint'] = DS_Roster_Module::hex( $tint );
-	$vars['--r-ink']  = DS_Roster_Module::hex( $ink );
-	// Text on the solid brand (solid medallion, active filter): white or dark, whichever reads.
-	$w = DS_Roster_Module::ratio( array( 255, 255, 255 ), $brand );
-	$d = DS_Roster_Module::ratio( array( 14, 27, 47 ), $brand );
-	$vars['--r-on-brand'] = ( $w >= 4.5 || $w >= $d ) ? '#ffffff' : '#0e1b2f';
+$pal = DS_LA_Colors::palette( $vars['--r-brand'], $vars['--r-card'] );
+if ( $pal ) {
+	$vars['--r-tint']     = $pal['tint'];
+	$vars['--r-ink']      = $pal['ink'];
+	$vars['--r-on-brand'] = $pal['on_brand'];
 }
 foreach ( array( '' => 'columns', '_medium' => 'columns_medium', '_responsive' => 'columns_responsive' ) as $sfx => $k ) {
 	if ( isset( $settings->$k ) && '' !== $settings->$k ) {

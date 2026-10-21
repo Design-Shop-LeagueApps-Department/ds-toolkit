@@ -20,6 +20,7 @@ class DS_LA_Roster {
 	public function init() {
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-roster-data.php';
+		require_once DS_TOOLKIT_PATH . 'includes/class-ds-la-colors.php';
 		add_action( 'init', array( $this, 'register_module' ), 20 );
 		add_action( 'ds_la_roster_sync', array( 'DS_Roster_Data', 'cron' ) );
 		add_action( 'ds_la_roster_continue', array( 'DS_Roster_Data', 'cron' ) ); // a long first sync carrying on

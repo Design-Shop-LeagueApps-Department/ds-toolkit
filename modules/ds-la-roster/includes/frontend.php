@@ -11,6 +11,7 @@ $txt   = function ( $k, $d ) use ( $settings ) { return isset( $settings->$k ) &
 $med   = in_array( (string) ( $settings->medallion ?? 'tint' ), array( 'tint', 'solid', 'ring' ), true ) ? (string) $settings->medallion : 'tint';
 $list  = 'list' === (string) ( $settings->layout ?? 'cards' );
 $slug  = function ( $s ) { return '' === $s ? 'none' : sanitize_title( $s ); };
+$htag  = in_array( (string) ( $settings->title_tag ?? '' ), array( 'h2', 'h3', 'h4' ), true ) ? (string) $settings->title_tag : 'h3'; // phpcs: allow-listed tag
 ?>
 <div class="dsr dsr--<?php echo $list ? 'list' : 'cards'; ?> dsr--med-<?php echo esc_attr( $med ); ?>">
 <?php if ( ! $t ) : ?>
@@ -34,7 +35,7 @@ $slug  = function ( $s ) { return '' === $s ? 'none' : sanitize_title( $s ); };
 		<div class="dsr-head">
 			<div class="dsr-title">
 				<?php if ( '' !== $t['season'] ) : ?><p class="dsr-eyebrow"><?php echo esc_html( sprintf( /* translators: %s season */ __( '%s Season', 'ds-toolkit' ), $t['season'] ) ); ?></p><?php endif; ?>
-				<h2 class="dsr-name"><?php echo esc_html( $txt( 'title_text', $t['name'] ) ); ?></h2>
+				<<?php echo $htag; ?> class="dsr-name"><?php echo esc_html( $txt( 'title_text', $t['name'] ) ); ?></<?php echo $htag; ?>>
 			</div>
 			<p class="dsr-stats">
 				<span><b><?php echo count( $players ); ?></b> <?php echo esc_html( 1 === count( $players ) ? __( 'Player', 'ds-toolkit' ) : __( 'Players', 'ds-toolkit' ) ); ?></span>

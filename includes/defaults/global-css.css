@@ -20,6 +20,9 @@
   --dst-zindex-medium:        100;
   --dst-zindex-high:          1000;
 
+  /* Sticky sidebar (.ds-sticky): distance from the top of the window, clears a fixed header */
+  --dst-sticky-top:           100px;
+
   /* Sticky header logo */
   --dst-sticky-logo-width:    80px;
   --dst-sticky-logo-height:   60px;
@@ -306,6 +309,20 @@ div.fl-callout-text-wrap > .fl-callout-text {
 }
 
 /*─────────────────────────────────────────────────────────────────────────────
+  Sticky Sidebar: add the class "ds-sticky" (Advanced > Class) to a Box or module
+  in a column; it stays in view while the longer column beside it scrolls past.
+  Desktop only (columns stack below 993px), and only in a window at least 700px
+  tall so a short screen never hides the bottom of it. Offset: --dst-sticky-top.
+─────────────────────────────────────────────────────────────────────────────*/
+@media (min-width: 993px) and (min-height: 700px) {
+  .ds-sticky {
+    position: sticky;
+    top: var(--dst-sticky-top);
+    z-index: 1;
+  }
+}
+
+/*─────────────────────────────────────────────────────────────────────────────
   Outline Text Styles
 ─────────────────────────────────────────────────────────────────────────────*/
 .outline-white-text {
@@ -359,6 +376,19 @@ div.fl-callout-text-wrap > .fl-callout-text {
     object-fit: cover;
     object-position: top center;
 }
+
+/* Image shape: the same proportion at every width, so whatever photo is uploaded
+   (a tall phone shot, a wide banner) fills the slot the same way. */
+.ratio-landscape img,
+.ratio-square img,
+.ratio-portrait img {
+  width: 100%;
+  height: auto !important;
+  object-fit: cover;
+}
+.ratio-landscape img { aspect-ratio: 3 / 2; }
+.ratio-square img    { aspect-ratio: 1 / 1; }
+.ratio-portrait img  { aspect-ratio: 4 / 5; }
 
 /*─────────────────────────────────────────────────────────────────────────────
   Grid List

@@ -3,7 +3,7 @@
 function init(root){
   if(!root||root.dataset.ready){return;}
   root.dataset.ready=1;
-  // The team name is an h2 and takes the site's heading font; the medallions and names reuse it.
+  // The team name is a heading and takes the site's heading font; the medallions and names reuse it.
   var h=root.querySelector('.dsr-name')||root.querySelector('.dsr-sub');
   if(h){var cs=getComputedStyle(h);root.style.setProperty('--r-head',cs.fontFamily);root.style.setProperty('--r-head-w',cs.fontWeight);}
   var bar=root.querySelector('.dsr-filters'); if(!bar){return;}

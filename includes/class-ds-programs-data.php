@@ -876,6 +876,25 @@ class DS_Programs_Data {
 		);
 	}
 
+	/**
+	 * Every program row any cached listing holds (fresh or last-good copy), de-duplicated, with
+	 * _site set. Never calls LeagueApps: for builder pickers, which are built on every request.
+	 */
+	public static function cached_rows() {
+		$out = array();
+		foreach ( self::known_keys() as $key ) {
+			foreach ( array( $key, $key . '_stale' ) as $k ) {
+				$c = get_transient( $k );
+				foreach ( ( is_array( $c ) && isset( $c['rows'] ) && is_array( $c['rows'] ) ) ? $c['rows'] : array() as $r ) {
+					if ( is_array( $r ) && isset( $r['programId'], $r['_site'] ) ) {
+						$out[ $r['_site'] . ':' . $r['programId'] ] = $r;
+					}
+				}
+			}
+		}
+		return array_values( $out );
+	}
+
 	/** Every raw-feed cache key this class has written, so flush() can find them in an object cache. */
 	private static function known_keys() {
 		$k = get_transient( 'ds_programs_keys' );
