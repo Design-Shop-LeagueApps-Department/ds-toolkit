@@ -1,0 +1,103 @@
+/* LeagueApps Roster (ds-toolkit). Every colour is a variable set per node by frontend.css.php (brand tint and the
+   readable "ink" are worked out in PHP as plain hex). Buttons carry fl-content-ui-button (Beaver Builder's opt-out
+   from Global Styles button rules) and every rule is scoped ".dsr .x" so theme button/heading rules cannot repaint it. */
+.dsr{--r-brand:var(--fl-global-primary,#203f6c);--r-ink:var(--r-brand);--r-tint:#eef2f7;--r-on-brand:#fff;--r-text:#0e1b2f;--r-muted:#4a5568;--r-card:#fff;--r-line:#e4e7ec;--r-soft:#f4f6f8;--r-radius:12px;--r-cols:4;--r-cols_medium:3;--r-cols_responsive:2;--r-head:inherit;--r-head-w:700;color:var(--r-text);font-size:16px;line-height:1.4}
+.dsr *{box-sizing:border-box}
+.dsr :focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+
+/* Header: season, team name, counts */
+.dsr-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin:0 0 20px}
+.dsr .dsr-eyebrow{margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--r-ink)}
+.dsr .dsr-name{margin:0;padding:0;line-height:1;color:var(--r-text)}
+.dsr .dsr-stats{display:flex;gap:10px;margin:0;padding:0}
+.dsr-stats span{display:inline-flex;align-items:baseline;gap:6px;padding:8px 14px;border:1px solid var(--r-line);border-radius:999px;background:var(--r-card);font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--r-muted)}
+.dsr-stats b{font-family:var(--r-head);font-weight:var(--r-head-w);font-size:20px;line-height:1;letter-spacing:0;color:var(--r-text)}
+
+/* Position filter */
+.dsr-filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 20px}
+.dsr .dsr-chip{display:inline-flex;align-items:center;gap:8px;height:40px;min-height:0;margin:0;padding:0 16px;border:1px solid var(--r-line);border-radius:999px;background:var(--r-card);color:var(--r-text);font-family:inherit;font-size:14px;font-weight:600;line-height:1;text-transform:none;letter-spacing:0;box-shadow:none;cursor:pointer}
+.dsr .dsr-chip:hover,.dsr .dsr-chip:focus{background:var(--r-soft);color:var(--r-text);border-color:var(--r-line)}
+.dsr .dsr-chip span{font-size:12px;font-weight:700;color:var(--r-muted)}
+.dsr .dsr-chip[aria-pressed="true"],.dsr .dsr-chip[aria-pressed="true"]:hover,.dsr .dsr-chip[aria-pressed="true"]:focus{background:var(--r-brand);border-color:var(--r-brand);color:var(--r-on-brand)}
+.dsr .dsr-chip[aria-pressed="true"] span{color:var(--r-on-brand)}
+
+/* Player cards */
+.dsr .dsr-grid{display:grid;grid-template-columns:repeat(var(--r-cols),minmax(0,1fr));gap:16px;margin:0;padding:0;list-style:none}
+.dsr .dsr-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:12px;margin:0;padding:22px 14px 20px;border:1px solid var(--r-line);border-radius:var(--r-radius);background:var(--r-card);overflow:hidden;text-align:center;transition:transform .15s ease,box-shadow .15s ease}
+/* The tinted band behind the medallion is its own layer, so the card itself stays one solid colour (contrast tools
+   cannot measure text on a gradient). */
+.dsr .dsr-card::before{content:'';position:absolute;top:0;left:0;right:0;height:58px;background:var(--r-tint)}
+.dsr .dsr-card > *{position:relative}
+.dsr .dsr-card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(14,27,47,.08)}
+.dsr .dsr-card[hidden]{display:none}
+.dsr-med{position:relative;flex:none;display:grid;place-items:center;width:76px;height:76px;border-radius:50%;font-family:var(--r-head);font-weight:var(--r-head-w);font-size:28px;line-height:1;letter-spacing:.02em;background:var(--r-card);color:var(--r-ink);box-shadow:0 0 0 4px var(--r-card)}
+.dsr--med-tint .dsr-med{background:var(--r-tint);border:2px solid var(--r-brand)}
+.dsr--med-solid .dsr-med{background:var(--r-brand);color:var(--r-on-brand)}
+.dsr--med-ring .dsr-med{background:var(--r-card);border:2px solid var(--r-brand)}
+/* A LeagueApps photo fills the badge (the ring and the captain badge stay on top). */
+.dsr .dsr-med--photo{overflow:visible}
+.dsr .dsr-med--photo img{position:absolute;inset:0;width:100%;height:100%;max-width:none;margin:0;border-radius:50%;object-fit:cover;object-position:50% 30%}
+.dsr-cap{z-index:1;position:absolute;right:-4px;bottom:-2px;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--r-ink);color:#fff;font-family:inherit;font-size:12px;font-weight:800;box-shadow:0 0 0 3px var(--r-card)}
+.dsr-body{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;width:100%}
+.dsr-pname{font-family:var(--r-head);font-weight:var(--r-head-w);font-size:20px;line-height:1.1;text-transform:uppercase;letter-spacing:.01em;color:var(--r-text);overflow-wrap:anywhere}
+.dsr-pos{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--r-tint);color:var(--r-ink);font-size:12px;font-weight:700;line-height:1.2;letter-spacing:.06em;text-transform:uppercase}
+.dsr-meta{font-size:14px;color:var(--r-muted)}
+
+/* List layout */
+.dsr--list .dsr-grid{grid-template-columns:minmax(0,1fr);gap:0;border-top:1px solid var(--r-line)}
+.dsr--list .dsr-card::before{display:none}
+.dsr--list .dsr-card{flex-direction:row;align-items:center;gap:16px;padding:12px 4px;border:0;border-bottom:1px solid var(--r-line);border-radius:0;background:transparent;text-align:left}
+.dsr--list .dsr-card:hover{transform:none;box-shadow:none}
+.dsr--list .dsr-med{width:52px;height:52px;font-size:20px;box-shadow:none}
+.dsr--list .dsr-body{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name pos" "meta pos";align-items:center;gap:2px 16px}
+.dsr--list .dsr-pname{grid-area:name;font-size:18px}
+.dsr--list .dsr-meta{grid-area:meta}
+.dsr--list .dsr-pos{grid-area:pos;justify-self:end}
+
+/* Carousel: the same cards in one row that scrolls sideways (swipe, keyboard, arrows). --r-in = cards in view. */
+.dsr--carousel{--r-in:var(--r-cols);--r-gap:16px}
+.dsr .dsr-car{position:relative}
+.dsr--carousel .dsr-grid{display:flex;gap:var(--r-gap);overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding:6px 2px 12px;margin:-6px -2px -12px}
+.dsr--carousel .dsr-grid::-webkit-scrollbar{display:none}
+.dsr--carousel .dsr-grid:focus-visible{outline:3px solid #2563eb;outline-offset:2px;border-radius:var(--r-radius)}
+.dsr--carousel .dsr-card{flex:0 0 calc((100% - (var(--r-in) - 1) * var(--r-gap)) / var(--r-in));scroll-snap-align:start}
+.dsr .dsr-nav{position:absolute;top:calc(50% - 22px);z-index:2;display:grid;place-items:center;width:44px;height:44px;min-height:0;margin:0;padding:0;border:1px solid var(--r-line);border-radius:50%;background:var(--r-card);color:var(--r-text);box-shadow:0 4px 14px rgba(14,27,47,.14);cursor:pointer;line-height:1}
+.dsr .dsr-nav:hover,.dsr .dsr-nav:focus{background:var(--r-brand);border-color:var(--r-brand);color:var(--r-on-brand)}
+.dsr .dsr-nav[disabled]{opacity:.35;cursor:default;box-shadow:none}
+.dsr .dsr-nav[disabled]:hover{background:var(--r-card);border-color:var(--r-line);color:var(--r-text)}
+.dsr .dsr-prev{left:-14px}
+.dsr .dsr-next{right:-14px}
+[dir="rtl"] .dsr .dsr-prev,.dsr[dir="rtl"] .dsr-prev{left:auto;right:-14px;transform:scaleX(-1)}
+[dir="rtl"] .dsr .dsr-next,.dsr[dir="rtl"] .dsr-next{right:auto;left:-14px;transform:scaleX(-1)}
+
+/* Coaches */
+.dsr-coaches{margin-top:28px}
+.dsr .dsr-sub{margin:0 0 12px;padding:0;font-family:var(--r-head);font-weight:var(--r-head-w);font-size:22px;line-height:1.1;text-transform:uppercase;letter-spacing:.02em;color:var(--r-text)}
+.dsr .dsr-clist{display:flex;flex-wrap:wrap;gap:12px;margin:0;padding:0;list-style:none}
+.dsr .dsr-coach{display:flex;align-items:center;gap:12px;margin:0;padding:10px 18px 10px 10px;border:1px solid var(--r-line);border-radius:999px;background:var(--r-card)}
+.dsr .dsr-med--sm{width:44px;height:44px;font-size:17px;box-shadow:none}
+.dsr-cname{display:flex;flex-direction:column;font-weight:600;line-height:1.2;color:var(--r-text)}
+.dsr-cname small{margin-top:2px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--r-muted)}
+
+.dsr-empty{margin:0;padding:32px 16px;border-radius:var(--r-radius);background:var(--r-soft);text-align:center;color:var(--r-muted)}
+
+@media (max-width:992px){
+ .dsr .dsr-grid{grid-template-columns:repeat(var(--r-cols_medium),minmax(0,1fr))}
+ .dsr--carousel{--r-in:var(--r-cols_medium)}
+}
+@media (max-width:767px){
+ .dsr .dsr-grid{grid-template-columns:repeat(var(--r-cols_responsive),minmax(0,1fr));gap:12px}
+ .dsr .dsr-card{padding:18px 10px 16px;gap:10px}
+ .dsr .dsr-card::before{height:48px}
+ .dsr-med{width:62px;height:62px;font-size:23px}
+ .dsr-pname{font-size:17px}
+ .dsr-meta{font-size:13px}
+ .dsr .dsr-chip{height:38px;padding:0 13px}
+ /* Phone: a peek of the next card says "swipe"; the arrows give way to the thumb. */
+ .dsr--carousel{--r-in:calc(var(--r-cols_responsive) + .25);--r-gap:12px}
+ .dsr .dsr-nav{display:none}
+ .dsr--list .dsr-grid{grid-template-columns:minmax(0,1fr)}
+ .dsr--list .dsr-body{grid-template-columns:minmax(0,1fr);grid-template-areas:"name" "pos" "meta";justify-items:start}
+ .dsr--list .dsr-pos{justify-self:start}
+}
+@media (prefers-reduced-motion:reduce){.dsr .dsr-card{transition:none}.dsr .dsr-card:hover{transform:none}.dsr--carousel .dsr-grid{scroll-behavior:auto}}
