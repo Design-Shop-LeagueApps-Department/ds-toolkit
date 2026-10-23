@@ -68,6 +68,12 @@ function dsscan_vocab() {
         'decoders' => ['base64_decode','gzinflate','gzuncompress','gzdecode','str_rot13','hex2bin',
                        'convert_uudecode','openssl_decrypt','mcrypt_decrypt','strrev'],
         'filewrite' => ['file_put_contents','fwrite','fputs','fopen','copy','rename','move_uploaded_file','symlink','link'],
+        /* Network fetches, for the eval-of-remote-content rule. Split in two on purpose:
+           net_always are unconditionally remote, while the file_* family is everyday code for
+           LOCAL paths and only counts when an http(s) URL is visible in its own argument -
+           otherwise every plugin that reads a template file would fire. */
+        'net_always' => ['curl_exec','fsockopen','pfsockopen','wp_remote_retrieve_body','http_get','curl_multi_getcontent'],
+        'net_ifurl'  => ['file_get_contents','fopen','readfile','file','simplexml_load_file','stream_get_contents'],
         'req_super' => ['$_GET','$_POST','$_REQUEST','$_COOKIE','$_FILES','$_SERVER','$_ENV','$HTTP_RAW_POST_DATA'],
         // dangerous when the NAME is assembled at runtime: a legit developer never does this
         'danger_all' => array_merge($exec, $code, ['eval','assert','preg_replace','call_user_func','call_user_func_array','file_put_contents','fwrite','include','require']),
@@ -107,6 +113,13 @@ function dsscan_vocab() {
                C2 and serves its answer. These two probe handlers are its health-check endpoints. */
             'strrev(md5($_SERVER[\'SERVER_NAME\']))' => 'cloaking-proxy /R-<md5> health probe (index.zip doorway family)',
             'index.php/jk' => 'cloaking-proxy index.php/jk health probe (index.zip doorway family)',
+            /* compress.zlib appended include loader (stars-softball 2026-10-20): ONE line appended as
+               the last statement of 10 vendor files (bb-theme classes, ppwp-group, our ds-origin-guard)
+               - eval(base64_decode('...')) decoding to new class('compress.zlib://' . '<path>') whose
+               constructor include_once()s a gzip payload hidden as a .css/.png/.csv/.js inside bb-plugin.
+               The prefix encodes "new class('compress.zlib" and is stable whatever path follows. Planner
+               maps this to STRIP (cut the line, keep the file), because the host file is load-bearing. */
+            'bmV3IGNsYXNzKCdjb21wcmVzcy56bGli' => 'compress.zlib appended include loader (base64 of new class compress.zlib)',
         ],
     ];
     return $v;
@@ -148,6 +161,7 @@ function dsscan_scan_file($path, $opts = []) {
     $V = dsscan_vocab();
     $EXEC_SINKS = $V['exec']; $CODE_SINKS = $V['code']; $CALLBACK_SINKS = $V['callback'];
     $DECODERS = $V['decoders']; $FILEWRITE = $V['filewrite']; $REQ_SUPER = $V['req_super'];
+    $NET_ALWAYS = $V['net_always']; $NET_IFURL = $V['net_ifurl'];
     $DANGER_ALL = $V['danger_all']; $FINGERPRINTS = $V['fingerprints'];
     $MAXSZ    = isset($opts['max_read'])     ? (int) $opts['max_read']     : 3000000;
     $TOKCAP   = isset($opts['tokenize_cap']) ? (int) $opts['tokenize_cap'] : 1500000;
@@ -486,6 +500,42 @@ function dsscan_scan_file($path, $opts = []) {
         if (!$changed) break;
     }
 
+    /* ---------- taint-lite #2: variables carrying content fetched over the NETWORK -------------
+       Separate from $tainted on purpose. The dusc.net loader (2026-10-24) was
+
+           $tag = curl_exec($ch);  eval("?>" . $tag);
+
+       so the fetch and the eval are DIFFERENT statements and an argument-range check alone sees
+       nothing. 189 bytes, no decoder, no request input, no exec sink: it scored ZERO, answered
+       HTTP 200 on its own URL, and was the reinfection engine behind four infections of that site. */
+    $urlVars = [];
+    for ($i = 0; $i < $n; $i++) {
+        if ($stream[$i]['t'] === T_VARIABLE && isset($stream[$i+1]) && $stream[$i+1]['s'] === '=') {
+            for ($j = $i + 2, $k = 0; $j < $n && $k < 40 && $stream[$j]['s'] !== ';'; $j++, $k++) {
+                $tj = $stream[$j]['t'];
+                if (($tj === T_CONSTANT_ENCAPSED_STRING || $tj === T_ENCAPSED_AND_WHITESPACE)
+                    && preg_match('#https?://#i', (string) $stream[$j]['s'])) { $urlVars[$stream[$i]['s']] = true; break; }
+                if ($tj === T_VARIABLE && !empty($urlVars[(string) $stream[$j]['s']])) { $urlVars[$stream[$i]['s']] = true; break; }
+            }
+        }
+    }
+
+    $netTainted = [];
+    for ($pass = 0; $pass < 3; $pass++) {
+        $changed = false;
+        for ($i = 0; $i < $n; $i++) {
+            if ($stream[$i]['t'] === T_VARIABLE && isset($stream[$i+1]) && $stream[$i+1]['s'] === '=') {
+                $end = $i + 2;
+                for ($k = 0; $end < $n && $k < 60 && $stream[$end]['s'] !== ';'; $end++, $k++) { ; }
+                if (dsscan_range_has_netfetch($stream, $i + 2, $end, $NET_ALWAYS, $NET_IFURL, $netTainted, $urlVars)
+                    && empty($netTainted[$stream[$i]['s']])) {
+                    $netTainted[$stream[$i]['s']] = true; $changed = true;
+                }
+            }
+        }
+        if (!$changed) break;
+    }
+
     /* ---------- variable = concatenated string literal  (resolve variable-function names) ------ */
     $varString = [];    // varname => resolved literal string (from "a"."b"."c" assignment)
     $varAssembled = []; // varname => n, value built by concatenating CHARACTER-TABLE subscripts
@@ -544,6 +594,12 @@ function dsscan_scan_file($path, $opts = []) {
                 $refInput = dsscan_range_has_input($stream, $arg[0], $arg[1], $tainted);
                 $refDecode = dsscan_range_has_decoder($stream, $arg[0], $arg[1], $DECODERS);
                 if ($refDecode || $refInput) { $hasEvalDecode = true; }
+                /* eval() of what a remote server just sent. There is no legitimate WordPress use:
+                   the file is asking someone else what code to run. CRIT on its own (>= 100). */
+                if (dsscan_range_has_netfetch($stream, $arg[0], $arg[1], $NET_ALWAYS, $NET_IFURL, $netTainted, $urlVars)) {
+                    $add('evalremote', 110, "eval() of content fetched over the network - a remote-code loader: this file asks a remote server what to run");
+                    $hasEvalDecode = true;
+                }
             }
             $add('evalpresent', 12, "eval() present");
         }
@@ -999,6 +1055,36 @@ function dsscan_range_has_input($stream, $a, $b, $tainted) {
     for ($j = $a; $j <= $b && $j < $cnt; $j++) {
         if ($stream[$j]['t'] === T_VARIABLE && dsscan_is_input_var($stream[$j]['s'], $tainted)) return true;
         if (($stream[$j]['t'] === T_CONSTANT_ENCAPSED_STRING || $stream[$j]['t'] === T_STRING) && stripos($stream[$j]['s'], 'php://input') !== false) return true;
+    }
+    return false;
+}
+/* Is there an http(s) URL literal in this range? Used to tell a REMOTE file_get_contents from
+   the everyday local-path one. */
+function dsscan_range_has_url($stream, $a, $b, $urlVars = []) {
+    $cnt = count($stream);
+    for ($j = $a; $j <= $b && $j < $cnt; $j++) {
+        $t = $stream[$j]['t'];
+        if (($t === T_CONSTANT_ENCAPSED_STRING || $t === T_STRING || $t === T_ENCAPSED_AND_WHITESPACE)
+            && preg_match('#https?://#i', (string) $stream[$j]['s'])) return true;
+        /* the URL may sit in a variable: $u = "https://..."; file_get_contents($u). Not catching
+           this left the obvious next variant scoring REVIEW instead of CRIT. */
+        if ($t === T_VARIABLE && !empty($urlVars[(string) $stream[$j]['s']])) return true;
+    }
+    return false;
+}
+/* Does this range fetch over the network, or read a variable that already did? */
+function dsscan_range_has_netfetch($stream, $a, $b, $NET_ALWAYS, $NET_IFURL, $netTainted, $urlVars = []) {
+    $cnt = count($stream);
+    for ($j = $a; $j <= $b && $j < $cnt; $j++) {
+        $tk = $stream[$j]['t']; $s = (string) $stream[$j]['s'];
+        if ($tk === T_VARIABLE && !empty($netTainted[$s])) return true;
+        if ($tk !== T_STRING) continue;
+        $low = strtolower($s);
+        if (in_array($low, $NET_ALWAYS, true)) return true;
+        if (in_array($low, $NET_IFURL, true) && isset($stream[$j+1]) && $stream[$j+1]['s'] === '(') {
+            $ar = dsscan_arg_range($stream, $j + 1, $cnt);
+            if ($ar !== null && dsscan_range_has_url($stream, $ar[0], $ar[1], $urlVars)) return true;
+        }
     }
     return false;
 }
