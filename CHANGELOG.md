@@ -4,6 +4,34 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.46] - 2026-10-24
+### Added
+- **Scanner: `eval()` of content fetched over the network is now CRITICAL.** A 189-byte file on a
+  partner site curled a remote URL and `eval()`d the reply. It scored **zero**: the existing rule
+  requires a *decoder* (`base64_decode`/`gzinflate`) inside the `eval`, and this evals the raw
+  response. It answered HTTP 200 on its own URL, its mtime was forged to 2010 so every
+  modified-since sweep missed it, it appeared in no alert, and it was the reinfection engine behind
+  four infections of that site. The rule tracks network taint across statements, because the fetch
+  and the `eval` are usually different lines (`$t = curl_exec($ch); eval("?>".$t);`), and it
+  resolves a URL held in a variable. `curl_exec`/`fsockopen`/`wp_remote_retrieve_body` always count
+  as remote; `file_get_contents` and friends only when an http(s) URL is actually visible, so
+  reading a local template and eval'ing it stays below CRITICAL.
+- **Scanner: the `compress.zlib` appended-include-loader signature now ships.** It was added to the
+  local cleanup copy of the engine on 2026-10-20 (stars-softball) but never ported to the plugin,
+  so the whole fleet was blind to it. Both copies of the engine are byte-identical again, which the
+  selftest asserts.
+
+### Fixed
+- `lists/tripwire-allow.md5`: six verified vendor hashes (LiteSpeed Cache 7.9.2 x2, WP File Manager
+  8.0.6 x2, MonsterInsights Pro 11.3.0 x2) that a cleanup plan wanted to quarantine automatically.
+
+### Tests
+- `ds-scan-selftest.sh` is now 75 assertions (was 67): three malicious remote-eval shapes (the real
+  file, the URL in a variable, the `wp_remote_*` form) and four benign ones that must stay below
+  CRITICAL. All three malicious assertions fail on the previous engine and pass on this one.
+
+---
+
 ## [1.10.45] - 2026-10-22
 ### Added
 - **Team Detail: accent word in section titles.** Roster / Schedule / Coaches titles take `{a}…{/a}` like the LeagueApps Heading (e.g. `Team {a}Roster{/a}`), painted in the site Accent colour, with an optional **Section Title Accent** colour on the Style tab. Team pages that use the shared template now match team pages built in Beaver Builder (Alipio, 2026-10-22: "the heading accent is not consistent in other page like team 2"). Titles without `{a}` render exactly as before.
