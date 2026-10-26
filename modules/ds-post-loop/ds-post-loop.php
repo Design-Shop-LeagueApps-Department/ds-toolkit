@@ -2059,7 +2059,7 @@ $ds_pl_form = array(
 					'badge_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Badge Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'feature_title_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Featured Title', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'excerpt_color'   => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Excerpt Text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-					'readmore_text'   => array( 'type' => 'text', 'label' => __( 'Read More Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
+					'readmore_text'   => array( 'type' => 'text', 'label' => __( 'Read More Text', 'ds-toolkit' ), 'default' => 'Read More' ),
 					'readmore_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Read More Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 				),
 			),
@@ -2093,7 +2093,7 @@ $ds_pl_form = array(
 					'title2_color'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Title', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'date2_color'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Date', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'readmore2_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Read More', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
-					'readmore2_text'  => array( 'type' => 'text', 'label' => __( 'Read More Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
+					'readmore2_text'  => array( 'type' => 'text', 'label' => __( 'Read More Text', 'ds-toolkit' ), 'default' => 'Read More' ),
 				),
 			),
 			// --- Staff card layout options ---
