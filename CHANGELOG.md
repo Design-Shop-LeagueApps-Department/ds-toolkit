@@ -4,6 +4,17 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.48] - 2026-10-26
+### Fixed
+- **Post Loop: "Read More Text" now defaults to "Read More" (was "Lorem Ipsum").** Both card-link
+  fields (`readmore_text` for the Featured Card, `readmore2_text` for Style 2 cards) shipped the
+  placeholder as their default, and the field sits under Style > Cards where builders rarely look, so
+  launched partner sites went live with "Lorem Ipsum" under every news card. A partner on a launched
+  site wrote in asking where to change it. New modules now get a real label. Modules already saved on
+  a page keep the value stored with them, so no existing site changes visually on update.
+
+---
+
 ## [1.10.47] - 2026-10-26
 ### Added
 - **Scanner: a dropper that writes a PHP file is now CRITICAL (was HIGH).** On a live partner site a
