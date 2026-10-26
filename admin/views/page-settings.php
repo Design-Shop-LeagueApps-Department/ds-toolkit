@@ -22,7 +22,7 @@ if ( $dst_bp6 ) {
 	$dst_grp_security[] = $disable_comments_enabled;
 	$dst_grp_security[] = $admin_menu_tidy_enabled;
 }
-$dst_grp_partner = array( $enabled, $design_academy_enabled );
+$dst_grp_partner = array( $enabled, $design_academy_enabled, $school_emblems_enabled );
 $dst_grp_site    = $dst_bp6 ? array( $theme_setting_enabled, $image_optimization_enabled, $pattern_library_enabled ) : array();
 $dst_grp_site[]  = $nested_order_enabled;
 $dst_grp_dev     = array( $uabb_post_loop_fix_enabled, $defender_flywheel_reset_fix_enabled, $acf_css_vars_enabled, $getsubmenu_enabled, $current_year_enabled, $overlay_nav_enabled, $forminator_email_partner_enabled, $child_pages_enabled );
@@ -311,6 +311,22 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                 <span>The "Start here" item at the top of the panel.</span>
                 <input type="text" name="ds_toolkit_settings[academy_pinned_label]" value="<?php echo esc_attr( $academy_pinned_label ); ?>" placeholder="Pinned label" style="width:100%;margin-top:6px;">
                 <input type="url" name="ds_toolkit_settings[academy_pinned_url]" value="<?php echo esc_attr( $academy_pinned_url ); ?>" placeholder="https://designacademy.leagueapps.com/…" style="width:100%;margin-top:6px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- School Emblems picker (fleet-wide) -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-shield"></span></div>
+            <div class="dst-card-info">
+                <strong>School Emblems (college logos)</strong>
+                <span>On an athlete, the <strong>School Name</strong> box searches the Design Shop HQ library of college athletic logos (name, team or initials such as UCLA). Picking a school adds its logo to <strong>School Logo</strong> on Update, once per site; a logo the partner uploaded is never replaced. Auto-enabled on every install.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[school_emblems_enabled]" value="0">
+                <input type="checkbox" id="school_emblems_enabled" name="ds_toolkit_settings[school_emblems_enabled]" value="1" <?php checked( $school_emblems_enabled ); ?>>
+                <label for="school_emblems_enabled"></label>
             </div>
         </div>
     </div>

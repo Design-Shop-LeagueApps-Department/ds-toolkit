@@ -304,6 +304,7 @@ class DS_Toolkit_Admin {
                 $user_roles_enabled       = ! empty( $opts['user_roles_enabled'] );
                 $partner_plugin_access    = ! empty( $opts['partner_plugin_access'] );
                 $design_academy_enabled   = ! empty( $opts['design_academy_enabled'] );
+                $school_emblems_enabled   = ! isset( $opts['school_emblems_enabled'] ) || ! empty( $opts['school_emblems_enabled'] );
                 $academy_pinned_url       = ! empty( $opts['academy_pinned_url'] ) ? $opts['academy_pinned_url'] : 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/';
                 $academy_pinned_label     = ! empty( $opts['academy_pinned_label'] ) ? $opts['academy_pinned_label'] : "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder";
                 $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );

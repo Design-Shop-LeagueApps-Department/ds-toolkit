@@ -4,6 +4,15 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.49] - 2026-10-26
+### Added
+- **School Emblems: pick a college and its logo comes with it** (Zay, Ethos alumni page: "how I can get the logos to show of the colleges without needed to download them"). On an athlete, the **School Name** box now searches the Design Shop HQ library of college athletic logos (https://designshophq.wpenginepowered.com/emblems/, NCAA D1-D3 today, NAIA and junior colleges next): the school's name, short name, team name or initials ("UCLA", "TAMU", "UConn", "st marys"), with the logo, division and state in each suggestion. Picking a school shows its logo under the box; on **Update** the logo is copied into the site's Media Library once (other athletes from the same school reuse it) and placed in **School Logo**. A site never needs HQ to show a logo; HQ is only asked when a school is picked.
+- **A partner's own logo is never replaced.** School Logo is only filled when it is empty, still holds the logo the toolkit put there, or holds a placeholder: the club's own logo, the blueprint's "LeagueApps Logo" (every LP7 sample athlete carries it) or one image used for athletes at 3+ different schools. Typing a name that is not in the library works as before.
+- Works on every Launchpad generation (any ACF `school_name` text field with a `school_logo` image field beside it), on by default, switch in Features > Partner Experience. The library list is fetched by the site (12-hour cache, last good copy kept if HQ is down), the logo only from HQ's fixed https address, and only a real PNG of library size is accepted. Keyboard and screen reader friendly (combobox, arrow keys, Enter, Esc).
+- `tests/school-emblems-test.php` (25 checks, mutation-checked): when School Logo may be replaced, which file names may be fetched (no other path or host), when an edited name turns a pick into a typed name.
+
+---
+
 ## [1.10.48] - 2026-10-26
 ### Fixed
 - **Post Loop: "Read More Text" now defaults to "Read More" (was "Lorem Ipsum").** Both card-link
