@@ -284,6 +284,12 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-design-academy.php',
             'class' => 'DS_Design_Academy',
         ),
+        // College athletic logos from the Design Shop HQ School Emblems library, picked on the
+        // athlete's School Name field (every Launchpad generation has it). Fleet-wide.
+        'school_emblems_enabled' => array(
+            'file'  => 'features/class-ds-school-emblems.php',
+            'class' => 'DS_School_Emblems',
+        ),
     );
 
     /**
@@ -476,6 +482,7 @@ class DS_Toolkit {
             'partner_plugin_access'              => 0,
             'theme_setting_all_users'            => 0,
             'design_academy_enabled'             => 1,
+            'school_emblems_enabled'             => 1,
             'academy_pinned_url'                 => 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/',
             'academy_pinned_label'               => 'How to Edit Your Website: A Beginner\'s Guide to WordPress & Beaver Builder',
             // MCP tool group access controls — off by default

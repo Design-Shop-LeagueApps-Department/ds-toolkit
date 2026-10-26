@@ -1,0 +1,23 @@
+/* School Emblems picker on the athlete edit screen (features/class-ds-school-emblems.php). */
+.ds-school-pick { position: relative; }
+.ds-school-list {
+	position: absolute; z-index: 1000; top: 100%; left: 0; right: 0; max-height: 340px; overflow-y: auto;
+	margin: 4px 0 0; padding: 4px 0; list-style: none; background: #fff; border: 1px solid #8c8f94; border-radius: 4px;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, .12);
+}
+.ds-school-list[hidden] { display: none; }
+.ds-school-option { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 10px; cursor: pointer; }
+.ds-school-option:hover, .ds-school-option[aria-selected="true"] { background: #f0f6fc; box-shadow: inset 3px 0 0 #2271b1; }
+.ds-school-none { margin: 0; padding: 8px 10px; color: #50575e; }
+.ds-school-logo { flex: none; display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 4px; background: #fff; border: 1px solid #dcdcde; }
+.ds-school-logo.is-dark { background: #1d2327; border-color: #1d2327; }
+.ds-school-logo img { width: 32px; height: 32px; object-fit: contain; }
+.ds-school-text { display: flex; flex-direction: column; min-width: 0; }
+.ds-school-name { color: #1d2327; font-weight: 600; line-height: 1.3; }
+.ds-school-meta { color: #50575e; font-size: 12px; line-height: 1.4; }
+.ds-school-chip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; padding: 8px 10px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px; }
+.ds-school-chip[hidden] { display: none; }
+.ds-school-chip .ds-school-logo { width: 44px; height: 44px; }
+.ds-school-chip .ds-school-logo img { width: 40px; height: 40px; }
+.ds-school-note { flex: 1 1 200px; color: #1d2327; }
+.ds-school-clear { white-space: nowrap; }
