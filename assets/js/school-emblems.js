@@ -175,6 +175,15 @@
 			live.textContent = s.n + ' chosen.';
 		}
 		function find() {
+			if (!doc && input.value.trim()) { // typed before the list arrived: say so instead of showing nothing
+				list.textContent = '';
+				items = [];
+				var wait = el('li', 'ds-school-none', 'Loading the school list…');
+				wait.setAttribute('aria-disabled', 'true');
+				list.appendChild(wait);
+				list.hidden = false;
+				input.setAttribute('aria-expanded', 'true');
+			}
 			load().then(function () {
 				// Compare with the STORED pick too: the name can change before the list has loaded.
 				var cur = picked || (hidden.value ? byId(hidden.value) : null);
@@ -186,6 +195,9 @@
 			});
 		}
 
+		// Start loading the list as soon as the screen is ready (it took ~8 s from page load on designshopdemo when it
+		// waited for the first click), so it is there by the time a partner types.
+		setTimeout(function () { load().catch(function () {}); }, 300);
 		input.addEventListener('focus', function () { load().catch(function () {}); });
 		input.addEventListener('input', function () { clearTimeout(t); t = setTimeout(find, 80); });
 		input.addEventListener('blur', function () { setTimeout(close, 120); });
