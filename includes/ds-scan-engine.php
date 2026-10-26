@@ -704,7 +704,20 @@ function dsscan_scan_file($path, $opts = []) {
                     if (dsscan_write_target_is_php($stream, $arg[0], $arg[1])) $writesPhp = true;
                     if ($callName === 'move_uploaded_file') $hasMoveUpload = true;
                     if (($callName === 'file_put_contents' || $callName === 'fwrite' || $callName === 'fputs') && $refDecode) {
-                        $add('writedecoded', 70, "$callName() writes decoded (base64/gz) content to disk (dropper)");
+                        /* Decoded content written to a PHP path is a SELF-HEALING dropper and belongs at
+                           CRIT, not HIGH. slaintevolleyball.org 2026-10-26: a trojanised plugin carried
+                               file_put_contents($_SERVER['DOCUMENT_ROOT'].'/accesson.php', base64_decode('...'))
+                           and, being active, rewrote the shell on every page load. It scored HIGH, so the
+                           alert emails only ever named the regenerated SHELL and never the cause - the site
+                           alerted six times in two days and removing the shell alone would have achieved
+                           nothing. A dropper is strictly worse than a shell because it re-creates shells.
+                           Writing a decoded NON-php file (an image, a PDF, a cache blob) stays at 70,
+                           which is what keeps legitimate decoders out of CRIT. */
+                        if (dsscan_write_target_is_php($stream, $arg[0], $arg[1])) {
+                            $add('writedecodedphp', 110, "$callName() writes decoded (base64/gz) content to a PHP file - a self-healing dropper: it RE-CREATES the payload, so removing the payload alone does nothing");
+                        } else {
+                            $add('writedecoded', 70, "$callName() writes decoded (base64/gz) content to disk (dropper)");
+                        }
                     }
                     // self-rewrite: fopen(__FILE__ ... 'a')  or copy(__FILE__, ...)
                     if (dsscan_range_has_file_const($stream, $arg[0], $arg[1])) {

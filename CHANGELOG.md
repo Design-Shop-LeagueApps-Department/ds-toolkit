@@ -4,6 +4,26 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.10.47] - 2026-10-26
+### Added
+- **Scanner: a dropper that writes a PHP file is now CRITICAL (was HIGH).** On a live partner site a
+  trojanised plugin carried one injected line,
+  `file_put_contents($_SERVER['DOCUMENT_ROOT'].'/accesson.php', base64_decode('...'))`, and because the
+  plugin was active it rewrote a cookie-gated `eval()` shell into the web root on **every page load**.
+  The engine scored that line HIGH, so the alert emails only ever named the regenerated **shell** and
+  never the cause: the site alerted six times in two days, and removing the shell alone would have
+  achieved nothing. A dropper is strictly worse than a shell because it re-creates shells.
+  Writing a decoded **non**-PHP file (an image, a PDF, a cache blob) still scores 70, which is what
+  keeps legitimate decoders out of CRITICAL: the rule keys on the `.php` target, not on the decode.
+
+### Tests
+- `ds-scan-selftest.sh` is now 79 assertions (was 75): two dropper shapes that must be CRITICAL (the
+  real file's shape, and one writing a `.inc.php` under ABSPATH) and two benign decoded writes that
+  must stay below it. Both malicious assertions score HIGH on the previous engine and CRITICAL on this
+  one.
+
+---
+
 ## [1.10.46] - 2026-10-24
 ### Added
 - **Scanner: `eval()` of content fetched over the network is now CRITICAL.** A 189-byte file on a
