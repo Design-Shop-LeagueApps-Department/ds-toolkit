@@ -220,6 +220,20 @@ chk('club team tournament = team, no program name', $by['Winter Warm-Up'] ?? nul
 chk('league division game = program, named after its parent league', $by['14 Sunrise vs Rivals'] ?? null, array( 'program', 'Spring League' ));
 chk('the league joins the Programs dropdown', in_array( 'Spring League', DS_Calendar_Data::apply_program_settings( $r5, array( 'show' => true, 'register' => true ) )['programs'], true ), true );
 chk('the calendar copy carries the current shape', $r5['v'] ?? null, DS_Calendar_Data::SHAPE);
+$pt = array(); foreach ( $r5['events'] as $e ) { if ( '' === ( $e['kind'] ?? '' ) ) { $pt[ $e['title'] ] = $e['ptype'] ?? '?'; } }
+chk('a program session carries its program\'s type', $pt['14 Sunrise vs Rivals'] ?? null, 'League');
+chk('a club team entry carries no program type', $pt['Winter Warm-Up'] ?? null, '');
+
+echo "Event types filter: a program's own sessions count as the program's type (#313)\n";
+$sess = array( 'type' => 'Practice', 'ptype' => 'Event' );
+chk('"Event" keeps a Practice session of an event', DS_Calendar_Data::type_matches( $sess, array( 'Event' ) ), true);
+chk('"Camp" does not keep a session of an event', DS_Calendar_Data::type_matches( $sess, array( 'Camp' ) ), false);
+chk('"Practice" still keeps it by its own type', DS_Calendar_Data::type_matches( $sess, array( 'Practice' ) ), true);
+chk('a club team practice is not an "Event"', DS_Calendar_Data::type_matches( array( 'type' => 'Practice', 'ptype' => '' ), array( 'Event' ) ), false);
+chk('a cached entry with no program type behaves as before', DS_Calendar_Data::type_matches( array( 'type' => 'Other' ), array( 'Event' ) ), false);
+chk('no filter keeps everything', DS_Calendar_Data::type_matches( array( 'type' => 'Other' ), array() ), true);
+chk('schedule_source names the program type', DS_Calendar_Data::schedule_source( array( '1:5' => array( 'type' => 'EVENT', 'name' => '15U Tryout' ) ), '1:5' ), array( 'program', '15U Tryout', 'Event' ));
+chk('schedule_source: a club team has no type', DS_Calendar_Data::schedule_source( array( '1:6' => array( 'type' => 'CLUB_TEAM', 'name' => '14U' ) ), '1:6' ), array( 'team', '', '' ));
 $off = DS_Calendar_Data::apply_team_setting( $r5, false );
 $titles = array(); foreach ( $off['events'] as $e ) { $titles[ $e['title'] ] = 1; }
 chk('teams off: club team tournaments gone', isset( $titles['Winter Warm-Up'] ), false);

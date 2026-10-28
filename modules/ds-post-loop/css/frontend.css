@@ -82,6 +82,7 @@
 .ds-people-name{font-size:1.15rem;font-weight:800;text-transform:uppercase;letter-spacing:.02em;margin:0;color:var(--fl-global-headings);line-height:1.15;}
 .ds-people-role{font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:var(--fl-global-body);}
 .ds-people-contacts{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;justify-content:center;}
+.ds-people-card--nophoto .ds-people-body{flex:1;justify-content:center;padding:28px 20px;}
 .ds-people-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:var(--fl-global-accent);color:var(--fl-global-white);text-decoration:none;transition:background .2s ease,transform .2s ease;}
 .ds-people-ico:hover{transform:translateY(-2px);}
 .ds-people-ico svg{width:18px;height:18px;display:block;}

@@ -621,12 +621,13 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$ic_in    = DS_Card::icon( 'linkedin' );
 		$ic_fb    = DS_Card::icon( 'facebook' );
 		$ic_x     = DS_Card::icon( 'x' );
+		$photo    = ( $s->staff_show_photo ?? 'yes' ) !== 'no';
 
 		$this->loop_open( 'ds-people-grid' );
 		while ( $q->have_posts() ) {
 			$q->the_post();
 			$id    = get_the_ID();
-			$img   = get_the_post_thumbnail_url( $id, 'large' ) ?: $ph;
+			$img   = $photo ? ( get_the_post_thumbnail_url( $id, 'large' ) ?: $ph ) : '';
 			$name  = get_the_title( $id );
 			$title = (string) get_post_meta( $id, 'staff_title', true );
 
@@ -640,8 +641,10 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 				$icons .= $this->contact_icon( get_post_meta( $id, 'staff_x', true ), $ic_x, 'X' );
 			}
 
-			echo '<div class="ds-people-card">'; echo $this->card_link( $id );
-			echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
+			echo '<div class="ds-people-card' . ( $photo ? '' : ' ds-people-card--nophoto' ) . '">'; echo $this->card_link( $id );
+			if ( $photo ) {
+				echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
+			}
 			echo '<div class="ds-people-body">';
 			if ( '' !== $name )  { echo '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>'; }
 			if ( '' !== $title ) { echo '<span class="ds-people-role">' . DS_Module_UI::inline( $title ) . '</span>'; }
@@ -2112,6 +2115,14 @@ $ds_pl_form = array(
 					'staff_cols'        => array( 'type' => 'unit', 'label' => __( 'Columns', 'ds-toolkit' ), 'default' => '4', 'responsive' => true, 'slider' => array( 'min' => 1, 'max' => 6, 'step' => 1 ), 'help' => __( 'Defaults: 2 on tablet, 1 on mobile.', 'ds-toolkit' ) ),
 					'staff_gap'         => array( 'type' => 'unit', 'label' => __( 'Gap', 'ds-toolkit' ), 'default' => '24', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ),
 					'card_link'         => array( 'type' => 'select', 'label' => __( 'Link Card to Post', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ), 'help' => __( 'Makes the whole card a clickable link to the post. Turn off to remove the card link (contact / social icons stay clickable).', 'ds-toolkit' ) ),
+					'staff_show_photo'  => array(
+						'type'    => 'select',
+						'label'   => __( 'Show Photo', 'ds-toolkit' ),
+						'default' => 'yes',
+						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No (names only)', 'ds-toolkit' ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'staff_photo_ratio' ) ) ),
+						'help'    => __( 'No: every card shows the name, title and contact icons without a photo, whether or not the entry has one.', 'ds-toolkit' ),
+					),
 					'staff_photo_ratio' => array(
 						'type'    => 'select',
 						'label'   => __( 'Photo Ratio', 'ds-toolkit' ),

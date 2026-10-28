@@ -57,6 +57,12 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-defender-flywheel-reset-fix.php',
             'class' => 'DS_Defender_Flywheel_Reset_Fix',
         ),
+        // Hummingbird Critical CSS: drop a page's saved CSS snapshot when its layout is
+        // published, so a newly added module is never served without its CSS.
+        'hummingbird_critical_fix_enabled' => array(
+            'file'  => 'features/class-ds-hummingbird-critical-fix.php',
+            'class' => 'DS_Hummingbird_Critical_Fix',
+        ),
         'overlay_nav_enabled' => array(
             'file'  => 'features/class-ds-overlay-nav.php',
             'class' => 'DS_Overlay_Nav',
@@ -495,6 +501,8 @@ class DS_Toolkit {
             // Compat patch — inert unless Defender Mask Login is on AND the host is
             // Flywheel, so it's safe to default on across the fleet.
             'defender_flywheel_reset_fix_enabled' => 1,
+            // Compat patch: inert unless Hummingbird's Critical CSS module is active.
+            'hummingbird_critical_fix_enabled'   => 1,
             // Partner-safe access control + the Design Academy dashboard panel:
             // on for the whole fleet regardless of blueprint generation.
             'user_roles_enabled'                 => 1,

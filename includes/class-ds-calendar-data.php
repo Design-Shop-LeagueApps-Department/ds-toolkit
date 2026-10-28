@@ -320,11 +320,12 @@ class DS_Calendar_Data {
 		$items = array();
 		foreach ( $stores as $sid => $st ) {
 			foreach ( $st['p'] as $pid => $e ) {
-				list( $src, $grp ) = self::schedule_source( $rows_by, $sid . ':' . $pid );
+				list( $src, $grp, $ptype ) = self::schedule_source( $rows_by, $sid . ':' . $pid );
 				foreach ( (array) $e['items'] as $it ) {
 					if ( is_array( $it ) ) {
-						$it['_src'] = $src;
-						$it['_grp'] = $grp;
+						$it['_src']   = $src;
+						$it['_grp']   = $grp;
+						$it['_ptype'] = $ptype;
 					}
 					$items[] = $it;
 				}
@@ -846,19 +847,31 @@ class DS_Calendar_Data {
 	}
 
 	/**
-	 * Whose schedule a program's items are: array( 'team', '' ) for a club team (or a type the
-	 * calendar does not know), array( 'program', <name> ) for a league, camp, clinic, class,
-	 * tournament or event with its own schedule (the parent's name for one of its divisions).
+	 * Whose schedule a program's items are: array( 'team', '', '' ) for a club team (or a type the
+	 * calendar does not know), array( 'program', <name>, <type> ) for a league, camp, clinic, class,
+	 * tournament or event with its own schedule (the parent's name for one of its divisions; the
+	 * program's own type label, so an "Event" filter keeps the sessions of an event).
 	 */
 	public static function schedule_source( array $rows_by, $key ) {
 		$r = $rows_by[ $key ] ?? null;
 		if ( ! is_array( $r ) || '' === self::type_label( $r['type'] ?? '' ) ) {
-			return array( 'team', '' );
+			return array( 'team', '', '' );
 		}
 		$sid = (string) strstr( (string) $key, ':', true );
 		$mid = preg_replace( '/\D+/', '', (string) ( $r['masterProgramId'] ?? '' ) );
 		$par = ( '' !== $mid && '0' !== $mid && isset( $rows_by[ $sid . ':' . $mid ] ) ) ? $rows_by[ $sid . ':' . $mid ] : null;
-		return array( 'program', wp_strip_all_tags( (string) ( $par ? ( $par['name'] ?? '' ) : ( $r['name'] ?? '' ) ) ) );
+		return array( 'program', wp_strip_all_tags( (string) ( $par ? ( $par['name'] ?? '' ) : ( $r['name'] ?? '' ) ) ), self::type_label( $r['type'] ?? '' ) );
+	}
+
+	/**
+	 * The Event types filter: an entry matches on its own type, or on the type of the program whose
+	 * schedule it belongs to. LeagueApps labels an event's sessions Practice / Game / Other, never
+	 * "Event", so picking "Event" alone used to hide every session of an event (#313).
+	 */
+	public static function type_matches( array $e, array $types ) {
+		return ! $types
+			|| in_array( (string) ( $e['type'] ?? '' ), $types, true )
+			|| ( '' !== (string) ( $e['ptype'] ?? '' ) && in_array( (string) $e['ptype'], $types, true ) );
 	}
 
 	/**
@@ -1042,6 +1055,7 @@ class DS_Calendar_Data {
 
 			$src  = 'program' === ( $it['_src'] ?? '' ) ? 'program' : 'team';
 			$sgrp = 'program' === $src ? wp_strip_all_tags( (string) ( $it['_grp'] ?? '' ) ) : '';
+			$ptyp = 'program' === $src ? wp_strip_all_tags( (string) ( $it['_ptype'] ?? '' ) ) : '';
 			$base = strtolower( trim( (string) preg_replace( '/\s*\([^)]*\)\s*$/', '', $title ) ) );
 			foreach ( $days as $day ) {
 				$key = $is_game ? $uid . '|' . $day : $day . '|' . strtolower( $loc ) . '|' . $base;
@@ -1060,9 +1074,13 @@ class DS_Calendar_Data {
 						'sort'  => $all_day ? '00:00' : $start->format( 'H:i' ),
 						'src'   => $src,
 						'grp'   => $sgrp,
+						'ptype' => $ptyp,
 					);
 				}
 				$g =& $groups[ $key ];
+				if ( '' === ( $g['ptype'] ?? '' ) && '' !== $ptyp ) {
+					$g['ptype'] = $ptyp;
+				}
 				if ( 'team' === $src ) {
 					$g['src'] = 'team'; // a day a club team shares with a program reads as a team entry
 					$g['grp'] = '';
