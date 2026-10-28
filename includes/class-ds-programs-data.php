@@ -571,6 +571,11 @@ class DS_Programs_Data {
 			// In-season links the hosted widget showed beside (or instead of) Sign Up.
 			'scheduleUrl'  => self::url( (string) ( $row['scheduleUrlHtml'] ?? '' ) ),
 			'standingsUrl' => self::url( (string) ( $row['standingsUrlHtml'] ?? '' ) ),
+			// The program's own logo (programLogo150, a 150px image on LeagueApps' S3). Most
+			// programs leave it blank (10 of 169 on PLL Play Tournaments, 2026-10-29); a
+			// sub-program without one takes its main program's. The List layout falls back to
+			// the per-site placeholder set in the module.
+			'logo'       => self::url( $inherit( 'programLogo150' ) ),
 			'soldOut'    => ( 'SOLD_OUT' === $stat_raw ),
 			'canceled'   => ( 'CANCELED' === $stat_raw ),
 			'isMaster'   => ! empty( $children ),

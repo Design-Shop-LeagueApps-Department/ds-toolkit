@@ -323,6 +323,104 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 	if ( $pp ) { echo "$node .ds-programs-card-price{" . implode( ';', $pp ) . ";}\n"; }
 }
 
+/* ---------- list layout ---------- */
+require_once DS_TOOLKIT_PATH . 'includes/class-ds-la-colors.php';
+// The colour a site's buttons are painted with, the list accent's fallback: Global Styles,
+// then the bb-theme button mod, then the theme accent (the same chain the card band uses).
+$gs_list     = class_exists( 'FLBuilderGlobalStyles' ) ? FLBuilderGlobalStyles::get_settings( false ) : null;
+$site_button = call_user_func( $col, $gs_list->button_background ?? '' )
+	?: ( call_user_func( $col, get_theme_mod( 'fl-button-background', '' ) )
+	?: call_user_func( $col, get_theme_mod( 'fl-accent', '' ) ) );
+/** Text on the dark first chip: the accent when it reads on near-black, else white. */
+$on_dark = function ( $accent ) {
+	$rgb = DS_LA_Colors::rgb( $accent );
+	return ( $rgb && DS_LA_Colors::ratio( $rgb, array( 17, 17, 17 ) ) >= 4.5 ) ? $accent : '#ffffff';
+};
+if ( 'list' === ( $settings->layout ?? 'table' ) ) {
+	$l_accent = $sc( 'list_accent' ) ?: ( $site_button ?: '#1a1a1a' );
+	$l_pad    = $px( 'list_pad' ) ?: '20px';
+	$l_edge   = ( '' !== (string) ( $settings->list_edge ?? '' ) && is_numeric( $settings->list_edge ) ) ? (int) $settings->list_edge . 'px' : '4px';
+	$l_logo   = $px( 'list_logo_size' ) ?: '64px';
+	echo "$node .ds-programs-list{--ds-list-gap:" . ( $px( 'list_gap' ) ?: '12px' ) . ";}\n";
+	// The accent travels as custom properties so a Per-site style only has to reset the three
+	// variables on its own rows, below, and never out-rank these rules.
+	echo "$node .ds-programs-item{--ds-accent:$l_accent;--ds-accent-ink:" . ( DS_Programs_Module::text_on( $l_accent ) ?: '#ffffff' ) . ";--ds-accent-on-dark:" . $on_dark( $l_accent ) . ";--ds-list-logo:$l_logo;}\n";
+	$ip   = array( "padding:$l_pad" );
+	$ip[] = 'background-color:' . ( $sc( 'list_bg' ) ?: '#ffffff' );
+	$ip[] = 'border:1px solid ' . ( $sc( 'list_border' ) ?: '#e4e7ec' );
+	$ip[] = "border-left:$l_edge solid var(--ds-accent)";
+	$ip[] = 'border-radius:' . ( $px( 'list_radius' ) ?: '16px' );
+	$l_shadow = (string) ( $settings->list_shadow ?? 'none' );
+	if ( 'soft' === $l_shadow || 'lift' === $l_shadow ) { $ip[] = 'box-shadow:0 2px 10px rgba(16,24,40,.06)'; }
+	echo "$node .ds-programs-item{" . implode( ';', $ip ) . ";}\n";
+	if ( 'lift' === $l_shadow ) { echo "$node .ds-programs-item:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(16,24,40,.12);}\n"; }
+	if ( '0px' === $l_edge ) { echo "$node .ds-programs-item{border-left-width:1px;border-left-color:" . ( $sc( 'list_border' ) ?: '#e4e7ec' ) . ";}\n"; }
+
+	// Placeholder tile on the accent; a LeagueApps logo is a photo with its own background,
+	// so it sits on white with a hairline instead.
+	echo "$node .ds-programs-item-logo.is-placeholder{background-color:var(--ds-accent);color:var(--ds-accent-ink);}\n";
+	echo "$node .ds-programs-item-logo.is-feed{background-color:#ffffff;box-shadow:inset 0 0 0 1px rgba(16,24,40,.08);}\n";
+
+	$tp = array( 'color:' . ( $sc( 'list_title_color' ) ?: '#111111' ) );
+	if ( 'none' !== ( $settings->list_title_case ?? 'upper' ) ) { $tp[] = 'text-transform:uppercase'; $tp[] = 'letter-spacing:.01em'; }
+	echo "$node .ds-programs-item-title,$node .ds-programs-item-title a{" . implode( ';', $tp ) . ";}\n";
+	if ( ! empty( $settings->list_title_typo ) ) { FLBuilderCSS::typography_field_rule( array( 'settings' => $settings, 'setting_name' => 'list_title_typo', 'selector' => "$node .ds-programs-item-title" ) ); }
+	$mc = $sc( 'list_meta_color' ) ?: '#4b5563';
+	echo "$node .ds-programs-item-meta,$node .ds-programs-item-sub{color:$mc;}\n";
+	echo "$node .ds-programs-chip{background-color:" . ( $sc( 'list_chip_bg' ) ?: '#eef0f3' ) . ';color:' . ( $sc( 'list_chip_color' ) ?: '#3d4450' ) . ";}\n";
+	if ( 'same' !== ( $settings->list_chip_first ?? 'dark' ) ) { echo "$node .ds-programs-item-chips .ds-programs-chip:first-child{background-color:#111111;color:var(--ds-accent-on-dark);}\n"; }
+	$v = $sc( 'list_price_color' ) ?: ( $sc( 'list_title_color' ) ?: '#111111' );
+	echo "$node .ds-programs-item-price{color:$v;}\n";
+
+	// Tablet and phone: the logo and text keep their row, the price and button drop under
+	// them full width, so a long program name never squeezes the button.
+	foreach ( array( 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
+		$r = array();
+		$pv = $settings->{"list_pad_$suffix"} ?? '';
+		if ( '' !== $pv && is_numeric( $pv ) ) { $r[] = "{$node} .ds-programs-item{padding:" . (int) $pv . 'px;}'; }
+		$lv = $settings->{"list_logo_size_$suffix"} ?? '';
+		if ( '' !== $lv && is_numeric( $lv ) ) { $r[] = "{$node} .ds-programs-item{--ds-list-logo:" . (int) $lv . 'px;}'; }
+		if ( 'responsive' === $suffix ) {
+			$r[] = "{$node} .ds-programs-item,{$node} .ds-programs-item.has-logo{grid-template-columns:auto minmax(0,1fr);align-items:start;}";
+			$r[] = "{$node} .ds-programs-item:not(.has-logo){grid-template-columns:minmax(0,1fr);}";
+			$r[] = "{$node} .ds-programs-item-action{grid-column:1/-1;flex-direction:row;align-items:center;justify-content:space-between;text-align:left;padding-top:14px;border-top:1px solid " . ( $sc( 'list_border' ) ?: '#e4e7ec' ) . ';}';
+			$r[] = "{$node} .ds-programs-item-action .ds-programs-btn,{$node} .ds-programs-item-action .ds-programs-actions{margin-left:auto;}";
+			$r[] = "{$node} .ds-programs-item-title{font-size:17px;}";
+		}
+		if ( $r ) { echo "@media(max-width:{$bp}px){" . implode( '', $r ) . "}\n"; }
+	}
+}
+
+/* ---------- per-site styles (every layout) ----------
+ * Each row carries data-site. A site's row background, its Register button and, in the List
+ * layout, its accent replace the module-wide values on that site's rows only. The site id is
+ * digits only (DS_Programs_Module::site_styles), so it is safe inside the attribute selector. */
+$fm_colors = ( 'colors' === (string) ( $settings->btn_full_style ?? 'fade' ) );
+foreach ( $module->site_styles() as $sid => $ss ) {
+	$row = "$node .ds-programs-row[data-site=\"$sid\"]";
+	if ( $ss['row_bg'] ) {
+		// :nth-child(n) matches every row; it is there to out-rank the striped and phone-card
+		// even-row backgrounds, (0,5,2) at most, without an !important.
+		echo "$node .ds-programs-row.ds-programs-row[data-site=\"$sid\"]:not(.is-hidden):nth-child(n){background-color:{$ss['row_bg']};}\n";
+	}
+	$accent = $ss['accent'] ?: $ss['btn_bg'];
+	if ( $accent ) {
+		echo "$row{--ds-accent:$accent;--ds-accent-ink:" . ( DS_Programs_Module::text_on( $accent ) ?: '#ffffff' ) . ';--ds-accent-on-dark:' . $on_dark( $accent ) . ";}\n";
+	}
+	if ( $ss['btn_bg'] ) {
+		$fg  = $ss['btn_color'] ?: ( DS_Programs_Module::text_on( $ss['btn_bg'] ) ?: '#ffffff' );
+		$hov = DS_Programs_Module::darker( $ss['btn_bg'] ) ?: $ss['btn_bg'];
+		// The register-button rules above are node-level !important (Global Styles, the theme
+		// mods or the module's own colours); this is the same weight plus the row, so it wins.
+		// Never the cancelled chip, and never a sold-out chip the editor gave its own colours.
+		$not = ':not(.ds-programs-btn--canceled)' . ( $fm_colors ? ':not(.ds-programs-btn--full)' : '' );
+		echo "$row .ds-programs-btn$not{background:{$ss['btn_bg']} !important;background-color:{$ss['btn_bg']} !important;color:$fg !important;border-color:{$ss['btn_bg']} !important;}\n";
+		echo "$row a.ds-programs-btn:hover,$row a.ds-programs-btn:focus{background:$hov !important;background-color:$hov !important;color:$fg !important;border-color:$hov !important;}\n";
+	} elseif ( $ss['btn_color'] ) {
+		echo "$row .ds-programs-btn:not(.ds-programs-btn--canceled){color:{$ss['btn_color']} !important;}\n";
+	}
+}
+
 /* ---------- phone cards (breakpoint follows Beaver Builder) ---------- */
 $m = array();
 $m[] = ".ds-programs-field{max-width:none;flex-basis:100%;}";

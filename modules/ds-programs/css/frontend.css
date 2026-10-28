@@ -323,6 +323,81 @@
 /* cards have no column headings, so the Sort-by dropdown is always in the bar */
 .ds-programs--cards .ds-programs-field--sort { display: flex; }
 
+/* ---- List layout: structure only, colours and sizes come from css.php ---- */
+.ds-programs-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--ds-list-gap, 12px);
+}
+.ds-programs-item {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 14px 20px;
+	min-width: 0;
+	transition: transform .18s ease, box-shadow .18s ease;
+}
+.ds-programs-item.has-logo { grid-template-columns: auto minmax(0, 1fr) auto; }
+.ds-programs-item-logo {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--ds-list-logo, 64px);
+	height: var(--ds-list-logo, 64px);
+	border-radius: 12px;
+	overflow: hidden;
+	flex: 0 0 auto;
+}
+.ds-programs-item-logo img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+.ds-programs-item-logo.is-placeholder img { width: 78%; height: 78%; }
+.ds-programs-item-initial { font-size: calc(var(--ds-list-logo, 64px) * .42); font-weight: 800; line-height: 1; }
+.ds-programs-item-main { min-width: 0; }
+.ds-programs-item-title { margin: 0; font-size: 19px; line-height: 1.2; font-weight: 800; overflow-wrap: anywhere; }
+.ds-programs-item-title a { color: inherit; text-decoration: none; }
+.ds-programs-item-title a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.ds-programs-item-sub { margin: 4px 0 0; font-size: 14px; font-weight: 600; line-height: 1.35; }
+.ds-programs-item-meta,
+.ds-programs-item-chips {
+	display: flex;
+	flex-wrap: wrap;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.ds-programs-item-meta { gap: 4px 18px; margin-top: 8px; font-size: 15px; line-height: 1.35; }
+.ds-programs-item-meta li { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.ds-programs-item-icon { flex: 0 0 auto; width: 15px; height: 15px; }
+.ds-programs-item-chips { gap: 6px; margin-top: 12px; }
+.ds-programs-chip {
+	margin: 0;
+	padding: 5px 10px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .05em;
+	line-height: 1.2;
+	text-transform: uppercase;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+}
+.ds-programs-item-action {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 8px;
+	text-align: right;
+}
+.ds-programs-item-price { font-size: 20px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.ds-programs-item .ds-programs-btn { display: inline-block; white-space: nowrap; }
+.ds-programs-item.is-soldout .ds-programs-item-price,
+.ds-programs-item.is-canceled .ds-programs-item-price { opacity: .6; }
+.ds-programs--list .ds-programs-field--sort { display: flex; }
+
 .ds-programs-dash { opacity: .45; }
 
 /* Visually hidden, still read by screen readers (the Register column heading). */

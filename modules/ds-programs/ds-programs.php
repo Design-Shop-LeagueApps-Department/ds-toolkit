@@ -364,6 +364,86 @@ class DS_Programs_Module extends FLBuilderModule {
 	}
 
 	/* ------------------------------------------------------------------
+	 * Per-site styles
+	 * ---------------------------------------------------------------- */
+
+	/**
+	 * The "Per-site styles" rows, keyed by LeagueApps site id. One page often pulls several
+	 * sites (PLL Play: a tournaments site and a site per local league), and each is its own
+	 * brand, so a row can give one site its own accent, row background, button colours and a
+	 * placeholder logo. The first row for a site wins; a row without a site is ignored.
+	 *
+	 * @return array site_id => array( accent, row_bg, btn_bg, btn_color, logo )
+	 */
+	public function site_styles() {
+		if ( null !== $this->site_styles_cache ) { return $this->site_styles_cache; }
+		$col = array( 'DS_Module_UI', 'color' );
+		$out = array();
+		foreach ( (array) ( $this->settings->site_styles ?? array() ) as $row ) {
+			$row = (array) $row;
+			$id  = preg_replace( '/\D+/', '', (string) ( $row['ss_site'] ?? '' ) );
+			if ( '' === $id || isset( $out[ $id ] ) ) { continue; }
+			$out[ $id ] = array(
+				'accent'    => call_user_func( $col, $row['ss_accent'] ?? '' ),
+				'row_bg'    => call_user_func( $col, $row['ss_row_bg'] ?? '' ),
+				'btn_bg'    => call_user_func( $col, $row['ss_btn_bg'] ?? '' ),
+				'btn_color' => call_user_func( $col, $row['ss_btn_color'] ?? '' ),
+				'logo'      => self::photo_url( $row['ss_logo'] ?? '', $row['ss_logo_src'] ?? '' ),
+			);
+		}
+		return $this->site_styles_cache = $out;
+	}
+
+	/** @var array|null */
+	private $site_styles_cache = null;
+
+	/** A Beaver photo field as a URL: the attachment's medium size, else the stored src. */
+	public static function photo_url( $id, $src ) {
+		$id = (int) $id;
+		if ( $id && function_exists( 'wp_get_attachment_image_url' ) ) {
+			$u = wp_get_attachment_image_url( $id, 'medium' );
+			if ( $u ) { return $u; }
+		}
+		return esc_url_raw( (string) $src );
+	}
+
+	/**
+	 * The logo a program shows in the List layout, and where it came from:
+	 * the program's own LeagueApps logo (or its main program's), else the placeholder set for
+	 * its site under Per-site styles, else the module's default placeholder.
+	 *
+	 * @return array( url, 'feed'|'placeholder' ) or array( '', '' ) for no logo
+	 */
+	public function logo_for( array $r ) {
+		if ( '' !== (string) ( $r['logo'] ?? '' ) ) { return array( $r['logo'], 'feed' ); }
+		$ss = $this->site_styles();
+		$id = (string) ( $r['siteId'] ?? '' );
+		if ( isset( $ss[ $id ] ) && '' !== $ss[ $id ]['logo'] ) { return array( $ss[ $id ]['logo'], 'placeholder' ); }
+		$u = self::photo_url( $this->settings->list_logo_default ?? '', $this->settings->list_logo_default_src ?? '' );
+		return '' !== $u ? array( $u, 'placeholder' ) : array( '', '' );
+	}
+
+	/**
+	 * Readable text for a solid colour: near-white or near-black, whichever has the higher
+	 * contrast. '' when the colour cannot be read (a var() with no stored value).
+	 */
+	public static function text_on( $bg ) {
+		require_once DS_TOOLKIT_PATH . 'includes/class-ds-la-colors.php';
+		$rgb = DS_LA_Colors::rgb( $bg );
+		if ( ! $rgb ) { return ''; }
+		$w = DS_LA_Colors::ratio( array( 255, 255, 255 ), $rgb );
+		$d = DS_LA_Colors::ratio( array( 17, 17, 17 ), $rgb );
+		return ( $w >= $d ) ? '#ffffff' : '#111111';
+	}
+
+	/** A solid colour 12% darker, for a hover state; '' when it cannot be read. */
+	public static function darker( $c ) {
+		require_once DS_TOOLKIT_PATH . 'includes/class-ds-la-colors.php';
+		$rgb = DS_LA_Colors::rgb( $c );
+		return $rgb ? DS_LA_Colors::hex( DS_LA_Colors::mix( $rgb, array( 0, 0, 0 ), 0.88 ) ) : '';
+	}
+
+	/* ------------------------------------------------------------------
 	 * Render
 	 * ---------------------------------------------------------------- */
 
@@ -427,6 +507,28 @@ FLBuilder::register_settings_form( 'ds_programs_map_form', array(
 					'fields' => array(
 						'map_target' => array( 'type' => 'select', 'label' => __( 'Fill this value', 'ds-toolkit' ), 'default' => 'dateRange', 'options' => DS_Programs_Module::map_target_options() ),
 						'map_source' => array( 'type' => 'select', 'label' => __( 'from this LeagueApps field', 'ds-toolkit' ), 'default' => 'sponsor', 'options' => DS_Programs_Data::raw_field_options() ),
+					),
+				),
+			),
+		),
+	),
+) );
+
+FLBuilder::register_settings_form( 'ds_programs_site_form', array(
+	'title' => __( 'Site style', 'ds-toolkit' ),
+	'tabs'  => array(
+		'general' => array(
+			'title'    => __( 'Site style', 'ds-toolkit' ),
+			'sections' => array(
+				'general' => array(
+					'title'  => '',
+					'fields' => array(
+						'ss_site'      => array( 'type' => 'select', 'label' => __( 'LeagueApps site', 'ds-toolkit' ), 'default' => '', 'options' => array( '' => __( 'Pick a site', 'ds-toolkit' ) ) + DS_Programs_Module::site_options(), 'help' => __( 'Sites come from Settings > DS Toolkit > LeagueApps.', 'ds-toolkit' ) ),
+						'ss_logo'      => array( 'type' => 'photo', 'label' => __( 'Placeholder logo', 'ds-toolkit' ), 'show_remove' => true, 'help' => __( 'Shown in the List layout for this site\'s programs that have no logo in LeagueApps. A program\'s own LeagueApps logo always wins.', 'ds-toolkit' ) ),
+						'ss_accent'    => array( 'type' => 'color', 'label' => __( 'Accent', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ), 'help' => __( 'List layout: the left edge and the placeholder logo\'s tile. Blank = this site\'s button colour.', 'ds-toolkit' ) ),
+						'ss_row_bg'    => array( 'type' => 'color', 'label' => __( 'Row background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'connections' => array( 'color' ), 'help' => __( 'The row, card or list item background for this site\'s programs. Blank = the module\'s own.', 'ds-toolkit' ) ),
+						'ss_btn_bg'    => array( 'type' => 'color', 'label' => __( 'Register button background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ) ),
+						'ss_btn_color' => array( 'type' => 'color', 'label' => __( 'Register button text', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ), 'help' => __( 'Blank = white or near-black, whichever reads on the background.', 'ds-toolkit' ) ),
 					),
 				),
 			),
@@ -684,12 +786,57 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 						'type'    => 'select',
 						'label'   => __( 'Show programs as', 'ds-toolkit' ),
 						'default' => 'table',
-						'options' => array( 'table' => __( 'Table (one row per program)', 'ds-toolkit' ), 'cards' => __( 'Cards (a grid, one card per program)', 'ds-toolkit' ) ),
+						'options' => array( 'table' => __( 'Table (one row per program)', 'ds-toolkit' ), 'cards' => __( 'Cards (a grid, one card per program)', 'ds-toolkit' ), 'list' => __( 'List (one wide card per program, with logo)', 'ds-toolkit' ) ),
 						'toggle'  => array(
 							'table' => array( 'sections' => array( 'preset_sec', 'table_sec', 'head_sec', 'row_sec' ) ),
 							'cards' => array( 'sections' => array( 'card_sec', 'card_text_sec' ) ),
+							'list'  => array( 'sections' => array( 'list_sec', 'list_text_sec' ) ),
 						),
-						'help'    => __( 'Same programs, filters, search, sort and paging either way. Cards use the columns you chose: the program name is the title, the age group a badge, price and the button sit at the bottom, the rest are labelled lines.', 'ds-toolkit' ),
+						'help'    => __( 'Same programs, filters, search, sort and paging in every layout. Cards and List use the columns you chose: the program name is the title, location and dates sit under it with icons, price and the button sit at the end. Cards show the rest as labelled lines, List as chips.', 'ds-toolkit' ),
+					),
+				),
+			),
+			'list_sec' => array(
+				'title'  => __( 'List', 'ds-toolkit' ),
+				'fields' => array(
+					'list_logo'         => array( 'type' => 'select', 'label' => __( 'Logo', 'ds-toolkit' ), 'default' => 'yes', 'options' => array( 'yes' => __( 'Show', 'ds-toolkit' ), 'no' => __( 'Hide', 'ds-toolkit' ) ), 'toggle' => array( 'yes' => array( 'fields' => array( 'list_logo_default', 'list_logo_size' ) ) ), 'help' => __( 'The program\'s own logo from LeagueApps, else its site\'s placeholder under Per-site styles, else the default below. With none of those the tile is left out.', 'ds-toolkit' ) ),
+					'list_logo_default' => array( 'type' => 'photo', 'label' => __( 'Default placeholder logo', 'ds-toolkit' ), 'show_remove' => true, 'help' => __( 'For sites without their own placeholder. A transparent PNG or SVG reads best on the accent tile.', 'ds-toolkit' ) ),
+					'list_logo_size'    => $ds_prg_unit( __( 'Logo tile size', 'ds-toolkit' ), 40, 120, array( 'responsive' => true, 'placeholder' => '64' ) ),
+					'list_accent'       => $ds_prg_colour( __( 'Accent', 'ds-toolkit' ), array( 'help' => __( 'The left edge and the placeholder tile. Blank = the Register button colour. A site\'s own accent under Per-site styles wins.', 'ds-toolkit' ) ) ),
+					'list_edge'         => $ds_prg_unit( __( 'Accent edge width', 'ds-toolkit' ), 0, 12, array( 'placeholder' => '4' ) ),
+					'list_bg'           => $ds_prg_colour( __( 'Item background', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
+					'list_border'       => $ds_prg_colour( __( 'Item border', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
+					'list_radius'       => $ds_prg_unit( __( 'Corner radius', 'ds-toolkit' ), 0, 40, array( 'placeholder' => '16' ) ),
+					'list_shadow'       => array( 'type' => 'select', 'label' => __( 'Shadow', 'ds-toolkit' ), 'default' => 'none', 'options' => array( 'none' => __( 'None', 'ds-toolkit' ), 'soft' => __( 'Soft', 'ds-toolkit' ), 'lift' => __( 'Soft, lifts on hover', 'ds-toolkit' ) ) ),
+					'list_pad'          => $ds_prg_unit( __( 'Item padding', 'ds-toolkit' ), 8, 48, array( 'responsive' => true, 'placeholder' => '20' ) ),
+					'list_gap'          => $ds_prg_unit( __( 'Gap between items', 'ds-toolkit' ), 0, 48, array( 'placeholder' => '12' ) ),
+				),
+			),
+			'list_text_sec' => array(
+				'title'  => __( 'List text', 'ds-toolkit' ),
+				'fields' => array(
+					'list_title_tag'   => array( 'type' => 'select', 'label' => __( 'Title tag', 'ds-toolkit' ), 'default' => 'h3', 'options' => array( 'h2' => 'h2', 'h3' => 'h3', 'h4' => 'h4', 'p' => 'p' ) ),
+					'list_title_typo'  => array( 'type' => 'typography', 'label' => __( 'Title typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-programs-item-title' ) ),
+					'list_title_case'  => array( 'type' => 'select', 'label' => __( 'Title case', 'ds-toolkit' ), 'default' => 'upper', 'options' => array( 'upper' => __( 'UPPERCASE', 'ds-toolkit' ), 'none' => __( 'As written', 'ds-toolkit' ) ) ),
+					'list_title_color' => $ds_prg_colour( __( 'Title colour', 'ds-toolkit' ) ),
+					'list_meta_color'  => $ds_prg_colour( __( 'Location, date and sub-program colour', 'ds-toolkit' ) ),
+					'list_chip_bg'     => $ds_prg_colour( __( 'Chip background', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
+					'list_chip_color'  => $ds_prg_colour( __( 'Chip text', 'ds-toolkit' ) ),
+					'list_chip_first'  => array( 'type' => 'select', 'label' => __( 'First chip', 'ds-toolkit' ), 'default' => 'dark', 'options' => array( 'dark' => __( 'Dark, accent text', 'ds-toolkit' ), 'same' => __( 'Same as the others', 'ds-toolkit' ) ) ),
+					'list_price_color' => $ds_prg_colour( __( 'Price colour', 'ds-toolkit' ) ),
+				),
+			),
+			'site_sec' => array(
+				'title'       => __( 'Per-site styles', 'ds-toolkit' ),
+				'description' => __( 'For a page that lists programs from more than one LeagueApps site: give each site its own Register button colours, row background, accent and placeholder logo. Works in every layout; accent and logo are List-only.', 'ds-toolkit' ),
+				'fields'      => array(
+					'site_styles' => array(
+						'type'         => 'form',
+						'form'         => 'ds_programs_site_form',
+						'preview_text' => 'ss_site',
+						'multiple'     => true,
+						'label'        => __( 'Site', 'ds-toolkit' ),
+						'default'      => array(),
 					),
 				),
 			),
