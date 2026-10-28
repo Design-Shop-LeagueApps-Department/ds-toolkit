@@ -55,6 +55,13 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 
 	/** Beaver Builder runs this whenever the module's settings are saved (all versions): sign any pending "Manage entries" changes for the saving user. */
 	public function update( $settings ) {
+		// The Custom layout's HTML is printed as written, like Beaver Builder's own HTML module. Someone saving
+		// without unfiltered_html (an Author or Editor on a site that grants them the builder) gets the same
+		// filtering WordPress applies to their post content; administrators and scripts are unchanged.
+		if ( is_object( $settings ) && isset( $settings->loop_custom ) && is_string( $settings->loop_custom )
+			&& get_current_user_id() && ! current_user_can( 'unfiltered_html' ) ) {
+			$settings->loop_custom = wp_kses_post( $settings->loop_custom );
+		}
 		return class_exists( 'DS_Loop_Manager' ) ? DS_Loop_Manager::stamp_settings( $settings ) : $settings;
 	}
 
@@ -577,6 +584,8 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	/** A round contact/social icon link. */
 	private function contact_icon( $href, $svg, $label ) {
 		if ( '' === trim( (string) $href ) ) { return ''; }
+		// Staff links come from post meta: drop javascript:/data: and other unsafe schemes, keep everything else as typed.
+		$href = wp_kses_bad_protocol( (string) $href, wp_allowed_protocols() );
 		return '<a class="ds-people-ico" href="' . esc_attr( $href ) . '" aria-label="' . esc_attr( $label ) . '" target="_blank" rel="noopener noreferrer">' . $svg . '</a>';
 	}
 

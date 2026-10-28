@@ -72,14 +72,12 @@ class DS_MCP_Server {
     // -------------------------------------------------------------------------
 
     /**
-     * Check if a tool group is enabled. Defaults to true if the key isn't set yet.
+     * Check if a tool group is enabled. A missing key counts as OFF (it used to count as on; every site saves
+     * all eleven switches, off by default, so nothing that works today changes).
      */
     private function is_group_enabled( $key ) {
-        static $settings = null;
-        if ( $settings === null ) {
-            $settings = get_option( 'ds_toolkit_settings', array() );
-        }
-        return ! isset( $settings[ $key ] ) || ! empty( $settings[ $key ] );
+        $settings = get_option( 'ds_toolkit_settings', array() ); // WordPress keeps options in memory already
+        return is_array( $settings ) && ! empty( $settings[ $key ] ); // fail closed: a group is on only when its switch is saved on
     }
 
     /**
@@ -107,6 +105,38 @@ class DS_MCP_Server {
             return $this->rpc_error( $id, -32603, 'Insufficient permissions — manage_options + ' . DS_TOOLKIT_ADMIN_DOMAIN . ' account required' );
         }
         return null;
+    }
+
+    /**
+     * Why the current user may not create (or, with $post, change) a post with these values, or '' when they
+     * may. The WordPress rules for the post type itself: its create/publish/edit-others capabilities, a
+     * known status, and, for anyone who is not an administrator, only public post types (an Author could
+     * otherwise create a Themer layout, which runs on every page).
+     */
+    private function post_rule_error( $post_type, $status = null, $author = null, $post = null ) {
+        $pto = get_post_type_object( $post_type );
+        if ( ! $pto ) {
+            return 'Unknown post type: ' . $post_type;
+        }
+        if ( ! current_user_can( 'manage_options' ) && empty( $pto->public ) ) {
+            return 'Only public post types can be written through MCP without manage_options';
+        }
+        if ( ! $post && ! current_user_can( $pto->cap->create_posts ) ) {
+            return 'Insufficient permissions to create ' . $post_type;
+        }
+        if ( null !== $status ) {
+            if ( ! in_array( $status, array( 'draft', 'pending', 'publish', 'private', 'future' ), true ) ) {
+                return 'Unsupported status: ' . $status . ' (draft, pending, publish, private or future)';
+            }
+            $was = $post ? $post->post_status : 'draft';
+            if ( in_array( $status, array( 'publish', 'private', 'future' ), true ) && $status !== $was && ! current_user_can( $pto->cap->publish_posts ) ) {
+                return 'Insufficient permissions to publish ' . $post_type;
+            }
+        }
+        if ( null !== $author && (int) $author !== get_current_user_id() && ! current_user_can( $pto->cap->edit_others_posts ) ) {
+            return 'Insufficient permissions to set another author';
+        }
+        return '';
     }
 
     /**
@@ -208,6 +238,30 @@ class DS_MCP_Server {
     private function handle_tools_call( $id, $params ) {
         $name      = isset( $params['name'] ) ? $params['name'] : '';
         $arguments = isset( $params['arguments'] ) ? $params['arguments'] : array();
+        if ( ! is_string( $name ) || ! is_array( $arguments ) ) {
+            return $this->rpc_error( $id, -32602, 'Invalid params: name (string) and arguments (object)' );
+        }
+
+        // The route only asks for edit_posts, so a tool that changes or reads site-wide things also needs the
+        // capability WordPress itself asks for on the matching admin screen. Administrators have all of these,
+        // so nothing changes for them; an Author or Editor no longer reaches users, menus or maintenance.
+        $needs = array(
+            'list_users'              => 'list_users',
+            'get_user'                => 'list_users',
+            'list_menus'              => 'edit_theme_options',
+            'get_menu'                => 'edit_theme_options',
+            'set_menu_items'          => 'edit_theme_options',
+            'assign_menu_to_location' => 'edit_theme_options',
+            'flush_rewrite_rules'     => 'manage_options',
+            'flush_cache'             => 'manage_options',
+            'delete_transients'       => 'manage_options',
+            'regenerate_thumbnails'   => 'manage_options',
+            'list_media'              => 'upload_files',
+            'get_media'               => 'upload_files',
+        );
+        if ( isset( $needs[ $name ] ) && ! current_user_can( $needs[ $name ] ) ) {
+            return $this->rpc_error( $id, -32603, 'Insufficient permissions: ' . $needs[ $name ] . ' required' );
+        }
 
         switch ( $name ) {
             // Posts & Pages / CPT
@@ -300,6 +354,7 @@ class DS_MCP_Server {
             'post_type'      => $post_type,
             'posts_per_page' => ! empty( $args['per_page'] ) ? min( (int) $args['per_page'], 100 ) : 20,
             'post_status'    => ! empty( $args['status'] ) ? sanitize_key( $args['status'] ) : 'any',
+            'perm'           => 'readable', // drafts and private posts only for users who may read them
             'orderby'        => 'date',
             'order'          => 'DESC',
         );
@@ -337,6 +392,9 @@ class DS_MCP_Server {
         }
         if ( ! $this->is_group_enabled( $this->group_for_post_type( $post->post_type ) ) ) {
             return $this->group_disabled_error( $id, $this->group_for_post_type( $post->post_type ) );
+        }
+        if ( ! current_user_can( 'read_post', $post->ID ) ) {
+            return $this->rpc_error( $id, -32603, 'Insufficient permissions to read post ' . $post->ID );
         }
         $taxonomies  = get_object_taxonomies( $post->post_type );
         $terms_data  = array();
@@ -377,6 +435,10 @@ class DS_MCP_Server {
         }
         if ( ! current_user_can( 'publish_posts' ) ) {
             return $this->rpc_error( $id, -32603, 'Insufficient permissions — publish_posts required' );
+        }
+        $rule = $this->post_rule_error( $post_type, sanitize_key( isset( $args['status'] ) ? $args['status'] : 'draft' ), ! empty( $args['post_author'] ) ? absint( $args['post_author'] ) : null );
+        if ( '' !== $rule ) {
+            return $this->rpc_error( $id, -32603, $rule );
         }
         $post_data = array(
             'post_title'   => sanitize_text_field( isset( $args['title'] ) ? $args['title'] : 'Untitled' ),
@@ -424,6 +486,10 @@ class DS_MCP_Server {
         }
         if ( ! current_user_can( 'edit_post', $post->ID ) ) {
             return $this->rpc_error( $id, -32603, 'Insufficient permissions to edit post ' . $post->ID );
+        }
+        $rule = $this->post_rule_error( $post->post_type, isset( $args['status'] ) ? sanitize_key( $args['status'] ) : null, isset( $args['post_author'] ) ? absint( $args['post_author'] ) : null, $post );
+        if ( '' !== $rule ) {
+            return $this->rpc_error( $id, -32603, $rule );
         }
         $post_data = array( 'ID' => $post->ID );
         if ( isset( $args['title'] ) )         $post_data['post_title']   = sanitize_text_field( $args['title'] );
@@ -492,6 +558,11 @@ class DS_MCP_Server {
                 $results[] = array( 'index' => $index, 'error' => 'Group disabled for post type: ' . $post_type );
                 continue;
             }
+            $rule = $this->post_rule_error( $post_type, sanitize_key( isset( $item['status'] ) ? $item['status'] : 'draft' ), ! empty( $item['post_author'] ) ? absint( $item['post_author'] ) : null );
+            if ( '' !== $rule ) {
+                $results[] = array( 'index' => $index, 'error' => $rule );
+                continue;
+            }
             $post_data = array(
                 'post_title'   => sanitize_text_field( isset( $item['title'] ) ? $item['title'] : 'Untitled' ),
                 'post_content' => wp_kses_post( isset( $item['content'] ) ? $item['content'] : '' ),
@@ -546,6 +617,11 @@ class DS_MCP_Server {
             }
             if ( ! current_user_can( 'edit_post', $post->ID ) ) {
                 $results[] = array( 'index' => $index, 'id' => $post->ID, 'error' => 'Insufficient permissions' );
+                continue;
+            }
+            $rule = $this->post_rule_error( $post->post_type, isset( $item['status'] ) ? sanitize_key( $item['status'] ) : null, isset( $item['post_author'] ) ? absint( $item['post_author'] ) : null, $post );
+            if ( '' !== $rule ) {
+                $results[] = array( 'index' => $index, 'id' => $post->ID, 'error' => $rule );
                 continue;
             }
             $post_data = array( 'ID' => $post->ID );
@@ -783,6 +859,9 @@ class DS_MCP_Server {
         if ( ! $post ) {
             return $this->rpc_error( $id, -32602, 'Post not found: ID ' . $post_id );
         }
+        if ( ! current_user_can( 'read_post', $post_id ) ) {
+            return $this->rpc_error( $id, -32603, 'Insufficient permissions to read post ' . $post_id );
+        }
         if ( function_exists( 'get_fields' ) ) {
             $fields = get_fields( $post_id );
             $fields = $fields ?: array();
@@ -815,6 +894,19 @@ class DS_MCP_Server {
         }
         if ( ! current_user_can( 'edit_post', $post_id ) ) {
             return $this->rpc_error( $id, -32603, 'Insufficient permissions to edit post ' . $post_id );
+        }
+        // Underscore keys are WordPress's protected meta: Beaver Builder layouts (_fl_builder_data), Themer
+        // locations, page templates. Writing them is writing code that runs on the page, so it takes an
+        // administrator who may post unfiltered HTML, as the builder itself requires.
+        $admin_html = current_user_can( 'manage_options' ) && current_user_can( 'unfiltered_html' );
+        foreach ( array_keys( $args['fields'] ) as $key ) {
+            if ( ! $admin_html && is_protected_meta( sanitize_key( $key ), 'post' ) ) {
+                return $this->rpc_error( $id, -32603, 'Insufficient permissions to write the protected field ' . sanitize_key( $key ) );
+            }
+        }
+        $rule = $this->post_rule_error( $post->post_type, null, null, $post );
+        if ( '' !== $rule ) {
+            return $this->rpc_error( $id, -32603, $rule );
         }
         $updated = array();
         if ( function_exists( 'update_field' ) ) {
@@ -2524,7 +2616,13 @@ class DS_MCP_Server {
         global $wpdb;
         $search  = $args['search'];
         $replace = $args['replace'];
-        $tables  = ! empty( $args['tables'] ) ? array_map( 'sanitize_text_field', $args['tables'] ) : array( $wpdb->posts, $wpdb->postmeta, $wpdb->options );
+        $tables  = ! empty( $args['tables'] ) ? array_map( 'sanitize_text_field', (array) $args['tables'] ) : array( $wpdb->posts, $wpdb->postmeta, $wpdb->options );
+        // Only this site's own tables, by exact name (the name is interpolated into the queries below).
+        $own    = (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $wpdb->prefix ) . '%' ) );
+        $tables = array_values( array_intersect( $tables, $own ) );
+        if ( ! $tables ) {
+            return $this->rpc_error( $id, -32602, 'No table of this site matched (tables must start with ' . $wpdb->prefix . ')' );
+        }
         $total   = 0;
         $report  = array();
         foreach ( $tables as $table ) {
@@ -2564,6 +2662,9 @@ class DS_MCP_Server {
             return $this->rpc_error( $id, -32602, 'key is required' );
         }
         $key   = sanitize_text_field( $args['key'] );
+        if ( $this->secret_option( $key ) ) {
+            return $this->rpc_error( $id, -32603, 'Option "' . $key . '" holds keys or private data and is not available through MCP.' );
+        }
         $value = get_option( $key );
         if ( false === $value ) {
             return $this->rpc_error( $id, -32602, 'Option "' . $key . '" not found.' );
@@ -2578,8 +2679,21 @@ class DS_MCP_Server {
             return $this->rpc_error( $id, -32602, 'key and value are required' );
         }
         $key     = sanitize_text_field( $args['key'] );
+        if ( $this->secret_option( $key ) ) {
+            return $this->rpc_error( $id, -32603, 'Option "' . $key . '" holds keys or private data and is not available through MCP.' );
+        }
         $updated = update_option( $key, $args['value'] );
         return $this->tool_result( $id, array( 'success' => true, 'key' => $key, 'updated' => $updated ) );
+    }
+
+    /**
+     * Options that hold key material, signed-link identities or rosters of minors: never read or written over
+     * MCP (they have their own screens with their own checks and audit trail).
+     */
+    private function secret_option( $key ) {
+        return in_array( $key, array( 'ds_la_private_keys', 'ds_la_key_audit', 'ds_hq_link', 'ds_hq_update', 'auth_key', 'secure_auth_key' ), true )
+            || 0 === strpos( $key, 'ds_la_roster' )
+            || 0 === strpos( $key, '_transient_ds_la_roster' );
     }
 
     // -------------------------------------------------------------------------

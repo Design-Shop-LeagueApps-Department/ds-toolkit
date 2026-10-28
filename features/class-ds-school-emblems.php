@@ -156,7 +156,7 @@ class DS_School_Emblems {
 		if ( is_array( $doc ) ) {
 			return $doc;
 		}
-		$res = wp_remote_get( self::INDEX_URL, array( 'timeout' => 8, 'redirection' => 0 ) );
+		$res = wp_remote_get( self::INDEX_URL, array( 'timeout' => 8, 'redirection' => 0, 'limit_response_size' => 5 * MB_IN_BYTES ) );
 		if ( ! is_wp_error( $res ) && 200 === (int) wp_remote_retrieve_response_code( $res ) ) {
 			$doc = json_decode( wp_remote_retrieve_body( $res ), true );
 			if ( is_array( $doc ) && isset( $doc['schools'] ) && is_array( $doc['schools'] ) ) {
@@ -240,8 +240,14 @@ class DS_School_Emblems {
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/media.php';
 		require_once ABSPATH . 'wp-admin/includes/image.php';
-		$tmp = download_url( self::LOGO_BASE . $school['f'], 15 );
-		if ( is_wp_error( $tmp ) ) {
+		// Streamed to a temp file with a hard 2 MB cap and no redirects (download_url() follows redirects and has
+		// no size limit: the 2 MB check below only ran after the whole file had been written).
+		$tmp = wp_tempnam( $school['f'] );
+		$res = $tmp ? wp_safe_remote_get( self::LOGO_BASE . $school['f'], array( 'timeout' => 15, 'redirection' => 0, 'stream' => true, 'filename' => $tmp, 'limit_response_size' => 2 * MB_IN_BYTES ) ) : new WP_Error( 'tmp', '' );
+		if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
+			if ( $tmp ) {
+				wp_delete_file( $tmp );
+			}
 			return new WP_Error( 'ds_school_emblem_download', 'Design Shop HQ could not be reached' );
 		}
 		// Not a byte checksum: HQ's Cloudflare (Polish) recompresses PNGs losslessly on the way out, so the bytes never

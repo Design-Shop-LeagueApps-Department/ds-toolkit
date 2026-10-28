@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HTTP
 // Run: php tests/scan-backup-archive-test.php        (plain PHP, no WordPress, no network)
 //
 // Guards the backup-archive carve-out in includes/ds-scan-engine.php.

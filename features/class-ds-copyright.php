@@ -41,7 +41,7 @@ class DS_Copyright {
             return '';
         }
 
-        $text = str_replace( '{year}', date( 'Y' ), $text );
+        $text = str_replace( '{year}', function_exists( 'wp_date' ) ? wp_date( 'Y' ) : date( 'Y' ), $text ); // the site's year, as [current_year] gives
 
         // Allow only the small set of inline tags a copyright line needs.
         return wp_kses(

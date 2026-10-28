@@ -304,6 +304,14 @@ $GLOBALS['http'] = array( new WP_Error( 'http_request_failed', 'cURL error 6: Co
 $run();
 chk( 'an unreachable server is not asked twice in one run, and says so', array( count( $GLOBALS['urls'] ), DS_Roster_Data::key_status( '52078' )['error'] ), array( 1, 'LeagueApps could not be reached.' ) );
 
+// A full rebuild whose first page is empty, on a site that had rosters, keeps them (1.11.0).
+delete_option( 'ds_la_roster_52078' ); $seed();
+$had = count( (array) ( DS_Roster_Data::store( '52078' )['teams'] ?? array() ) );
+$GLOBALS['http'] = array( array( 'code' => 200, 'body' => '[]' ) );
+$run( true );
+$st = DS_Roster_Data::key_status( '52078' );
+chk( 'a full rebuild that reads no registrations keeps the last roster and says why', array( $had > 0, count( (array) ( DS_Roster_Data::store( '52078' )['teams'] ?? array() ) ) === $had, false !== strpos( (string) ( $st['error'] ?? '' ), 'no registrations' ) ), array( true, true, true ) );
+
 function wp_list_pluck_t( $l, $f ) { return array_map( function ( $x ) use ( $f ) { return $x[ $f ]; }, $l ); }
 echo $fails ? "\n$fails FAILED\n" : "\nall passed\n";
 exit( $fails ? 1 : 0 );

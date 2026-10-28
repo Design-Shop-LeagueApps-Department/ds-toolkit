@@ -242,7 +242,10 @@ class DS_Calendar_ICS {
 	/** TEXT value escaping (RFC 5545 3.3.11). */
 	public static function esc( $s ) {
 		$s = str_replace( array( '\\', ';', ',' ), array( '\\\\', '\\;', '\\,' ), (string) $s );
-		return str_replace( array( "\r\n", "\n", "\r" ), '\\n', $s );
+		$s = str_replace( array( "\r\n", "\n", "\r" ), '\\n', $s );
+		// Other control characters are not allowed in a TEXT value; one stray byte from LeagueApps can make
+		// Google or Outlook reject the whole subscribed calendar.
+		return (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $s );
 	}
 
 	/** Lines of at most 75 octets, never splitting a UTF-8 character. */

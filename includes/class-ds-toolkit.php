@@ -366,6 +366,16 @@ class DS_Toolkit {
      * its own update (delete the asset files, then fl_builder_cache_cleared, which also purges
      * the host's page cache through BB's cache helper). One autoloaded option read per request.
      */
+    /**
+     * Backstop for every layout's CSS: a "</style" inside it can never end the <style> element it is printed in
+     * when Beaver Builder renders assets inline (the Theme Setting and Home Templates previews do). Module CSS
+     * is built from settings; a setting value that reached it unchecked could otherwise turn into script.
+     * Real CSS never contains "</style", so nothing renders differently.
+     */
+    public static function css_cannot_close_style( $css ) {
+        return ( is_string( $css ) && false !== stripos( $css, '</style' ) ) ? preg_replace( '#</(style)#i', '<\\/$1', $css ) : $css;
+    }
+
     public static function maybe_clear_builder_cache() {
         if ( DS_TOOLKIT_VERSION === get_option( 'ds_toolkit_assets_version' ) ) {
             return;
@@ -596,6 +606,7 @@ class DS_Toolkit {
         $settings = $this->maybe_set_defaults();
 
         add_action( 'init', array( __CLASS__, 'maybe_clear_builder_cache' ), 99 );
+        add_filter( 'fl_builder_render_css', array( __CLASS__, 'css_cannot_close_style' ), 99999 );
 
         // The MCP server only needs to be alive for REST requests. Defer loading the
         // 2.8k-line class file until rest_api_init fires so non-REST page loads

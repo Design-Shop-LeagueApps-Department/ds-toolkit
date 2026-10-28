@@ -243,8 +243,8 @@ class DS_Loop_Manager {
 		$o = get_post_type_object( $pt );
 		return array(
 			'post_type' => $pt,
-			'label'     => $o->labels->name,
-			'singular'  => $o->labels->singular_name,
+			'label'     => $o ? $o->labels->name : $pt, // a post type no longer registered (plugin off): its slug
+			'singular'  => $o ? $o->labels->singular_name : $pt,
 			'editor'    => post_type_supports( $pt, 'editor' ),
 			'thumbnail' => post_type_supports( $pt, 'thumbnail' ),
 			'fields'    => $fields,
@@ -280,7 +280,8 @@ class DS_Loop_Manager {
 	/** Every entry the loop can show (shown or hidden), in the loop's order. */
 	public static function list_posts( $pt, $s ) {
 		$s    = (object) $s;
-		$ob   = in_array( ( $s->order_by ?? 'date' ), array( 'date', 'title', 'menu_order', 'modified' ), true ) ? $s->order_by : 'date';
+		$ob   = $s->order_by ?? 'date';
+		$ob   = in_array( $ob, array( 'date', 'title', 'menu_order', 'modified' ), true ) ? $ob : 'date';
 		$args = array(
 			'post_type'        => $pt,
 			'post_status'      => array( 'publish', 'draft', 'pending', 'private' ),

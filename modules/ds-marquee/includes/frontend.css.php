@@ -34,6 +34,7 @@ if ( '' !== ( $settings->height_responsive ?? '' ) ) { echo "@media (max-width:{
 
 /* ---- Border (top / bottom / both) ---- */
 $bstyle = $settings->border_style ?? 'solid';
+$bstyle = in_array( $bstyle, array( 'none', 'solid', 'dashed', 'dotted' ), true ) ? $bstyle : 'solid'; // printed into CSS: options only
 $bsides = $settings->border_sides ?? 'bottom';
 // Reset both sides first so switching sides never leaves a stale edge.
 echo "$node .ds-marquee { border-top: 0; border-bottom: 0; }\n";

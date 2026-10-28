@@ -43,6 +43,8 @@ function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
 class Ed { private $im; function __construct( $f ) { $this->im = @imagecreatefromstring( file_get_contents( $f ) ); } function ok() { return (bool) $this->im; }
   function resize( $w, $h, $c ) { $sw = imagesx( $this->im ); $sh = imagesy( $this->im ); if ( $sw <= $w && $sh <= $h ) { return true; } $r = min( $w / $sw, $h / $sh ); $n = imagecreatetruecolor( (int) ( $sw * $r ), (int) ( $sh * $r ) ); imagecopyresampled( $n, $this->im, 0, 0, 0, 0, (int) ( $sw * $r ), (int) ( $sh * $r ), $sw, $sh ); $this->im = $n; return true; }
   function set_quality( $q ) {} function save( $f, $m ) { return imagejpeg( $this->im, $f, 85 ) ? array( 'path' => $f ) : new WP_Error( 'save', '' ); } }
+function add_filter( $h, $cb ) { if ( 'wp_image_editors' === $h ) { $GLOBALS['editors_seen'][] = $cb( array( 'WP_Image_Editor_Imagick', 'WP_Image_Editor_GD' ) ); } return true; }
+function remove_filter( $h, $cb ) { return true; }
 function wp_get_image_editor( $f ) { $e = new Ed( $f ); return $e->ok() ? $e : new WP_Error( 'image_no_editor', '' ); }
 // A tiny options table for the atomic lock (INSERT IGNORE / compare-and-swap UPDATE / DELETE).
 class FakeWpdb {
@@ -91,7 +93,8 @@ chk( 'local URLs for the downloaded ones only', array_keys( $loc ), array( $S3 .
 $file = $UP . '/ds-la-roster/33682/' . basename( reset( $loc ) );
 $i = getimagesize( $file );
 chk( 're-encoded as a JPEG in the site\'s own folder, 150 px', array( $i['mime'], $i[0] ), array( 'image/jpeg', 150 ) );
-chk( 'the folder has an index.php (no listing)', file_exists( $UP . '/ds-la-roster/33682/index.php' ), true );
+chk( 'the folder has an index.html (no listing), never a PHP file in uploads', array( file_exists( $UP . '/ds-la-roster/33682/index.html' ), file_exists( $UP . '/ds-la-roster/33682/index.php' ) ), array( true, false ) );
+chk( 'photos are re-encoded with GD first (Imagick keeps EXIF on a 150 px image it does not resize)', $GLOBALS['editors_seen'][0][0] ?? '', 'WP_Image_Editor_GD' );
 $GLOBALS['fetched'] = array(); $GLOBALS['cron'] = array();
 DS_Roster_Photos::want( '33682', '7', false );
 chk( 'a visitor view with everything present: no request, no job', array( count( $GLOBALS['fetched'] ), count( $GLOBALS['cron'] ) ), array( 0, 0 ) );
@@ -109,7 +112,7 @@ $mf = DS_Roster_Photos::manifest( '33682' );
 $h  = function ( $id ) use ( $S3 ) { return DS_Roster_Photos::hash( $S3 . 'profile-' . $id . '-s3.jpg' ); };
 chk( 'timeout: not recorded, asked again next run', isset( $mf['files'][ $h( 'p5eeee' ) ] ), false );
 chk( '404 and a non-image: recorded as unavailable, not asked again', array( $mf['files'][ $h( 'p6ffff' ) ]['f'] ?? 'x', $mf['files'][ $h( 'p7gggg' ) ]['f'] ?? 'x' ), array( '', '' ) );
-chk( 'nothing but images ever written to the folder', array_values( array_filter( scandir( $UP . '/ds-la-roster/33682' ), function ( $f ) { return ! preg_match( '/^(\.|\.\.|index\.php|[0-9a-f]{32}\.jpg)$/', $f ); } ) ), array() );
+chk( 'nothing but images ever written to the folder', array_values( array_filter( scandir( $UP . '/ds-la-roster/33682' ), function ( $f ) { return ! preg_match( '/^(\.|\.\.|index\.html|[0-9a-f]{32}\.jpg)$/', $f ); } ) ), array() );
 $GLOBALS['answers'] = array( array( 'code' => 200, 'body' => $png( 2000, 2000 ) ) ); $GLOBALS['fetched'] = array();
 DS_Roster_Photos::run();
 chk( 'an oversized image is refused', DS_Roster_Photos::manifest( '33682' )['files'][ $h( 'p5eeee' ) ]['f'] ?? 'x', '' );

@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HTTP
 // Run: php tests/tripwire-own-copy-test.php        (plain PHP 7.4+, no WordPress, no network)
 //
 // Guards DS_Tripwire::own_marker_md5() and its use in run_content_scan(): the REAL content scan runs

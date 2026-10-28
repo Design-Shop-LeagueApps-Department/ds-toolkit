@@ -28,7 +28,8 @@ list( $bp_md, $bp_sm ) = DS_Module_UI::breakpoints();
 $size    = $u( $settings->icon_size ?? '', 18 );
 $gap     = $u( $settings->icon_gap ?? '', 10 );
 $pad     = $u( $settings->bg_padding ?? '', 12 );
-$justify = $settings->alignment ?? 'center';
+$aligns  = array( 'flex-start', 'center', 'flex-end' ); // printed into CSS: options only
+$justify = in_array( $settings->alignment ?? 'center', $aligns, true ) ? $settings->alignment : 'center';
 
 echo "$node .ds-social { gap: {$gap}px; justify-content: {$justify}; }\n";
 echo "$node .ds-social-link svg { width: {$size}px; height: {$size}px; }\n";
@@ -61,7 +62,7 @@ if ( $show_bg ) {
 $size_md    = $settings->icon_size_medium ?? '';
 $gap_md     = $settings->icon_gap_medium ?? '';
 $pad_md     = $settings->bg_padding_medium ?? '';
-$justify_md = $settings->alignment_medium ?? '';
+$justify_md = in_array( $settings->alignment_medium ?? '', $aligns, true ) ? $settings->alignment_medium : '';
 
 if ( '' !== $size_md || '' !== $gap_md || '' !== $pad_md || '' !== $justify_md ) {
 	echo "@media (max-width: {$bp_md}px) {\n";
@@ -85,7 +86,7 @@ if ( '' !== $size_md || '' !== $gap_md || '' !== $pad_md || '' !== $justify_md )
 $size_sm    = $settings->icon_size_responsive ?? '';
 $gap_sm     = $settings->icon_gap_responsive ?? '';
 $pad_sm     = $settings->bg_padding_responsive ?? '';
-$justify_sm = $settings->alignment_responsive ?? '';
+$justify_sm = in_array( $settings->alignment_responsive ?? '', $aligns, true ) ? $settings->alignment_responsive : '';
 
 if ( '' !== $size_sm || '' !== $gap_sm || '' !== $pad_sm || '' !== $justify_sm ) {
 	echo "@media (max-width: {$bp_sm}px) {\n";

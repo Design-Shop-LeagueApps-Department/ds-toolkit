@@ -300,6 +300,7 @@ if ( 'style3' === $style ) {
 	$cl = $settings->mc_cols_large ?? '';
 	$cm = $settings->mc_cols_medium ?? '';
 	$cr = $settings->mc_cols_responsive ?? '';
+	$cl = is_scalar( $cl ) ? (string) $cl : ''; $cm = is_scalar( $cm ) ? (string) $cm : ''; $cr = is_scalar( $cr ) ? (string) $cr : '';
 	if ( '' === "{$cl}{$cm}{$cr}" ) {
 		// Legacy fixed breakpoints (pre-GH #88): unchanged rendering when no overrides set.
 		echo "@media(max-width:1024px){ $node .ds-mcard-grid{grid-template-columns:repeat(" . min( $cols, 2 ) . ",1fr);} }\n";

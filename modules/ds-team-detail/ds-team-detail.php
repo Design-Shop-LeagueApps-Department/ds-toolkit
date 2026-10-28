@@ -72,8 +72,14 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 		if ( ( $s->{ $key . '_show' } ?? 'yes' ) !== 'yes' ) { return ''; }
 		$field = trim( (string) ( $s->{ $key . '_field' } ?? '' ) );
 		if ( '' === $field ) { $field = $def_field; }
-		$raw = function_exists( 'get_field' ) ? (string) get_field( $field, $pid ) : (string) get_post_meta( $pid, $field, true );
+		$raw = function_exists( 'get_field' ) ? get_field( $field, $pid ) : get_post_meta( $pid, $field, true );
+		$raw = is_scalar( $raw ) ? (string) $raw : ''; // a repeater or array value has nothing to print here
 		if ( ! $this->has_content( $raw ) ) { return ''; }
+		// Post meta is not filtered by WordPress the way post content is: filter it like content when the
+		// team's author could not have posted unfiltered HTML (embeds and tables from admins and partners stay).
+		if ( ! user_can( (int) get_post_field( 'post_author', $pid ), 'unfiltered_html' ) ) {
+			$raw = wp_kses_post( $raw );
+		}
 		$title = (string) ( $s->{ $key . '_title' } ?? $def_title );
 		return $this->section_html( $title, $tag, apply_filters( 'the_content', $raw ) );
 	}

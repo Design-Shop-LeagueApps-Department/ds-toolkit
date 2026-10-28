@@ -83,6 +83,7 @@ if ( '' !== ( $settings->item_pad_v_responsive ?? '' ) || '' !== ( $settings->it
 
 /* ---- Dividers / border (clean grid lines: container top+left, items right+bottom) ---- */
 $dstyle = $settings->divider_style ?? 'solid';
+$dstyle = in_array( $dstyle, array( 'none', 'solid', 'dashed', 'dotted' ), true ) ? $dstyle : 'solid'; // printed into CSS: options only
 if ( 'none' === $dstyle ) {
 	echo "$node .ds-orgstats-grid { border-top: 0; border-left: 0; }\n";
 	echo "$node .ds-orgstats-item { border-right: 0; border-bottom: 0; }\n";
