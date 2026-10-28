@@ -56,7 +56,7 @@ class DS_Calendar_Module extends FLBuilderModule {
 				if ( $teams && ( 'prog' === $kind || 'deadline' === $kind ) ) {
 					return false; // a one-team calendar is that team's schedule only
 				}
-				if ( $types && 'deadline' !== $kind && ! in_array( $e['type'], $types, true ) ) {
+				if ( $types && 'deadline' !== $kind && ! DS_Calendar_Data::type_matches( $e, $types ) ) {
 					return false; // deadlines follow the Program dates switch, not the type list
 				}
 				if ( $teams ) {

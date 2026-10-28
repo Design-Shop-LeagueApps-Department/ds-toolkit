@@ -4,6 +4,18 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.13.0] - 2026-10-28
+MINOR: one new Post Loop option and two fixes. Nothing changes on an existing page until someone picks the new option.
+
+### Added
+- **Post Loop, Staff: Cards: Show Photo (Yes / No).** "No (names only)" shows every card as name, title and contact icons with no photo, whether or not the entry has a featured image; Photo Ratio hides while it is off. Default Yes, so every existing staff grid is unchanged. Asked for by Pipeline Soccer Club, who want their coaching staff listed by name with no photos.
+
+### Fixed
+- **Pages built with Beaver Builder no longer show a newly added module unstyled when Hummingbird's Critical CSS is on.** Hummingbird serves each page with a saved snapshot of the CSS it used and loads the real stylesheets only after the visitor moves the mouse or scrolls, and it never rebuilds that snapshot when the page changes. A module added later (a 4-column staff grid on Pipeline Soccer Club) showed as one column to logged-out visitors, then four after a mouse move, then one again on reload; logged-in editors never saw it. New compatibility patch (Features tab, on by default, inert without Hummingbird's Critical CSS): publishing a layout deletes that page's snapshot, so Hummingbird serves the full CSS and builds a fresh one; saving a Themer layout or saved template refreshes every page. `tests/hummingbird-critical-fix-test.php` (18 checks, mutation-checked).
+- **LeagueApps Calendar: the Event types filter keeps a program's own sessions.** LeagueApps labels the sessions of an event, camp or league Practice, Game or Other, never "Event", so a calendar set to show only Event hid every session of an event (issue #313, Supernova's tryout). A session now also counts as the type of the program whose schedule it belongs to: "Event" keeps an event's sessions, "Camp" a camp's. Club team schedules are unchanged. Cached calendars pick this up at their next hourly refresh.
+
+---
+
 ## [1.12.0] - 2026-10-28
 Follow-up to the 1.11.0 audit: the items that change what a role, a request or the scanner is allowed to do. Nothing on a page changes. MINOR under the new numbering: new rules, all of them refusing only what should never have been possible.
 

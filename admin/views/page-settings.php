@@ -25,7 +25,7 @@ if ( $dst_bp6 ) {
 $dst_grp_partner = array( $enabled, $design_academy_enabled, $school_emblems_enabled );
 $dst_grp_site    = $dst_bp6 ? array( $theme_setting_enabled, $image_optimization_enabled, $pattern_library_enabled ) : array();
 $dst_grp_site[]  = $nested_order_enabled;
-$dst_grp_dev     = array( $uabb_post_loop_fix_enabled, $defender_flywheel_reset_fix_enabled, $acf_css_vars_enabled, $getsubmenu_enabled, $current_year_enabled, $overlay_nav_enabled, $forminator_email_partner_enabled, $child_pages_enabled );
+$dst_grp_dev     = array( $uabb_post_loop_fix_enabled, $defender_flywheel_reset_fix_enabled, $hummingbird_critical_fix_enabled,$acf_css_vars_enabled, $getsubmenu_enabled, $current_year_enabled, $overlay_nav_enabled, $forminator_email_partner_enabled, $child_pages_enabled );
 
 $dst_count = function ( $arr ) {
 	return count( array_filter( $arr ) ) . ' of ' . count( $arr ) . ' on';
@@ -532,6 +532,22 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                 <input type="hidden" name="ds_toolkit_settings[defender_flywheel_reset_fix_enabled]" value="0">
                 <input type="checkbox" id="defender_flywheel_reset_fix_enabled" name="ds_toolkit_settings[defender_flywheel_reset_fix_enabled]" value="1" <?php checked( $defender_flywheel_reset_fix_enabled ); ?>>
                 <label for="defender_flywheel_reset_fix_enabled"></label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hummingbird Critical CSS, refresh a page's CSS snapshot when it is published -->
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-performance"></span></div>
+            <div class="dst-card-info">
+                <strong>Hummingbird Critical CSS: Refresh on Publish</strong>
+                <span>Hummingbird's Critical CSS serves each page with a saved snapshot of its CSS and loads the real stylesheets only when the visitor moves the mouse or scrolls. It never rebuilds that snapshot when the page changes, so a module added later shows unstyled to logged-out visitors (a 4-column grid as one column, for example). This deletes the page's snapshot whenever its layout is published; Hummingbird serves the full CSS and builds a fresh one. Saving a Themer layout or saved template refreshes every page. Inert unless Hummingbird's Critical CSS is on.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[hummingbird_critical_fix_enabled]" value="0">
+                <input type="checkbox" id="hummingbird_critical_fix_enabled" name="ds_toolkit_settings[hummingbird_critical_fix_enabled]" value="1" <?php checked( $hummingbird_critical_fix_enabled ); ?>>
+                <label for="hummingbird_critical_fix_enabled"></label>
             </div>
         </div>
     </div>
