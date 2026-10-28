@@ -1,11 +1,11 @@
 <?php
 /**
- * LeagueApps Programs, markup for both layouts: the table and the card grid.
+ * LeagueApps Programs, markup for all three layouts: the table, the card grid and the list.
  *
  * Rendered fully server-side so the listing is in the HTML (indexable, and
  * it survives a visitor on flaky mobile data). Filtering, keyword search,
  * column sorting and pagination are progressive enhancement: every row is
- * already there, the JS only hides, shows and reorders them. Both layouts
+ * already there, the JS only hides, shows and reorders them. All layouts
  * share the same row element class, data attributes and list container, so
  * the JS does not know or care which one is rendered.
  *
@@ -18,7 +18,7 @@ $rows    = $this->rows();
 $cols    = $this->chosen_columns();
 $filters = $this->chosen_filters();
 $node    = $this->node;
-$layout  = ( 'cards' === ( $s->layout ?? 'table' ) ) ? 'cards' : 'table';
+$layout  = in_array( (string) ( $s->layout ?? 'table' ), array( 'cards', 'list' ), true ) ? (string) $s->layout : 'table';
 
 $btn_text  = trim( (string) ( $s->btn_text ?? '' ) ) ?: __( 'Register', 'ds-toolkit' );
 $btn_full  = trim( (string) ( $s->btn_full_text ?? '' ) ) ?: __( 'Sold Out', 'ds-toolkit' );
@@ -133,6 +133,8 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val, $r
 	$search = array();
 	foreach ( $cols as $ckey => $c ) { if ( 'register' !== $ckey ) { $search[] = (string) ( $r[ $ckey ] ?? '' ); } }
 	$a  = ' data-i="' . (int) $i . '" data-search="' . esc_attr( strtolower( implode( ' ', array_filter( $search ) ) ) ) . '"';
+	// The LeagueApps site the program came from: Per-site styles key on it.
+	if ( '' !== (string) ( $r['siteId'] ?? '' ) ) { $a .= ' data-site="' . esc_attr( $r['siteId'] ) . '"'; }
 	foreach ( $filters as $fkey => $f ) { $a .= ' data-f-' . esc_attr( strtolower( $fkey ) ) . '="' . esc_attr( trim( (string) ( $r[ $fkey ] ?? '' ) ) ) . '"'; }
 	// A nested sub-program sorts by its main program's values, so a group moves
 	// as one block whatever column is sorted; row order settles the rest.
@@ -201,6 +203,80 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val, $r
 
 	<?php if ( empty( $rows ) ) : ?>
 		<p class="ds-programs-empty"><?php echo esc_html( $empty_txt ); ?></p>
+	<?php elseif ( 'list' === $layout ) :
+		// List roles: logo tile, then the program name as the title with its sub-program
+		// (the age group or session) under it, a line of where and when with icons, the rest
+		// of the chosen columns as chips, and price + register at the end.
+		$meta_keys = array_values( array_intersect( array_keys( $cols ), array( 'location', 'city', 'dateRange', 'startDate', 'endDate', 'month', 'days' ) ) );
+		$chip_keys = array_values( array_diff( array_keys( $cols ), $meta_keys, array( 'program', 'ageGroup', 'price', 'register' ) ) );
+		$show_logo = 'no' !== ( $s->list_logo ?? 'yes' );
+		$has_price = isset( $cols['price'] );
+		$has_btn   = isset( $cols['register'] );
+		$link_name = 'yes' === ( $s->link_program ?? 'no' );
+		$item_tag  = $s->list_title_tag ?? 'h3';
+		$item_tag  = in_array( $item_tag, array( 'h2', 'h3', 'h4', 'p' ), true ) ? $item_tag : 'h3';
+		$icon_pin  = '<svg class="ds-programs-item-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 1.5a4.75 4.75 0 00-4.75 4.75c0 3.4 4.1 7.86 4.27 8.05a.65.65 0 00.96 0c.17-.19 4.27-4.65 4.27-8.05A4.75 4.75 0 008 1.5zm0 6.6a1.85 1.85 0 110-3.7 1.85 1.85 0 010 3.7z"/></svg>';
+		$icon_cal  = '<svg class="ds-programs-item-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M5 1.25a.75.75 0 01.75.75v.75h4.5V2a.75.75 0 011.5 0v.75h.75A2 2 0 0114.5 4.75v7.5a2 2 0 01-2 2h-9a2 2 0 01-2-2v-7.5a2 2 0 012-2h.75V2A.75.75 0 015 1.25zM3 7v5.25c0 .28.22.5.5.5h9a.5.5 0 00.5-.5V7H3z"/></svg>';
+		?>
+	<div class="ds-programs-list" data-ds-programs-list>
+		<?php foreach ( $rows as $i => $r ) :
+			$title = esc_html( (string) $r['program'] );
+			if ( $link_name && ! empty( $r['programUrl'] ) ) { $title = '<a class="ds-programs-link" href="' . esc_url( $r['programUrl'] ) . '" target="_blank" rel="noopener">' . $title . '</a>'; }
+			$sub = trim( (string) ( $r['ageGroup'] ?? '' ) );
+			list( $logo_url, $logo_src ) = $show_logo ? $this->logo_for( $r ) : array( '', '' );
+			?>
+			<article class="ds-programs-row ds-programs-item<?php echo $show_logo ? ' has-logo' : ''; echo ! empty( $r['soldOut'] ) ? ' is-soldout' : ''; echo ! empty( $r['canceled'] ) ? ' is-canceled' : ''; echo ! empty( $r['isMaster'] ) ? ' is-master' : ''; echo ! empty( $r['parentId'] ) ? ' is-child' : ''; ?>"<?php echo $row_attrs( $i, $r ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $row_attrs ?>>
+				<?php if ( $show_logo ) : ?>
+					<span class="ds-programs-item-logo<?php echo 'feed' === $logo_src ? ' is-feed' : ' is-placeholder'; ?>">
+						<?php if ( '' !== $logo_url ) : ?>
+							<img src="<?php echo esc_url( $logo_url ); ?>" alt="" loading="lazy" decoding="async" width="150" height="150">
+						<?php else : // No logo anywhere: the program's initial keeps every row aligned. ?>
+							<span class="ds-programs-item-initial" aria-hidden="true"><?php echo esc_html( function_exists( 'mb_substr' ) ? mb_substr( (string) $r['program'], 0, 1 ) : substr( (string) $r['program'], 0, 1 ) ); ?></span>
+						<?php endif; ?>
+					</span>
+				<?php endif; ?>
+				<div class="ds-programs-item-main">
+					<<?php echo $item_tag; ?> class="ds-programs-item-title"><?php echo $title; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above ?></<?php echo $item_tag; ?>>
+					<?php if ( '' !== $sub ) : ?><p class="ds-programs-item-sub"><?php echo esc_html( $sub ); ?></p><?php endif; ?>
+					<?php
+					$meta = '';
+					foreach ( $meta_keys as $mkey ) {
+						$v = trim( (string) ( $r[ $mkey ] ?? '' ) );
+						if ( '' === $v ) { continue; }
+						$icon  = in_array( $mkey, array( 'location', 'city' ), true ) ? $icon_pin : $icon_cal;
+						$meta .= '<li class="ds-programs-item-meta-' . esc_attr( $mkey ) . '">' . $icon . '<span>' . esc_html( $v ) . '</span></li>';
+					}
+					if ( '' !== $meta ) { echo '<ul class="ds-programs-item-meta">' . $meta . '</ul>'; } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above
+					$chips = '';
+					foreach ( $chip_keys as $ckey ) {
+						$v = trim( (string) ( $r[ $ckey ] ?? '' ) );
+						if ( 'spots' === $ckey ) {
+							// Only a real count: blank means no cap, and a cancelled session has none to take.
+							if ( '' === $v || ! empty( $r['canceled'] ) || ! is_numeric( $v ) ) { continue; }
+							/* translators: %d: places left */
+							$v = sprintf( _n( '%d spot left', '%d spots left', (int) $v, 'ds-toolkit' ), (int) $v );
+						}
+						if ( '' === $v ) { continue; }
+						$chips .= '<li class="ds-programs-chip ds-programs-chip--' . esc_attr( $ckey ) . '">' . esc_html( $v ) . '</li>';
+					}
+					if ( '' !== $chips ) { echo '<ul class="ds-programs-item-chips">' . $chips . '</ul>'; } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above
+					?>
+				</div>
+				<?php if ( $has_price || $has_btn ) : ?>
+				<div class="ds-programs-item-action">
+					<?php if ( $has_price && '' !== trim( (string) $r['price'] ) ) : ?><span class="ds-programs-item-price"><?php echo esc_html( $r['price'] ); ?></span><?php endif; ?>
+					<?php if ( $has_btn ) { echo $cell( 'register', $r ); } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in $cell ?>
+				</div>
+				<?php endif; ?>
+			</article>
+		<?php endforeach; ?>
+	</div>
+
+	<p class="ds-programs-none" data-ds-programs-none hidden><?php echo esc_html( $none_txt ); ?></p>
+	<?php if ( $page_size > 0 ) : ?>
+		<nav class="ds-programs-pager" data-ds-programs-pager aria-label="<?php esc_attr_e( 'Pagination', 'ds-toolkit' ); ?>" hidden></nav>
+	<?php endif; ?>
+
 	<?php elseif ( 'cards' === $layout ) :
 		// Card roles: the program name is the title, the age group a badge, price and
 		// the register button sit in the footer, everything else the editor chose is a

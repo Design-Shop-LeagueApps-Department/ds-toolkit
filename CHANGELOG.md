@@ -4,6 +4,16 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [Unreleased] - planned 1.14.0
+MINOR: a new layout and a new style section for LeagueApps Programs. Nothing changes on an existing page until someone picks them; table and card rows only gain a `data-site` attribute. Running on pllplay.com /test-page/ as 1.14.0-rc.1 since 2026-10-29.
+
+### Added
+- **LeagueApps Programs: List layout (Style > Layout > List).** One wide card per program: a logo tile, the program name as the title with its sub-program (age group or session) under it, location and dates with icons, the other chosen columns as chips (the first one dark with accent text), and price with the Register button at the end. On phones the price and button drop under the text, full width. Same filters, search, sort and paging as the table. Its own List and List text sections (logo size, accent edge, background, border, radius, shadow, padding, gap, title tag, typography and case, meta, chip and price colours).
+- **Program logos from LeagueApps.** The feed's `programLogo150` is now read (a sub-program without one takes its main program's) and shown in the List layout on a white tile. LeagueApps leaves it blank on most programs (10 of 169 on PLL Play Tournaments), so the fallback is the site's placeholder, then a module-wide default placeholder, then the program's initial so rows stay aligned.
+- **LeagueApps Programs: Per-site styles (every layout).** For a page that lists programs from several LeagueApps sites (PLL Play: a tournaments site and one site per local league, each its own brand): a row per site sets its Register button background and text, its row background, its accent (List edge and tile) and its placeholder logo. Button text left blank picks white or near-black, whichever reads on the background; hover is 12% darker. Cancelled chips and sold-out chips with their own colours are never restyled. `tests/programs-list-layout-test.php` (33 checks, mutation-checked).
+
+---
+
 ## [1.13.0] - 2026-10-28
 MINOR: one new Post Loop option and two fixes. Nothing changes on an existing page until someone picks the new option.
 
