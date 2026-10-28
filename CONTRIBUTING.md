@@ -55,6 +55,10 @@ A feature missing steps 1-3 is dead code. The PR checklist enforces this.
 - Add a `CHANGELOG.md` entry under a new version heading.
 - Bump `DS_TOOLKIT_VERSION` in **both** places in `ds-toolkit.php` (the header
   comment and the `define()`), as the **final commit** on your branch.
+- In that same final commit, regenerate `includes/release-hashes.txt`
+  (`designshophq/tools/release/release-hashes.sh <plugin-dir>`). Every site checks
+  its own toolkit folder against it; `sign-release.sh` refuses a release whose list
+  does not match its PHP files.
 - Open the PR into `main`. Maintainers squash-merge; publishing a GitHub Release
   builds the zip. Sites are offered the update only once the release is signed
   (`designshophq/tools/release/sign-release.sh <version>`): since 1.11.0 every install

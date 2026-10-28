@@ -849,8 +849,13 @@ class DS_Tripwire {
     private static function remote_list( $which ) {
         $which = ( 'deny' === $which ) ? 'deny' : 'allow';
         $named = ( 'deny' === $which );
-        $key   = 'ds_tripwire_rl_' . $which;
-        $good  = 'ds_tripwire_rlg_' . $which;
+        // The ALLOW list silences findings, so since 1.12.0 it must carry a signature by the release key
+        // (tripwire-allow.md5.sig, see lists/README.md): without one a commit to main could no longer switch
+        // detection off fleet-wide. New cache keys, so a copy an older version cached unsigned is never used.
+        // The deny list only names findings the engine already scored, so it stays unsigned.
+        $signed = ! $named;
+        $key   = ( $signed ? 'ds_tripwire_rl2_' : 'ds_tripwire_rl_' ) . $which;
+        $good  = ( $signed ? 'ds_tripwire_rlg2_' : 'ds_tripwire_rlg_' ) . $which;
         $day   = defined( 'DAY_IN_SECONDS' ) ? DAY_IN_SECONDS : 86400;
         try {
             if ( ! function_exists( 'get_transient' ) || ! function_exists( 'wp_remote_get' ) ) {
@@ -883,6 +888,8 @@ class DS_Tripwire {
                     $fail = 'too large';
                 } elseif ( '' !== $ct && 0 !== strpos( $ct, 'text/' ) ) {
                     $fail = 'not text: ' . substr( $ct, 0, 40 );
+                } elseif ( $signed && '' !== ( $sig_fail = self::remote_list_sig_fail( 'tripwire-' . $which, $body ) ) ) {
+                    $fail = $sig_fail;
                 } else {
                     $list = self::parse_md5_list( $body, $named );
                     if ( 0 === count( $list ) ) {
@@ -909,6 +916,23 @@ class DS_Tripwire {
             self::$remote_status[ $which ] = array( 'status' => 'exception: ' . substr( $e->getMessage(), 0, 60 ), 'count' => 0 );
             return array();
         }
+    }
+
+    /** Why the fetched list $name is not signed by the release key, or '' when it is. */
+    private static function remote_list_sig_fail( $name, $body ) {
+        if ( ! class_exists( 'DS_HQ_Update' ) ) {
+            require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-update.php';
+        }
+        $r = wp_remote_get( self::REMOTE_LIST_BASE . $name . '.md5.sig', array(
+            'timeout'     => self::REMOTE_TIMEOUT,
+            'redirection' => 1,
+            'sslverify'   => true,
+            'user-agent'  => 'DS-Tripwire/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '?' ),
+        ) );
+        if ( is_wp_error( $r ) || 200 !== (int) wp_remote_retrieve_response_code( $r ) ) {
+            return 'unsigned (' . ( is_wp_error( $r ) ? 'no signature' : 'signature http ' . (int) wp_remote_retrieve_response_code( $r ) ) . ')';
+        }
+        return DS_HQ_Update::list_sig_ok( $name, hash( 'sha256', (string) $body ), (string) wp_remote_retrieve_body( $r ) ) ? '' : 'bad signature';
     }
 
     /**
@@ -1076,7 +1100,7 @@ class DS_Tripwire {
                     if ( ++$seen > self::WALK_CAP ) return;
                     $name = $f->getFilename();
                     $path = $f->getPathname();
-                    if ( false !== strpos( $path, '/.quarantine-' ) || false !== strpos( $path, '/.sucuriquarantine/' ) ) continue;
+                    if ( preg_match( '#^/(\.quarantine-[0-9]+[a-z]?|\.sucuriquarantine)(/|$)#i', substr( $path, strlen( rtrim( $root, '/' ) ) ) ) ) continue; // cleanup quarantines at the web root only (1.12.0)
                     if ( $f->isDir() && '.sys_cache_log' === $name ) {
                         $out[] = 'Self-resurrecting BypassServ shell nest: ' . $path . '. It restores deleted copies from its other nests, so every nest must go in one pass.';
                     } elseif ( $f->isFile() && preg_match( self::SHELL_NAMES, $name ) ) {
@@ -1311,8 +1335,8 @@ class DS_Tripwire {
      *   fw-check-site-v2.sh to show. There is no fleet manifest here to clear dual-use vendor code,
      *   and an alert that fires on clean sites is an alert nobody reads;
      * - this file and the engine are exempt by exact PATH, never by content (an attacker can copy a
-     *   string), and the whole plugin directory is verified against the sha256 list the release
-     *   workflow ships as includes/release-hashes.txt;
+     *   string), and the whole plugin directory is verified against the sha256 list the
+     *   release ships as includes/release-hashes.txt (generated before the version commit, checked by sign-release.sh);
      * - a run that dies (memory, time) leaves in_progress set; the next run counts it, and after two
      *   in a row skips 250 files past the cursor with a smaller tokenize cap, so a poison file
      *   cannot kill every hour forever. A clean finish resets the counter.
@@ -1453,7 +1477,14 @@ class DS_Tripwire {
                 }
             }
         }
+        $quiet_build = self::prelaunch();
         foreach ( $integrity as $pair ) {
+            // A temp-URL build (our demo, the blueprints) runs branch files copied in by hand on purpose: recorded for
+            // HQ, never mailed, the same rule as the other build-shaped findings. A launched site always mails.
+            if ( $quiet_build ) {
+                $record[] = 'REVIEW: ' . $pair[1];
+                continue;
+            }
             $record[] = 'CRIT: ' . $pair[1];
             $key      = md5( $pair[1] );
             if ( empty( $alerted[ $key ] ) || ( time() - (int) $alerted[ $key ] ) > DAY_IN_SECONDS ) {
@@ -1534,6 +1565,28 @@ class DS_Tripwire {
      * uploads (minus page-builder cache folders) and mu-plugins. Symlinked directories are not
      * descended: on Flywheel wp-admin and wp-includes point at the root-owned platform core.
      */
+    /** Paths the content walk never reads (see content_candidates()). Public for the tests. */
+    public static function content_skip( $p, $root ) {
+        $p    = str_replace( '\\', '/', (string) $p );
+        $root = rtrim( str_replace( '\\', '/', (string) $root ), '/' );
+        $rel  = ( 0 === strpos( $p, $root . '/' ) ) ? substr( $p, strlen( $root ) + 1 ) : ltrim( $p, '/' );
+        // Cleanup quarantines: ours is <root>/.quarantine-YYYYMMDD/, Sucuri's <root>/.sucuriquarantine/.
+        if ( preg_match( '#^(\.quarantine-[0-9]+[a-z]?|\.sucuriquarantine)/#i', $rel ) ) {
+            return true;
+        }
+        // Front-end build dependencies a vendor shipped inside its own plugin or theme.
+        if ( preg_match( '#^wp-content/(plugins|themes)/[^/]+/(.*/)?node_modules/#', $rel ) ) {
+            return true;
+        }
+        // WordPress's update scratch and rollback store, for copies of THIS plugin only.
+        if ( preg_match( '#^wp-content/upgrade-temp-backup/plugins/ds-toolkit/#', $rel )
+            || preg_match( '#^wp-content/upgrade/[^/]*/ds-toolkit/#', $rel )
+            || preg_match( '#^wp-content/upgrade/(\.dstk-new\.[0-9]+|ds-toolkit[^/]*)/#', $rel ) ) {
+            return true;
+        }
+        return false;
+    }
+
     public static function content_candidates( $root ) {
         $recent = array();
         $rest   = array();
@@ -1559,8 +1612,14 @@ class DS_Tripwire {
                 // ds-scan-engine.php, 140 on class-ds-tripwire.php) for carrying the campaign markers
                 // it hunts for. Seen on somerssports.org 2026-09-17 17:15 and oklahomabasketballacademy.com
                 // 5 times in one evening; it would have fired on every fleet site after each update.
-                if ( false !== strpos( $p, '/.quarantine' ) || false !== strpos( $p, '/.sucuriquarantine/' ) || false !== strpos( $p, '/node_modules/' )
-                    || false !== strpos( $p, '/upgrade-temp-backup/' ) || false !== strpos( $p, '/wp-content/upgrade/' ) ) { continue; }
+                //
+                // 1.12.0 narrowed every skip to the place that needed it. Before, ANY path containing "/.quarantine",
+                // "/node_modules/", "/upgrade-temp-backup/" or "/wp-content/upgrade/" was never read, so a shell
+                // dropped into uploads/.quarantine-1/ or wp-content/upgrade/ was invisible. Now skipped: the
+                // cleanup quarantine folders at the WEB ROOT only, node_modules inside a plugin or theme only, and
+                // in the two update folders only copies of THIS plugin (its tests ship web-shell fixtures). Other
+                // plugins' rollback copies are read and cleared by hash like any vendor file.
+                if ( self::content_skip( $p, $root ) ) { continue; }
                 if ( ! $f->isFile() ) { continue; }
                 $depth1     = ( dirname( $p ) === $root );
                 $in_uploads = ( 0 === strpos( $p, $uploads . '/' ) );

@@ -24,16 +24,11 @@ class DS_Toolkit_Admin {
     }
 
     /**
-     * Returns true only for users whose email matches DS_TOOLKIT_ADMIN_DOMAIN.
+     * Design Shop staff (an administrator with a DS_TOOLKIT_ADMIN_DOMAIN address).
      * The DS Toolkit menu and settings page are restricted to these users.
      */
     private function is_leagueapps_user() {
-        $user = wp_get_current_user();
-        if ( ! $user || ! $user->exists() ) {
-            return false;
-        }
-        $domain = preg_quote( DS_TOOLKIT_ADMIN_DOMAIN, '/' );
-        return (bool) preg_match( '/' . $domain . '$/i', $user->user_email );
+        return DS_Toolkit::is_leagueapps_user(); // one rule: an administrator with a staff address (1.12.0)
     }
 
     public function settings_capability( $cap ) {

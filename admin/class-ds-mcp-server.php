@@ -85,12 +85,7 @@ class DS_MCP_Server {
      * Required for all destructive / schema-level MCP tools.
      */
     private function is_leagueapps_user() {
-        $user = wp_get_current_user();
-        if ( ! $user || ! $user->exists() ) {
-            return false;
-        }
-        $domain  = preg_quote( DS_TOOLKIT_ADMIN_DOMAIN, '/' );
-        return (bool) preg_match( '/' . $domain . '$/i', $user->user_email );
+        return DS_Toolkit::is_leagueapps_user(); // one rule: an administrator with a staff address (1.12.0)
     }
 
     /**

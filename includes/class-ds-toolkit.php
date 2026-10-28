@@ -298,11 +298,68 @@ class DS_Toolkit {
      * internal Theme Setting options page).
      */
     public static function is_leagueapps_user() {
-        $user = wp_get_current_user();
-        if ( ! $user || ! $user->exists() || empty( $user->user_email ) ) {
+        return self::is_leagueapps_staff( wp_get_current_user() );
+    }
+
+    /**
+     * Design Shop staff: an ADMINISTRATOR whose email ends in DS_TOOLKIT_ADMIN_DOMAIN. The email alone was the
+     * test before 1.12.0, but anyone who can manage users (the Partner role can) can type any address on an
+     * account, so the address only counts on an administrator account (or a network super admin).
+     */
+    public static function is_leagueapps_staff( $user ) {
+        if ( ! ( $user instanceof WP_User ) || ! $user->exists() || empty( $user->user_email ) ) {
             return false;
         }
-        return (bool) preg_match( '/' . preg_quote( DS_TOOLKIT_ADMIN_DOMAIN, '/' ) . '$/i', $user->user_email );
+        if ( ! preg_match( '/' . preg_quote( DS_TOOLKIT_ADMIN_DOMAIN, '/' ) . '$/i', $user->user_email ) ) {
+            return false;
+        }
+        return self::is_administrator( $user );
+    }
+
+    /** An administrator account (single site), or a super admin on multisite. Never "can delete users". */
+    public static function is_administrator( $user ) {
+        if ( ! ( $user instanceof WP_User ) || ! $user->exists() ) {
+            return false;
+        }
+        return in_array( 'administrator', (array) $user->roles, true ) || ( is_multisite() && is_super_admin( $user->ID ) );
+    }
+
+    /**
+     * Administrator accounts are managed by administrators only (1.12.0). The Partner role keeps
+     * create/edit/promote/delete users so partners run their own staff accounts, but it could also create an
+     * Administrator (who can install plugins), take over an existing one (change its email or password), or
+     * delete one. Applies to any non-administrator holding those capabilities; on a standard site only
+     * administrators have them. WP-CLI and scripts that call wp_insert_user() directly are not affected.
+     */
+    public static function editable_roles( $roles ) {
+        if ( is_array( $roles ) && ! self::is_administrator( wp_get_current_user() ) ) {
+            unset( $roles['administrator'] );
+        }
+        return $roles;
+    }
+
+    public static function protect_administrators( $caps, $cap, $user_id, $args ) {
+        if ( empty( $args[0] ) || ! in_array( $cap, array( 'edit_user', 'delete_user', 'remove_user', 'promote_user' ), true ) ) {
+            return $caps;
+        }
+        $target = get_userdata( (int) $args[0] );
+        if ( ! $target || ! in_array( 'administrator', (array) $target->roles, true ) ) {
+            return $caps;
+        }
+        return self::is_administrator( get_userdata( (int) $user_id ) ) ? $caps : array( 'do_not_allow' );
+    }
+
+    /**
+     * "New User Default Role" can only be set to Administrator by an administrator, or by a script running with no
+     * user (WP-CLI without --user): with the Partner role's manage_options it was one form post from making every
+     * new sign-up an administrator.
+     */
+    public static function guard_default_role( $value, $old ) {
+        if ( 'administrator' === $value && 'administrator' !== $old && get_current_user_id()
+            && ! self::is_administrator( wp_get_current_user() ) ) {
+            return $old;
+        }
+        return $value;
     }
 
     /**
@@ -607,6 +664,9 @@ class DS_Toolkit {
 
         add_action( 'init', array( __CLASS__, 'maybe_clear_builder_cache' ), 99 );
         add_filter( 'fl_builder_render_css', array( __CLASS__, 'css_cannot_close_style' ), 99999 );
+        add_filter( 'editable_roles', array( __CLASS__, 'editable_roles' ) );
+        add_filter( 'map_meta_cap', array( __CLASS__, 'protect_administrators' ), 10, 4 );
+        add_filter( 'pre_update_option_default_role', array( __CLASS__, 'guard_default_role' ), 10, 2 );
 
         // The MCP server only needs to be alive for REST requests. Defer loading the
         // 2.8k-line class file until rest_api_init fires so non-REST page loads
