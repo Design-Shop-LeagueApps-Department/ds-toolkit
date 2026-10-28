@@ -8,12 +8,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 $t     = $module->roster();
 $yes   = function ( $k, $d = 'yes' ) use ( $settings ) { return 'yes' === ( isset( $settings->$k ) && '' !== $settings->$k ? $settings->$k : $d ); };
 $txt   = function ( $k, $d ) use ( $settings ) { return isset( $settings->$k ) && '' !== trim( (string) $settings->$k ) ? sanitize_text_field( (string) $settings->$k ) : $d; };
-$med   = in_array( (string) ( $settings->medallion ?? 'tint' ), array( 'tint', 'solid', 'ring' ), true ) ? (string) $settings->medallion : 'tint';
-$view  = in_array( (string) ( $settings->layout ?? 'cards' ), array( 'cards', 'list', 'carousel' ), true ) ? (string) $settings->layout : 'cards';
+$med   = (string) ( $settings->medallion ?? 'tint' );
+$med   = in_array( $med, array( 'tint', 'solid', 'ring' ), true ) ? $med : 'tint';
+$view  = (string) ( $settings->layout ?? 'cards' );
+$view  = in_array( $view, array( 'cards', 'list', 'carousel' ), true ) ? $view : 'cards';
 $list  = 'list' === $view;
 $car   = 'carousel' === $view;
 $slug  = function ( $s ) { return '' === $s ? 'none' : sanitize_title( $s ); };
-$htag  = in_array( (string) ( $settings->title_tag ?? '' ), array( 'h2', 'h3', 'h4' ), true ) ? (string) $settings->title_tag : 'h3'; // phpcs: allow-listed tag
+$htag  = (string) ( $settings->title_tag ?? '' );
+$htag  = in_array( $htag, array( 'h2', 'h3', 'h4' ), true ) ? $htag : 'h3'; // phpcs: allow-listed tag
 ?>
 <div class="dsr dsr--<?php echo esc_attr( $view ); ?><?php echo $car ? ' dsr--cards' : ''; ?> dsr--med-<?php echo esc_attr( $med ); ?>">
 <?php if ( ! $t ) : ?>

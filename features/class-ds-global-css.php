@@ -19,6 +19,8 @@ class DS_Global_CSS {
         $settings  = get_option( 'ds_toolkit_settings', array() );
         $overrides = isset( $settings['global_css_overrides'] ) ? trim( $settings['global_css_overrides'] ) : '';
         if ( $overrides ) {
+            // CSS never contains "</style"; neutralised so a saved value can only ever be CSS.
+            $overrides = preg_replace( '#</(style)#i', '<\\/$1', $overrides );
             echo '<style id="ds-toolkit-css-overrides">' . "\n" . $overrides . "\n" . '</style>' . "\n";
         }
     }

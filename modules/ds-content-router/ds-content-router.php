@@ -224,6 +224,8 @@ class DS_Content_Router_Module extends FLBuilderModule {
 			if ( ! is_string( $val ) || '' === trim( wp_strip_all_tags( $val, true ) ) && ! preg_match( '/\[[a-z_-]+|<(img|iframe|table)/i', (string) $val ) ) { continue; }
 			foreach ( $data as $sib ) { if ( is_object( $sib ) && $sib->parent === $node->parent && $sib->position >= $node->position ) { $sib->position++; } }
 			// A copy: BB hands back its cached defaults object, so two seeded areas would share one text.
+			// Post meta is not filtered like post content: an author without unfiltered_html gets content filtering.
+			if ( ! user_can( (int) get_post_field( 'post_author', $pid ), 'unfiltered_html' ) ) { $val = wp_kses_post( $val ); }
 			$t = unserialize( serialize( FLBuilderModel::get_module_defaults( 'rich-text' ) ) ); $t->type = 'rich-text'; $t->text = $val;
 			$nid = FLBuilderModel::generate_node_id();
 			$data[ $nid ] = (object) array( 'node' => $nid, 'type' => 'module', 'parent' => $node->parent, 'position' => $node->position - 1, 'settings' => $t, 'global' => false );

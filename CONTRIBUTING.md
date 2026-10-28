@@ -56,7 +56,25 @@ A feature missing steps 1-3 is dead code. The PR checklist enforces this.
 - Bump `DS_TOOLKIT_VERSION` in **both** places in `ds-toolkit.php` (the header
   comment and the `define()`), as the **final commit** on your branch.
 - Open the PR into `main`. Maintainers squash-merge; publishing a GitHub Release
-  builds and ships the update to live sites via the auto-updater.
+  builds the zip. Sites are offered the update only once the release is signed
+  (`designshophq/tools/release/sign-release.sh <version>`): since 1.11.0 every install
+  path checks the signature and refuses an unsigned or altered zip.
+
+### Version numbers: MAJOR.MINOR.PATCH (from 1.11.0)
+
+- **PATCH** (1.11.0 to 1.11.1): bug and security fixes, wording, docs. No new setting,
+  module or option. Saved pages look and behave the same, apart from the bug.
+- **MINOR** (1.11.4 to 1.12.0, PATCH back to 0): something new that changes nothing
+  already on a page: a module, a feature switch, a setting, a preset, a new default
+  for newly added blocks, a tightened permission that only refuses what should never
+  have been allowed. A release that mixes fixes and new things is MINOR.
+- **MAJOR** (1.x to 2.0.0): a change existing sites have to act on: a module removed
+  while pages still use it, a setting renamed or removed, saved data reshaped, a higher
+  minimum PHP or WordPress.
+- Pre-releases are `1.12.0-rc.1`: unsigned, offered only to local and staging sites
+  (the beta channel), never to production.
+- Before 1.11.0 every release raised the third number, new modules included (1.10.41
+  added two). Read old version numbers with that in mind.
 
 ## Architecture in one paragraph
 

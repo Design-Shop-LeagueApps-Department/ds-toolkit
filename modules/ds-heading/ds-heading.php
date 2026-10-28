@@ -137,7 +137,7 @@ class DS_Heading_Module extends FLBuilderModule {
 	 */
 	private function subheading_html( $inline_rule ) {
 		$tag = $this->settings->subheading_tag ?? 'span';
-		if ( ! array_key_exists( $tag, self::tags() ) ) { $tag = 'span'; }
+		if ( ! is_string( $tag ) || ! array_key_exists( $tag, self::tags() ) ) { $tag = 'span'; }
 
 		$txt = '<span class="ds-heading-sub-text">' . DS_Module_UI::inline( $this->settings->subheading ) . '</span>';
 		if ( $inline_rule ) {
@@ -155,7 +155,7 @@ class DS_Heading_Module extends FLBuilderModule {
 		$align = in_array( $s->alignment ?? 'left', array( 'left', 'center', 'right' ), true ) ? ( $s->alignment ?? 'left' ) : 'left';
 
 		$tag = $s->heading_tag ?? 'h2';
-		if ( ! array_key_exists( $tag, self::tags() ) ) { $tag = 'h2'; }
+		if ( ! is_string( $tag ) || ! array_key_exists( $tag, self::tags() ) ) { $tag = 'h2'; }
 
 		$sub_show  = ( $s->subheading_show ?? 'yes' ) === 'yes' && '' !== trim( (string) ( $s->subheading ?? '' ) );
 		$sub_pos   = in_array( $s->subheading_position ?? 'above', array( 'above', 'below' ), true ) ? ( $s->subheading_position ?? 'above' ) : 'above';

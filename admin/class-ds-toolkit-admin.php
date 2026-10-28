@@ -8,6 +8,10 @@ class DS_Toolkit_Admin {
     public function init() {
         add_action( 'admin_menu',            array( $this, 'add_menu' ) );
         add_action( 'admin_init',            array( $this, 'register_settings' ) );
+        // Hiding the DS Toolkit page did not stop a direct form post to options.php: that only asked for
+        // manage_options, which the Partner role has. Saving these settings now takes the same check as
+        // opening the page. Staff are unchanged.
+        add_filter( 'option_page_capability_ds_toolkit_options', array( $this, 'settings_capability' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 
         require_once DS_TOOLKIT_PATH . 'admin/class-ds-logo-finder.php';
@@ -30,6 +34,10 @@ class DS_Toolkit_Admin {
         }
         $domain = preg_quote( DS_TOOLKIT_ADMIN_DOMAIN, '/' );
         return (bool) preg_match( '/' . $domain . '$/i', $user->user_email );
+    }
+
+    public function settings_capability( $cap ) {
+        return $this->is_leagueapps_user() ? $cap : 'do_not_allow';
     }
 
     public function add_menu() {
@@ -258,18 +266,18 @@ class DS_Toolkit_Admin {
                     : $this->get_mcp_url();
                 $wp_version_ok    = version_compare( get_bloginfo( 'version' ), '5.6', '>=' );
                 $app_passwords_ok = $wp_version_ok && wp_is_application_passwords_available();
-                // Tool group toggles — default to enabled (true) if key not yet set
-                $mcp_posts_pages_enabled      = ! isset( $opts['mcp_posts_pages_enabled'] )      || ! empty( $opts['mcp_posts_pages_enabled'] );
-                $mcp_cpt_enabled              = ! isset( $opts['mcp_cpt_enabled'] )              || ! empty( $opts['mcp_cpt_enabled'] );
-                $mcp_taxonomies_enabled       = ! isset( $opts['mcp_taxonomies_enabled'] )       || ! empty( $opts['mcp_taxonomies_enabled'] );
-                $mcp_acf_enabled              = ! isset( $opts['mcp_acf_enabled'] )              || ! empty( $opts['mcp_acf_enabled'] );
-                $mcp_toolkit_settings_enabled = ! isset( $opts['mcp_toolkit_settings_enabled'] ) || ! empty( $opts['mcp_toolkit_settings_enabled'] );
-                $mcp_bb_enabled               = ! isset( $opts['mcp_bb_enabled'] )               || ! empty( $opts['mcp_bb_enabled'] );
-                $mcp_acf_schema_enabled       = ! isset( $opts['mcp_acf_schema_enabled'] )       || ! empty( $opts['mcp_acf_schema_enabled'] );
-                $mcp_menus_enabled            = ! isset( $opts['mcp_menus_enabled'] )            || ! empty( $opts['mcp_menus_enabled'] );
-                $mcp_maintenance_enabled      = ! isset( $opts['mcp_maintenance_enabled'] )      || ! empty( $opts['mcp_maintenance_enabled'] );
-                $mcp_options_enabled          = ! isset( $opts['mcp_options_enabled'] )          || ! empty( $opts['mcp_options_enabled'] );
-                $mcp_users_enabled            = ! isset( $opts['mcp_users_enabled'] )            || ! empty( $opts['mcp_users_enabled'] );
+                // Tool group toggles: a group is on only when its switch is saved on (a missing key is off)
+                $mcp_posts_pages_enabled      = ! empty( $opts['mcp_posts_pages_enabled'] );
+                $mcp_cpt_enabled              = ! empty( $opts['mcp_cpt_enabled'] );
+                $mcp_taxonomies_enabled       = ! empty( $opts['mcp_taxonomies_enabled'] );
+                $mcp_acf_enabled              = ! empty( $opts['mcp_acf_enabled'] );
+                $mcp_toolkit_settings_enabled = ! empty( $opts['mcp_toolkit_settings_enabled'] );
+                $mcp_bb_enabled               = ! empty( $opts['mcp_bb_enabled'] );
+                $mcp_acf_schema_enabled       = ! empty( $opts['mcp_acf_schema_enabled'] );
+                $mcp_menus_enabled            = ! empty( $opts['mcp_menus_enabled'] );
+                $mcp_maintenance_enabled      = ! empty( $opts['mcp_maintenance_enabled'] );
+                $mcp_options_enabled          = ! empty( $opts['mcp_options_enabled'] );
+                $mcp_users_enabled            = ! empty( $opts['mcp_users_enabled'] );
                 require DS_TOOLKIT_PATH . 'admin/views/page-mcp.php';
 
             } else {

@@ -5,6 +5,7 @@ class DS_Toolkit_Updater {
 
     private $slug = 'ds-toolkit';
     private $repo = 'Design-Shop-LeagueApps-Department/ds-toolkit';
+    private $memo = array(); // this request's answer from GitHub, per channel
 
     /**
      * Returns true if the site is a local/development environment.
@@ -19,7 +20,7 @@ class DS_Toolkit_Updater {
         if ( defined( 'WP_ENVIRONMENT_TYPE' ) ) {
             return WP_ENVIRONMENT_TYPE !== 'production';
         }
-        $host = parse_url( get_site_url(), PHP_URL_HOST );
+        $host = (string) parse_url( get_site_url(), PHP_URL_HOST );
         return (bool) preg_match( '/\.(local|test|dev)$|^localhost$|^127\.|^192\.168\./', $host );
     }
 
@@ -30,6 +31,7 @@ class DS_Toolkit_Updater {
         // on the Plugins page and Dashboard without needing WP-Cron to have run first.
         add_filter( 'site_transient_update_plugins', array( $this, 'inject_update_info' ) );
         add_filter( 'plugins_api', array( $this, 'plugin_info' ), 10, 3 );
+        add_filter( 'upgrader_pre_download', array( $this, 'verify_package' ), 10, 4 );
         add_filter( 'upgrader_source_selection', array( $this, 'fix_source_dir' ), 10, 4 );
         add_filter( 'plugin_action_links_' . $this->plugin_file(), array( $this, 'add_check_update_link' ) );
         add_action( 'admin_init', array( $this, 'handle_check_update' ) );
@@ -136,7 +138,7 @@ class DS_Toolkit_Updater {
     }
 
     public function plugin_info( $result, $action, $args ) {
-        if ( $action !== 'plugin_information' || $args->slug !== $this->slug ) {
+        if ( $action !== 'plugin_information' || ! isset( $args->slug ) || $args->slug !== $this->slug ) {
             return $result;
         }
 
@@ -230,6 +232,9 @@ class DS_Toolkit_Updater {
         }
         delete_transient( 'ds_toolkit_latest_release' );
         delete_transient( 'ds_toolkit_latest_release_beta' );
+        delete_transient( 'ds_toolkit_latest_release_fail' );
+        delete_transient( 'ds_toolkit_latest_release_beta_fail' );
+        $this->memo = array();
         delete_site_transient( 'update_plugins' );
         wp_update_plugins();
         wp_safe_redirect( admin_url( 'plugins.php' ) );
@@ -244,14 +249,83 @@ class DS_Toolkit_Updater {
      * asset isn't attached (yet), return '' and the caller skips the update.
      */
     private function get_download_url( $release ) {
+        $zip    = '';
+        $signed = false;
         if ( ! empty( $release['assets'] ) ) {
             foreach ( $release['assets'] as $asset ) {
-                if ( isset( $asset['name'] ) && $asset['name'] === $this->slug . '.zip' ) {
-                    return $asset['browser_download_url'];
+                $name = isset( $asset['name'] ) ? $asset['name'] : '';
+                if ( $name === $this->slug . '.zip' && 0 === strpos( (string) ( $asset['browser_download_url'] ?? '' ), 'https://github.com/' . $this->repo . '/releases/download/' ) ) {
+                    $zip = $asset['browser_download_url']; // only our own release address, which verify_package() checks
+                } elseif ( $name === $this->slug . '.zip.sig' ) {
+                    $signed = true;
                 }
             }
         }
-        return '';
+        // A stable release is only offered once it is signed (sign-release.sh runs after the release
+        // workflow attaches the zip), so no site is offered an update that verify_package() then refuses.
+        // Unsigned pre-releases stay available to the beta channel (local and staging sites) only.
+        $pre = ! empty( $release['prerelease'] ) || false !== strpos( (string) ( $release['tag_name'] ?? '' ), '-' );
+        if ( '' !== $zip && ! $signed && ! ( $pre && $this->is_beta_channel() ) ) {
+            return '';
+        }
+        return $zip;
+    }
+
+    /**
+     * Hooked to upgrader_pre_download: every WordPress install of a ds-toolkit release zip from GitHub
+     * ("Update now", automatic updates, `wp plugin update`, `wp plugin install <url>`, WP Engine Smart
+     * Plugin Manager, Flywheel managed updates) is checked against the release signature first, the
+     * same check the Design Shop HQ path has always made (DS_HQ_Update::release_sig_ok): an Ed25519
+     * signature by the release key over "ds-toolkit-release\n<version>\n<sha256 of the zip>", and both
+     * version lines inside the zip naming that version. Before this, a zip swapped on a release (a
+     * stolen GitHub login or token) would have installed on any site that clicked Update.
+     *
+     * Runs before WordPress touches the installed plugin, so a refusal leaves the site exactly as it
+     * was. Anything that is not our GitHub release address (a local zip from the HQ path, a manual
+     * upload, another plugin) is passed through untouched.
+     */
+    public function verify_package( $reply, $package, $upgrader = null, $hook_extra = array() ) {
+        if ( false !== $reply || ! is_string( $package ) ) {
+            return $reply;
+        }
+        $re = '#^https://github\.com/' . preg_quote( $this->repo, '#' ) . '/releases/download/v([0-9][0-9A-Za-z.\-]*)/' . preg_quote( $this->slug, '#' ) . '\.zip$#';
+        if ( ! preg_match( $re, $package, $m ) ) {
+            return $reply;
+        }
+        $version = $m[1];
+        if ( false !== strpos( $version, '-' ) && $this->is_beta_channel() ) {
+            return $reply; // unsigned pre-release on a local or staging site
+        }
+        if ( ! class_exists( 'DS_HQ_Update' ) ) {
+            require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-update.php';
+        }
+        $sr   = wp_remote_get( $package . '.sig', array( 'timeout' => 20, 'redirection' => 5 ) );
+        $code = is_wp_error( $sr ) ? 0 : (int) wp_remote_retrieve_response_code( $sr );
+        if ( 200 !== $code ) {
+            return new WP_Error( 'ds_toolkit_unsigned', sprintf( 'DS Toolkit %s: the release signature could not be read (%s). Nothing was changed.', $version, 404 === $code ? 'not published yet' : ( is_wp_error( $sr ) ? $sr->get_error_message() : 'HTTP ' . $code ) ) );
+        }
+        $sig = trim( (string) wp_remote_retrieve_body( $sr ) );
+        if ( ! function_exists( 'download_url' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+        $tmp = download_url( $package, 300 );
+        if ( is_wp_error( $tmp ) ) {
+            return $tmp;
+        }
+        $error = '';
+        if ( ! DS_HQ_Update::release_sig_ok( $version, hash_file( 'sha256', $tmp ), $sig ) ) {
+            $error = 'the zip does not match its release signature';
+        } else {
+            list( $hv, $dv ) = DS_HQ_Update::versions_in( (string) DS_HQ_Update::read_from_zip( $tmp, $this->slug . '/' . $this->slug . '.php' ) );
+            if ( $hv !== $version || $dv !== $version ) {
+                $error = "the zip's version lines say " . ( $hv ?: '?' ) . ' / ' . ( $dv ?: '?' );
+            }
+        }
+        if ( '' !== $error ) {
+            @unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+            return new WP_Error( 'ds_toolkit_signature', sprintf( 'DS Toolkit %s was not installed: %s. Nothing was changed.', $version, $error ) );
+        }
+        return $tmp; // WordPress unpacks this verified file and deletes it afterwards
     }
 
     /**
@@ -263,10 +337,18 @@ class DS_Toolkit_Updater {
     private function get_latest_release() {
         $is_beta   = $this->is_beta_channel();
         $cache_key = $is_beta ? 'ds_toolkit_latest_release_beta' : 'ds_toolkit_latest_release';
+        if ( array_key_exists( $cache_key, $this->memo ) ) {
+            return $this->memo[ $cache_key ]; // the update transient is read several times per admin page
+        }
         $cached    = get_transient( $cache_key );
 
         if ( $cached !== false && isset( $cached['tag_name'] ) ) {
-            return $cached;
+            return $this->memo[ $cache_key ] = $cached;
+        }
+        // A failed check is not retried on every admin page for 15 minutes: each retry waited up to 10 s,
+        // and GitHub's 60-an-hour anonymous limit is shared by every site on the same server.
+        if ( get_transient( $cache_key . '_fail' ) ) {
+            return $this->memo[ $cache_key ] = false;
         }
 
         // Beta channel: fetch all releases (includes pre-releases), pick the most recent.
@@ -280,26 +362,22 @@ class DS_Toolkit_Updater {
             'timeout' => 10,
         ) );
 
-        if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
-            return false;
-        }
-
-        $data = json_decode( wp_remote_retrieve_body( $response ), true );
-
+        $data = ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 )
+            ? null
+            : json_decode( wp_remote_retrieve_body( $response ), true );
         if ( $is_beta ) {
-            if ( empty( $data ) || ! isset( $data[0]['tag_name'] ) ) {
-                return false;
-            }
-            $data = $data[0];
-        } else {
-            if ( empty( $data['tag_name'] ) ) {
-                return false;
-            }
+            $data = ( is_array( $data ) && isset( $data[0]['tag_name'] ) ) ? $data[0] : null;
+        } elseif ( ! is_array( $data ) || empty( $data['tag_name'] ) ) {
+            $data = null;
+        }
+        if ( null === $data ) {
+            set_transient( $cache_key . '_fail', 1, 15 * MINUTE_IN_SECONDS );
+            return $this->memo[ $cache_key ] = false;
         }
 
         // Cache for 12 hours. "Check for Updates" clears this and fetches fresh immediately.
         set_transient( $cache_key, $data, 12 * HOUR_IN_SECONDS );
 
-        return $data;
+        return $this->memo[ $cache_key ] = $data;
     }
 }

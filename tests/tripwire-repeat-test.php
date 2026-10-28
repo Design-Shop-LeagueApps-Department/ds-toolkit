@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HTTP
 // Run: php tests/tripwire-repeat-test.php        (plain PHP 7.4+, no WordPress, no network)
 //
 // Guards WHEN the real content scan lets Design Shop HQ decide on an alert email (1.10.27). HQ may be asked only when

@@ -87,7 +87,8 @@ class DS_Module_UI {
 	/** color() wrapped in color-mix() at $opacity_pct toward transparent; '' if blank. Works on hex AND var(). */
 	public static function mix( $v, $opacity_pct ) {
 		$c = self::color( $v );
-		return $c ? "color-mix(in srgb, {$c} {$opacity_pct}%, transparent)" : '';
+		$pct = max( 0, min( 100, (int) $opacity_pct ) ); // printed into CSS: a number only
+		return $c ? "color-mix(in srgb, {$c} {$pct}%, transparent)" : '';
 	}
 
 	/**

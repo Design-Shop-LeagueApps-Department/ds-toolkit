@@ -61,7 +61,13 @@ class DS_ACF_CSS_Vars {
                 $value = $fallback;
             }
 
-            if ( ! $value ) {
+            if ( ! $value || ! is_scalar( $value ) ) {
+                continue; // an image or repeater field has no single CSS value
+            }
+            // A value is printed inside one declaration of a <style> block: it may not end the declaration or
+            // the block. Colours, sizes, font names and url()s never contain these characters.
+            $value = str_replace( array( ';', '{', '}', '<', '>', '\\' ), '', (string) $value );
+            if ( '' === trim( $value ) ) {
                 continue;
             }
 

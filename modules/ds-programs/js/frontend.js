@@ -106,8 +106,10 @@
 				var pages = Math.ceil(total / pageSize);
 				if (state.page > pages) { state.page = pages; }
 				var html = '';
+				// The Previous / Next labels come from the module settings: always inserted as text, never as HTML.
+				var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
 				var btn = function (label, page, cls, disabled, aria) {
-					return '<button type="button" class="ds-programs-page' + (cls ? ' ' + cls : '') + '" data-page="' + page + '"' + (disabled ? ' disabled' : '') + (aria ? ' aria-current="page"' : '') + '>' + label + '</button>';
+					return '<button type="button" class="ds-programs-page' + (cls ? ' ' + cls : '') + '" data-page="' + page + '"' + (disabled ? ' disabled' : '') + (aria ? ' aria-current="page"' : '') + '>' + esc(label) + '</button>';
 				};
 				html += btn(prevTxt, state.page - 1, 'ds-programs-page--prev', state.page === 1);
 				var win = [];

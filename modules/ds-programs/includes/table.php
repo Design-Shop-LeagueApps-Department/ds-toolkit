@@ -210,7 +210,8 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val, $r
 		$has_badge = isset( $cols['ageGroup'] );
 		$has_price = isset( $cols['price'] );
 		$has_btn   = isset( $cols['register'] );
-		$head_tag  = in_array( $s->card_title_tag ?? 'h3', array( 'h2', 'h3', 'h4', 'p' ), true ) ? $s->card_title_tag : 'h3';
+		$head_tag  = $s->card_title_tag ?? 'h3';
+		$head_tag  = in_array( $head_tag, array( 'h2', 'h3', 'h4', 'p' ), true ) ? $head_tag : 'h3';
 		?>
 	<div class="ds-programs-grid" data-ds-programs-list>
 		<?php foreach ( $rows as $i => $r ) : ?>

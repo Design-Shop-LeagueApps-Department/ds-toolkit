@@ -779,11 +779,13 @@ class DS_Programs_Data {
 		}
 		// The Calendar module keeps its own schedule cache; one refresh clears both.
 		do_action( 'ds_programs_flushed' );
-		// Belt and braces for database-backed rows written before the registry existed.
+		// Belt and braces for database-backed rows written before the registry existed: the fresh feed copies
+		// and their locks only (ds_programs_<md5>[_lock]). The old LIKE pattern also deleted the one-a-minute
+		// refresh throttle set just before this call (so the button could be looped), the "flushed" marker the
+		// ledger reads, the key registry and the builder's remembered seasons, levels and sports.
 		$wpdb->query(
 			"DELETE FROM {$wpdb->options}
-			  WHERE ( option_name LIKE '_transient_ds_programs_%' OR option_name LIKE '_transient_timeout_ds_programs_%' )
-			    AND option_name NOT LIKE '%\_stale'"
+			  WHERE option_name REGEXP '^_transient(_timeout)?_ds_programs_[0-9a-f]{32}(_lock)?$'"
 		);
 	}
 

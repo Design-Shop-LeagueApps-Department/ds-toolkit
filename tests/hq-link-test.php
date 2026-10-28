@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HTTP
 // Run: php tests/hq-link-test.php        (plain PHP 7.4+ with sodium, no WordPress, no network)
 //
 // Guards DS_HQ_Link (features/class-ds-hq-link.php), the Tripwire -> Design Shop HQ reporter:

@@ -1623,7 +1623,9 @@ class DS_Tripwire {
     private static function content_line( $f ) {
         $size = (int) @filesize( $f['path'] );
         $why  = isset( $f['reasons'] ) ? array_slice( (array) $f['reasons'], 0, 2 ) : array();
-        return 'Web shell by behaviour: ' . $f['path'] . ' (' . $size . ' bytes, md5 ' . substr( (string) $f['md5'], 0, 8 ) . ', score ' . (int) $f['score'] . '). '
+        // A file name can hold control characters (newlines included): shown as "?" so it cannot forge lines in the alert.
+        $path = preg_replace( '/[\x00-\x1F\x7F]/', '?', (string) $f['path'] );
+        return 'Web shell by behaviour: ' . $path . ' (' . $size . ' bytes, md5 ' . substr( (string) $f['md5'], 0, 8 ) . ', score ' . (int) $f['score'] . '). '
             . implode(' ', $why )
             . ' Quarantine it (move, never delete), then check both theme functions.php files and mu-plugins for a loader that re-creates it.';
     }

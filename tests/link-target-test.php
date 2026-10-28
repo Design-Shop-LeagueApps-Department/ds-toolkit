@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HTTP
 /**
  * DS_Card::link_parts() honours the "Open in new window" tick.
  *

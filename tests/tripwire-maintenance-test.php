@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HTTP
 // Run: php tests/tripwire-maintenance-test.php      (plain PHP 7.4+, no WordPress, no network)
 //
 // Guards the .maintenance carve-out in DS_Tripwire::scan_root().

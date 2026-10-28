@@ -238,8 +238,13 @@ class DS_Roster_Photos {
 		if ( ! wp_mkdir_p( $dir ) ) {
 			return '';
 		}
-		if ( ! file_exists( $dir . '/index.php' ) ) {
-			file_put_contents( $dir . '/index.php', "<?php\n// Silence is golden.\n" ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		// The folder guard is an index.html: a PHP file under uploads is what the fleet's own malware scanners
+		// look for. Our earlier index.php (exactly these two lines) is replaced.
+		if ( ! file_exists( $dir . '/index.html' ) ) {
+			file_put_contents( $dir . '/index.html', '' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		}
+		if ( is_file( $dir . '/index.php' ) && "<?php\n// Silence is golden.\n" === (string) @file_get_contents( $dir . '/index.php' ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions
+			@unlink( $dir . '/index.php' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 		}
 		// tempnam() + get_temp_dir(), not wp_tempnam(): that one lives in wp-admin/includes/file.php, which
 		// WP-cron does not load (the background job died there).
@@ -250,7 +255,12 @@ class DS_Roster_Photos {
 		file_put_contents( $tmp, $body ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 		$name = self::hash( $url ) . '.jpg';
 		$ok   = false;
+		// GD first: Imagick skips the resize of an image that is already 150 px or smaller and then saves it with
+		// its original EXIF/XMP, while GD always re-encodes from pixels, so nothing but the picture is kept.
+		$gd_first = function ( $editors ) { return array_values( array_unique( array_merge( array( 'WP_Image_Editor_GD' ), (array) $editors ) ) ); };
+		add_filter( 'wp_image_editors', $gd_first );
 		$ed   = function_exists( 'wp_get_image_editor' ) ? wp_get_image_editor( $tmp ) : new WP_Error( 'no_editor', '' );
+		remove_filter( 'wp_image_editors', $gd_first );
 		if ( ! is_wp_error( $ed ) ) {
 			$ed->resize( self::OUT, self::OUT, false ); // never larger than LeagueApps' 150
 			$ed->set_quality( 85 );

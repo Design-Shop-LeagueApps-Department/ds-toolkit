@@ -73,7 +73,14 @@ class DS_Logo_Finder {
         }
 
         $filename = $name . '.webp';
-        $source   = DS_TOOLKIT_PATH . 'assets/images/team_logos/' . $filename;
+        $dir      = DS_TOOLKIT_PATH . 'assets/images/team_logos/';
+        $source   = $dir . $filename;
+
+        // A logo name is a file name in that folder: never a path that leads out of it.
+        $real = realpath( $source );
+        if ( false !== strpbrk( $name, '/\\' ) || false !== strpos( $name, '..' ) || ! $real || 0 !== strpos( $real, realpath( $dir ) . DIRECTORY_SEPARATOR ) ) {
+            wp_send_json_error( array( 'message' => 'File not found: ' . $filename ) );
+        }
 
         if ( ! file_exists( $source ) ) {
             wp_send_json_error( array( 'message' => 'File not found: ' . $filename ) );

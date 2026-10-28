@@ -157,11 +157,11 @@ if ( 'style2' === $style ) {
 	if ( is_array( $pv ) )      { $pv = $pv['id'] ?? ( $pv['url'] ?? '' ); }
 	elseif ( is_object( $pv ) ) { $pv = $pv->id ?? ( $pv->url ?? '' ); }
 	if ( is_numeric( $pv ) ) { $np = (string) wp_get_attachment_image_url( (int) $pv, 'full' ); }
-	elseif ( $pv )           { $np = esc_url( (string) $pv ); }
+	elseif ( $pv )           { $np = esc_url_raw( (string) $pv ); } // raw (no &#038;) and quoted below: no way out of url()
 	if ( '' !== $np ) {
 		$nr  = in_array( $settings->nobg_repeat ?? 'repeat', array( 'repeat', 'repeat-x', 'repeat-y', 'no-repeat' ), true ) ? ( $settings->nobg_repeat ?? 'repeat' ) : 'repeat';
 		$nsz = in_array( $settings->nobg_size ?? 'auto', array( 'auto', 'contain', 'cover' ), true ) ? ( $settings->nobg_size ?? 'auto' ) : 'auto';
-		$nb[] = "background-image: url({$np})";
+		$nb[] = 'background-image: url("' . str_replace( array( '"', '\\' ), '', $np ) . '")';
 		$nb[] = "background-repeat: {$nr}";
 		$nb[] = "background-size: {$nsz}";
 		$nb[] = 'background-position: center';

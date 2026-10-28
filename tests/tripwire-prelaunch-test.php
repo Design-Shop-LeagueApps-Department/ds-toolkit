@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HTTP
 // Run: php tests/tripwire-prelaunch-test.php        (plain PHP, no WordPress, no network)
 //
 // Guards pre-launch quiet mode: a site still being BUILT must not page anyone for our own build

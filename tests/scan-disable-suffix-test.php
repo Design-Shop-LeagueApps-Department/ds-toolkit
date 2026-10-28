@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HTTP
 // Run: php tests/scan-disable-suffix-test.php        (plain PHP, no WordPress, no network)
 //
 // Guards the disable-suffix family in includes/ds-scan-engine.php.

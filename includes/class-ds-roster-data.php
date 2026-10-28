@@ -479,7 +479,9 @@ class DS_Roster_Data {
 					$best[0] = $v;
 				} elseif ( 'primary position' === $k ) {
 					$best[1] = $v;
-				} elseif ( false !== strpos( $k, 'position' ) && ! preg_match( '/secondary|second|prefer|volunteer|parent|guardian|coach/', $k ) ) {
+				} elseif ( preg_match( '/\bpositions?\b/', $k ) && ! preg_match( '/secondary|second|prefer|volunteer|parent|guardian|coach|medical|condition|injur|allerg|note|comment|explain|describe|reason/', $k ) ) {
+					// Only a question about the playing position: a free-text answer ("Medical conditions affecting position")
+					// would otherwise be printed on a public roster of minors.
 					$best[2] = $best[2] ?? $v;
 				}
 			}
@@ -758,7 +760,13 @@ class DS_Roster_Data {
 		$work['cur'] = $cur;
 
 		if ( $full ) {
-			if ( $done ) {
+			if ( $done && empty( $work['teams'] ) && ! empty( $old['teams'] ) ) {
+				// A rebuild that read no registrations at all, on a site that had rosters a moment ago, is a bad
+				// answer (an empty export page), not a club with nobody registered: keep showing the last roster.
+				$new = $old;
+				unset( $new['partial'] );
+				$new['error'] = __( 'LeagueApps sent no registrations for the full rebuild; the last roster is kept.', 'ds-toolkit' );
+			} elseif ( $done ) {
 				$new = $work;
 				unset( $new['partial'], $new['retries'] );
 				$new['full']   = time();

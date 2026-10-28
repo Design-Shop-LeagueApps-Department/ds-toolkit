@@ -1,4 +1,5 @@
 <?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HTTP
 // Run: php tests/tripwire-stale-staging-test.php      (plain PHP 7.4+, no WordPress, no network)
 //
 // Guards DS_Tripwire::check_stale_staging() and its wiring into run_checks().

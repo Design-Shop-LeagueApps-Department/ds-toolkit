@@ -4,6 +4,34 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.11.0] - 2026-10-28
+A code and security audit release. Nothing on a page changes; the version moves to 1.11.0 because the project now numbers releases MAJOR.MINOR.PATCH (fixes raise the last number, new features the middle one; see CONTRIBUTING.md).
+
+### Security
+- **Every install of a toolkit release is checked against its signature.** "Update now", automatic updates, `wp plugin update`, `wp plugin install <release url>`, WP Engine Smart Plugin Manager and Flywheel managed updates now verify the release signature (the same Ed25519 release key the Design Shop HQ path already checks) and both version lines inside the zip before WordPress touches the installed plugin. An unsigned or altered zip is refused with a plain message and the site stays exactly as it was. Sites are offered a release only once it is signed, so the minutes between publishing and signing no longer show an update that would fail. Pre-releases (unsigned) stay available to local and staging sites only. Tested on a throwaway site: the real signed 1.10.49 installs through the normal updater; with a wrong key it is refused on both the update and the install-from-link paths, files unchanged.
+- **MCP endpoint permissions** (all tool groups are off on every site by default; this is defence in depth for when one is switched on): each tool now also asks for the capability WordPress asks for on the matching screen (users, menus, maintenance, media), posts follow the post type's own create, publish and edit-others rules, non-administrators can only write public post types, protected fields (Beaver Builder layouts and other underscore keys) need an administrator who may post unfiltered HTML, drafts and private posts are only read by people who may read them, search and replace only touches this site's own tables, and the stored LeagueApps keys, rosters and HQ link identity are not readable over MCP. A missing group switch now counts as off. Administrators keep every tool. `tests/mcp-permissions-test.php` (20 checks, mutation-checked).
+- **DS Toolkit settings can only be saved by someone who can open the DS Toolkit page.** A direct form post to `options.php` used to need only `manage_options`.
+- **Programs: the Previous / Next labels of the pager are inserted as text**, never as HTML.
+- **Module CSS only ever contains CSS.** Border and divider styles (Marquee, Org Stats), Partner Social alignment and Programs column alignment accept only their listed options; Global CSS overrides and every layout's CSS can no longer contain a sequence that ends a `<style>` element; ACF CSS variables skip non-text values and characters that could end a declaration; the Hero pattern image is a quoted `url("…")` (which also fixes pattern URLs with a query string).
+- **Staff card social icons drop `javascript:` and other unsafe link schemes**; every normal link prints exactly as typed.
+- **HTML from people without the unfiltered HTML permission is filtered like post content** in the Post Loop's Custom layout, Team Detail's roster and schedule fields and Content Router's seeded fields. Administrators and partners (who have that permission) are unchanged.
+- **Logo Finder imports only files from its own logo folder.**
+- **Test scripts shipped in `tests/` do nothing when requested over the web** (nine lacked the command-line guard the others have).
+
+### Fixed
+- **Roster: a full rebuild that reads no registrations keeps the last roster** instead of emptying it, and says why on the key's row.
+- **Roster: only a question about the playing position fills the Position tag.** A free-text answer whose label merely contains the word (for example "Medical conditions affecting position") is never published; exact labels ("Position", "Primary Position") work as before.
+- **Roster photos are re-encoded with GD first**, so a photo keeps nothing but its pixels on hosts where Imagick would have kept the original metadata; the folder's guard file is an `index.html`, not a PHP file under uploads.
+- **"Refresh LeagueApps listings" keeps its one-a-minute limit** and the builder's remembered seasons, levels and sports (the cache clean-up deleted them too).
+- **Calendar Subscribe feed: control characters are removed** from event text, so one stray byte from LeagueApps cannot make Google or Outlook reject the whole calendar.
+- **School Emblems: logo and library downloads are size-capped and do not follow redirects.**
+- **Updater: a failed GitHub check is not repeated on every admin page for 15 minutes** (each waited up to 10 s, and GitHub's hourly limit is shared by every site on a server); the answer is reused within a request.
+- **Copyright line: `{year}` follows the site's clock**, like `[current_year]`.
+- **Tripwire: file names in alert lines cannot add lines** to the email.
+- PHP 8 warnings: Roster settings saved before a field existed (empty medallion and view classes), Programs card title tag, Loop Manager order, Heading tags, CTA columns, the updater's site host and plugin info, Loop Manager on a post type that is no longer registered.
+
+---
+
 ## [1.10.49] - 2026-10-26
 ### Added
 - **School Emblems: pick a college and its logo comes with it** (Zay, Ethos alumni page: "how I can get the logos to show of the colleges without needed to download them"). On an athlete, the **School Name** box now searches the Design Shop HQ library of college athletic logos (https://designshophq.wpenginepowered.com/emblems/, NCAA D1-D3 today, NAIA and junior colleges next): the school's name, short name, team name or initials ("UCLA", "TAMU", "UConn", "st marys"), with the logo, division and state in each suggestion. Picking a school shows its logo under the box; on **Update** the logo is copied into the site's Media Library once (other athletes from the same school reuse it) and placed in **School Logo**. A site never needs HQ to show a logo; HQ is only asked when a school is picked.

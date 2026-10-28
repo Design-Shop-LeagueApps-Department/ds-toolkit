@@ -224,7 +224,7 @@ class DS_Programs_Module extends FLBuilderModule {
 			$nowrap = (string) ( $row['col_nowrap'] ?? 'auto' );
 			$out[ $k ] = array(
 				'label'  => ( '' !== $label ) ? $label : $cat[ $k ]['label'],
-				'align'  => ( 'auto' === $align || '' === $align ) ? ( $cat[ $k ]['align'] ?? 'left' ) : $align,
+				'align'  => in_array( $align, array( 'left', 'center', 'right' ), true ) ? $align : ( $cat[ $k ]['align'] ?? 'left' ), // printed into CSS: options only
 				'width'  => self::css_length( (string) ( $row['col_width'] ?? '' ) ),
 				'nowrap' => ( 'auto' === $nowrap || '' === $nowrap ) ? ! empty( $cat[ $k ]['nowrap'] ) : ( 'yes' === $nowrap ),
 			);

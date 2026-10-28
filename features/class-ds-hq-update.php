@@ -371,7 +371,7 @@ class DS_HQ_Update {
 	}
 
 	/** One file from a zip as a string, or null. ZipArchive, else WordPress's bundled PclZip. */
-	private static function read_from_zip( $zip, $name ) {
+	public static function read_from_zip( $zip, $name ) {
 		if ( class_exists( 'ZipArchive' ) ) {
 			$z = new ZipArchive();
 			if ( true === $z->open( $zip ) ) {
