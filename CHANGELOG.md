@@ -4,6 +4,21 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.12.0] - 2026-10-28
+Follow-up to the 1.11.0 audit: the items that change what a role, a request or the scanner is allowed to do. Nothing on a page changes. MINOR under the new numbering: new rules, all of them refusing only what should never have been possible.
+
+### Security
+- **Administrator accounts are managed by administrators only.** The Partner role keeps creating, editing and removing its own users, but can no longer create an Administrator (Users screen, bulk role change or the REST API), edit an Administrator's email or password, change an Administrator's role or delete one, or set "New User Default Role" to Administrator. Applies to any non-administrator role holding those capabilities (on a standard site only administrators have them). WP-CLI and scripts with no user are unchanged. `tests/partner-admin-guard-test.php` (15 checks, mutation-checked: with the rules off a Partner created an Administrator over the REST API).
+- **Design Shop staff = an administrator with an @leagueapps.com address.** The address alone used to count, and anyone who can manage users can type one. One rule now serves the DS Toolkit page and settings, the MCP staff tools, Theme Setting and Home Templates. Checked on six sites before the change: every @leagueapps.com account that can reach those screens is an administrator.
+- **Tripwire's remote allow list must be signed.** The list that silences findings (`lists/tripwire-allow.md5`) is used only with a valid signature by the release key (`tripwire-allow.md5.sig`, message labelled "ds-toolkit-list" so it can never pass for a release signature); a missing or bad signature falls back to the bundled list, so the failure is more alerts, never silence. Copies cached unsigned by earlier versions are not read. The deny list only names findings and stays unsigned.
+- **Tripwire reads the places it used to skip.** Before, any path containing `/.quarantine`, `/node_modules/`, `/upgrade-temp-backup/` or `/wp-content/upgrade/` was never scanned, so a shell dropped there was invisible. Now skipped: cleanup quarantine folders at the web root only, `node_modules` inside a plugin or theme only, and in the two update folders only copies of DS Toolkit itself. Other plugins' rollback copies are read and cleared by hash like any vendor file. Read-only dry run on our six internal installs: 0 files newly read, 0 findings.
+- **DS Toolkit verifies its own folder.** Releases now ship `includes/release-hashes.txt`, so a PHP file added to the plugin folder, or a toolkit file changed after install, is CRITICAL. `sign-release.sh` refuses to sign a release whose list does not match its files, so a stale list can never reach a site. On a temp-URL build (demo, blueprints) the finding is recorded for HQ but not emailed, the same rule as other build-shaped findings.
+- **Bot Shield trusts CF-Connecting-IP only from Cloudflare.** The header is used only when the request reached PHP from Cloudflare's published ranges (or a private proxy); elsewhere a visitor could send it to be exempt, dodge the per-IP limit or get someone else rate-limited. A list of addresses uses the first. Measured on WP Engine before the change: the visitor is already in `REMOTE_ADDR` and the header arrives as "ip, ip, ip", so nothing changes there.
+- **Bot Shield: no DNS lookups on requests that would pass anyway.** Without a memory cache the crawler check ran two blocking DNS lookups on every request with a crawler user agent; it now runs only when the request would be refused. Same verdicts. `tests/bot-shield-client-ip-test.php` (12 checks, mutation-checked).
+- `tests/tripwire-skip-and-list-sig-test.php` (21 checks, mutation-checked).
+
+---
+
 ## [1.11.0] - 2026-10-28
 A code and security audit release. Nothing on a page changes; the version moves to 1.11.0 because the project now numbers releases MAJOR.MINOR.PATCH (fixes raise the last number, new features the middle one; see CONTRIBUTING.md).
 

@@ -134,6 +134,21 @@ class DS_HQ_Update {
 		return false;
 	}
 
+	/**
+	 * Does $sig_b64 sign this fleet list file (name + sha256 of its exact bytes) with a release key? The message
+	 * starts "ds-toolkit-list", so a list signature can never pass for a release signature or the other way round.
+	 * Signed by designshophq/tools/release/sign-list.sh (1.12.0).
+	 */
+	public static function list_sig_ok( $name, $sha256, $sig_b64 ) {
+		$keys = defined( 'DS_TOOLKIT_RELEASE_PUBKEY' ) ? array( DS_TOOLKIT_RELEASE_PUBKEY ) : self::RELEASE_PUBKEYS;
+		foreach ( $keys as $k ) {
+			if ( self::verify( trim( (string) $sig_b64 ), "ds-toolkit-list\n$name\n" . strtolower( (string) $sha256 ), $k ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Both version lines of a ds-toolkit.php source: [ header, define ]. */
 	public static function versions_in( $php ) {
 		$h = preg_match( '/^[ \t\/*#@]*Version:\s*(\S+)/mi', (string) $php, $m ) ? $m[1] : '';

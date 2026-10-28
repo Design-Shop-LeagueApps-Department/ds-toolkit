@@ -152,15 +152,10 @@ class DS_Home_Templates {
 		if ( empty( $args[0] ) || ! in_array( $cap, array( 'edit_post', 'delete_post', 'read_post', 'publish_post' ), true ) ) { return $caps; }
 		if ( ! self::is_home_template( $args[0] ) ) { return $caps; }
 		$u = get_userdata( $user_id );
-		if ( $u && class_exists( 'DS_Toolkit' ) && self::leagueapps_email( $u->user_email ) ) { return $caps; }
+		if ( $u && class_exists( 'DS_Toolkit' ) && DS_Toolkit::is_leagueapps_staff( $u ) ) { return $caps; }
 		return array( 'do_not_allow' );
 	}
 
-	/** Same rule as DS_Toolkit::is_leagueapps_user(), for any user. */
-	private static function leagueapps_email( $email ) {
-		$domain = defined( 'DS_TOOLKIT_ADMIN_DOMAIN' ) ? DS_TOOLKIT_ADMIN_DOMAIN : '@leagueapps.com';
-		return '' !== (string) $email && (bool) preg_match( '/' . preg_quote( $domain, '/' ) . '$/i', (string) $email );
-	}
 
 	/* ----------------------------------------------------------- Data */
 

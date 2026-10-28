@@ -4,7 +4,7 @@ Two files, fetched hourly by every site running DS Toolkit 1.9.142 or later. **A
 on every site within one cron cycle. No release, no fleet push.** One measured caveat: GitHub raw is served
 from a CDN whose nodes refresh independently, so for a few minutes after a commit some sites can fetch the
 previous copy and keep it for their cycle. Expect fleet-wide within one to two hours, not minutes. To force one
-site: `wp transient delete ds_tripwire_rl_allow` then `wp eval 'DS_Tripwire::content_scan_now(60);'`.
+site: `wp transient delete ds_tripwire_rl2_allow` (`ds_tripwire_rl_allow` before 1.12.0) then `wp eval 'DS_Tripwire::content_scan_now(60);'`.
 
 Proven end to end 2026-09-20 on southlandsoccerleague.com: a one-line commit (`5db68bd`, Forminator 1.57.2
 `upload.php`) went from `fetched count=8` to `count=9`, the merged known-good set from 16,176 to 16,177, and a
@@ -13,7 +13,7 @@ it HIGH 55. The rule is untouched; only the gate changed.
 
 | File | What a line does | Safety property |
 |---|---|---|
-| `tripwire-allow.md5` | Suppresses findings on a file with that exact md5 (a verified false positive) | Can only ADD to the bundled `includes/known-good.md5`; can never remove |
+| `tripwire-allow.md5` + `.sig` | Suppresses findings on a file with that exact md5 (a verified false positive) | Can only ADD to the bundled `includes/known-good.md5`; can never remove. Used only with a valid release-key signature (1.12.0) |
 | `tripwire-deny.md5` | Names a finding on a file with that exact md5 (`KNOWN MALWARE: <name>`) | Only labels a finding the engine already scored; can never create one |
 
 ## Adding a false positive (the daily case)
@@ -21,7 +21,11 @@ it HIGH 55. The rule is untouched; only the gate changed.
 1. Read the file on the live site: `md5sum <file>`, size, mtime.
 2. Prove it. Free plugin: download the exact version from `downloads.wordpress.org/plugin/<slug>.<ver>.zip` and `md5sum` the same path; it must be **identical**. Premium plugin: read the code and record why the flagged construct is legitimate.
 3. Append one line to `tripwire-allow.md5`: `<md5>  <plugin> <version> <path> - <evidence> (<date>)`.
-4. Commit to `main`. Done. Also add it to `fleet-audit/bin/gen-known-good.sh` so the next release bundles it.
+4. **Sign it:** `designshophq/tools/release/sign-list.sh <this lists folder> tripwire-allow` (needs the release key in
+   `~/.claude/secrets.env`). It rewrites `tripwire-allow.md5.sig`. Since 1.12.0 a site uses the allow list only when
+   that signature matches the exact bytes; an edit without a fresh signature makes every 1.12.0+ site fall back to the
+   bundled list (more alerts, never fewer), so the two files always go in the same commit.
+5. Commit both to `main`. Done. Also add it to `fleet-audit/bin/gen-known-good.sh` so the next release bundles it.
 
 Never add a hash you have not read the file for. A path or a name is never a reason; only the hash is.
 
