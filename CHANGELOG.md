@@ -4,6 +4,14 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.13.1] - 2026-10-30
+PATCH: one Tripwire notification fix. Nothing on a page changes.
+
+### Fixed
+- **Tripwire no longer emails when Design Shop staff add a partner administrator.** A new administrator created by a logged-in administrator with an @leagueapps.com address (the 1.12.0 staff rule) is recorded for Design Shop HQ and not mailed, on a launched site as well as a build. The producer is usually new on the site, so the "established administrator" rule could not cover it, and every such alert HQ has seen was our own partner onboarding. The "Created by" line now names the staff email instead of the login, which is what HQ matches to close the record as Our own files by itself. Still emailed: no logged-in creator (the campaign's signature), any non-staff creator, a non-administrator holding an @leagueapps.com address, lookalike domains, and a staff-created account with a throwaway address. `tests/tripwire-staff-admin-test.php` (14 checks, mutation-checked: 2 fail on 1.13.0).
+
+---
+
 ## [1.13.0] - 2026-10-28
 MINOR: one new Post Loop option and two fixes. Nothing changes on an existing page until someone picks the new option.
 
