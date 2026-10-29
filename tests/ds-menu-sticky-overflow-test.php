@@ -29,11 +29,22 @@ $css = flat( code( file_get_contents( __DIR__ . '/../modules/ds-menu/css/fronten
 $js  = code( file_get_contents( __DIR__ . '/../modules/ds-menu/js/frontend.js' ) );
 
 echo "Sticky header releases a site's header clip\n";
-ok( false !== strpos( $css, 'header.fl-builder-content.fl-theme-builder-header-sticky { overflow-x: visible; }' ),
-	'rule present: header.fl-builder-content.fl-theme-builder-header-sticky { overflow-x: visible }' );
-// It must out-rank the per-site workaround `header.fl-builder-content` (0,1,1) without !important,
-// and it must not sit inside a width query (a sticky phone header is fixed too).
-$before = substr( $css, 0, strpos( $css, 'header.fl-builder-content.fl-theme-builder-header-sticky {' ) );
+$rule = 'header.fl-builder-content[data-type="header"].fl-theme-builder-header-sticky { overflow-x: visible; }';
+ok( false !== strpos( $css, $rule ), 'rule present: ' . $rule );
+// The module CSS prints BEFORE Additional CSS, so a tie loses. Both forms of the workaround seen in
+// the fleet must be strictly out-ranked: header.fl-builder-content (0,1,1) on denverjets and
+// steelkidsfirst, header.fl-builder-content[data-type="header"] (0,2,1) on skywalkerslax.
+function spec( $sel ) {
+	$ids = preg_match_all( '/#[\w-]+/', $sel );
+	$cls = preg_match_all( '/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/', $sel );
+	$typ = preg_match_all( '/(?:^|[\s>+~])[a-z][\w-]*/i', $sel );
+	return $ids * 10000 + $cls * 100 + $typ;
+}
+$ours = spec( 'header.fl-builder-content[data-type="header"].fl-theme-builder-header-sticky' );
+ok( $ours > spec( 'header.fl-builder-content' ), 'out-ranks header.fl-builder-content' );
+ok( $ours > spec( 'header.fl-builder-content[data-type="header"]' ), 'out-ranks header.fl-builder-content[data-type="header"] (a tie would lose)' );
+// It must not sit inside a width query (a sticky phone header is fixed too).
+$before = substr( $css, 0, strpos( $css, $rule ) );
 ok( substr_count( $before, '{' ) === substr_count( $before, '}' ), 'rule is top level, not inside a media query' );
 ok( false === stripos( $css, 'overflow-x: clip' ), 'the module itself never clips the header' );
 

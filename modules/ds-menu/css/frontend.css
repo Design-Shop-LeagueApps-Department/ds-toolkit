@@ -77,8 +77,10 @@
    Themer header turns sticky: Chrome still paints the dropdowns below the fixed header but
    hit-tests through them to the page underneath. A fixed header cannot widen the page, so
    release the clip while it is sticky, at any width. Static (scrolled to the top) headers
-   keep the clip. */
-header.fl-builder-content.fl-theme-builder-header-sticky { overflow-x: visible; }
+   keep the clip. This file loads BEFORE Additional CSS, so the selector has to out-rank
+   every form the workaround took, not tie with it: (0,3,1) beats both
+   header.fl-builder-content (0,1,1) and header.fl-builder-content[data-type="header"] (0,2,1). */
+header.fl-builder-content[data-type="header"].fl-theme-builder-header-sticky { overflow-x: visible; }
 .ds-mega-col .ds-mega-head { display: block; font-weight: 700; text-decoration: none; padding: 4px 0 6px; }
 .ds-mega-col .ds-submenu { position: static; opacity: 1; visibility: visible; transform: none; box-shadow: none; padding: 0; min-width: 0; }
 .ds-mega-col .ds-submenu .ds-menu-item > a { padding: 4px 0; white-space: normal; }
