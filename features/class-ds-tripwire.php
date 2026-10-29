@@ -1216,6 +1216,19 @@ class DS_Tripwire {
             return;
         }
 
+        /* 1.13.1: created by Design Shop staff (an administrator with an @leagueapps.com address, the
+           1.12.0 rule) is our own onboarding, so it is recorded for HQ and not mailed, on any site. The
+           producer is usually new on the site, so actor_is_established() above cannot help. Every such
+           alert on HQ to 2026-10-29 (6) was our own onboarding (lpacheco adding partner admins on
+           futureswpl, goldstarlax, paplaymakers, teamhoustonbb). HQ closes the record itself when the line below names
+           a @leagueapps.com creator, so it is named by email, not login. A throwaway address still mails. */
+        $current = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+        $staff   = class_exists( 'DS_Toolkit' ) && DS_Toolkit::is_leagueapps_staff( $current )
+            && ! self::email_is_throwaway( $user->user_email );
+        if ( $staff ) {
+            $actor = $current->user_email;
+        }
+
         /* On a pre-launch build the producer is often newly added themselves, so actor_is_established()
            above cannot help: goldstarlax raised three of these in 70 seconds on 2026-10-15 while
            onboarding the partner's own staff. Record it for HQ, do not mail it. */
@@ -1228,7 +1241,7 @@ class DS_Tripwire {
             ),
             array(),
             false,
-            ! self::prelaunch()
+            ! self::prelaunch() && ! $staff
         );
     }
 
