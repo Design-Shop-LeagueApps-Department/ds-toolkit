@@ -571,14 +571,7 @@
 		   dropdowns only: in the mobile overlay and the off-canvas drawer submenus are not
 		   absolutely positioned, and mega panels have their own clamp. Document order puts
 		   a parent before its flyouts, so a nested flyout is measured after its parent moved. */
-		var flipAll = function () {
-			if ( wrap.classList.contains( 'ds-menu-open' ) ) { return; }
-			var items = wrap.querySelectorAll( '.ds-menu-item.has-children' );
-			for ( var k = 0; k < items.length; k++ ) {
-				if ( items[ k ].classList.contains( 'is-mega' ) || items[ k ].closest( '.ds-mega' ) ) { continue; }
-				flipOne( items[ k ] );
-			}
-		};
+		var flipAll = function () { flipAllIn( wrap ); };
 		flipAll();
 		window.addEventListener( 'load', flipAll );
 		var ft = null;
@@ -586,6 +579,15 @@
 			if ( ft ) { clearTimeout( ft ); }
 			ft = setTimeout( function () { ft = null; flipAll(); }, 150 );
 		} );
+	}
+
+	function flipAllIn( wrap ) {
+		if ( wrap.classList.contains( 'ds-menu-open' ) ) { return; }
+		var items = wrap.querySelectorAll( '.ds-menu-item.has-children' );
+		for ( var k = 0; k < items.length; k++ ) {
+			if ( items[ k ].classList.contains( 'is-mega' ) || items[ k ].closest( '.ds-mega' ) ) { continue; }
+			flipOne( items[ k ] );
+		}
 	}
 
 	function flipOne( li ) {
@@ -599,7 +601,48 @@
 		if ( r.width > 0 && r.right > window.innerWidth - 8 ) { li.classList.add( 'ds-flip' ); }
 	}
 
-	function boot() { document.querySelectorAll( '.ds-menu-wrap' ).forEach( function ( w ) { init( w ); initHoverIntent( w ); initFlip( w ); initMegaClamp( w ); } ); }
+	/* Rest guard: after the flip and the mega clamp have had their go, any CLOSED desktop
+	   panel that still reaches past the right edge (a mega with Keep Panel On Screen off, a
+	   flyout too wide to fit on either side) gets .ds-rest-out, which takes it out of layout
+	   until it opens (css/frontend.css), so it cannot make the page scroll sideways. Runs at
+	   boot, on load and on resize (after the 150 ms flip/clamp passes); an open panel is left
+	   alone. All classes come off and the flip and clamp run again before anything is
+	   measured: a panel out of layout has no box, so neither could place it. Hovering never
+	   needs the class removed, because an open state puts the panel back in layout. */
+	function guardRest( wrap ) {
+		var panels = wrap.querySelectorAll( '.ds-menu .ds-submenu, .ds-menu .ds-mega' );
+		var k;
+		for ( k = 0; k < panels.length; k++ ) { panels[ k ].classList.remove( 'ds-rest-out' ); }
+		if ( wrap.classList.contains( 'ds-menu-open' ) ) { return; } // mobile overlay
+		flipAllIn( wrap );
+		clampAllMegas( wrap );
+		var edge = document.documentElement.clientWidth;
+		var out = [];
+		for ( k = 0; k < panels.length; k++ ) {
+			var pan = panels[ k ];
+			var li = pan.parentElement;
+			if ( ! li || li.matches( ':hover, .ds-hover-open, :focus-within' ) ) { continue; }
+			if ( 'absolute' !== window.getComputedStyle( pan ).position ) { continue; } // mega columns, drawers
+			var r = pan.getBoundingClientRect();
+			if ( r.width > 0 && r.right > edge + 0.5 ) { out.push( pan ); }
+		}
+		out.forEach( function ( pan ) { pan.classList.add( 'ds-rest-out' ); } );
+	}
+
+	function initRestGuard( wrap ) {
+		if ( wrap.dsRestInit ) { return; }
+		wrap.dsRestInit = true;
+		var run = function () { guardRest( wrap ); };
+		run();
+		window.addEventListener( 'load', run );
+		var t = null;
+		window.addEventListener( 'resize', function () {
+			if ( t ) { clearTimeout( t ); }
+			t = setTimeout( function () { t = null; run(); }, 200 );
+		} );
+	}
+
+	function boot() { document.querySelectorAll( '.ds-menu-wrap' ).forEach( function ( w ) { init( w ); initHoverIntent( w ); initFlip( w ); initMegaClamp( w ); initRestGuard( w ); } ); }
 
 	if ( 'loading' !== document.readyState ) { boot(); } else { document.addEventListener( 'DOMContentLoaded', boot ); }
 	// Re-init after a Beaver Builder partial refresh while editing.

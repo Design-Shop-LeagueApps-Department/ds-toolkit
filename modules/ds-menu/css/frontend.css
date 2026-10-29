@@ -67,6 +67,18 @@
 .ds-menu-wrap:not(.ds-js-hover) .ds-menu-item.is-mega:hover > .ds-mega,
 .ds-menu-item.is-mega.ds-hover-open > .ds-mega,
 .ds-menu-item.is-mega:focus-within > .ds-mega { opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto; }
+/* Rest guard: a CLOSED panel that would still run past the right edge after the edge flip
+   and the mega clamp (a mega with Keep Panel On Screen off, a flyout too wide to fit either
+   way) is taken out of layout until it opens, so it can never make the page scroll sideways.
+   js adds .ds-rest-out on load and resize only; any open state brings the panel back. */
+.ds-menu-wrap:not(.ds-menu-open) .ds-menu-item:not(:hover):not(.ds-hover-open):not(:focus-within) > .ds-rest-out { display: none; }
+/* A site that clipped the header to hide that overflow (header.fl-builder-content
+   { overflow-x: clip }, the old per-site workaround) loses every submenu click once the
+   Themer header turns sticky: Chrome still paints the dropdowns below the fixed header but
+   hit-tests through them to the page underneath. A fixed header cannot widen the page, so
+   release the clip while it is sticky, at any width. Static (scrolled to the top) headers
+   keep the clip. */
+header.fl-builder-content.fl-theme-builder-header-sticky { overflow-x: visible; }
 .ds-mega-col .ds-mega-head { display: block; font-weight: 700; text-decoration: none; padding: 4px 0 6px; }
 .ds-mega-col .ds-submenu { position: static; opacity: 1; visibility: visible; transform: none; box-shadow: none; padding: 0; min-width: 0; }
 .ds-mega-col .ds-submenu .ds-menu-item > a { padding: 4px 0; white-space: normal; }
