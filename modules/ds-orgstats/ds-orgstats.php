@@ -102,6 +102,13 @@ class DS_OrgStats_Module extends FLBuilderModule {
 		}
 
 		$stats = isset( $s->stats ) && is_array( $s->stats ) ? $s->stats : array();
+		// Since 1.14 a new module starts with blank rows; a row with no number, prefix, suffix, label or
+		// card image rendered an empty stat box. Any row with one of those renders exactly as before.
+		$stats = array_values( array_filter( $stats, function ( $stat ) {
+			$st = (object) $stat;
+			foreach ( array( 'number', 'prefix', 'suffix', 'label' ) as $k ) { if ( '' !== trim( (string) ( $st->$k ?? '' ) ) ) { return true; } }
+			return ! empty( $st->image );
+		} ) );
 		if ( empty( $stats ) ) {
 			if ( FLBuilderModel::is_builder_active() ) {
 				echo '<p style="padding:14px;opacity:.7;text-align:center">' . esc_html__( 'Add stats in the module settings.', 'ds-toolkit' ) . '</p>';

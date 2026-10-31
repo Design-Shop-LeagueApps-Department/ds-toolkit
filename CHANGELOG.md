@@ -4,6 +4,16 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.14.1] - 2026-10-31
+PATCH: a newly added CTA or Org Stats no longer shows empty boxes. Pages already built look the same, byte for byte.
+
+### Fixed
+- **CTA (Explore Cards and Bordered Tiles) and Org Stats skip a row with nothing in it.** Since 1.14.0 a new module starts with blank rows instead of Lorem, and those rows still rendered: a new CTA showed four empty cards, each an unnamed "#" link with an empty heading (an accessibility checker flags both), and a new Org Stats showed four empty stat boxes. A CTA card now renders when it has an image, an eyebrow, a title, a description, a number, a badge or a real link (Link Text alone does not count: it defaults to "Learn More" and names nothing without a link); a stat renders when it has a number, prefix, suffix, label or card image. With every row blank the editor shows the existing "Add cards / Add stats in the module settings" hint and the page shows nothing. Bento (Style 3) keeps every cell, because a blank cell can be a deliberate colour block in the grid.
+- **Existing modules are untouched.** Proved on dslaunchpad7: all 30 saved CTA and Org Stats nodes (published layouts, drafts, saved templates and Themer layouts) render byte-identical on 1.14.0 and 1.14.1.
+- `tests/blank-rows-hidden-test.php` (11 checks, mutation-checked: 9 fail on 1.14.0).
+
+---
+
 ## [1.14.0] - 2026-10-31
 MINOR: new defaults for newly added modules. Pages already built look the same, byte for byte.
 
