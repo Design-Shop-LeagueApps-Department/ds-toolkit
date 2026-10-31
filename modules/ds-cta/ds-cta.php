@@ -206,6 +206,27 @@ class DS_CTA_Module extends FLBuilderModule {
 		echo '</div></div></section>';
 	}
 
+	/**
+	 * The card rows that carry something to show (Styles 1 and 2; a Bento cell can be a deliberate colour block, so Style 3 keeps every cell). Since 1.14 a new module starts with
+	 * blank rows, and a blank row rendered as an empty "#" link with an empty heading: a box with no
+	 * text that screen readers announce as an unnamed link. A row with an image, an eyebrow, a title,
+	 * a description, a number, a badge or a real link still renders exactly as before. Link Text alone
+	 * does not count: it defaults to "Learn More" and names nothing without a link.
+	 */
+	private function filled_cards() {
+		$cards = isset( $this->settings->cards ) && is_array( $this->settings->cards ) ? $this->settings->cards : array();
+		$out   = array();
+		foreach ( $cards as $card ) {
+			$c = (object) $card;
+			list( $url ) = $this->link_parts( $c->link ?? '', '' );
+			$text = '';
+			foreach ( array( 'eyebrow', 'title', 'desc', 'number', 'badge' ) as $k ) { $text .= trim( (string) ( $c->$k ?? '' ) ); }
+			if ( empty( $c->image ) && '' === $text && ( '' === $url || '#' === $url ) ) { continue; }
+			$out[] = $card;
+		}
+		return $out;
+	}
+
 	/** Heading markup: escape, {a}..{/a} -> accent span, newlines -> <br>. */
 	private function heading_html( $raw ) {
 		$h = DS_Module_UI::inline( (string) $raw ); // safe inline HTML (span/strong/em...) allowed
@@ -264,7 +285,7 @@ class DS_CTA_Module extends FLBuilderModule {
 			echo '</div>';
 		}
 
-		$cards = isset( $s->cards ) && is_array( $s->cards ) ? $s->cards : array();
+		$cards = $this->filled_cards();
 		if ( empty( $cards ) ) {
 			if ( FLBuilderModel::is_builder_active() ) {
 				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'Add cards in the module settings.', 'ds-toolkit' ) . '</p>';
@@ -312,7 +333,7 @@ class DS_CTA_Module extends FLBuilderModule {
 			echo '</div>';
 		}
 
-		$cards = isset( $s->cards ) && is_array( $s->cards ) ? $s->cards : array();
+		$cards = $this->filled_cards();
 		if ( empty( $cards ) ) {
 			if ( FLBuilderModel::is_builder_active() ) {
 				echo '<p style="padding:14px;opacity:.7">' . esc_html__( 'Add cards in the module settings.', 'ds-toolkit' ) . '</p>';
