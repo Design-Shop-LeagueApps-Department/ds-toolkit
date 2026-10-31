@@ -625,7 +625,7 @@ FLBuilder::register_settings_form( 'ds_cta_card_form', array(
 						'eyebrow' => array( 'type' => 'text', 'label' => __( 'Eyebrow', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
 						'title'     => array( 'type' => 'text', 'label' => __( 'Title', 'ds-toolkit' ), 'connections' => array( 'string' ) ),
 						'link'      => array( 'type' => 'link', 'label' => __( 'Link', 'ds-toolkit' ), 'show_target' => true, 'connections' => array( 'url' ) ),
-						'link_text' => array( 'type' => 'text', 'label' => __( 'Link Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum', 'connections' => array( 'string' ), 'help' => __( 'Style 2 button / link text; Style 3 text-cell button. (Style 1 uses a chevron only.)', 'ds-toolkit' ) ),
+						'link_text' => array( 'type' => 'text', 'label' => __( 'Link Text', 'ds-toolkit' ), 'default' => 'Learn More', 'connections' => array( 'string' ), 'help' => __( 'Style 2 button / link text; Style 3 text-cell button. (Style 1 uses a chevron only.)', 'ds-toolkit' ) ),
 					),
 				),
 				'bento' => array(
@@ -717,10 +717,10 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 						'preview_text' => 'title',
 						'multiple'     => true,
 						'default'      => array(
-							array( 'eyebrow' => 'Lorem Ipsum',   'title' => 'Dolor Sit' ),
-							array( 'eyebrow' => 'Consectetur',   'title' => 'Adipiscing' ),
-							array( 'eyebrow' => 'Sed Eiusmod',   'title' => 'Tempor' ),
-							array( 'eyebrow' => 'Incididunt',    'title' => 'Ut Labore' ),
+							array( 'eyebrow' => '', 'title' => '' ),
+							array( 'eyebrow' => '', 'title' => '' ),
+							array( 'eyebrow' => '', 'title' => '' ),
+							array( 'eyebrow' => '', 'title' => '' ),
 						),
 					),
 				),
@@ -843,28 +843,27 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					'show_header'  => array(
 						'type'    => 'select',
 						'label'   => __( 'Show Header', 'ds-toolkit' ),
-						// Off for NEW modules (GH #147). The Heading default is the
+						// Off for NEW modules (GH #147). The Heading default used to be the
 						// placeholder "{a}Lorem{/a} Ipsum Dolor", so the old default meant
 						// every freshly dropped CTA rendered Lorem copy on the page until
-						// someone edited or unticked it — and Lorem reaching a live page is
-						// a worse outcome than a section without a heading. Turning it on is
-						// one click, and the heading placeholder is waiting when you do.
-						// Modules already saved are untouched: they carry their own value,
-						// and the render paths still fall back to 'yes' for any module whose
-						// settings predate this field entirely.
+						// someone edited or unticked it. Since 1.14 the Heading default is
+						// empty too (an empty field reads as "fill me in", Lorem reads as
+						// finished copy). Modules already saved are untouched: they carry
+						// their own value, and the render paths still fall back to 'yes' for
+						// any module whose settings predate this field entirely.
 						'default' => 'no',
 						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
 						'toggle'  => array( 'yes' => array( 'fields' => array( 'heading', 'header_label' ) ) ),
-						'help'    => __( 'Off by default so a new module never ships placeholder heading text. Switch to Yes to add a heading above the cards; existing modules keep whatever they were set to.', 'ds-toolkit' ),
+						'help'    => __( 'Off by default. Switch to Yes and type a heading to add one above the cards; existing modules keep whatever they were set to.', 'ds-toolkit' ),
 					),
 					'heading'      => array(
 						'type'    => 'textarea',
 						'label'   => __( 'Heading', 'ds-toolkit' ),
 						'rows'    => 2,
-						'default' => '{a}Lorem{/a} Ipsum Dolor',
+						'default' => '',
 						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
-					'header_label' => array( 'type' => 'text', 'label' => __( 'Right-side Label', 'ds-toolkit' ), 'default' => 'Lorem ipsum →' ),
+					'header_label' => array( 'type' => 'text', 'label' => __( 'Right-side Label', 'ds-toolkit' ), 'default' => '' ),
 					'header_desc'  => array( 'type' => 'editor', 'media_buttons' => false, 'rows' => 6, 'wpautop' => false, 'label' => __( 'Header Description', 'ds-toolkit' ), 'help' => __( 'Paragraph beside the heading (Bento / Style 3).', 'ds-toolkit' ) ),
 				),
 			),

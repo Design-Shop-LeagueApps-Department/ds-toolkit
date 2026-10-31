@@ -912,21 +912,21 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 					'eyebrow' => array(
 						'type'    => 'text',
 						'label'   => __( 'Eyebrow', 'ds-toolkit' ),
-						'default' => 'Lorem Ipsum Dolor',
+						'default' => '',
 						'help'    => __( 'Small label above the headline (optional).', 'ds-toolkit' ),
 					),
 					'heading' => array(
 						'type'    => 'textarea',
 						'label'   => __( 'Headline', 'ds-toolkit' ),
 						'rows'    => 3,
-						'default' => "Lorem Ipsum\nDolor {a}Sit{/a}",
+						'default' => '',
 						'help'    => __( 'Line breaks are kept. Wrap a word in {a}…{/a} to colour it with the accent colour, or in {g}…{/g} for a two-colour gradient (Style → Gradient & Outline Text). {outline}…{/outline} renders outlined (transparent, stroked) text, default style in Theme Setting. Markers cannot be nested; wrap separate ranges.', 'ds-toolkit' ),
 					),
 					'subtext' => array(
 						'type'    => 'editor', 'media_buttons' => false, 'wpautop' => false,
 						'label'   => __( 'Subtext', 'ds-toolkit' ),
 						'rows'    => 3,
-						'default' => 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt.',
+						'default' => '',
 					),
 					// Optional mark above the eyebrow (GH #192): a crest, badge or logo. Same
 					// shape as the Heading module's divider image — the editor authors a
@@ -952,10 +952,10 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 			'buttons' => array(
 				'title'       => __( 'Buttons', 'ds-toolkit' ),
 				'fields'      => array(
-					'btn1_text'  => array( 'type' => 'text', 'label' => __( 'Button 1 Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
+					'btn1_text'  => array( 'type' => 'text', 'label' => __( 'Button 1 Text', 'ds-toolkit' ), 'default' => 'Learn More' ),
 					'btn1_link'  => array( 'type' => 'link', 'label' => __( 'Button 1 Link', 'ds-toolkit' ), 'default' => '' ),
 					'btn1_style' => array( 'type' => 'select', 'label' => __( 'Button 1 Style', 'ds-toolkit' ), 'default' => 'primary', 'options' => array( 'primary' => __( 'Primary (filled)', 'ds-toolkit' ), 'ghost' => __( 'Ghost (outline)', 'ds-toolkit' ) ) ),
-					'btn2_text'  => array( 'type' => 'text', 'label' => __( 'Button 2 Text', 'ds-toolkit' ), 'default' => 'Dolor Sit' ),
+					'btn2_text'  => array( 'type' => 'text', 'label' => __( 'Button 2 Text', 'ds-toolkit' ), 'default' => '' ),
 					'btn2_link'  => array( 'type' => 'link', 'label' => __( 'Button 2 Link', 'ds-toolkit' ), 'default' => '' ),
 					'btn2_style' => array( 'type' => 'select', 'label' => __( 'Button 2 Style', 'ds-toolkit' ), 'default' => 'ghost', 'options' => array( 'primary' => __( 'Primary (filled)', 'ds-toolkit' ), 'ghost' => __( 'Ghost (outline)', 'ds-toolkit' ) ) ),
 				),
@@ -1021,12 +1021,12 @@ FLBuilder::register_module( 'DS_Hero_Module', array(
 				'description' => __( 'Up to three proof points. Leave a pair blank to hide it.', 'ds-toolkit' ),
 				'collapsed'   => true,
 				'fields'      => array(
-					'stat1_number' => array( 'type' => 'text', 'label' => __( 'Stat 1 Number', 'ds-toolkit' ), 'default' => '00' ),
-					'stat1_label'  => array( 'type' => 'text', 'label' => __( 'Stat 1 Label', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
-					'stat2_number' => array( 'type' => 'text', 'label' => __( 'Stat 2 Number', 'ds-toolkit' ), 'default' => '00' ),
-					'stat2_label'  => array( 'type' => 'text', 'label' => __( 'Stat 2 Label', 'ds-toolkit' ), 'default' => 'Dolor Sit Amet' ),
-					'stat3_number' => array( 'type' => 'text', 'label' => __( 'Stat 3 Number', 'ds-toolkit' ), 'default' => 'Lorem' ),
-					'stat3_label'  => array( 'type' => 'text', 'label' => __( 'Stat 3 Label', 'ds-toolkit' ), 'default' => 'Consectetur Elit' ),
+					'stat1_number' => array( 'type' => 'text', 'label' => __( 'Stat 1 Number', 'ds-toolkit' ), 'default' => '' ),
+					'stat1_label'  => array( 'type' => 'text', 'label' => __( 'Stat 1 Label', 'ds-toolkit' ), 'default' => '' ),
+					'stat2_number' => array( 'type' => 'text', 'label' => __( 'Stat 2 Number', 'ds-toolkit' ), 'default' => '' ),
+					'stat2_label'  => array( 'type' => 'text', 'label' => __( 'Stat 2 Label', 'ds-toolkit' ), 'default' => '' ),
+					'stat3_number' => array( 'type' => 'text', 'label' => __( 'Stat 3 Number', 'ds-toolkit' ), 'default' => '' ),
+					'stat3_label'  => array( 'type' => 'text', 'label' => __( 'Stat 3 Label', 'ds-toolkit' ), 'default' => '' ),
 				),
 			),
 			'banner' => array(

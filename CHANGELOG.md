@@ -4,6 +4,16 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.14.0] - 2026-10-31
+MINOR: new defaults for newly added modules. Pages already built look the same, byte for byte.
+
+### Changed
+- **A module dropped onto a page no longer brings Lorem Ipsum with it.** Seven modules defaulted their text to placeholder copy, so every new Hero, CTA, Post Loop, Org Stats, Marquee, Pathway or Carousel rendered Lorem on the page until someone replaced every field, including fields a style does not show. QA kept finding it on built sites (QA rows B1/B10, code LOR): on 2026-10-31 dslaunchpad7 carried it in 12 saved templates and both Themer base layouts, so every partner site cloned from it started with it. Text fields now default to empty, which reads as "fill me in" in the editor and renders nothing: Hero eyebrow, headline, subtext, second button and the three stat pairs (the stats row now starts hidden); CTA heading and right-side label; Post Loop heading; Org Stats eyebrow and heading; Marquee label; and the starter rows of the CTA cards, Org Stats stats, Marquee items, Pathway stages and Carousel slides (same number of rows, no copy). Button and link labels get a real word instead: Hero Button 1 and CTA card Link Text "Learn More", Post Loop header button "View All". Every one of these modules already hid an empty field, so nothing renders as an empty box of text.
+- **Existing modules are untouched.** Beaver Builder saves every field of a module, and all of these fields have existed since each module's first release, so saved modules keep their own text. Proved on dslaunchpad7: all 112 saved Hero, CTA, Post Loop, Org Stats, Marquee and Carousel nodes (published layouts, drafts, saved templates and Themer layouts) render byte-identical on 1.13.2 and 1.14.0. The one stored node missing any of these keys (the Team Category Archive template's Post Loop) has its header switched off, so the missing heading and button were never shown.
+- `tests/module-defaults-no-lorem-test.php` (12 checks: every string inside every module `default`, repeater rows included, is free of Lorem words, plus the labels above; mutation-checked: 10 fail on 1.13.2, which had 42 Lorem defaults).
+
+---
+
 ## [1.13.2] - 2026-10-30
 PATCH: two Menu fixes. Pages look the same; sticky headers get their dropdown links back.
 

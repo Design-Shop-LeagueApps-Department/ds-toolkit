@@ -512,9 +512,9 @@ FLBuilder::register_module( 'DS_Carousel_Module', array(
 						'preview_text' => 'caption',
 						'multiple'     => true,
 						'default'      => array(
-							array( 'caption' => 'Lorem Ipsum' ),
-							array( 'caption' => 'Dolor Sit Amet' ),
-							array( 'caption' => 'Consectetur' ),
+							array( 'caption' => '' ),
+							array( 'caption' => '' ),
+							array( 'caption' => '' ),
 						),
 					),
 				),
