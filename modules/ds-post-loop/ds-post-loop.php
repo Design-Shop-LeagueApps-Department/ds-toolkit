@@ -1817,7 +1817,7 @@ $ds_pl_form = array(
 						'type'    => 'textarea',
 						'label'   => __( 'Heading', 'ds-toolkit' ),
 						'rows'    => 2,
-						'default' => '{a}Lorem{/a} Ipsum',
+						'default' => '',
 						'help'    => __( 'Wrap a word in {a}…{/a} to colour it with the header accent. {outline}…{/outline} renders outlined (transparent, stroked) text — default style in Theme Setting.', 'ds-toolkit' ),
 					),
 					'show_button'  => array(
@@ -1827,7 +1827,7 @@ $ds_pl_form = array(
 						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ),
 						'toggle'  => array( 'yes' => array( 'fields' => array( 'button_text', 'button_link' ) ) ),
 					),
-					'button_text'  => array( 'type' => 'text', 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => 'Lorem Ipsum' ),
+					'button_text'  => array( 'type' => 'text', 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => 'View All' ),
 					'button_link'  => array( 'type' => 'link', 'label' => __( 'Button Link', 'ds-toolkit' ), 'show_target' => true, 'default' => '/news/', 'connections' => array( 'url' ) ),
 					'header_divider'    => array(
 						'type'    => 'select',

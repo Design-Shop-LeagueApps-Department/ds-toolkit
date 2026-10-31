@@ -271,7 +271,7 @@ FLBuilder::register_module( 'DS_Marquee_Module', array(
 					'label_text'  => array(
 						'type'        => 'text',
 						'label'       => __( 'Label Text', 'ds-toolkit' ),
-						'default'     => 'Lorem Ipsum',
+						'default'     => '',
 						'connections' => array( 'string' ),
 					),
 					'show_dot'    => array(
@@ -294,11 +294,9 @@ FLBuilder::register_module( 'DS_Marquee_Module', array(
 						'preview_text' => 'text',
 						'multiple'     => true,
 						'default'      => array(
-							array( 'text' => 'Lorem Ipsum Dolor' ),
-							array( 'text' => 'Consectetur Adipiscing' ),
-							array( 'text' => 'Sed Do Eiusmod' ),
-							array( 'text' => 'Tempor Incididunt' ),
-							array( 'text' => 'Magna Aliqua' ),
+							array( 'text' => '' ),
+							array( 'text' => '' ),
+							array( 'text' => '' ),
 						),
 					),
 				),

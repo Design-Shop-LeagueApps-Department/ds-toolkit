@@ -176,9 +176,9 @@ FLBuilder::register_module( 'DS_Pathway_Module', array(
 						'preview_text' => 'title',
 						'multiple'     => true,
 						'default'      => array(
-							array( 'title' => 'Lorem Ipsum', 'text' => 'Dolor sit amet, consectetur adipiscing elit.' ),
-							array( 'title' => 'Dolor Sit', 'text' => 'Sed do eiusmod tempor incididunt ut labore.' ),
-							array( 'title' => 'Consectetur', 'text' => 'Ut enim ad minim veniam, quis nostrud.' ),
+							array( 'title' => '', 'text' => '' ),
+							array( 'title' => '', 'text' => '' ),
+							array( 'title' => '', 'text' => '' ),
 						),
 					),
 					'show_eyebrow' => array(
