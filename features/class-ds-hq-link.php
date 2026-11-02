@@ -81,6 +81,7 @@ class DS_HQ_Link {
 		self::$booted = true;
 		require_once __DIR__ . '/class-ds-hq-update.php';
 		DS_HQ_Update::boot();
+		require_once __DIR__ . '/class-ds-hq-package.php';
 		add_action( 'rest_api_init', array( __CLASS__, 'rest_routes' ) );
 		add_action( 'ds_tripwire_checked', array( __CLASS__, 'on_checked' ), 10, 1 );
 		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 3 );
@@ -551,6 +552,7 @@ class DS_HQ_Link {
 			'permission_callback' => '__return_true', // signs a caller's nonce; reveals nothing secret
 			'args'                => array( 'n' => array( 'required' => true ) ),
 		) );
+		DS_HQ_Package::rest_routes(); // blueprints only: HQ's Plugin Store fetch
 	}
 
 	/** True when the request carries HQ's signature for $what on this host (see the class docblock). */

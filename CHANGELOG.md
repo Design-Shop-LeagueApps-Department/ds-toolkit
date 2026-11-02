@@ -4,6 +4,16 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.15.0] - 2026-11-03
+MINOR: Design Shop HQ can copy premium plugins from a blueprint by itself. Nothing changes on partner sites.
+
+### Added
+- **HQ's Plugin Store fetches new premium versions from the blueprint (`/wp-json/ds-toolkit/v1/hq-package`).** HQ keeps vetted zips of the premium plugins (Beaver Builder, Themer, UABB, ACF Pro, Ninja Tables Pro, Defender, WPMU DEV Dashboard, the Beaver Builder theme) for sites whose own licence download fails. Until now a person refreshed them from the Mac over SSH. HQ now asks the blueprint itself, weekly and on its "Fetch now" button, over the same signed HQ link as "Check in now": first the list of what the blueprint runs, then a zip of each newer plugin or theme. The blueprint signs both answers with its own link key, so HQ knows they came from it; HQ then checks the zip (one top folder, no secrets, no licence key, the behaviour scan) before storing it.
+- **Answers on a blueprint only.** The route replies only on the WP Engine installs dslaunchpad5, dslaunchpad6 and dslaunchpad7, by install name. A partner site cloned from a blueprint carries the same code under its own install name, so it answers 404, even to HQ. It also answers 404 to any call HQ did not sign, to a signature older than 5 minutes, and to a signature made for another plugin, type or nonce. Slugs are folder names only (no path, no `..`), types are `plugin` or `theme`. The zip leaves out symlinks, `.git`, `node_modules`, logs and `.DS_Store`, is built fresh per call and deleted after it is sent. Off switch: `define( 'DS_HQ_PACKAGE_DISABLED', true );` or the HQ link's own setting.
+- `tests/hq-package-test.php` (24 checks, mutation-checked: dropping the blueprint gate, the slug binding in the signature or the symlink rule each fails it).
+
+---
+
 ## [1.14.1] - 2026-10-31
 PATCH: a newly added CTA or Org Stats no longer shows empty boxes. Pages already built look the same, byte for byte.
 
