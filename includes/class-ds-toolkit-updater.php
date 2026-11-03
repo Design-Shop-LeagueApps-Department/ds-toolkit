@@ -171,7 +171,7 @@ class DS_Toolkit_Updater {
             'name'          => 'DS Toolkit',
             'slug'          => $this->slug,
             'version'       => ltrim( $release['tag_name'], 'v' ),
-            'author'        => 'Alipio Gabriel',
+            'author'        => 'LeagueApps Design Shop',
             'homepage'      => 'https://github.com/' . $this->repo,
             'sections'      => array(
                 'description' => 'Design Shop custom features and build toolkit.',

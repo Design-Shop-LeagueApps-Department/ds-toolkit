@@ -4,6 +4,12 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.15.1] - 2026-11-03
+PATCH: the plugin's author is LeagueApps Design Shop. Nothing else changes.
+
+### Changed
+- **Author is "LeagueApps Design Shop".** The plugin header (Plugins screen), the "By ..." line at the foot of the DS Toolkit admin pages and the README now name the team instead of a person. Plugin URI, Author URI and the admin GitHub link point to the Design-Shop-LeagueApps-Department organisation, where the repository lives (the old personal address only redirected there). No setting, module or behaviour changes.
+
 ## [1.15.0] - 2026-11-03
 MINOR: Design Shop HQ can copy premium plugins from a blueprint by itself. Nothing changes on partner sites.
 
