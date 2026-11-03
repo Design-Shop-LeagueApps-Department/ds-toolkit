@@ -5,7 +5,7 @@ A professional WordPress plugin for Design Shop (LeagueApps) builds. Bundles all
 Visible only to `DS_TOOLKIT_ADMIN_DOMAIN` users in WP Admin (default: `@leagueapps.com`).
 
 ## Author
-Alipio Gabriel
+LeagueApps Design Shop
 
 ---
 

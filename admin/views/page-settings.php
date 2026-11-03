@@ -771,8 +771,8 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
     <div class="dst-footer">
         <?php submit_button( 'Save Changes', 'primary', 'submit', false ); ?>
         <span class="dst-footer-meta">
-            <a href="https://github.com/agabriel1590/ds-toolkit" target="_blank" rel="noopener">GitHub</a>
-            &nbsp;&middot;&nbsp; By Alipio Gabriel
+            <a href="https://github.com/Design-Shop-LeagueApps-Department/ds-toolkit" target="_blank" rel="noopener">GitHub</a>
+            &nbsp;&middot;&nbsp; By LeagueApps Design Shop
         </span>
     </div>
 
