@@ -5,12 +5,12 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
  *
  *   php tests/programs-gender-scope-test.php
  *
- * Why (Alipio, 2026-11-05): the hosted registration widget can be set to one gender, so a girls
+ * Why (Zay, 2026-11-04): the hosted registration widget can be set to one gender, so a girls
  * page lists girls programs only; the module could only get there through Experience Level, which
  * works only where the club typed the gender into it. The feed shapes below are real:
  *   - Core 5 Flag Football (site 47635, 51 programs): 18 FEMALE, 26 CO_ED (a spelling the module
  *     never mapped, so they showed no Gender at all), 7 ANY main programs over CO_ED sessions.
- *   - Salt City (2026-11-05, 267 rows): 26 main programs are ANY with FEMALE and MALE divisions; a
+ *   - Salt City (2026-11-04, 267 rows): 26 main programs are ANY with FEMALE and MALE divisions; a
  *     division always carries its own Gender there, but every other field falls back to the main
  *     program when blank, so Gender does too.
  * The module helpers are read out of modules/ds-programs/ds-programs.php itself, so this tests the

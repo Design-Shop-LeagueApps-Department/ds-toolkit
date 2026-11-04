@@ -649,7 +649,7 @@ class DS_Programs_Data {
 
 	/**
 	 * LeagueApps' Gender as one of MALE, FEMALE, ANY or ''. The feed spells co-ed two ways,
-	 * ANY and CO_ED (Core 5 Flag Football: 26 of its 51 programs are CO_ED, 2026-11-05).
+	 * ANY and CO_ED (Core 5 Flag Football: 26 of its 51 programs are CO_ED, 2026-11-04).
 	 * CO_ED was never mapped, so those programs showed no Gender and the Gender filter had
 	 * no Coed option for them.
 	 */

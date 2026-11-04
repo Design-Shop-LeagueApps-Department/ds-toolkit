@@ -5,7 +5,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a php script: does nothing over HTTP
  *
  *   php tests/programs-button-optout-test.php
  *
- * Why (2026-11-05, designshopdemo): Beaver Builder's Global Styles button rule
+ * Why (2026-11-04, designshopdemo): Beaver Builder's Global Styles button rule
  * `.fl-page .fl-builder-content button:not(.fl-content-ui-button)` (0-3-1) outranks the module's
  * three-class resets and its per-node Style colours. "Clear filters" rendered in the global button
  * text colour, white on the light filter bar, and the block's Label colour could not change it;
