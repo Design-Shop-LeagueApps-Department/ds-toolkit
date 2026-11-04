@@ -4,6 +4,17 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.16.0] - 2026-11-05
+MINOR: LeagueApps Programs can list one gender, and co-ed programs show as Coed.
+
+### Added
+- **LeagueApps Programs: Programs > What to show > Gender** (Zay, 2026-11-05: "Use case for the reg widget. Gender needs to be in the 'what to show'"). Tick Boys, Girls and/or Coed and the block lists only those programs, the way a hosted registration widget can be set to one gender. Nothing ticked lists every program, which is what every block already on a page keeps. It reads the Gender the club set on each program in LeagueApps, so a girls page no longer depends on the club typing "Girls" into Experience Level. Coed also lists programs with no gender set (open to everyone); a girls page that should show the coed programs too ticks Girls and Coed. A main program listed on its own, or above its sub-programs, matches when any of its sub-programs does: a tournament stored as "Any" with girls and boys divisions still lists on a girls page, and with sub-programs shown, its boys divisions drop out under it.
+- `tests/programs-gender-scope-test.php` (28 checks, mutation-checked: counting a program with no gender as Coed, a main program's divisions, the `CO_ED` spelling, a blank division taking its main program's gender and the filter line in `rows()` each fail it when removed). Also run read-only against Core 5 Flag Football's live feed (42 listed programs): Girls lists 16, Coed 26, Girls and Coed all 42.
+
+### Fixed
+- **LeagueApps Programs: co-ed programs showed no Gender.** LeagueApps sends co-ed as `CO_ED` as well as `ANY`, and only `ANY` was mapped, so a `CO_ED` program's Gender cell was blank and the visitor Gender filter offered no Coed choice for it (Core 5 Flag Football: 26 of its 51 programs). Both spellings now read as Coed, so those cells now say Coed and the filter gains the Coed option.
+- **A sub-program with no gender of its own now takes its main program's**, like every other field already did. None was found on Salt City's 267 or Lamorinda's 12 programs (every division there carries its own), so no listing on those sites changes.
+
 ## [1.15.1] - 2026-11-03
 PATCH: the plugin's author is LeagueApps Design Shop. Nothing else changes.
 

@@ -506,6 +506,20 @@ class DS_Programs_Data {
 		$end_s    = $end ? (int) floor( $end / 1000 ) : 0;
 
 		$gender_map = array( 'MALE' => __( 'Boys', 'ds-toolkit' ), 'FEMALE' => __( 'Girls', 'ds-toolkit' ), 'ANY' => __( 'Coed', 'ds-toolkit' ) );
+		// The row's own Gender (a sub-program left blank takes its main program's, like every
+		// other field). For the Programs tab scope a row also carries every Gender it covers: a
+		// main program listed with its sub-programs covers each sub-program's, so a tournament
+		// stored as ANY with girls and boys divisions still lists on a girls page.
+		$gender_raw = $children ? self::group_gender( $row, $children ) : self::gender_code( $inherit( 'gender' ) );
+		$genders    = array( $gender_raw );
+		if ( $children ) {
+			$genders = array();
+			$own_g   = self::gender_code( $row['gender'] ?? '' );
+			foreach ( $children as $c ) {
+				$g         = self::gender_code( is_array( $c ) ? ( $c['gender'] ?? '' ) : '' );
+				$genders[] = '' !== $g ? $g : $own_g;
+			}
+		}
 		$type_map   = array( 'TOURNAMENT' => __( 'Tournament', 'ds-toolkit' ), 'LEAGUE' => __( 'League', 'ds-toolkit' ), 'CLASS' => __( 'Class', 'ds-toolkit' ), 'CAMP' => __( 'Camp', 'ds-toolkit' ), 'CLINIC' => __( 'Clinic', 'ds-toolkit' ), 'EVENT' => __( 'Event', 'ds-toolkit' ), 'CLUBTEAM' => __( 'Club Team', 'ds-toolkit' ) );
 		$mode_map   = array( 'YOUTH' => __( 'Youth', 'ds-toolkit' ), 'ADULT' => __( 'Adult', 'ds-toolkit' ) );
 		$state_map  = array( 'UPCOMING' => __( 'Upcoming', 'ds-toolkit' ), 'LIVE' => __( 'In Season', 'ds-toolkit' ), 'ARCHIVED' => __( 'Past', 'ds-toolkit' ) );
@@ -544,7 +558,8 @@ class DS_Programs_Data {
 			'endDate'    => self::date_one( $end_s, $format['date'] ?? 'numeric' ),
 			'month'      => $start_s ? date_i18n( 'F', $start_s ) : '',
 			'sport'      => $inherit( 'sport' ),
-			'gender'     => $gender_map[ self::group_gender( $row, $children ) ] ?? '',
+			'gender'     => $gender_map[ $gender_raw ] ?? '',
+			'genders'    => array_values( array_unique( $genders ) ),
 			'type'       => $type_map[ $type_raw ] ?? ucfirst( strtolower( $type_raw ) ),
 			'typeRaw'    => $type_raw,
 			'mode'       => $mode_map[ $mode_raw ] ?? ucfirst( strtolower( $mode_raw ) ),
@@ -621,15 +636,26 @@ class DS_Programs_Data {
 	 * the main program and FEMALE on each session); then that shared value.
 	 */
 	private static function group_gender( $row, array $children ) {
-		$own = strtoupper( (string) ( $row['gender'] ?? '' ) );
+		$own = self::gender_code( $row['gender'] ?? '' );
 		if ( ! $children || ( '' !== $own && 'ANY' !== $own ) ) { return $own; }
 		$seen = array();
 		foreach ( $children as $c ) {
-			$g = strtoupper( (string) ( is_array( $c ) ? ( $c['gender'] ?? '' ) : '' ) );
+			$g = self::gender_code( is_array( $c ) ? ( $c['gender'] ?? '' ) : '' );
 			if ( '' === $g || 'ANY' === $g ) { return $own; }
 			$seen[ $g ] = true;
 		}
 		return ( 1 === count( $seen ) ) ? (string) array_key_first( $seen ) : $own;
+	}
+
+	/**
+	 * LeagueApps' Gender as one of MALE, FEMALE, ANY or ''. The feed spells co-ed two ways,
+	 * ANY and CO_ED (Core 5 Flag Football: 26 of its 51 programs are CO_ED, 2026-11-05).
+	 * CO_ED was never mapped, so those programs showed no Gender and the Gender filter had
+	 * no Coed option for them.
+	 */
+	private static function gender_code( $v ) {
+		$v = strtoupper( trim( (string) $v ) );
+		return in_array( $v, array( 'CO_ED', 'COED', 'CO-ED' ), true ) ? 'ANY' : $v;
 	}
 
 	private static function price( $row, $master ) {
