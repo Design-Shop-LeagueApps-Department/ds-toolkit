@@ -4,6 +4,16 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.16.1] - 2026-11-06
+PATCH: CTA Style 7 (Program Pathway) takes up to 6 columns. Saved modules render the same.
+
+### Fixed
+- **A 5th program card no longer drops to a new line.** Program Pathway's Columns slider stopped at 4 and the CSS clamped any higher value back to 4, so adding a fifth program always wrapped it under the others and raising Columns did nothing (Rise Volleyball Club, ClickUp 868mpd9uf). Columns now goes to 6 on desktop, tablet and phone, like the other CTA styles.
+- **Titles step down above 4 columns.** The title size is now `clamp(1.5rem, 10rem / columns, 2.5rem)`: 2.5rem at 1-4 columns (unchanged), 2rem at 5, about 1.67rem at 6, so a long name does not break mid-word in a narrow card. A Title typography size set on the module still wins.
+
+### Unchanged
+- A Style 7 module saved at 4 columns or fewer renders exactly as on 1.16.0 (same column count, same 2.5rem titles). One saved above 4 (it showed 4) now shows its saved count.
+
 ## [1.16.0] - 2026-11-06
 MINOR: coach and staff photos can show as a small circle. Nothing changes on a page until someone picks it.
 
