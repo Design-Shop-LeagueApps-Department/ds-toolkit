@@ -66,6 +66,22 @@ class DS_Card {
 		return array( esc_url( $url ?: '#' ), $target === '_blank' ? '_blank' : '_self' );
 	}
 
+	/**
+	 * Initials for a person with no photo (Photo Style "Small circle", 1.16.0): the first letter of the
+	 * first and of the last word that starts with a letter. "Stephen J. Fenton" -> "SF", "Cher" -> "C".
+	 */
+	public static function initials( $name ) {
+		$name  = html_entity_decode( wp_strip_all_tags( (string) $name ), ENT_QUOTES, 'UTF-8' );
+		$words = array_values( array_filter(
+			preg_split( '/[\s\-]+/u', $name, -1, PREG_SPLIT_NO_EMPTY ) ?: array(),
+			function ( $w ) { return (bool) preg_match( '/^\p{L}/u', $w ); }
+		) );
+		if ( ! $words ) { return ''; }
+		$first = function ( $w ) { return function_exists( 'mb_substr' ) ? mb_substr( $w, 0, 1, 'UTF-8' ) : substr( $w, 0, 1 ); };
+		$out   = $first( $words[0] ) . ( count( $words ) > 1 ? $first( end( $words ) ) : '' );
+		return function_exists( 'mb_strtoupper' ) ? mb_strtoupper( $out, 'UTF-8' ) : strtoupper( $out );
+	}
+
 	/** The Theme Setting Social Card image URL, used as the people/card image fallback. '' if unset. */
 	public static function placeholder_image() {
 		if ( class_exists( 'DS_Social_Card' ) && method_exists( 'DS_Social_Card', 'get_card' ) ) {

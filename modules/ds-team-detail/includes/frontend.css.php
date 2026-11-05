@@ -88,12 +88,19 @@ if ( ! in_array( $ratio, array( '3/4', '1/1', '4/5', '4/3', '16/9' ), true ) ) {
 $photo = 'aspect-ratio:' . str_replace( '/', ' / ', $ratio ) . ';';
 if ( $c = $col( $settings->coach_photo_bg ?? '' ) ) { $photo .= "background-color:$c;"; }
 echo "$node .ds-people-photo{{$photo}}\n";
+$circle = ( $settings->coach_photo_style ?? 'card' ) === 'avatar'; // Photo Style "Small circle" (1.16.0)
+$pic    = $circle ? '.ds-people-avatar' : '.ds-people-photo';
 $gray = (string) ( $settings->coach_photo_grayscale ?? 'no' );
 if ( 'always' === $gray ) {
-	echo "$node .ds-people-photo{filter:grayscale(1);}\n";
+	echo "$node {$pic}{filter:grayscale(1);}\n";
 } elseif ( 'hover' === $gray ) {
-	echo "$node .ds-people-photo{filter:grayscale(1);transition:filter .3s ease;}\n";
-	echo "$node .ds-people-card:hover .ds-people-photo{filter:grayscale(0);}\n";
+	echo "$node {$pic}{filter:grayscale(1);transition:filter .3s ease;}\n";
+	echo "$node .ds-people-card:hover {$pic}{filter:grayscale(0);}\n";
+}
+if ( $circle ) {
+	$asz = max( 40, min( 200, $u( $settings->coach_avatar_size ?? '', 96 ) ) );
+	echo "$node .ds-people-card{--ds-people-avatar:{$asz}px;}\n";
+	if ( $c = $col( $settings->coach_photo_bg ?? '' ) ) { echo "$node .ds-people-avatar--initials{background-color:$c;}\n"; }
 }
 
 /* ---- Name / Role colours ---- */
