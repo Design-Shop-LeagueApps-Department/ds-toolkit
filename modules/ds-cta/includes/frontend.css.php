@@ -409,9 +409,9 @@ if ( 'style7' === $style ) {
 	$lc = $col( $settings->pp_lines_color ?? '' );   if ( '' !== $lc ) { $v[] = "--pp-gridline:{$lc}"; }
 	foreach ( array( 'pp_title_color' => '--pp-title', 'pp_sub_color' => '--pp-sub', 'pp_desc_color' => '--pp-desc' ) as $k => $var ) { $c = $col( $settings->$k ?? '' ); if ( '' !== $c ) { $v[] = "{$var}:{$c}"; } }
 	// Columns, gap and number size per breakpoint (blank tablet/phone falls back to the size above).
-	$cd = max( 1, min( 4, (int) ( ( $settings->pp_cols ?? '' ) !== '' ? $settings->pp_cols : 3 ) ) );
-	$cm = ( $settings->pp_cols_medium ?? '' ) !== '' ? max( 1, min( 4, (int) $settings->pp_cols_medium ) ) : min( $cd, 2 );
-	$cr = ( $settings->pp_cols_responsive ?? '' ) !== '' ? max( 1, min( 4, (int) $settings->pp_cols_responsive ) ) : 1;
+	$cd = max( 1, min( 6, (int) ( ( $settings->pp_cols ?? '' ) !== '' ? $settings->pp_cols : 3 ) ) );
+	$cm = ( $settings->pp_cols_medium ?? '' ) !== '' ? max( 1, min( 6, (int) $settings->pp_cols_medium ) ) : min( $cd, 2 );
+	$cr = ( $settings->pp_cols_responsive ?? '' ) !== '' ? max( 1, min( 6, (int) $settings->pp_cols_responsive ) ) : 1;
 	$gd = ( $settings->pp_gap ?? '' ) !== '' ? (int) $settings->pp_gap : 40;
 	$gm = ( $settings->pp_gap_medium ?? '' ) !== '' ? (int) $settings->pp_gap_medium : $gd;
 	$gr = ( $settings->pp_gap_responsive ?? '' ) !== '' ? (int) $settings->pp_gap_responsive : $gm;
