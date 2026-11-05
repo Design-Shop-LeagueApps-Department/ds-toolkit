@@ -107,10 +107,15 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 		// Photo fallback for coaches with no featured image = the Theme Setting Social Card.
 		$ph = DS_Card::placeholder_image();
 
+		// Photo Style "Small circle" (1.16.0): a small round photo inside the card body, so a small or
+		// low-quality headshot is never stretched across the card; no photo = the coach's initials.
+		$avatar = ( $s->coach_photo_style ?? 'card' ) === 'avatar';
+		$av_img = ( (int) ( $s->coach_avatar_size ?? 96 ) > 110 ) ? 'medium_large' : 'medium';
+
 		$cards = '';
 		foreach ( $ids as $cid ) {
 			if ( 'publish' !== get_post_status( $cid ) ) { continue; }
-			$img  = get_the_post_thumbnail_url( $cid, 'large' );
+			$img  = get_the_post_thumbnail_url( $cid, $avatar ? $av_img : 'large' );
 			$name = get_the_title( $cid );
 			$role = (string) get_post_meta( $cid, 'staff_title', true );
 
@@ -133,10 +138,20 @@ class DS_Team_Detail_Module extends FLBuilderModule {
 			$link = ( ( $s->coach_card_link ?? 'yes' ) === 'yes' )
 				? DS_Card::stretched_link( get_permalink( $cid ), $name )
 				: '';
-			$cards .= '<div class="ds-people-card">'
-				. $link
-				. '<div class="ds-people-photo"' . $bg . '></div>'
-				. '<div class="ds-people-body">'
+			if ( $avatar ) {
+				$circle = $img
+					? '<div class="ds-people-avatar" style="background-image:url(' . esc_url( $img ) . ')"></div>'
+					: '<div class="ds-people-avatar ds-people-avatar--initials" aria-hidden="true">' . esc_html( DS_Card::initials( $name ) ) . '</div>';
+				$cards .= '<div class="ds-people-card ds-people-card--avatar">'
+					. $link
+					. '<div class="ds-people-body">' . $circle;
+			} else {
+				$cards .= '<div class="ds-people-card">'
+					. $link
+					. '<div class="ds-people-photo"' . $bg . '></div>'
+					. '<div class="ds-people-body">';
+			}
+			$cards .= ''
 				. ( '' !== $name ? '<h3 class="ds-people-name">' . DS_Module_UI::inline( $name ) . '</h3>' : '' )
 				. ( '' !== $role ? '<span class="ds-people-role">' . esc_html( $role ) . '</span>' : '' )
 				. ( '' !== $icons ? '<div class="ds-people-contacts">' . $icons . '</div>' : '' )
@@ -353,8 +368,17 @@ FLBuilder::register_module( 'DS_Team_Detail_Module', array(
 			'coach_photo' => array(
 				'title'  => __( 'Coach Photo', 'ds-toolkit' ),
 				'fields' => array(
+					'coach_photo_style'     => array(
+						'type'    => 'select',
+						'label'   => __( 'Photo Style', 'ds-toolkit' ),
+						'default' => 'card',
+						'options' => array( 'card' => __( 'Full card (photo on top)', 'ds-toolkit' ), 'avatar' => __( 'Small circle', 'ds-toolkit' ) ),
+						'toggle'  => array( 'card' => array( 'fields' => array( 'coach_photo_ratio' ) ), 'avatar' => array( 'fields' => array( 'coach_avatar_size' ) ) ),
+						'help'    => __( 'Small circle suits small or low-quality headshots: the photo shows as a small round avatar above the name instead of filling the top of the card. A coach without a photo gets their initials in the circle, on the Photo Placeholder Background colour.', 'ds-toolkit' ),
+					),
+					'coach_avatar_size'     => array( 'type' => 'unit', 'label' => __( 'Circle Size', 'ds-toolkit' ), 'default' => '96', 'description' => 'px', 'slider' => array( 'min' => 56, 'max' => 160, 'step' => 2 ), 'help' => __( 'Diameter of the photo circle.', 'ds-toolkit' ) ),
 					'coach_photo_ratio'     => array( 'type' => 'select', 'label' => __( 'Photo Aspect Ratio', 'ds-toolkit' ), 'default' => '3/4', 'options' => array( '3/4' => __( 'Portrait (3:4)', 'ds-toolkit' ), '1/1' => __( 'Square (1:1)', 'ds-toolkit' ), '4/5' => __( 'Tall (4:5)', 'ds-toolkit' ), '4/3' => __( 'Landscape (4:3)', 'ds-toolkit' ), '16/9' => __( 'Wide (16:9)', 'ds-toolkit' ) ) ),
-					'coach_photo_bg'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Photo Placeholder Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Shown for coaches with no photo. Blank uses the global Headings colour.', 'ds-toolkit' ) ),
+					'coach_photo_bg'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Photo Placeholder Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Shown for coaches with no photo (behind the initials in Small circle). Blank uses the global Headings colour.', 'ds-toolkit' ) ),
 					'coach_photo_grayscale' => array( 'type' => 'select', 'label' => __( 'Photo Grayscale', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'Off', 'ds-toolkit' ), 'always' => __( 'Always Grayscale', 'ds-toolkit' ), 'hover' => __( 'Colour on Hover', 'ds-toolkit' ) ) ),
 				),
 			),

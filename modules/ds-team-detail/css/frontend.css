@@ -36,6 +36,8 @@
 .ds-teamdetail .ds-people-ico{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:var(--fl-global-accent);color:var(--fl-global-white);text-decoration:none;transition:background .2s ease,transform .2s ease;}
 .ds-teamdetail .ds-people-ico:hover{transform:translateY(-2px);}
 .ds-teamdetail .ds-people-ico svg{width:18px;height:18px;display:block;}
+/* Photo Style "Small circle": the circle is the first item of the card body, so Text Alignment moves it too. */
+.ds-teamdetail .ds-people-avatar{flex:none;box-sizing:border-box;width:var(--ds-people-avatar,96px);height:var(--ds-people-avatar,96px);margin:10px 0 11px;border-radius:50%;background:var(--fl-global-headings) 50% 20%/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;font-size:calc(var(--ds-people-avatar,96px) * .34);font-weight:700;line-height:1;letter-spacing:.03em;color:var(--fl-global-white,#fff);}
 
 @media (max-width:768px){
 	.ds-teamdetail--hasimg{grid-template-columns:1fr;}

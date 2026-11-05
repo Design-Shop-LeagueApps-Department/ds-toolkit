@@ -374,6 +374,29 @@ if ( ( $settings->card_layout ?? '' ) === 'staff_card' ) {
 	$sratio = preg_replace( '/[^0-9 \/]/', '', (string) ( $settings->staff_photo_ratio ?? '3 / 4' ) ) ?: '3 / 4';
 	echo "$node .ds-people-photo { aspect-ratio: {$sratio}; }\n";
 
+	// Photo Style "Small circle": printed only when chosen, so a full-card grid's CSS is unchanged.
+	if ( ( $settings->staff_show_photo ?? 'yes' ) !== 'no' && ( $settings->staff_photo_style ?? 'card' ) === 'avatar' ) {
+		$asz = max( 40, min( 200, $u( $settings->staff_avatar_size ?? '', 96 ) ) );
+		echo "$node .ds-people-card { --ds-people-avatar: {$asz}px; }\n";
+		$iab = $col( $settings->staff_initials_bg ?? '' );    if ( '' !== $iab ) { echo "$node .ds-people-avatar--initials { background-color: {$iab}; }\n"; }
+		$iac = $col( $settings->staff_initials_color ?? '' ); if ( '' !== $iac ) { echo "$node .ds-people-avatar--initials { color: {$iac}; }\n"; }
+
+		// Circle Layout per device: the desktop value is a class on the card (--side); a tablet or phone
+		// value that differs from the size above it switches the layout inside that breakpoint.
+		$lay_css = function ( $lay ) use ( $node ) {
+			$c = "$node .ds-people-card--avatar";
+			return 'side' === $lay
+				? "$c { flex-direction: row; align-items: center; gap: 18px; padding: 20px; } $c .ds-people-avatar { margin: 0; } $c .ds-people-body { flex: 1; min-width: 0; padding: 0; text-align: left; align-items: flex-start; } $c .ds-people-contacts { justify-content: flex-start; margin-top: 8px; }"
+				: "$c { flex-direction: column; align-items: normal; gap: normal; padding: 0; } $c .ds-people-avatar { margin: 28px auto 0; } $c .ds-people-body { flex: 0 1 auto; padding: 16px 18px 24px; text-align: center; align-items: center; } $c .ds-people-contacts { justify-content: center; margin-top: 12px; }";
+		};
+		$ok   = array( 'stack', 'side' );
+		$lay  = in_array( $settings->staff_avatar_layout ?? '', $ok, true ) ? $settings->staff_avatar_layout : 'stack';
+		$layM = in_array( $settings->staff_avatar_layout_medium ?? '', $ok, true ) ? $settings->staff_avatar_layout_medium : $lay;
+		$layR = in_array( $settings->staff_avatar_layout_responsive ?? '', $ok, true ) ? $settings->staff_avatar_layout_responsive : $layM;
+		if ( $layM !== $lay )  { echo "@media (max-width:{$bpm}px){ " . $lay_css( $layM ) . " }\n"; }
+		if ( $layR !== $layM ) { echo "@media (max-width:{$bpr}px){ " . $lay_css( $layR ) . " }\n"; }
+	}
+
 	$scbg = $col( $settings->staff_card_bg ?? '' );
 	if ( '' !== $scbg ) { echo "$node .ds-people-card { background: {$scbg}; }\n"; }
 	$scrad = ( isset( $settings->staff_card_radius ) && '' !== $settings->staff_card_radius ) ? ( (int) $settings->staff_card_radius ) . 'px' : 'var(--ds-radius)';

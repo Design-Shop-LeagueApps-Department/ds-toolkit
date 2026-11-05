@@ -4,6 +4,20 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.16.0] - 2026-11-06
+MINOR: coach and staff photos can show as a small circle. Nothing changes on a page until someone picks it.
+
+### Added
+- **Photo Style: Small circle, on the Post Loop (Staff: Cards) and on Team Detail's coaches.** Partners often send coach headshots of about 190x250px. A full card shows them 260-350px wide, so on phones and retina screens they look three to five times blown up and blurry (Core Volleyball: all 25 of its coach photos). Small circle shows the photo as a round avatar (Circle Size, default 96px) above the name instead of filling the top of the card, so the same file stays sharp. Anyone without a photo gets their initials in the circle instead of the Social Card placeholder ("Stephen J. Fenton" -> SF). A faint 1px inner ring keeps a white-background photo round on a light card.
+- **Post Loop, Staff: Cards.** New under Show Photo: Photo Style (Full card / Small circle), Circle Size, Circle Layout (Centred, circle above the name / Side by side, circle left of the name), Initials Background (blank = heading colour) and Initials Colour (blank = white). Circle Layout can differ per device: set Side by side on the phone size only to turn a long staff grid into a compact list on phones while desktop stays centred. Show Photo = No still wins (names only). Photo Ratio hides while Small circle is on.
+- **Team Detail (team pages), Coach Photo section.** Photo Style and Circle Size. The circle sits inside the card body, so Text Alignment moves it too; Photo Placeholder Background colours the initials circle and Photo Grayscale applies to the circle.
+- The circle loads the WordPress "medium" size (or "medium_large" above 110px), not "large".
+- `DS_Card::initials()` shared helper.
+
+### Unchanged
+- **Every saved grid renders the same, byte for byte.** Both new options default to Full card. Proved on dslaunchpad7 (local copy): all 54 saved Post Loop nodes and both Team Detail nodes (published layouts, drafts, saved templates and Themer layouts, Team Detail rendered against real teams) produce identical HTML on 1.15.1 and 1.16.0; their CSS differs only by the new rules for classes no existing markup uses.
+- `tests/staff-avatar-test.php` (46 checks, all pass; on 1.15.1 23 fail and the "unchanged" checks pass).
+
 ## [1.15.1] - 2026-11-03
 PATCH: the plugin's author is LeagueApps Design Shop. Nothing else changes.
 

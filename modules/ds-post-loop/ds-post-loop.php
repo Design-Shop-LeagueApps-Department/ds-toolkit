@@ -622,12 +622,18 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		$ic_fb    = DS_Card::icon( 'facebook' );
 		$ic_x     = DS_Card::icon( 'x' );
 		$photo    = ( $s->staff_show_photo ?? 'yes' ) !== 'no';
+		// Photo Style "Small circle" (1.16.0): the photo shows as a small round avatar, so a small or
+		// low-resolution headshot is never stretched across a whole card. No photo = their initials.
+		$avatar   = $photo && ( $s->staff_photo_style ?? 'card' ) === 'avatar';
+		$side     = $avatar && ( $s->staff_avatar_layout ?? 'stack' ) === 'side';
+		$av_img   = $avatar ? self::avatar_img_size( (int) ( $s->staff_avatar_size ?? 96 ) > 110 ? 'medium_large' : 'medium' ) : '';
+		$cls      = $photo ? ( $avatar ? ' ds-people-card--avatar' . ( $side ? ' ds-people-card--side' : '' ) : '' ) : ' ds-people-card--nophoto';
 
 		$this->loop_open( 'ds-people-grid' );
 		while ( $q->have_posts() ) {
 			$q->the_post();
 			$id    = get_the_ID();
-			$img   = $photo ? ( get_the_post_thumbnail_url( $id, 'large' ) ?: $ph ) : '';
+			$img   = $photo && ! $avatar ? ( get_the_post_thumbnail_url( $id, 'large' ) ?: $ph ) : '';
 			$name  = get_the_title( $id );
 			$title = (string) get_post_meta( $id, 'staff_title', true );
 
@@ -641,8 +647,16 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 				$icons .= $this->contact_icon( get_post_meta( $id, 'staff_x', true ), $ic_x, 'X' );
 			}
 
-			echo '<div class="ds-people-card' . ( $photo ? '' : ' ds-people-card--nophoto' ) . '">'; echo $this->card_link( $id );
-			if ( $photo ) {
+			echo '<div class="ds-people-card' . $cls . '">'; echo $this->card_link( $id );
+			if ( $avatar ) {
+				$src = get_the_post_thumbnail_url( $id, $av_img );
+				if ( $src ) {
+					echo '<div class="ds-people-avatar" style="background-image:url(' . esc_url( $src ) . ')"></div>';
+				} else {
+					// The name is the heading right below, so the letters are decoration for screen readers.
+					echo '<div class="ds-people-avatar ds-people-avatar--initials" aria-hidden="true">' . esc_html( DS_Card::initials( $name ) ) . '</div>';
+				}
+			} elseif ( $photo ) {
 				echo '<div class="ds-people-photo"' . ( $img ? ' style="background-image:url(' . esc_url( $img ) . ')"' : '' ) . '></div>';
 			}
 			echo '<div class="ds-people-body">';
@@ -2120,8 +2134,21 @@ $ds_pl_form = array(
 						'label'   => __( 'Show Photo', 'ds-toolkit' ),
 						'default' => 'yes',
 						'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No (names only)', 'ds-toolkit' ) ),
-						'toggle'  => array( 'yes' => array( 'fields' => array( 'staff_photo_ratio' ) ) ),
+						'toggle'  => array( 'yes' => array( 'fields' => array( 'staff_photo_style', 'staff_photo_ratio', 'staff_avatar_size', 'staff_avatar_layout', 'staff_initials_bg', 'staff_initials_color' ) ) ),
+						// Photo Style then hides whichever of its own fields do not apply.
+						'trigger' => array( 'yes' => array( 'fields' => array( 'staff_photo_style' ) ) ),
 						'help'    => __( 'No: every card shows the name, title and contact icons without a photo, whether or not the entry has one.', 'ds-toolkit' ),
+					),
+					'staff_photo_style' => array(
+						'type'    => 'select',
+						'label'   => __( 'Photo Style', 'ds-toolkit' ),
+						'default' => 'card',
+						'options' => array( 'card' => __( 'Full card (photo on top)', 'ds-toolkit' ), 'avatar' => __( 'Small circle', 'ds-toolkit' ) ),
+						'toggle'  => array(
+							'card'   => array( 'fields' => array( 'staff_photo_ratio' ) ),
+							'avatar' => array( 'fields' => array( 'staff_avatar_size', 'staff_avatar_layout', 'staff_initials_bg', 'staff_initials_color' ) ),
+						),
+						'help'    => __( 'Small circle suits small or low-quality headshots: the photo shows as a small round avatar instead of filling the top of the card. Anyone without a photo gets their initials in the circle.', 'ds-toolkit' ),
 					),
 					'staff_photo_ratio' => array(
 						'type'    => 'select',
@@ -2129,6 +2156,17 @@ $ds_pl_form = array(
 						'default' => '3 / 4',
 						'options' => array( '3 / 4' => __( 'Portrait 3:4', 'ds-toolkit' ), '4 / 5' => __( 'Portrait 4:5', 'ds-toolkit' ), '1 / 1' => __( 'Square 1:1', 'ds-toolkit' ), '4 / 3' => __( 'Landscape 4:3', 'ds-toolkit' ) ),
 					),
+					'staff_avatar_size'    => array( 'type' => 'unit', 'label' => __( 'Circle Size', 'ds-toolkit' ), 'default' => '96', 'description' => 'px', 'slider' => array( 'min' => 56, 'max' => 160, 'step' => 2 ), 'help' => __( 'Diameter of the photo circle.', 'ds-toolkit' ) ),
+					'staff_avatar_layout'  => array(
+						'type'    => 'select',
+						'label'   => __( 'Circle Layout', 'ds-toolkit' ),
+						'default'    => 'stack',
+						'responsive' => true,
+						'options'    => array( 'stack' => __( 'Centred, circle above the name', 'ds-toolkit' ), 'side' => __( 'Side by side, circle left of the name', 'ds-toolkit' ) ),
+						'help'       => __( 'Side by side makes a compact list: good for one or two columns, or a long staff list on phones (set it on the phone size only to keep the desktop grid centred).', 'ds-toolkit' ),
+					),
+					'staff_initials_bg'    => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Initials Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Circle colour for someone without a photo. Blank uses the heading colour.', 'ds-toolkit' ) ),
+					'staff_initials_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Initials Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true, 'help' => __( 'Blank uses white.', 'ds-toolkit' ) ),
 					'staff_card_bg'     => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'staff_card_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 30, 'step' => 1 ) ),
 					'staff_name_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Name', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
