@@ -87,6 +87,21 @@ class DS_Programs_Module extends FLBuilderModule {
 		return true;
 	}
 
+	/**
+	 * Does a row match the ticked genders (MALE, FEMALE, ANY)? Read from LeagueApps' own Gender,
+	 * not the shown label (DS_Programs_Data reads LeagueApps' CO_ED as ANY). A program with no
+	 * gender set is open to everyone, so it counts as ANY (Coed) too. A main program listed with
+	 * its sub-programs matches when any sub-program does. Nothing ticked = every program.
+	 */
+	public static function in_genders( array $r, array $genders ) {
+		if ( ! $genders ) { return true; }
+		foreach ( (array) ( $r['genders'] ?? array() ) as $g ) {
+			$g = strtoupper( trim( (string) $g ) );
+			if ( in_array( '' === $g ? 'ANY' : $g, $genders, true ) ) { return true; }
+		}
+		return false;
+	}
+
 	/** A multi-select value as a clean list of exact strings (case kept, unlike type_list). */
 	public static function type_list_plain( $v ) {
 		if ( is_string( $v ) ) { $v = explode( ',', $v ); }
@@ -140,6 +155,7 @@ class DS_Programs_Module extends FLBuilderModule {
 
 		$types = self::type_list( $s->program_type ?? array() );
 		$mode  = strtoupper( (string) ( $s->program_mode ?? '' ) );
+		$gends = self::type_list( $s->gender_scope ?? array() );
 		$state = strtoupper( (string) ( $s->state_filter ?? '' ) );
 		$sport = trim( (string) ( $s->sport_filter ?? '' ) );
 		if ( '' === $sport ) { $sport = trim( (string) ( $s->sport_text ?? '' ) ); }
@@ -149,9 +165,10 @@ class DS_Programs_Module extends FLBuilderModule {
 		$hide_canc   = 'yes' === ( $s->hide_canceled ?? 'no' );
 		list( $seasons, $levels ) = self::season_level_scope( $s );
 
-		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $state, $sport, $locs, $hide_sold, $hide_closed, $hide_canc, $seasons, $levels ) {
+		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $gends, $state, $sport, $locs, $hide_sold, $hide_closed, $hide_canc, $seasons, $levels ) {
 			if ( $types && ! in_array( $r['typeRaw'], $types, true ) ) { return false; }
 			if ( $mode && $r['modeRaw'] !== $mode ) { return false; }
+			if ( ! self::in_genders( $r, $gends ) ) { return false; }
 			if ( $state && $r['stateRaw'] !== $state ) { return false; }
 			if ( '' !== $sport && 0 !== strcasecmp( $r['sport'], $sport ) ) { return false; }
 			if ( $locs && ! self::location_matches( (string) ( $r['location'] ?? '' ), $locs ) ) { return false; }
@@ -501,6 +518,14 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 						'label'   => __( 'Audience', 'ds-toolkit' ),
 						'default' => '',
 						'options' => array( '' => __( 'Youth and adult', 'ds-toolkit' ), 'YOUTH' => __( 'Youth only', 'ds-toolkit' ), 'ADULT' => __( 'Adult only', 'ds-toolkit' ) ),
+					),
+					'gender_scope' => array(
+						'type'         => 'button-group',
+						'label'        => __( 'Gender', 'ds-toolkit' ),
+						'multi-select' => true,
+						'default'      => array(),
+						'options'      => array( 'MALE' => __( 'Boys', 'ds-toolkit' ), 'FEMALE' => __( 'Girls', 'ds-toolkit' ), 'ANY' => __( 'Coed', 'ds-toolkit' ) ),
+						'help'         => __( 'The Gender the club set on each program in LeagueApps. Tick one or more; nothing ticked shows every program. Coed also lists programs with no gender set. For a girls page that should list coed programs too, tick Girls and Coed.', 'ds-toolkit' ),
 					),
 					'sport_filter' => array(
 						'type'    => 'select',

@@ -351,7 +351,15 @@
  * specificity hack. The Style tab's per-node rules are emitted after this file
  * at the same three-class weight, so they still win where they apply.
  * !important covers only properties no Style field owns, which is what makes a
- * theme that uses !important on its buttons lose as well. */
+ * theme that uses !important on its buttons lose as well.
+ *
+ * Beaver Builder's Global Styles button rule is heavier still:
+ * `.fl-page .fl-builder-content button:not(.fl-content-ui-button)` is 0-3-1, so it
+ * beat these resets AND the Style tab's per-node colours: "Clear filters" took the
+ * global button text colour (white on the light filter bar) and every pager button
+ * was a filled brand button. Every <button> here therefore carries
+ * fl-content-ui-button, Beaver Builder's own opt-out from that rule (the Calendar,
+ * Roster and Schedule modules do the same). */
 .ds-programs .ds-programs-th .ds-programs-sortbtn,
 .ds-programs .ds-programs-bar .ds-programs-clear,
 .ds-programs .ds-programs-pager .ds-programs-page,

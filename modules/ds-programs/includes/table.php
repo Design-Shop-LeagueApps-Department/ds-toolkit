@@ -194,7 +194,7 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val, $r
 		<?php endif; ?>
 
 		<?php if ( $show_clr && ( $filters || $show_srch ) ) : ?>
-			<button type="button" class="ds-programs-clear" data-ds-programs-clear hidden><?php echo esc_html( $clear_txt ); ?></button>
+			<button type="button" class="fl-content-ui-button ds-programs-clear" data-ds-programs-clear hidden><?php echo esc_html( $clear_txt ); ?></button>
 		<?php endif; ?>
 	</div>
 	<?php endif; ?>
@@ -262,7 +262,7 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val, $r
 						?>
 						<th scope="col" class="ds-programs-th ds-programs-th--<?php echo esc_attr( $ckey ); ?>"<?php echo ( $sortable && ! $is_reg ) ? ' aria-sort="none"' : ''; ?>><?php
 							if ( $sortable && ! $is_reg ) {
-								echo '<button type="button" class="ds-programs-sortbtn" data-sort="' . esc_attr( $ckey ) . '" data-type="' . esc_attr( $col_types[ $ckey ] ) . '">' . $label . '<span class="ds-programs-sorticon" aria-hidden="true"></span></button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $label escaped above
+								echo '<button type="button" class="fl-content-ui-button ds-programs-sortbtn" data-sort="' . esc_attr( $ckey ) . '" data-type="' . esc_attr( $col_types[ $ckey ] ) . '">' . $label . '<span class="ds-programs-sorticon" aria-hidden="true"></span></button>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $label escaped above
 							} else {
 								echo $label; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above
 							}
