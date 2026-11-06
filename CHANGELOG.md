@@ -4,6 +4,21 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.17.0] - 2026-11-06
+MINOR: LeagueApps Programs can list one gender, co-ed programs show as Coed, and "Clear filters" and the pager are readable again.
+
+### Added
+- **LeagueApps Programs: Programs > What to show > Gender** (Zay, 2026-11-04: "Use case for the reg widget. Gender needs to be in the 'what to show'"). Tick Boys, Girls and/or Coed and the block lists only those programs, the way a hosted registration widget can be set to one gender. Nothing ticked lists every program, which is what every block already on a page keeps. It reads the Gender the club set on each program in LeagueApps, so a girls page no longer depends on the club typing "Girls" into Experience Level. Coed also lists programs with no gender set (open to everyone); a girls page that should show the coed programs too ticks Girls and Coed. A main program listed on its own, or above its sub-programs, matches when any of its sub-programs does: a tournament stored as "Any" with girls and boys divisions still lists on a girls page, and with sub-programs shown, its boys divisions drop out under it.
+- `tests/programs-gender-scope-test.php` (28 checks, mutation-checked: counting a program with no gender as Coed, a main program's divisions, the `CO_ED` spelling, a blank division taking its main program's gender and the filter line in `rows()` each fail it when removed). Also run read-only against Core 5 Flag Football's live feed (42 listed programs): Girls lists 16, Coed 26, Girls and Coed all 42.
+
+### Fixed
+- **LeagueApps Programs: co-ed programs showed no Gender.** LeagueApps sends co-ed as `CO_ED` as well as `ANY`, and only `ANY` was mapped, so a `CO_ED` program's Gender cell was blank and the visitor Gender filter offered no Coed choice for it (Core 5 Flag Football: 26 of its 51 programs). Both spellings now read as Coed, so those cells now say Coed and the filter gains the Coed option.
+- **A sub-program with no gender of its own now takes its main program's**, like every other field already did. None was found on Salt City's 267 or Lamorinda's 12 programs (every division there carries its own), so no listing on those sites changes.
+- **LeagueApps Programs: "Clear filters" was white on the filter bar, and the pager ignored its Style colours.** Beaver Builder's Global Styles button rule (`.fl-page .fl-builder-content button:not(.fl-content-ui-button)`, heavier than the module's resets and its per-node colours) painted every button in the module. On a site whose global button text is white (designshopdemo), "Clear filters" rendered white on the light grey bar, even with the block's Label colour set; every pager button was white on the brand green (3.53:1, under the 4.5:1 minimum) and the current page looked like the rest. The Clear link, the sort headings and the pager buttons now carry `fl-content-ui-button`, Beaver Builder's own opt-out, as the Calendar, Roster and Schedule modules already do. Clear takes the Label colour (or the bar's text colour), and the pager shows its designed look: outlined pages, the current page filled, and Page button colours from the Style tab apply. The sort headings looked right already and are unchanged. Measured on designshopdemo with the class added in the browser: Clear `rgb(255,255,255)` -> `rgb(20,20,20)`, pages white-on-green -> dark outlined, current page white on `#047225`.
+- `tests/programs-button-optout-test.php` (5 checks; 4 fail on 1.15.1): every `<button>` the module prints, including the ones the pager builds in JavaScript, carries the opt-out.
+
+---
+
 ## [1.16.1] - 2026-11-06
 PATCH: CTA Style 7 (Program Pathway) takes up to 6 columns. Saved modules render the same.
 
