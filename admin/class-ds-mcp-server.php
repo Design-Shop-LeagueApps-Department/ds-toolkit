@@ -1044,7 +1044,7 @@ class DS_MCP_Server {
             return $this->rpc_error( $id, -32602, 'Missing or invalid argument: settings (must be an object)' );
         }
         $allowed = array_flip( array(
-            'enable_login_branding', 'hide_fl_assistant', 'acf_css_vars_enabled',
+            'enable_login_branding', 'hide_fl_assistant', 'hide_bb_editor_tabs', 'acf_css_vars_enabled',
             'acf_css_vars_mappings', 'getsubmenu_enabled', 'current_year_enabled',
             'forminator_email_partner_enabled', 'forminator_email_partner_fallback',
             'global_css_enabled', 'global_css_content', 'global_js_enabled', 'global_js_content',

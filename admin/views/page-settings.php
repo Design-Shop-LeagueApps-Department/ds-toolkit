@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 // ---- group counts (on / total), computed from the same vars the cards use ----
 $dst_bp6 = ( $blueprint_version >= 6 );
 
-$dst_grp_security = array( $hide_fl_assistant, $user_roles_enabled, $bot_shield_enabled, $origin_guard_enabled, $tripwire_hq_report );
+$dst_grp_security = array( $hide_fl_assistant, $hide_bb_editor_tabs, $user_roles_enabled, $bot_shield_enabled, $origin_guard_enabled, $tripwire_hq_report );
 if ( $dst_bp6 ) {
 	$dst_grp_security[] = $disable_comments_enabled;
 	$dst_grp_security[] = $admin_menu_tidy_enabled;
@@ -60,6 +60,21 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
                 <input type="hidden" name="ds_toolkit_settings[hide_fl_assistant]" value="0">
                 <input type="checkbox" id="hide_fl_assistant" name="ds_toolkit_settings[hide_fl_assistant]" value="1" <?php checked( $hide_fl_assistant ); ?>>
                 <label for="hide_fl_assistant"></label>
+            </div>
+        </div>
+    </div>
+
+    <div class="dst-card">
+        <div class="dst-card-row">
+            <div class="dst-card-icon"><span class="dashicons dashicons-editor-code"></span></div>
+            <div class="dst-card-info">
+                <strong>Hide Beaver Builder Editor Tabs for Non-LeagueApps Users</strong>
+                <span>On pages built with Beaver Builder, hides the <strong>Text Editor</strong> / <strong>Beaver Builder</strong> tabs on the edit screen for all users except @leagueapps.com accounts, so a partner cannot switch the layout off by accident. The <strong>Launch Beaver Builder</strong> button stays, and pages not built with Beaver Builder keep the normal editor. Turn off when a partner needs the text editor.</span>
+            </div>
+            <div class="dst-toggle">
+                <input type="hidden" name="ds_toolkit_settings[hide_bb_editor_tabs]" value="0">
+                <input type="checkbox" id="hide_bb_editor_tabs" name="ds_toolkit_settings[hide_bb_editor_tabs]" value="1" <?php checked( $hide_bb_editor_tabs ); ?>>
+                <label for="hide_bb_editor_tabs"></label>
             </div>
         </div>
     </div>
