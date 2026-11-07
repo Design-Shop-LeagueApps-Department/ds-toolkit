@@ -111,37 +111,7 @@ foreach ( explode( "\n", $phone ) as $line ) {
 chk( 'phone: frame rules are node-scoped', $unscoped, array() );
 chk( 'cards layout card values break too', (bool) preg_match( '/\.ds-programs-card-field dd \{[^}]*overflow-wrap: anywhere/', $static ), true );
 
-echo "\nstacked cards wherever the table does not fit (tablets)\n";
-foreach ( array( 'modern', 'striped' ) as $p ) {
-	$css   = css_for( array( 'style_preset' => $p, 'table_radius' => '12', 'season_links' => 'yes', 'grouping' => 'both' ) );
-	$after = substr( $css, strrpos( $css, "\n}\n" ) + 3 ); // everything after the phone media block
-	$stk   = '.fl-node-abc123 .ds-programs--table.is-stacked';
-	chk( "$p: stacked rules exist outside any media query", false !== strpos( $after, "$stk .ds-programs-table thead{display:none;}" ), true );
-	chk( "$p: stacked rows become cards", (bool) preg_match( '/' . preg_quote( $stk, '/' ) . ' \.ds-programs-table tr\{display:flex;flex-direction:column/', $after ), true );
-	chk( "$p: stacked cards sit in a grid, two up on a tablet", (bool) preg_match( '/' . preg_quote( $stk, '/' ) . ' \.ds-programs-table tbody\{display:grid;grid-template-columns:repeat\(auto-fill,minmax\(min\(100%,300px\),1fr\)\)/', $after ), true );
-	chk( "$p: Sort by appears (headings are hidden)", false !== strpos( $after, "$stk .ds-programs-field--sort{display:flex;}" ), true );
-	chk( "$p: filter fields keep their widths when stacked", false === strpos( $after, 'is-stacked .ds-programs-field{' ), true );
-	chk( "$p: hidden and paged rows stay hidden when stacked", false !== strpos( $after, "$stk .ds-programs-table tr.ds-programs-row.is-hidden,$stk .ds-programs-table tr.ds-programs-row.is-paged{display:none;}" ), true );
-	// Every selector of every rule in the stacked block and the phone block carries the node (and the table scope).
-	$loose = array();
-	foreach ( explode( "\n", $css ) as $line ) {
-		if ( false === strpos( $line, '{' ) || 0 === strpos( $line, '@' ) || false === strpos( $line, 'ds-programs--table' ) ) { continue; }
-		foreach ( explode( ',', substr( $line, 0, strpos( $line, '{' ) ) ) as $s ) { if ( 0 !== strpos( trim( $s ), '.fl-node-abc123 .ds-programs--table' ) ) { $loose[] = trim( $s ); } }
-	}
-	chk( "$p: no card selector escapes the node (the old tbody leak)", $loose, array() );
-}
-$css = css_for( array( 'style_preset' => 'striped', 'row_bg' => '#fafafa' ) );
-chk( 'side by side, Register buttons line up at the card bottoms', false !== strpos( $css, '.ds-programs--table.is-stacked .ds-programs-table .ds-programs-td--register{margin-top:auto;}' ), true );
-chk( 'side by side, even cards keep the row background (no checkerboard)', false !== strpos( $css, '.ds-programs--table.is-stacked .ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:#fafafa;}' ), true );
-chk( 'unframed cards get a wider gutter', (bool) preg_match( '/is-stacked \.ds-programs-table tbody\{display:grid;[^}]*gap:18px 40px;/', $css ), true );
-
 echo "\nmarkup + JS\n";
-chk( 'JS: a table that fits, or phone cards, are left alone', (bool) preg_match( "/if \(getComputedStyle\(table\)\.display !== 'table' \|\| fits\(\)\) \{ return; \}/", $js ), true );
-chk( 'JS: drops the wide-screen minimums before stacking', (bool) preg_match( "/wrap\.classList\.add\('is-tight'\);\s*if \(fits\(\)\) \{ return; \}\s*wrap\.classList\.remove\('is-tight'\);\s*wrap\.classList\.add\('is-stacked'\);/", $js ), true );
-$css = css_for( array( 'style_preset' => 'modern' ) );
-chk( 'Modern wide-screen minimums step aside when the table is tight', false !== strpos( $css, '@media(min-width:1200px){.fl-node-abc123 .ds-programs:not(.is-tight) .ds-programs-td--program{min-width:220px;}' ), true );
-chk( 'JS re-decides on a width change, or when a showing table stops fitting', (bool) preg_match( '/if \(recheck \|\| w !== lastW \|\| spill\) \{ recheck = false; lastW = w; stack\(\); \}/', $js ), true );
-chk( 'JS re-decides once the web fonts arrive', false !== strpos( $js, 'document.fonts.ready.then(function () { recheck = true; update(); });' ), true );
 chk( 'table sits in a frame the JS watches', (bool) preg_match( '/<div class="ds-programs-frame" data-ds-programs-frame data-label="[^"]+">\s*<div class="ds-programs-scroll">/', $table ), true );
 chk( 'frame closes after the scroll box', (bool) preg_match( '#</table>\s*</div>\s*</div>#', $table ), true );
 chk( 'JS toggles can-scroll-left / can-scroll-right', false !== strpos( $js, "'can-scroll-left'" ) && false !== strpos( $js, "'can-scroll-right'" ), true );

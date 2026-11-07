@@ -41,10 +41,7 @@ if ( $modern ) {
 	echo "$node .ds-programs-td--price{font-weight:700;}\n";
 	// Wide screens only: long program names and places otherwise wrap to four lines beside a
 	// no-wrap date range. Narrower, the table must still fit its box with the Register column.
-	// Never at the cost of fitting: where these minimums alone push the table past its box (a
-	// 1040px box at 1200px on designshopdemo), the JS adds .is-tight and drops them before it
-	// would stack the table into cards (1.17.1).
-	echo "@media(min-width:1200px){{$node} .ds-programs:not(.is-tight) .ds-programs-td--program{min-width:220px;}{$node} .ds-programs:not(.is-tight) .ds-programs-td--location{min-width:150px;}}\n";
+	echo "@media(min-width:1200px){{$node} .ds-programs-td--program{min-width:220px;}{$node} .ds-programs-td--location{min-width:150px;}}\n";
 	echo "$node .ds-programs-table tbody tr{transition:background-color .15s ease;}\n";
 	echo "$node .ds-programs-field .ds-programs-select{padding:11px 38px 11px 14px !important;background-image:$arrow !important;background-repeat:no-repeat !important;background-position:right 12px center !important;background-size:16px 16px !important;}\n";
 	echo "$node .ds-programs-field .ds-programs-input{padding:11px 14px 11px 38px !important;background-image:$lens !important;background-repeat:no-repeat !important;background-position:12px center !important;background-size:17px 17px !important;}\n";
@@ -384,44 +381,12 @@ $m[] = ".ds-programs-seasonlinks a.ds-programs-seasonlink{display:inline-flex;al
 $m[] = ".ds-programs-table .ds-programs-td--spots:has(.ds-programs-dash){display:none;}";
 // Node-scoped so it out-specifies the `tr{display:flex}` card rule above (the static
 // .is-hidden rule loses to it); without this, phones ignore filters and paging.
-$m[] = ".ds-programs-table tr.ds-programs-row.is-hidden,.ds-programs-table tr.ds-programs-row.is-paged{display:none;}";
-
-/** Every selector in a rule's list gets the prefix. Until 1.17.1 only the first one did, so
- *  `.ds-programs-table tbody` in a list reached every Programs table on the page. */
-$scoped = function ( $rule, $prefix ) {
-	$at = strpos( $rule, '{' );
-	$sel = array_map( function ( $s ) use ( $prefix ) { return $prefix . ' ' . trim( $s ); }, explode( ',', substr( $rule, 0, $at ) ) );
-	return implode( ',', $sel ) . substr( $rule, $at );
-};
-
+$m[] = ".ds-programs-table tr.ds-programs-row.is-hidden,$node .ds-programs-table tr.ds-programs-row.is-paged{display:none;}";
 // The bar rules apply to both layouts; everything else here turns TABLE rows into
 // stacked cards and must not touch the Cards layout, whose grid shares the row class.
 echo "@media(max-width:{$bp_sm}px){\n";
 foreach ( $m as $rule ) {
-	echo $scoped( $rule, ( 0 === strpos( $rule, '.ds-programs-field' ) ) ? $node : "$node .ds-programs--table" ) . "\n";
+	$scope = ( 0 === strpos( $rule, '.ds-programs-field' ) ) ? '' : ' .ds-programs--table';
+	echo "$node$scope $rule\n";
 }
 echo "}\n";
-
-/* ---------- stacked cards wherever the table does not fit (1.17.1) ----------
- * The phone breakpoint alone is not enough: a full LeagueApps table needs ~1000-1100px, so on
- * every tablet it ran past its box (ethosvolleyball /register/ at 800-1024px). The JS adds
- * .is-stacked to the block whenever the table is wider than its box, at any width, column
- * count or text size, and removes it when the table fits again. Same cards as on a phone,
- * laid out in as many columns as fit (two on a portrait tablet). Without JS the table
- * scrolls inside its box instead. The filters keep their widths; the Sort by dropdown
- * appears because the column headings are hidden. */
-$stk = "$node .ds-programs--table.is-stacked";
-foreach ( $m as $rule ) {
-	if ( 0 === strpos( $rule, '.ds-programs-field' ) ) { continue; }
-	echo $scoped( $rule, $stk ) . "\n";
-}
-echo "$stk .ds-programs-field--sort{display:flex;}\n";
-$sgap   = $px( 'mob_card_gap' ) ?: '18px';
-$framed = ( $modern && '' === (string) ( $settings->mob_card_border ?? '' ) ) || $sc( 'mob_card_bg' );
-// Framed cards sit a card-gap apart; unframed ones (a bottom line only) need a wider gutter or two columns of labels run together.
-echo "$stk .ds-programs-table tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:$sgap " . ( $framed ? $sgap : '40px' ) . ";}\n";
-echo "$stk .ds-programs-table tbody .ds-programs-row{margin:0;}\n";
-// Cards in a row share a height: the Register block sits at the bottom of each, so the buttons line up across the row.
-echo "$stk .ds-programs-table .ds-programs-td--register{margin-top:auto;}\n";
-// Side by side, every card takes the same background (the phone rule clears it on even rows only, which in a grid reads as a checkerboard).
-echo "$stk .ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:" . ( $sc( 'mob_card_bg' ) ?: ( $sc( 'row_bg' ) ?: 'transparent' ) ) . ";}\n";

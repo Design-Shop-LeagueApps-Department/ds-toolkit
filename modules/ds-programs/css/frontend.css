@@ -256,7 +256,8 @@
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
-	gap: 2px;
+	/* 4px puts the two links' centres 24px apart (WCAG 2.5.8 target spacing); 2px left them 22px. */
+	gap: 4px;
 }
 /* Three classes + element: the theme's link rule (e.g. `.fl-page a`, brand accent)
    would otherwise repaint these, and Salt City's accent is 2.64:1 on white. Row text
