@@ -19,6 +19,10 @@ class DS_Toolkit {
             'file'  => 'features/class-ds-hide-fl-assistant.php',
             'class' => 'DS_Hide_FL_Assistant',
         ),
+        'hide_bb_editor_tabs' => array(
+            'file'  => 'features/class-ds-hide-bb-editor-tabs.php',
+            'class' => 'DS_Hide_BB_Editor_Tabs',
+        ),
         'acf_css_vars_enabled' => array(
             'file'  => 'features/class-ds-acf-css-vars.php',
             'class' => 'DS_ACF_CSS_Vars',
@@ -473,6 +477,8 @@ class DS_Toolkit {
         $defaults = array(
             'enable_login_branding' => 1,
             'hide_fl_assistant'     => 1,
+            // 1.18.0: on for every site (maybe_set_defaults() fills it in on update); off per site when a partner needs the text editor.
+            'hide_bb_editor_tabs'   => 1,
             'acf_css_vars_enabled'  => 0,
             'acf_css_vars_mappings' => array(
                 array(

@@ -4,6 +4,15 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.18.0] - 2026-11-07
+MINOR: partners can no longer switch a Beaver Builder page into the Text Editor by accident.
+
+### Added
+- **Hide Beaver Builder Editor Tabs for Non-LeagueApps Users** (Security & Access, on by default; ClickUp 868mtnn1a, Lou). On a page built with Beaver Builder, the **Text Editor** / **Beaver Builder** tabs on the WordPress edit screen are hidden for every account that is not @leagueapps.com. Clicking "Text Editor" switches the Beaver Builder layout off and the page falls back to its plain content, which is what happened to Moss Park's Ice Rentals page on 2026-09-29. The **Launch Beaver Builder** button stays, pages not built with Beaver Builder keep the normal editor and its tabs, and Design Shop accounts see everything as before. Existing sites get it switched on with this update; turn it off on a site when a partner genuinely needs the text editor.
+- `tests/hide-bb-editor-tabs-test.php` (15 checks): partners lose the tabs, @leagueapps.com in any letter case keeps them, look-alike domains do not, only post edit screens and only pages with Beaver Builder on, the setting is registered, on by default and can be switched off.
+
+---
+
 ## [1.17.2] - 2026-11-07
 PATCH: on tablets the LeagueApps Programs table now shows as cards side by side instead of a table you have to scroll; dark tables keep their colour as cards.
 

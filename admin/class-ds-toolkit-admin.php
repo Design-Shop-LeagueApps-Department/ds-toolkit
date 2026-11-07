@@ -281,6 +281,7 @@ class DS_Toolkit_Admin {
                 $logo_url                           = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
                 $default_url                        = DS_TOOLKIT_URL . 'assets/images/cropped-LA-circle-logo-1.png';
                 $hide_fl_assistant                  = ! empty( $opts['hide_fl_assistant'] );
+                $hide_bb_editor_tabs                = ! empty( $opts['hide_bb_editor_tabs'] );
                 $acf_css_vars_enabled               = ! empty( $opts['acf_css_vars_enabled'] );
                 $acf_css_vars_mappings              = ! empty( $opts['acf_css_vars_mappings'] ) ? $opts['acf_css_vars_mappings'] : array();
                 $getsubmenu_enabled                 = ! empty( $opts['getsubmenu_enabled'] );
