@@ -12,7 +12,58 @@
 (function () {
 	'use strict';
 
+	/**
+	 * A table wider than its box scrolls sideways inside it. macOS, iOS and iPadOS
+	 * hide scrollbars, so the frame gets can-scroll-left / can-scroll-right (an edge
+	 * shadow on the side that has more) only while that is true. While it overflows,
+	 * the box is also a named, focusable region so a keyboard can scroll it.
+	 * Re-measured on scroll and whenever the box or the table changes size: filters,
+	 * paging, web fonts arriving, rotation, the phone card switch.
+	 */
+	function watchFrame(frame) {
+		if (frame.dsProgramsFrame) { return; }
+		var box = frame.querySelector('.ds-programs-scroll');
+		if (!box) { return; }
+		frame.dsProgramsFrame = true;
+		var label = frame.getAttribute('data-label') || '';
+		var raf = 0;
+		function measure() {
+			raf = 0;
+			var max = box.scrollWidth - box.clientWidth;
+			var over = max > 1 && getComputedStyle(box).overflowX !== 'visible';
+			var x = Math.abs(box.scrollLeft); // negative in right-to-left pages
+			frame.classList.toggle('is-scrollable', over);
+			frame.classList.toggle('can-scroll-left', over && x > 1);
+			frame.classList.toggle('can-scroll-right', over && x < max - 1);
+			if (over) {
+				box.setAttribute('tabindex', '0');
+				box.setAttribute('role', 'region');
+				if (label) { box.setAttribute('aria-label', label); }
+			} else {
+				box.removeAttribute('tabindex');
+				box.removeAttribute('role');
+				box.removeAttribute('aria-label');
+			}
+		}
+		function update() {
+			if (raf) { return; }
+			raf = window.requestAnimationFrame ? window.requestAnimationFrame(measure) : setTimeout(measure, 16);
+		}
+		box.addEventListener('scroll', update, { passive: true });
+		if (window.ResizeObserver) {
+			var ro = new ResizeObserver(update);
+			ro.observe(box);
+			var table = box.querySelector('table');
+			if (table) { ro.observe(table); }
+		} else {
+			window.addEventListener('resize', update);
+		}
+		measure();
+	}
+
 	function boot() {
+		Array.prototype.forEach.call(document.querySelectorAll('[data-ds-programs-frame]'), watchFrame);
+
 		var wraps = document.querySelectorAll('[data-ds-programs]');
 
 		Array.prototype.forEach.call(wraps, function (wrap) {

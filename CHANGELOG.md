@@ -4,6 +4,21 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.17.1] - 2026-11-07
+PATCH: the LeagueApps Programs table scrolls sideways inside its box on tablets instead of being cut off, and never widens the page.
+
+### Fixed
+- **LeagueApps Programs: on tablets the table was cut off with no way to reach the Register column** (Zay, 2026-11-07, ethosvolleyball /register/: "Table breaks the page when page width is smaller within tablet width"). The Style tab's table corner radius also wrote `overflow:hidden` on the table's scroll box, which cancelled its sideways scroll. Every table with a radius was clipped wherever it was wider than its box: between the phone breakpoint and about 1100px on a full LeagueApps table. The Modern preset (the default for every new block) sets a radius, so every new block had it. Measured: ethosvolleyball 856px table in a 594-818px box at 800-1024px; designshopdemo's Programs Gender demo 770px in 638-738px at 800-900px. The radius no longer touches overflow: the scrolling box clips the rows to the rounded corners on its own.
+- **LeagueApps Programs: the whole page scrolled sideways at 800-900px.** The visually hidden "Register" column heading is absolutely positioned, and the scroll box was not, so it escaped the clip and stretched the page to 946px (ethosvolleyball) and 849px (designshopdemo). The scroll box now contains it.
+- **LeagueApps Programs: a table that scrolls now shows it.** macOS, iOS and iPadOS hide scrollbars until you scroll, so a wide table just looked cut off. A soft shadow now marks the edge that has more (right at first, both sides mid-way, left at the end), shown only while the table is wider than its box, and a slim scrollbar stays visible in Chrome, Safari and Edge. While it scrolls, the box is a named region a keyboard can focus and scroll with the arrow keys. A trackpad swipe at the end of the table no longer goes Back a page.
+- **LeagueApps Programs: phone cards.** "View schedule" and "View standings" sat side by side on one line and ran 13px past the card on a 320px phone (ethosvolleyball); they now wrap. A long unbroken value (an email, a URL) breaks instead of widening the card, in the table's phone cards and in the Cards layout.
+- **LeagueApps Programs: large text.** With a big theme font or browser text zoom, the filter dropdowns now widen ("All Age Groups" was cut off at 24px) and the table simply scrolls further. Text up to about 17.5px renders exactly as before: measured field widths on designshopdemo are identical at 834, 1024, 1280 and 1440px.
+- **In-season links:** "View schedule" and "View standings" in the table sit 4px apart instead of 2px, so their tap targets meet the WCAG 2.5.8 spacing (centres 22px apart before, 24px now).
+- The block can shrink inside a flex row or grid cell (a Box module), so a wide table scrolls there too instead of stretching its column.
+- `tests/programs-table-scroll-test.php` (36 checks; 29 fail on 1.17.0): no preset or radius ever clips the scroll box, the box contains its children and shows that it scrolls, phone cards cannot run past the card, the filter fields scale with text, and the frame markup and JS are in place. Checked in a browser on ethosvolleyball and the designshopdemo Gender demo at 320 to 1440px and at 20-24px text, with 1.17.1's CSS, markup and JS applied to the live pages: the page never scrolls sideways, every table scrolls inside its box, and wherever it fits nothing changes.
+
+---
+
 ## [1.17.0] - 2026-11-06
 MINOR: LeagueApps Programs can list one gender, co-ed programs show as Coed, and "Clear filters" and the pager are readable again.
 
