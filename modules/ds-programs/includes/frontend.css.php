@@ -41,7 +41,10 @@ if ( $modern ) {
 	echo "$node .ds-programs-td--price{font-weight:700;}\n";
 	// Wide screens only: long program names and places otherwise wrap to four lines beside a
 	// no-wrap date range. Narrower, the table must still fit its box with the Register column.
-	echo "@media(min-width:1200px){{$node} .ds-programs-td--program{min-width:220px;}{$node} .ds-programs-td--location{min-width:150px;}}\n";
+	// Never at the cost of fitting: where these minimums alone push the table past its box (a
+	// 1040px box at 1200px on designshopdemo), the JS adds .is-tight and drops them before it
+	// would stack the table into cards (1.17.1).
+	echo "@media(min-width:1200px){{$node} .ds-programs:not(.is-tight) .ds-programs-td--program{min-width:220px;}{$node} .ds-programs:not(.is-tight) .ds-programs-td--location{min-width:150px;}}\n";
 	echo "$node .ds-programs-table tbody tr{transition:background-color .15s ease;}\n";
 	echo "$node .ds-programs-field .ds-programs-select{padding:11px 38px 11px 14px !important;background-image:$arrow !important;background-repeat:no-repeat !important;background-position:right 12px center !important;background-size:16px 16px !important;}\n";
 	echo "$node .ds-programs-field .ds-programs-input{padding:11px 14px 11px 38px !important;background-image:$lens !important;background-repeat:no-repeat !important;background-position:12px center !important;background-size:17px 17px !important;}\n";

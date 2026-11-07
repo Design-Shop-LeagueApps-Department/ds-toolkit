@@ -38,11 +38,17 @@
 		 * not, so the layout never flips while a visitor is using it. On a phone the media query
 		 * already shows cards, and that is left alone.
 		 */
+		function fits() { return box.scrollWidth <= box.clientWidth + 1; }
 		function stack() {
 			if (!wrap) { return; }
 			wrap.classList.remove('is-stacked');
-			if (getComputedStyle(table).display !== 'table') { return; }
-			if (box.scrollWidth > box.clientWidth + 1) { wrap.classList.add('is-stacked'); }
+			wrap.classList.remove('is-tight');
+			if (getComputedStyle(table).display !== 'table' || fits()) { return; }
+			// First drop the wide-screen minimum column widths (Modern preset); stack only if it still does not fit.
+			wrap.classList.add('is-tight');
+			if (fits()) { return; }
+			wrap.classList.remove('is-tight');
+			wrap.classList.add('is-stacked');
 		}
 
 		function measure() {

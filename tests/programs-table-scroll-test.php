@@ -135,7 +135,10 @@ chk( 'side by side, even cards keep the row background (no checkerboard)', false
 chk( 'unframed cards get a wider gutter', (bool) preg_match( '/is-stacked \.ds-programs-table tbody\{display:grid;[^}]*gap:18px 40px;/', $css ), true );
 
 echo "\nmarkup + JS\n";
-chk( 'JS stacks the table when it is wider than its box', (bool) preg_match( "/wrap\.classList\.remove\('is-stacked'\);\s*if \(getComputedStyle\(table\)\.display !== 'table'\) \{ return; \}\s*if \(box\.scrollWidth > box\.clientWidth \+ 1\) \{ wrap\.classList\.add\('is-stacked'\); \}/", $js ), true );
+chk( 'JS: a table that fits, or phone cards, are left alone', (bool) preg_match( "/if \(getComputedStyle\(table\)\.display !== 'table' \|\| fits\(\)\) \{ return; \}/", $js ), true );
+chk( 'JS: drops the wide-screen minimums before stacking', (bool) preg_match( "/wrap\.classList\.add\('is-tight'\);\s*if \(fits\(\)\) \{ return; \}\s*wrap\.classList\.remove\('is-tight'\);\s*wrap\.classList\.add\('is-stacked'\);/", $js ), true );
+$css = css_for( array( 'style_preset' => 'modern' ) );
+chk( 'Modern wide-screen minimums step aside when the table is tight', false !== strpos( $css, '@media(min-width:1200px){.fl-node-abc123 .ds-programs:not(.is-tight) .ds-programs-td--program{min-width:220px;}' ), true );
 chk( 'JS re-decides on a width change only (never while filtering)', (bool) preg_match( '/if \(recheck \|\| w !== lastW\) \{ recheck = false; lastW = w; stack\(\); \}/', $js ), true );
 chk( 'JS re-decides once the web fonts arrive', false !== strpos( $js, 'document.fonts.ready.then(function () { recheck = true; update(); });' ), true );
 chk( 'table sits in a frame the JS watches', (bool) preg_match( '/<div class="ds-programs-frame" data-ds-programs-frame data-label="[^"]+">\s*<div class="ds-programs-scroll">/', $table ), true );
