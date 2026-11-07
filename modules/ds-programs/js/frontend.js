@@ -23,12 +23,32 @@
 	function watchFrame(frame) {
 		if (frame.dsProgramsFrame) { return; }
 		var box = frame.querySelector('.ds-programs-scroll');
-		if (!box) { return; }
+		var table = box ? box.querySelector('table') : null;
+		if (!box || !table) { return; }
 		frame.dsProgramsFrame = true;
+		var wrap = frame.closest ? frame.closest('[data-ds-programs]') : null;
 		var label = frame.getAttribute('data-label') || '';
-		var raf = 0;
+		var raf = 0, lastW = -1, recheck = true;
+
+		/*
+		 * Cards wherever the table does not fit. Lay it out as a table, measure, and stack it
+		 * (.is-stacked, see frontend.css.php) when it is wider than its box: a portrait tablet,
+		 * many columns, long names, large text. All in one frame, so nothing flashes. Only a
+		 * change of WIDTH (or the web fonts arriving) re-decides; a filter or a page change does
+		 * not, so the layout never flips while a visitor is using it. On a phone the media query
+		 * already shows cards, and that is left alone.
+		 */
+		function stack() {
+			if (!wrap) { return; }
+			wrap.classList.remove('is-stacked');
+			if (getComputedStyle(table).display !== 'table') { return; }
+			if (box.scrollWidth > box.clientWidth + 1) { wrap.classList.add('is-stacked'); }
+		}
+
 		function measure() {
 			raf = 0;
+			var w = frame.clientWidth;
+			if (recheck || w !== lastW) { recheck = false; lastW = w; stack(); }
 			var max = box.scrollWidth - box.clientWidth;
 			var over = max > 1 && getComputedStyle(box).overflowX !== 'visible';
 			var x = Math.abs(box.scrollLeft); // negative in right-to-left pages
@@ -59,6 +79,10 @@
 			window.addEventListener('resize', update);
 		}
 		measure();
+		// Web fonts can widen the table after the first measure.
+		if (document.fonts && document.fonts.ready) {
+			document.fonts.ready.then(function () { recheck = true; update(); });
+		}
 	}
 
 	function boot() {

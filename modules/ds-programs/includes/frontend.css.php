@@ -381,12 +381,42 @@ $m[] = ".ds-programs-seasonlinks a.ds-programs-seasonlink{display:inline-flex;al
 $m[] = ".ds-programs-table .ds-programs-td--spots:has(.ds-programs-dash){display:none;}";
 // Node-scoped so it out-specifies the `tr{display:flex}` card rule above (the static
 // .is-hidden rule loses to it); without this, phones ignore filters and paging.
-$m[] = ".ds-programs-table tr.ds-programs-row.is-hidden,$node .ds-programs-table tr.ds-programs-row.is-paged{display:none;}";
+$m[] = ".ds-programs-table tr.ds-programs-row.is-hidden,.ds-programs-table tr.ds-programs-row.is-paged{display:none;}";
+
+/** Every selector in a rule's list gets the prefix. Until 1.17.1 only the first one did, so
+ *  `.ds-programs-table tbody` in a list reached every Programs table on the page. */
+$scoped = function ( $rule, $prefix ) {
+	$at = strpos( $rule, '{' );
+	$sel = array_map( function ( $s ) use ( $prefix ) { return $prefix . ' ' . trim( $s ); }, explode( ',', substr( $rule, 0, $at ) ) );
+	return implode( ',', $sel ) . substr( $rule, $at );
+};
+
 // The bar rules apply to both layouts; everything else here turns TABLE rows into
 // stacked cards and must not touch the Cards layout, whose grid shares the row class.
 echo "@media(max-width:{$bp_sm}px){\n";
 foreach ( $m as $rule ) {
-	$scope = ( 0 === strpos( $rule, '.ds-programs-field' ) ) ? '' : ' .ds-programs--table';
-	echo "$node$scope $rule\n";
+	echo $scoped( $rule, ( 0 === strpos( $rule, '.ds-programs-field' ) ) ? $node : "$node .ds-programs--table" ) . "\n";
 }
 echo "}\n";
+
+/* ---------- stacked cards wherever the table does not fit (1.17.1) ----------
+ * The phone breakpoint alone is not enough: a full LeagueApps table needs ~1000-1100px, so on
+ * every tablet it ran past its box (ethosvolleyball /register/ at 800-1024px). The JS adds
+ * .is-stacked to the block whenever the table is wider than its box, at any width, column
+ * count or text size, and removes it when the table fits again. Same cards as on a phone,
+ * laid out in as many columns as fit (two on a portrait tablet). Without JS the table
+ * scrolls inside its box instead. The filters keep their widths; the Sort by dropdown
+ * appears because the column headings are hidden. */
+$stk = "$node .ds-programs--table.is-stacked";
+foreach ( $m as $rule ) {
+	if ( 0 === strpos( $rule, '.ds-programs-field' ) ) { continue; }
+	echo $scoped( $rule, $stk ) . "\n";
+}
+echo "$stk .ds-programs-field--sort{display:flex;}\n";
+$sgap   = $px( 'mob_card_gap' ) ?: '18px';
+$framed = ( $modern && '' === (string) ( $settings->mob_card_border ?? '' ) ) || $sc( 'mob_card_bg' );
+// Framed cards sit a card-gap apart; unframed ones (a bottom line only) need a wider gutter or two columns of labels run together.
+echo "$stk .ds-programs-table tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:$sgap " . ( $framed ? $sgap : '40px' ) . ";}\n";
+echo "$stk .ds-programs-table tbody .ds-programs-row{margin:0;}\n";
+// Side by side, every card takes the same background (the phone rule clears it on even rows only, which in a grid reads as a checkerboard).
+echo "$stk .ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:" . ( $sc( 'mob_card_bg' ) ?: ( $sc( 'row_bg' ) ?: 'transparent' ) ) . ";}\n";
