@@ -132,14 +132,57 @@
 	color: inherit;
 }
 
-/* The table may be wider than the page; it scrolls in its own box so the
-   page body never scrolls sideways. */
+/* The module can sit in a flex row or a grid cell (a Box module, a theme layout),
+   and those size an item to its content: a wide table would then stretch its
+   column past the page. min-width:0 lets it take the space it is given. */
+.fl-module-ds-programs,
+.ds-programs { min-width: 0; }
+
+/* The table is often wider than its box: tablets, many columns, long names,
+   large text. It scrolls inside its own box so the page never scrolls sideways.
+   - The Style tab's corner radius must NOT turn this into overflow:hidden. It did
+     until 1.17.1, and the table was cut off with no way to reach the Register
+     column (ethosvolleyball, 800-1024px, 2026-11-07).
+   - position:relative keeps absolutely positioned children (the hidden "Register"
+     heading) inside the box. Without it they escaped the clip and widened the
+     whole page.
+   - overscroll-behavior stops a trackpad swipe at the end from going Back. */
 .ds-programs-scroll {
+	position: relative;
 	width: 100%;
 	max-width: 100%;
 	overflow-x: auto;
+	overflow-y: hidden;
 	-webkit-overflow-scrolling: touch;
+	overscroll-behavior-x: contain;
 }
+/* macOS, iOS and iPadOS hide scrollbars until you scroll, so a table that runs
+   past its box just looks cut off. A slim scrollbar that stays visible (Chrome,
+   Safari, Edge), plus an edge shadow on the side that has more (every browser,
+   shown by the JS only while the table overflows). Mid-grey reads on light and
+   dark tables alike. */
+.ds-programs-scroll::-webkit-scrollbar { height: 8px; }
+.ds-programs-scroll::-webkit-scrollbar-track { background: transparent; }
+.ds-programs-scroll::-webkit-scrollbar-thumb { background-color: rgba(128, 128, 128, .55); border-radius: 8px; }
+.ds-programs-scroll:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+.ds-programs-frame { position: relative; }
+.ds-programs-frame::before,
+.ds-programs-frame::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	z-index: 2;
+	width: 28px;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity .2s ease;
+}
+.ds-programs-frame::before { left: 0; background: linear-gradient(to right, rgba(0, 0, 0, .16), rgba(0, 0, 0, 0)); }
+.ds-programs-frame::after  { right: 0; background: linear-gradient(to left, rgba(0, 0, 0, .16), rgba(0, 0, 0, 0)); }
+.ds-programs-frame.can-scroll-left::before,
+.ds-programs-frame.can-scroll-right::after { opacity: 1; }
 
 .ds-programs-table { width: 100%; border-collapse: collapse; margin: 0; }
 
@@ -307,7 +350,7 @@
 	text-transform: uppercase;
 	opacity: .65;
 }
-.ds-programs-card-field dd { margin: 0; text-align: right; min-width: 0; }
+.ds-programs-card-field dd { margin: 0; text-align: right; min-width: 0; overflow-wrap: anywhere; }
 .ds-programs-card-foot {
 	display: flex;
 	align-items: center;

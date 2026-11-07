@@ -251,6 +251,8 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val, $r
 
 	<?php else : ?>
 
+	<?php // The frame holds the edge shadows that tell a visitor the table scrolls sideways (macOS and iPad hide scrollbars); the JS shows them only while it overflows. ?>
+	<div class="ds-programs-frame" data-ds-programs-frame data-label="<?php esc_attr_e( 'Programs table, scrolls sideways', 'ds-toolkit' ); ?>">
 	<div class="ds-programs-scroll">
 		<table class="ds-programs-table">
 			<thead>
@@ -282,6 +284,7 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val, $r
 				<?php endforeach; ?>
 			</tbody>
 		</table>
+	</div>
 	</div>
 
 	<p class="ds-programs-none" data-ds-programs-none hidden><?php echo esc_html( $none_txt ); ?></p>

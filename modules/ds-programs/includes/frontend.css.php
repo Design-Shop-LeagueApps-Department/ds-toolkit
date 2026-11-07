@@ -55,7 +55,13 @@ $table_bg = $sc( 'table_bg' );
 $tprops   = array();
 if ( $table_bg ) { $tprops[] = "background-color:$table_bg"; }
 $radius = $px( 'table_radius' );
-if ( $radius ) { $tprops[] = "border-radius:$radius"; $tprops[] = 'overflow:hidden'; }
+// No overflow:hidden with the radius: the box already scrolls (overflow-x:auto in css/frontend.css),
+// which clips the rows to the rounded corners just the same. overflow:hidden here cut a wide table
+// off at the box edge on every tablet, with no way to scroll to the Register column (until 1.17.1).
+if ( $radius ) {
+	$tprops[] = "border-radius:$radius";
+	echo "$node .ds-programs-frame::before{border-radius:$radius 0 0 $radius;}\n$node .ds-programs-frame::after{border-radius:0 $radius $radius 0;}\n";
+}
 $shadow = (string) $st( 'table_shadow', 'none' );
 if ( 'soft' === $shadow )   { $tprops[] = 'box-shadow:0 2px 10px rgba(0,0,0,.08)'; }
 if ( 'medium' === $shadow ) { $tprops[] = 'box-shadow:0 6px 24px rgba(0,0,0,.14)'; }
@@ -327,7 +333,10 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 $m = array();
 $m[] = ".ds-programs-field{max-width:none;flex-basis:100%;}";
 $m[] = ".ds-programs-field--sort{display:flex;}";
-$m[] = ".ds-programs-scroll{overflow-x:visible;border:0;box-shadow:none;background:none;border-radius:0;}";
+$m[] = ".ds-programs-scroll{overflow:visible;border:0;box-shadow:none;background:none;border-radius:0;}";
+// Stacked cards never scroll sideways, so no scroll shadows.
+$m[] = ".ds-programs-frame::before{display:none;}";
+$m[] = ".ds-programs-frame::after{display:none;}";
 $m[] = ".ds-programs-table,.ds-programs-table tbody{display:block;width:auto;}";
 $m[] = ".ds-programs-table tr{display:flex;flex-direction:column;width:auto;}";
 $m[] = ".ds-programs-table thead{display:none;}";
@@ -341,7 +350,8 @@ $v = $sc( 'mob_card_bg' );    if ( $v ) { $card[] = "background-color:$v"; }
 $v = $px( 'mob_card_radius' ); if ( $v ) { $card[] = "border-radius:$v"; }
 $m[] = ".ds-programs-row{" . implode( ';', $card ) . ";}";
 $m[] = ".ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:" . ( $sc( 'mob_card_bg' ) ?: 'transparent' ) . ";}";
-$m[] = ".ds-programs-table .ds-programs-td{display:flex;justify-content:space-between;align-items:baseline;gap:16px;width:auto;padding:5px 0;white-space:normal;text-align:left;border:0;}";
+// overflow-wrap: a long unbroken value (an email, a URL) breaks instead of pushing the card wider than the phone.
+$m[] = ".ds-programs-table .ds-programs-td{display:flex;justify-content:space-between;align-items:baseline;gap:16px;width:auto;padding:5px 0;white-space:normal;text-align:left;border:0;overflow-wrap:anywhere;}";
 $m[] = ".ds-programs-table .ds-programs-td:empty{display:none;}";
 $lbl = array( 'content:attr(data-label)', 'flex:0 0 auto', 'font-weight:700', 'letter-spacing:.03em' );
 $lbl[] = 'font-size:' . ( $px( 'mob_label_size' ) ?: '12px' );
@@ -363,9 +373,11 @@ $m[] = ".ds-programs-td--register::before{display:none;}";
 $m[] = ".ds-programs-btn{display:block;width:100%;padding:13px 16px;}";
 // Phone card: the in-season buttons stack full width like the single register button.
 $m[] = ".ds-programs-actions{display:flex;flex-direction:column;align-items:stretch;gap:4px;width:100%;}";
-// Phone card: the two links sit side by side under the button, each a 44px tap target.
-$m[] = ".ds-programs-seasonlinks{flex-direction:row;justify-content:center;gap:24px;}";
-$m[] = ".ds-programs-seasonlinks a.ds-programs-seasonlink{display:inline-flex;align-items:center;min-height:44px;font-size:15px;}";
+// Phone card: the two links sit side by side under the button, each a 44px tap target. They wrap onto
+// two lines when they do not fit (a 320px phone, large text): side by side and no-wrap, they ran 13px
+// past the card on ethosvolleyball at 320px.
+$m[] = ".ds-programs-seasonlinks{flex-direction:row;flex-wrap:wrap;justify-content:center;column-gap:24px;row-gap:0;}";
+$m[] = ".ds-programs-seasonlinks a.ds-programs-seasonlink{display:inline-flex;align-items:center;min-height:44px;font-size:15px;white-space:normal;text-align:center;}";
 $m[] = ".ds-programs-table .ds-programs-td--spots:has(.ds-programs-dash){display:none;}";
 // Node-scoped so it out-specifies the `tr{display:flex}` card rule above (the static
 // .is-hidden rule loses to it); without this, phones ignore filters and paging.
