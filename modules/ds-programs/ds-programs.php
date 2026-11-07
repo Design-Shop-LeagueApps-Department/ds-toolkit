@@ -884,8 +884,8 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 				),
 			),
 			'mobile_sec' => array(
-				'title'       => __( 'Phone cards', 'ds-toolkit' ),
-				'description' => sprintf( __( 'Below %dpx (the site\'s Beaver Builder small-screen breakpoint) the table becomes stacked cards, one per row, each value labelled.', 'ds-toolkit' ), (int) $ds_prg_bp[1] ),
+				'title'       => __( 'Phone and tablet cards', 'ds-toolkit' ),
+				'description' => sprintf( __( 'Up to %1$dpx (the site\'s Beaver Builder tablet breakpoint) the table becomes cards, every value labelled: one per row on phones (up to %2$dpx), side by side on tablets.', 'ds-toolkit' ), (int) $ds_prg_bp[0], (int) $ds_prg_bp[1] ),
 				'fields'      => array(
 					'mob_card_bg'      => $ds_prg_colour( __( 'Card background', 'ds-toolkit' ), array( 'show_alpha' => true ) ),
 					'mob_card_pad'     => $ds_prg_unit( __( 'Card padding', 'ds-toolkit' ), 0, 40 ),
