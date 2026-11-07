@@ -131,6 +131,7 @@ foreach ( array( 'modern', 'striped' ) as $p ) {
 	chk( "$p: no card selector escapes the node (the old tbody leak)", $loose, array() );
 }
 $css = css_for( array( 'style_preset' => 'striped', 'row_bg' => '#fafafa' ) );
+chk( 'side by side, Register buttons line up at the card bottoms', false !== strpos( $css, '.ds-programs--table.is-stacked .ds-programs-table .ds-programs-td--register{margin-top:auto;}' ), true );
 chk( 'side by side, even cards keep the row background (no checkerboard)', false !== strpos( $css, '.ds-programs--table.is-stacked .ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:#fafafa;}' ), true );
 chk( 'unframed cards get a wider gutter', (bool) preg_match( '/is-stacked \.ds-programs-table tbody\{display:grid;[^}]*gap:18px 40px;/', $css ), true );
 

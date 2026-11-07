@@ -421,5 +421,7 @@ $framed = ( $modern && '' === (string) ( $settings->mob_card_border ?? '' ) ) ||
 // Framed cards sit a card-gap apart; unframed ones (a bottom line only) need a wider gutter or two columns of labels run together.
 echo "$stk .ds-programs-table tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:$sgap " . ( $framed ? $sgap : '40px' ) . ";}\n";
 echo "$stk .ds-programs-table tbody .ds-programs-row{margin:0;}\n";
+// Cards in a row share a height: the Register block sits at the bottom of each, so the buttons line up across the row.
+echo "$stk .ds-programs-table .ds-programs-td--register{margin-top:auto;}\n";
 // Side by side, every card takes the same background (the phone rule clears it on even rows only, which in a grid reads as a checkerboard).
 echo "$stk .ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:" . ( $sc( 'mob_card_bg' ) ?: ( $sc( 'row_bg' ) ?: 'transparent' ) ) . ";}\n";
