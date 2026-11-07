@@ -82,6 +82,13 @@ chk( '.ds-programs-scroll position:relative (abs-pos children stay inside)', (bo
 chk( '.ds-programs-scroll overscroll-behavior-x:contain', (bool) preg_match( '/overscroll-behavior-x:\s*contain/', $sb ), true );
 chk( 'scrollbar stays visible where styleable', (bool) preg_match( '/\.ds-programs-scroll::-webkit-scrollbar \{ height: 8px; \}/', $static ), true );
 chk( 'module can shrink inside a flex row or grid cell', (bool) preg_match( '/\.fl-module-ds-programs,\s*\.ds-programs \{ min-width: 0; \}/', $static ), true );
+preg_match( '/\n\.ds-programs-field \{([^}]*)\}/', $static, $fb );
+$fb = $fb[1] ?? '';
+chk( 'filter fields widen with large text (em term in flex-basis)', (bool) preg_match( '/flex-basis:\s*max\(150px,\s*8\.5em\)/', $fb ), true );
+chk( 'filter fields widen with large text (em term in max-width)', (bool) preg_match( '/max-width:\s*max\(230px,\s*13em\)/', $fb ), true );
+chk( 'px fallbacks kept before the max() lines', (bool) preg_match( '/flex:\s*1 1 150px;[^}]*max-width:\s*230px;\s*max-width:\s*max\(/', $fb ), true );
+// 8.5em and 13em reach the px values at ~17.6px: normal theme text must render exactly as before.
+chk( 'em terms stay under the px values at 17.5px text', 8.5 * 17.5 <= 150 && 13 * 17.5 <= 230, true );
 chk( 'edge shadows only when the frame says so', (bool) preg_match( '/\.ds-programs-frame\.can-scroll-left::before,\s*\.ds-programs-frame\.can-scroll-right::after \{ opacity: 1; \}/', $static ), true );
 
 echo "\nphone cards: nothing runs past the card\n";

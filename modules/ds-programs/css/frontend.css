@@ -17,13 +17,20 @@
 	margin-bottom: 18px;
 }
 
+/* The px values are the look at normal text sizes: any text up to about 17.5px
+   renders exactly as before 1.17.1. The em terms only take over when the text is
+   larger (a big theme font, browser text zoom), so "All Age Groups" widens its
+   field instead of being cut off. The plain px lines are the fallback for a
+   browser without max(). */
 .ds-programs-field {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 	min-width: 0;
 	flex: 1 1 150px;
+	flex-basis: max(150px, 8.5em);
 	max-width: 230px;
+	max-width: max(230px, 13em);
 }
 
 .ds-programs-label {
