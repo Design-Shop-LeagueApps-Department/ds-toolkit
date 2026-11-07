@@ -94,7 +94,7 @@ chk( 'edge shadows only when the frame says so', (bool) preg_match( '/\.ds-progr
 echo "\nphone cards: nothing runs past the card\n";
 $css   = css_for( array( 'style_preset' => 'modern', 'table_radius' => '12', 'season_links' => 'yes' ) );
 $phone = '';
-if ( preg_match( '/@media\(max-width:\d+px\)\{\n(.*?)\n\}/s', $css, $pm ) ) { $phone = $pm[1]; }
+if ( preg_match( '/@media\(max-width:992px\)\{\n(.*?)\n\}/s', $css, $pm ) ) { $phone = $pm[1]; }
 chk( 'phone media block found', '' !== $phone, true );
 chk( 'phone: the box stops scrolling (overflow:visible)', (bool) preg_match( '/\.ds-programs--table \.ds-programs-scroll\{overflow:visible;/', $phone ), true );
 chk( 'phone: no scroll shadows', (bool) preg_match( '/\.ds-programs--table \.ds-programs-frame::after\{display:none;\}/', $phone ), true );
@@ -110,6 +110,26 @@ foreach ( explode( "\n", $phone ) as $line ) {
 }
 chk( 'phone: frame rules are node-scoped', $unscoped, array() );
 chk( 'cards layout card values break too', (bool) preg_match( '/\.ds-programs-card-field dd \{[^}]*overflow-wrap: anywhere/', $static ), true );
+
+echo "\ncards on phones AND tablets (1.17.2)\n";
+$css = css_for( array( 'style_preset' => 'modern' ) );
+chk( 'filter fields go full width on phones only (768)', false !== strpos( $css, "@media(max-width:768px){\n.fl-node-abc123 .ds-programs-field{max-width:none;flex-basis:100%;}\n}" ), true );
+chk( 'table rows become cards up to the tablet breakpoint (992)', (bool) preg_match( '/@media\(max-width:992px\)\{[^@]*\.ds-programs--table \.ds-programs-table thead\{display:none;\}/', $css ), true );
+chk( 'Sort by shows wherever the headings are hidden', (bool) preg_match( '/@media\(max-width:992px\)\{\n\.fl-node-abc123 \.ds-programs-field--sort\{display:flex;\}/', $css ), true );
+chk( 'tablets: cards side by side in a grid', false !== strpos( $css, "@media(min-width:769px) and (max-width:992px){\n.fl-node-abc123 .ds-programs--table .ds-programs-table tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));" ), true );
+chk( 'tablets: Register lines up at the card foot', false !== strpos( $css, '.ds-programs--table .ds-programs-table .ds-programs-td--register{margin-top:auto;}' ), true );
+$loose = array();
+foreach ( explode( "\n", $css ) as $line ) {
+	if ( false === strpos( $line, 'ds-programs--table' ) || 0 === strpos( $line, '@' ) || false === strpos( $line, '{' ) ) { continue; }
+	foreach ( explode( ',', substr( $line, 0, strpos( $line, '{' ) ) ) as $x ) { if ( 0 !== strpos( trim( $x ), '.fl-node-abc123 ' ) ) { $loose[] = trim( $x ); } }
+}
+chk( 'every card selector is node-scoped (1.17.1 leaked .ds-programs-table tbody)', $loose, array() );
+$css = css_for( array( 'style_preset' => 'modern', 'table_bg' => '0b1f3a', 'row_color' => 'ffffff' ) );
+chk( 'a dark table keeps its colour as cards (white text stays readable)', (bool) preg_match( '/\.ds-programs--table \.ds-programs-row\{[^}]*background-color:#0b1f3a/', $css ), true );
+$css = css_for( array( 'style_preset' => 'modern', 'table_bg' => '0b1f3a', 'mob_card_bg' => 'f1f7f3' ) );
+chk( 'the Card background field still wins', (bool) preg_match( '/\.ds-programs--table \.ds-programs-row\{[^}]*background-color:#f1f7f3/', $css ), true );
+$css = css_for( array( 'style_preset' => 'striped', 'row_bg' => 'fafafa' ) );
+chk( 'even cards take the same colour as odd ones', false !== strpos( $css, '.ds-programs--table .ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:#fafafa;}' ), true );
 
 echo "\nmarkup + JS\n";
 chk( 'table sits in a frame the JS watches', (bool) preg_match( '/<div class="ds-programs-frame" data-ds-programs-frame data-label="[^"]+">\s*<div class="ds-programs-scroll">/', $table ), true );

@@ -4,6 +4,17 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.17.2] - 2026-11-07
+PATCH: on tablets the LeagueApps Programs table now shows as cards side by side instead of a table you have to scroll; dark tables keep their colour as cards.
+
+### Fixed
+- **LeagueApps Programs: cards on tablets, not only phones.** A full LeagueApps table needs roughly 1000-1100px, so on every tablet it was wider than its box (1.17.1 made it scroll there instead of being cut off). Up to the site's Beaver Builder tablet breakpoint (992px by default) the table now becomes the same labelled cards phones get: one per row on phones, side by side on tablets (two on a portrait iPad), with the Register buttons lined up along each row and Sort by in the filter bar. Every column the partner chose is kept, as a labelled line. Wider than the breakpoint the table shows as before, and still scrolls inside its box if it does not fit. A fixed breakpoint, so the layout never changes while a visitor filters, sorts or pages, and nothing flashes on load. On designshopdemo: cards 320-992px (two side by side from 800px), table from 993px; nothing on the page wider than the screen at any width from 320 to 1920px or at 22px text.
+- **A dark table no longer turns into white or see-through cards with white text.** The cards take the Card background field, else the row or table background the editor set, else the preset's card colour. Even and odd cards now share that colour.
+- The card rules scope every selector in a list to the block (one of them reached every Programs table on the page). The Style tab's "Phone cards" section is now "Phone and tablet cards" and says where it applies.
+- `tests/programs-table-scroll-test.php` now 45 checks.
+
+---
+
 ## [1.17.1] - 2026-11-07
 PATCH: the LeagueApps Programs table scrolls sideways inside its box on tablets instead of being cut off, and never widens the page.
 

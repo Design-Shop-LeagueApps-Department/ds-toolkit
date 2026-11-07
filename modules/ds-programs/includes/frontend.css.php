@@ -329,10 +329,15 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 	if ( $pp ) { echo "$node .ds-programs-card-price{" . implode( ';', $pp ) . ";}\n"; }
 }
 
-/* ---------- phone cards (breakpoint follows Beaver Builder) ---------- */
+/* ---------- cards on phones AND tablets (breakpoints follow Beaver Builder) ----------
+ * Up to the medium (tablet) breakpoint, 992px by default, the table becomes one card per program with
+ * every value labelled: nothing the partner chose is dropped. Phones get one card per row, tablets as
+ * many side by side as fit (two on a portrait iPad). Until 1.17.2 only phones got cards and a full
+ * LeagueApps table ran past its box on every tablet (ethosvolleyball /register/ at 800-1024px). A fixed
+ * breakpoint, not a JS measurement, so the layout never changes while a visitor filters or pages and
+ * nothing flashes on load. Wider than that the table shows, and scrolls inside its box if it still
+ * does not fit. The filter fields go full width on phones only. */
 $m = array();
-$m[] = ".ds-programs-field{max-width:none;flex-basis:100%;}";
-$m[] = ".ds-programs-field--sort{display:flex;}";
 $m[] = ".ds-programs-scroll{overflow:visible;border:0;box-shadow:none;background:none;border-radius:0;}";
 // Stacked cards never scroll sideways, so no scroll shadows.
 $m[] = ".ds-programs-frame::before{display:none;}";
@@ -346,10 +351,15 @@ $mcb = $st( 'mob_card_border', '2' );
 $card[] = ( $modern && '' === (string) ( $settings->mob_card_border ?? '' ) ) ? 'border-width:1px;box-shadow:0 1px 2px rgba(16,24,40,.05)' : 'border-width:0 0 ' . ( is_numeric( $mcb ) ? (int) $mcb : 2 ) . 'px';
 $card[] = 'border-style:solid';
 $card[] = 'border-color:' . ( $sc( 'table_border_color' ) ?: 'rgba(0,0,0,.12)' );
-$v = $sc( 'mob_card_bg' );    if ( $v ) { $card[] = "background-color:$v"; }
+// Card background: the Card background field, else the row or table background the EDITOR set (raw settings,
+// not the preset), else the preset's card colour. A dark table used to become transparent or white cards
+// while its rows kept their white text.
+$raw     = function ( $k ) use ( $settings, $col ) { return call_user_func( $col, $settings->{$k} ?? '' ); };
+$card_bg = $raw( 'mob_card_bg' ) ?: ( $raw( 'row_bg' ) ?: ( $raw( 'table_bg' ) ?: $sc( 'mob_card_bg' ) ) );
+if ( $card_bg ) { $card[] = "background-color:$card_bg"; }
 $v = $px( 'mob_card_radius' ); if ( $v ) { $card[] = "border-radius:$v"; }
 $m[] = ".ds-programs-row{" . implode( ';', $card ) . ";}";
-$m[] = ".ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:" . ( $sc( 'mob_card_bg' ) ?: 'transparent' ) . ";}";
+$m[] = ".ds-programs-table tbody tr:nth-child(even):not(.is-hidden){background-color:" . ( $card_bg ?: 'transparent' ) . ";}";
 // overflow-wrap: a long unbroken value (an email, a URL) breaks instead of pushing the card wider than the phone.
 $m[] = ".ds-programs-table .ds-programs-td{display:flex;justify-content:space-between;align-items:baseline;gap:16px;width:auto;padding:5px 0;white-space:normal;text-align:left;border:0;overflow-wrap:anywhere;}";
 $m[] = ".ds-programs-table .ds-programs-td:empty{display:none;}";
@@ -381,12 +391,30 @@ $m[] = ".ds-programs-seasonlinks a.ds-programs-seasonlink{display:inline-flex;al
 $m[] = ".ds-programs-table .ds-programs-td--spots:has(.ds-programs-dash){display:none;}";
 // Node-scoped so it out-specifies the `tr{display:flex}` card rule above (the static
 // .is-hidden rule loses to it); without this, phones ignore filters and paging.
-$m[] = ".ds-programs-table tr.ds-programs-row.is-hidden,$node .ds-programs-table tr.ds-programs-row.is-paged{display:none;}";
-// The bar rules apply to both layouts; everything else here turns TABLE rows into
-// stacked cards and must not touch the Cards layout, whose grid shares the row class.
-echo "@media(max-width:{$bp_sm}px){\n";
-foreach ( $m as $rule ) {
-	$scope = ( 0 === strpos( $rule, '.ds-programs-field' ) ) ? '' : ' .ds-programs--table';
-	echo "$node$scope $rule\n";
-}
+$m[] = ".ds-programs-table tr.ds-programs-row.is-hidden,.ds-programs-table tr.ds-programs-row.is-paged{display:none;}";
+
+/** Every selector in a rule's list gets the prefix. Until 1.17.2 only the first one did, so the
+ *  `.ds-programs-table tbody` in a list reached every Programs table on the page. */
+$scoped = function ( $rule, $prefix ) {
+	$at  = strpos( $rule, '{' );
+	$sel = array_map( function ( $x ) use ( $prefix ) { return $prefix . ' ' . trim( $x ); }, explode( ',', substr( $rule, 0, $at ) ) );
+	return implode( ',', $sel ) . substr( $rule, $at );
+};
+
+// Phones: the filter fields go full width (both layouts).
+echo "@media(max-width:{$bp_sm}px){\n$node .ds-programs-field{max-width:none;flex-basis:100%;}\n}\n";
+// Phones and tablets: TABLE rows become cards. Scoped to the table layout so the Cards layout, whose grid
+// shares the row class, is untouched. The column headings are hidden, so Sort by moves into the bar.
+echo "@media(max-width:{$bp_md}px){\n$node .ds-programs-field--sort{display:flex;}\n";
+foreach ( $m as $rule ) { echo $scoped( $rule, "$node .ds-programs--table" ) . "\n"; }
+echo "}\n";
+// Tablets: the cards side by side, as many as fit at 300px or wider, Register at the foot of each so the
+// buttons line up across a row. Framed or tinted cards sit a card-gap apart; bottom-line cards need a wider gutter.
+$tg     = $px( 'mob_card_gap' ) ?: '18px';
+$framed = ( $modern && '' === (string) ( $settings->mob_card_border ?? '' ) ) || $card_bg;
+$tb     = "$node .ds-programs--table";
+echo '@media(min-width:' . ( $bp_sm + 1 ) . "px) and (max-width:{$bp_md}px){\n";
+echo "$tb .ds-programs-table tbody{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:$tg " . ( $framed ? $tg : '40px' ) . ";}\n";
+echo "$tb .ds-programs-table tbody .ds-programs-row{margin:0;}\n";
+echo "$tb .ds-programs-table .ds-programs-td--register{margin-top:auto;}\n";
 echo "}\n";
