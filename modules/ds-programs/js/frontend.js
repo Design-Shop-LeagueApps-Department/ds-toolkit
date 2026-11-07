@@ -54,7 +54,10 @@
 		function measure() {
 			raf = 0;
 			var w = frame.clientWidth;
-			if (recheck || w !== lastW) { recheck = false; lastW = w; stack(); }
+			// A table showing that no longer fits (text zoom after load) stacks too. Filtering only ever
+			// hides rows, and the first measure runs with every row shown, so this never fires mid-filter.
+			var spill = wrap && !wrap.classList.contains('is-stacked') && getComputedStyle(table).display === 'table' && !fits();
+			if (recheck || w !== lastW || spill) { recheck = false; lastW = w; stack(); }
 			var max = box.scrollWidth - box.clientWidth;
 			var over = max > 1 && getComputedStyle(box).overflowX !== 'visible';
 			var x = Math.abs(box.scrollLeft); // negative in right-to-left pages
