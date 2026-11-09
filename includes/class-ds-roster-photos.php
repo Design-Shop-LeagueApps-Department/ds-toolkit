@@ -29,7 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  *  - After each hourly roster sync a separate job re-checks wanted teams (new players, changed photos);
  *    the photo of someone no shown team has any more (they left) is deleted. Removing the key deletes the
  *    site's folder. The folder is public like the rest of uploads (not listed in the Media Library):
- *    file names are a hash of the LeagueApps address, so they cannot be guessed.
+ *    file names are opaque UUIDs (see hash()), so they can neither be guessed nor traced back to a person.
  */
 class DS_Roster_Photos {
 
@@ -44,6 +44,11 @@ class DS_Roster_Photos {
 	const LOCK_TTL       = 60;
 	const BUDGET         = 20;
 	const BUILDER_BUDGET = 8;
+	const NAME_KEY_OPT   = 'ds_la_roster_photo_key'; // per-install secret for file names, autoload no
+	const OLD_GRACE      = 2 * DAY_IN_SECONDS;     // a file moved to its new name keeps the old one this long
+
+	/** @var string|null the file-name secret, read once per request */
+	private static $name_key = null;
 
 	/** Folder for a site's photos: array( path, url ). */
 	public static function dir( $site_id ) {
@@ -63,8 +68,54 @@ class DS_Roster_Photos {
 		update_option( self::OPT . $site_id, $m, false );
 	}
 
+	/**
+	 * A photo's file name (without .jpg): a UUID, never anything a visitor can work back to a person.
+	 * LeagueApps' photo address carries the person's sequential numeric user id (profile-<8 digits>-s3.jpg),
+	 * so a plain hash of it (what 1.10.41-1.17.2 used) could be reversed by hashing every id in range. This
+	 * is HMAC-SHA256 under a random per-install secret, cut to 128 bits and shaped as an RFC 9562 version 8
+	 * UUID. It is stable for an address, so a photo is still never downloaded twice.
+	 */
 	public static function hash( $url ) {
+		$b    = substr( hash_hmac( 'sha256', (string) $url, self::name_key(), true ), 0, 16 );
+		$b[6] = chr( ( ord( $b[6] ) & 0x0f ) | 0x80 ); // version 8 (custom)
+		$b[8] = chr( ( ord( $b[8] ) & 0x3f ) | 0x80 ); // RFC 9562 variant
+		$h    = bin2hex( $b );
+		return substr( $h, 0, 8 ) . '-' . substr( $h, 8, 4 ) . '-' . substr( $h, 12, 4 ) . '-' . substr( $h, 16, 4 ) . '-' . substr( $h, 20 );
+	}
+
+	/** The 1.10.41-1.17.2 name (plain sha256 of the address). Only used to move those files to their new name. */
+	public static function legacy_hash( $url ) {
 		return substr( hash( 'sha256', (string) $url ), 0, 32 );
+	}
+
+	/**
+	 * The install's secret for file names, made once. add_option() so two requests racing to make it both end
+	 * up with the one that was saved. If the database cannot save it, this request uses its own: the names
+	 * then differ per request, which costs a download, never a leak.
+	 */
+	private static function name_key() {
+		if ( null !== self::$name_key ) {
+			return self::$name_key;
+		}
+		$v = (string) DS_Roster_Data::fresh_option( self::NAME_KEY_OPT, '' );
+		if ( ! preg_match( '/^[0-9a-f]{64}$/', $v ) ) {
+			$new = bin2hex( random_bytes( 32 ) );
+			if ( '' === $v ) {
+				add_option( self::NAME_KEY_OPT, $new, '', false );
+			} else {
+				update_option( self::NAME_KEY_OPT, $new, false ); // damaged value
+			}
+			$v = (string) DS_Roster_Data::fresh_option( self::NAME_KEY_OPT, '' );
+			if ( ! preg_match( '/^[0-9a-f]{64}$/', $v ) ) {
+				$v = $new;
+			}
+		}
+		return self::$name_key = hex2bin( $v );
+	}
+
+	/** Forget the remembered secret (tests: a second install in the same process). */
+	public static function reset_name_key() {
+		self::$name_key = null;
 	}
 
 	/** Every photo address in a team, by member. */
@@ -85,7 +136,8 @@ class DS_Roster_Photos {
 		$out = array();
 		list( , $base ) = self::dir( $site_id );
 		foreach ( $urls as $u ) {
-			$f = $m['files'][ self::hash( $u ) ]['f'] ?? '';
+			// The old name until the background job has moved a 1.17.2 file, so photos never blink out on update.
+			$f = $m['files'][ self::hash( $u ) ]['f'] ?? ( $m['files'][ self::legacy_hash( $u ) ]['f'] ?? '' );
 			if ( '' !== $f ) {
 				$out[ $u ] = $base . '/' . rawurlencode( $f );
 			}
@@ -183,8 +235,28 @@ class DS_Roster_Photos {
 			if ( isset( $m['files'][ $h ] ) && ( '' !== (string) $m['files'][ $h ]['f'] || time() - (int) $m['files'][ $h ]['t'] < self::RETRY_GONE ) ) {
 				continue; // already here, or LeagueApps did not have it this month: not asked again
 			}
-			// Already in the folder but missing from the list (the list was lost or reset): take it back, no request.
 			$on_disk = $dir . '/' . $h . '.jpg';
+			// Saved by 1.10.41-1.17.2 under the old name: copied to the new one, no request to LeagueApps. The old
+			// file is kept OLD_GRACE for cached pages that still link it, then gc() deletes it. A photo LeagueApps
+			// did not have keeps that answer and its date.
+			$old = self::legacy_hash( $url );
+			$was = $dir . '/' . $old . '.jpg';
+			$had = $m['files'][ $old ] ?? null;
+			if ( is_array( $had ) && '' === (string) ( $had['f'] ?? '' ) ) {
+				$m = self::manifest( $site_id, true );
+				$m['files'][ $h ] = array( 'f' => '', 't' => (int) ( $had['t'] ?? time() ) );
+				unset( $m['files'][ $old ] );
+				self::save( $site_id, $m );
+				continue;
+			}
+			if ( is_file( $was ) && @getimagesize( $was ) && @copy( $was, $on_disk ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				$m = self::manifest( $site_id, true );
+				$m['files'][ $h ]   = array( 'f' => $h . '.jpg', 't' => time() );
+				$m['files'][ $old ] = array( 'f' => $old . '.jpg', 't' => (int) ( $had['t'] ?? time() ), 'old' => time() );
+				self::save( $site_id, $m );
+				continue;
+			}
+			// Already in the folder but missing from the list (the list was lost or reset): take it back, no request.
 			if ( is_file( $on_disk ) && @getimagesize( $on_disk ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
 				$m = self::manifest( $site_id, true );
 				$m['files'][ $h ] = array( 'f' => $h . '.jpg', 't' => time() );
@@ -280,11 +352,18 @@ class DS_Roster_Photos {
 		$keep = array();
 		foreach ( array_keys( $m['teams'] ) as $tid ) {
 			foreach ( self::team_urls( $site_id, (string) $tid ) as $u ) {
-				$keep[ self::hash( $u ) ] = true;
+				$nh          = self::hash( $u );
+				$keep[ $nh ] = true;
+				if ( ! isset( $m['files'][ $nh ] ) ) {
+					$keep[ self::legacy_hash( $u ) ] = true; // a 1.17.2 file not moved yet: it is still the photo
+				}
 			}
 		}
 		list( $dir ) = self::dir( $site_id );
 		foreach ( $m['files'] as $h => $f ) {
+			if ( ! empty( $f['old'] ) && time() - (int) $f['old'] < self::OLD_GRACE ) {
+				continue; // moved to its new name: the old file stays a while for cached pages
+			}
 			if ( ! isset( $keep[ $h ] ) ) {
 				if ( '' !== (string) ( $f['f'] ?? '' ) ) {
 					@unlink( $dir . '/' . basename( (string) $f['f'] ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
