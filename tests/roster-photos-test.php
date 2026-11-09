@@ -21,6 +21,7 @@ function wp_cache_get( $k, $g = '' ) { return 'notoptions' === $k ? ( $GLOBALS['
 function wp_cache_set( $k, $v, $g = '' ) { if ( 'notoptions' === $k ) { $GLOBALS['notoptions'] = $v; } return true; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['opts'][ $k ] = $v; return true; }
 function delete_option( $k ) { unset( $GLOBALS['opts'][ $k ] ); return true; }
+function add_option( $k, $v, $d = '', $a = null ) { if ( array_key_exists( $k, $GLOBALS['opts'] ) ) { return false; } $GLOBALS['opts'][ $k ] = $v; return true; }
 function get_transient( $k ) { return $GLOBALS['tr'][ $k ] ?? false; }
 function set_transient( $k, $v, $t = 0 ) { $GLOBALS['tr'][ $k ] = $v; return true; }
 function delete_transient( $k ) { unset( $GLOBALS['tr'][ $k ] ); return true; }
@@ -112,7 +113,7 @@ $mf = DS_Roster_Photos::manifest( '33682' );
 $h  = function ( $id ) use ( $S3 ) { return DS_Roster_Photos::hash( $S3 . 'profile-' . $id . '-s3.jpg' ); };
 chk( 'timeout: not recorded, asked again next run', isset( $mf['files'][ $h( 'p5eeee' ) ] ), false );
 chk( '404 and a non-image: recorded as unavailable, not asked again', array( $mf['files'][ $h( 'p6ffff' ) ]['f'] ?? 'x', $mf['files'][ $h( 'p7gggg' ) ]['f'] ?? 'x' ), array( '', '' ) );
-chk( 'nothing but images ever written to the folder', array_values( array_filter( scandir( $UP . '/ds-la-roster/33682' ), function ( $f ) { return ! preg_match( '/^(\.|\.\.|index\.html|[0-9a-f]{32}\.jpg)$/', $f ); } ) ), array() );
+chk( 'nothing but images ever written to the folder', array_values( array_filter( scandir( $UP . '/ds-la-roster/33682' ), function ( $f ) { return ! preg_match( '/^(\.|\.\.|index\.html|[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.jpg)$/', $f ); } ) ), array() );
 $GLOBALS['answers'] = array( array( 'code' => 200, 'body' => $png( 2000, 2000 ) ) ); $GLOBALS['fetched'] = array();
 DS_Roster_Photos::run();
 chk( 'an oversized image is refused', DS_Roster_Photos::manifest( '33682' )['files'][ $h( 'p5eeee' ) ]['f'] ?? 'x', '' );
@@ -208,6 +209,54 @@ $GLOBALS['on_get'] = function () { unset( $GLOBALS['opts']['ds_la_private_keys']
 DS_Roster_Photos::run();
 chk( 'the key removed while photos download: no further download', count( $GLOBALS['fetched'] ), 1 );
 $GLOBALS['opts']['ds_la_private_keys']['33682'] = array( 'client_id' => 'c', 'key' => 'x', 'print' => 'p' );
+
+// LeagueApps photo addresses carry the person's sequential numeric user id (8 digits on HQ, 2026-11-09), so a
+// public file name must never be derivable from it (VP Engineering: no enumerable user ids, UUIDs instead).
+echo "file names: opaque UUIDs, never a LeagueApps user id\n";
+$uuid = '/^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/';
+$addr = $S3 . 'profile-12345678-s3.jpg';
+$n1   = DS_Roster_Photos::hash( $addr );
+chk( 'a photo file name is a UUID (RFC 9562 version 8)', (bool) preg_match( $uuid, $n1 ), true );
+chk( 'the same address always gets the same name (never downloaded twice)', DS_Roster_Photos::hash( $addr ), $n1 );
+chk( 'the name holds neither the user id nor the plain hash anyone can recompute', array( false !== strpos( str_replace( '-', '', $n1 ), '12345678' ), str_replace( '-', '', $n1 ) === DS_Roster_Photos::legacy_hash( $addr ) ), array( false, false ) );
+chk( 'the secret is made once per install and saved (64 hex chars)', (bool) preg_match( '/^[0-9a-f]{64}$/', (string) get_option( 'ds_la_roster_photo_key', '' ) ), true );
+$sec = $GLOBALS['opts']['ds_la_roster_photo_key'];
+unset( $GLOBALS['opts']['ds_la_roster_photo_key'] ); DS_Roster_Photos::reset_name_key();
+$n2 = DS_Roster_Photos::hash( $addr );
+chk( 'another install names the same photo differently (no match across sites)', $n1 !== $n2 && 1 === preg_match( $uuid, $n2 ), true );
+$GLOBALS['opts']['ds_la_roster_photo_key'] = 'damaged'; DS_Roster_Photos::reset_name_key();
+DS_Roster_Photos::hash( $addr );
+chk( 'a damaged secret is replaced', (bool) preg_match( '/^[0-9a-f]{64}$/', $GLOBALS['opts']['ds_la_roster_photo_key'] ), true );
+$GLOBALS['opts']['ds_la_roster_photo_key'] = $sec; DS_Roster_Photos::reset_name_key();
+chk( 'with the saved secret back, the name is the first one again', DS_Roster_Photos::hash( $addr ), $n1 );
+
+echo "1.17.2 files moved to their new names, without a request\n";
+$dirp = $UP . '/ds-la-roster/33682';
+wp_mkdir_p( $dirp );
+$a12  = $S3 . 'profile-p12llll-s3.jpg'; $a13 = $S3 . 'profile-p13mmmm-s3.jpg';
+$o12  = DS_Roster_Photos::legacy_hash( $a12 ); $o13 = DS_Roster_Photos::legacy_hash( $a13 );
+$GLOBALS['opts']['ds_la_roster_33682']['teams']['12'] = array( 'name' => '17 Gold', 'program' => 'P', 'm' => array( 21 => $m( 'Lou', 'p12llll' ), 22 => $m( 'Mo', 'p13mmmm' ) ) );
+imagejpeg( imagecreatetruecolor( 150, 150 ), $dirp . '/' . $o12 . '.jpg' );
+$gone_t = time() - 5 * DAY_IN_SECONDS;
+$mf = DS_Roster_Photos::manifest( '33682' );
+$mf['teams']['12']     = array( 'seen' => time(), 'by' => array( 104 => time() ) );
+$mf['files'][ $o12 ]   = array( 'f' => $o12 . '.jpg', 't' => time() - 9 * DAY_IN_SECONDS );
+$mf['files'][ $o13 ]   = array( 'f' => '', 't' => $gone_t );
+update_option( 'ds_la_roster_ph_33682', $mf );
+$loc = DS_Roster_Photos::local( '33682', array( $a12 ) );
+chk( 'right after the update the page still shows the photo (old name until moved)', basename( $loc[ $a12 ] ?? '' ), $o12 . '.jpg' );
+DS_Roster_Photos::gc( '33682' );
+chk( 'clean-up before the move never deletes a 1.17.2 photo still in use', array( is_file( $dirp . '/' . $o12 . '.jpg' ), isset( DS_Roster_Photos::manifest( '33682' )['files'][ $o13 ] ) ), array( true, true ) );
+$GLOBALS['fetched'] = array(); $GLOBALS['answers'] = array();
+DS_Roster_Photos::run();
+$mf  = DS_Roster_Photos::manifest( '33682' ); $n12 = DS_Roster_Photos::hash( $a12 ); $n13 = DS_Roster_Photos::hash( $a13 );
+chk( 'no request to LeagueApps for either', array_values( array_intersect( $GLOBALS['fetched'], array( $a12, $a13 ) ) ), array() );
+chk( 'the photo is under its UUID name, the page now links that', array( is_file( $dirp . '/' . $n12 . '.jpg' ), $mf['files'][ $n12 ]['f'] ?? '', basename( DS_Roster_Photos::local( '33682', array( $a12 ) )[ $a12 ] ?? '' ) ), array( true, $n12 . '.jpg', $n12 . '.jpg' ) );
+chk( 'a photo LeagueApps did not have keeps that answer and its date', array( $mf['files'][ $n13 ] ?? null, isset( $mf['files'][ $o13 ] ) ), array( array( 'f' => '', 't' => $gone_t ), false ) );
+chk( 'the old file stays two days for cached pages', is_file( $dirp . '/' . $o12 . '.jpg' ), true );
+$mf['files'][ $o12 ]['old'] = time() - 3 * DAY_IN_SECONDS; update_option( 'ds_la_roster_ph_33682', $mf );
+DS_Roster_Photos::gc( '33682' );
+chk( '... then the old file and its entry go, the new one stays', array( is_file( $dirp . '/' . $o12 . '.jpg' ), isset( DS_Roster_Photos::manifest( '33682' )['files'][ $o12 ] ), is_file( $dirp . '/' . $n12 . '.jpg' ) ), array( false, false, true ) );
 
 DS_Roster_Data::delete_key( '33682' );
 chk( 'removing the key deletes the folder and the list', array( is_dir( $UP . '/ds-la-roster/33682' ), get_option( 'ds_la_roster_ph_33682', 'gone' ) ), array( false, 'gone' ) );

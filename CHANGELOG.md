@@ -4,6 +4,17 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.17.3] - 2026-11-09
+PATCH: LeagueApps Roster photo files are named with opaque UUIDs, so no public file name can be traced back to a LeagueApps user id.
+
+### Security
+- **LeagueApps Roster: photo file names no longer encode a user id** (VP Engineering, after InfoSec: never expose sequential, enumerable user ids; use UUIDs). LeagueApps' photo address holds the person's numeric user id (`profile-<id>-s3.jpg`; 8 digits on all 1,094 photos on HQ). 1.10.41-1.17.2 named each saved photo with a plain SHA-256 of that address, so anyone could hash every id in range and match a file in `uploads/ds-la-roster/<site>/` to a LeagueApps user. Files are now named with an HMAC-SHA256 of the address under a random secret made once per install (option `ds_la_roster_photo_key`, not autoloaded), shaped as an RFC 9562 version 8 UUID. Still stable per address, so a photo is never downloaded twice, and the same person gets a different name on each site.
+- Existing photos are copied to their new name by the background job with no request to LeagueApps; pages keep showing the old file until then, the old file stays two days for cached pages, then it is deleted. A photo LeagueApps did not have keeps that answer and its date.
+- Checked: no other output of the Roster block carries an id. The page HTML has names, positions, grad years, heights and the local photo URL only; registration ids stay in the server-side store; the block has no REST or AJAX endpoint.
+- `tests/roster-photos-test.php` now 53 checks (14 new: UUID shape, stable, not reversible, per install, damaged secret, migration without requests, grace period).
+
+---
+
 ## [1.17.2] - 2026-11-07
 PATCH: on tablets the LeagueApps Programs table now shows as cards side by side instead of a table you have to scroll; dark tables keep their colour as cards.
 
