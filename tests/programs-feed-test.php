@@ -11,7 +11,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
  * never turn our traffic (or a bot's) into their traffic.
  */
 define('ABSPATH', '/tmp/fake-wp/');
-define('MINUTE_IN_SECONDS', 60); define('DAY_IN_SECONDS', 86400);
+define('MINUTE_IN_SECONDS', 60); define('HOUR_IN_SECONDS', 3600); define('DAY_IN_SECONDS', 86400);
 
 $GLOBALS['tr'] = array();      // transient store: key => array(value, ttl)
 $GLOBALS['http'] = array();    // scripted responses, consumed in order (last one repeats)
@@ -52,7 +52,11 @@ function __($s,$d=''){ return $s; }
 function home_url($p=''){ return 'https://example.org'.$p; }
 function date_i18n($f,$t){ return date($f,$t); }
 function wp_strip_all_tags($s){ return strip_tags($s); }
-class FakeWpdb { public $options='wp_options'; public $queries=array(); function query($q){ $this->queries[]=$q; return 0; } }
+class FakeWpdb { public $options='wp_options'; public $posts='wp_posts'; public $postmeta='wp_postmeta'; public $queries=array(); function query($q){ $this->queries[]=$q; return 0; }
+  function prepare($q,...$a){ return vsprintf(str_replace('%s',"'%s'",$q),$a); } function esc_like($s){ return $s; } function get_var($q){ $this->queries[]=$q; return strpos($q,'ds-la-calendar')!==false ? 1 : 2; } }
+function has_action($h){ return !empty($GLOBALS['hooked'][$h]); }
+function wp_schedule_single_event($t,$h){ $GLOBALS['cron'][]=array($t,$h); return true; }
+class DS_HQ_Link { const CHECKIN_HOOK='ds_hq_link_checkin'; public static $key=true; static function has_key(){ return self::$key; } }
 $wpdb = new FakeWpdb();
 
 require __DIR__ . '/../includes/class-ds-programs-data.php';
@@ -84,7 +88,7 @@ chk('two programs returned', count($r['programs']), 2);
 chk('not stale', $r['stale'], false);
 chk('request timeout is 8s', $GLOBALS['last_args']['timeout'] ?? null, 8);
 chk('fresh cache written with 10-minute TTL', ttl_of($key), 600);
-chk('stale copy written with 7-day TTL', ttl_of($key.'_stale'), 7*86400);
+chk('stale copy written with 30-day TTL (7 before 1.19.0)', ttl_of($key.'_stale'), 30*86400);
 chk('refetch lock released', get_transient($key.'_lock'), false);
 chk('key registered for flush()', in_array($key, get_transient('ds_programs_keys') ?: array(), true), true);
 
@@ -326,6 +330,60 @@ chk('"1st-4th Grade" ranks 1', DS_Programs_Data::age_rank('1st-4th Grade'), 1);
 chk('U-forms still win: "U9" is 9', DS_Programs_Data::age_rank('U9'), 9);
 chk('"10u" still 10', DS_Programs_Data::age_rank('10u Boys'), 10);
 chk('no age still last', DS_Programs_Data::age_rank('Adult Open'), 999);
+
+echo "sync health for Design Shop HQ (1.19.0)\n";
+$GLOBALS['tr']=array(); $GLOBALS['opts']['ds_toolkit_settings']=array('leagueapps_sites'=>array($site)); unset($GLOBALS['opts']['ds_programs_health'],$GLOBALS['opts']['ds_programs_hq_ping']);
+$GLOBALS['cron']=array(); $GLOBALS['hooked']=array('ds_hq_link_checkin'=>1);
+$ok200 = array('code'=>200,'body'=>json_encode(array(array('programId'=>1,'name'=>'U8','type'=>'LEAGUE','visibility'=>'Public','startTime'=>1799000000000,'endTime'=>1799000000000))),'headers'=>array());
+$GLOBALS['http']=array($ok200); delete_transient($key);
+DS_Programs_Data::get(array($site));
+$hh = DS_Programs_Data::health(); $h0 = $hh['sites'][0];
+chk('a good fetch: last_ok set, no failures', array($h0['id'], $h0['last_ok']>0, $h0['fails'], $h0['code']), array('46287', true, 0, 0));
+chk('health carries the label and no calendar row yet', array($h0['label'], $h0['cal']), array('Test', null));
+chk('saved copy now kept 30 days (was 7)', ttl_of($key.'_stale'), 30*86400);
+chk('health reports 30 copy days', $hh['copy_days'], 30);
+chk('in_use counts published Programs / Calendar layouts', $hh['in_use'], array('programs'=>2,'calendar'=>1));
+chk('in_use cached 12 h', ttl_of('ds_programs_in_use'), 12*3600);
+chk('a good fetch asks HQ for nothing', count($GLOBALS['cron']), 0);
+$good = $h0['last_ok'];
+
+// three failures in a row: nothing early on 1 and 2 (a timeout can be a blip), one early check-in on the third
+foreach (array(1,2,3) as $n) { delete_transient($key); $GLOBALS['http']=array(array('code'=>503,'body'=>'','headers'=>array())); DS_Programs_Data::get(array($site)); }
+$h1 = DS_Programs_Data::health()['sites'][0];
+chk('streak counted, last good fetch kept', array($h1['fails'], $h1['last_ok'], $h1['code']), array(3, $good, 503));
+chk('failing since = the first failure', $h1['since'] > 0 && $h1['since'] <= $h1['last_try'], true);
+chk('third failure in a row asks HQ for a check-in', array_column($GLOBALS['cron'],1), array('ds_hq_link_checkin'));
+chk('that check-in is about a minute out', $GLOBALS['cron'][0][0] - time() >= 59 && $GLOBALS['cron'][0][0] - time() <= 61, true);
+chk('visitors still get the last good copy', DS_Programs_Data::get(array($site))['stale'], true);
+
+// recovery: the first good fetch after a reported streak tells HQ too, landing after the 15-minute window
+$GLOBALS['cron']=array(); delete_transient($key); $GLOBALS['http']=array($ok200); DS_Programs_Data::get(array($site));
+$h2 = DS_Programs_Data::health()['sites'][0];
+chk('recovery clears the streak', array($h2['fails'], $h2['since'], $h2['err']), array(0, 0, ''));
+chk('recovery asks HQ for a check-in', count($GLOBALS['cron']), 1);
+chk('...no sooner than 15 min after the last one', $GLOBALS['cron'][0][0] >= time() + 14*60, true);
+
+// a hard refusal (key revoked, site gone) tells HQ on the FIRST failure
+unset($GLOBALS['opts']['ds_programs_hq_ping']); $GLOBALS['cron']=array(); delete_transient($key);
+$GLOBALS['http']=array(array('code'=>403,'body'=>'','headers'=>array())); DS_Programs_Data::get(array($site));
+chk('403 on the first failure asks HQ at once', count($GLOBALS['cron']), 1);
+chk('...and is recorded with its message', array(DS_Programs_Data::health()['sites'][0]['code'], strpos(DS_Programs_Data::health()['sites'][0]['err'],'403')!==false), array(403, true));
+delete_transient($key); DS_Programs_Data::get(array($site));
+chk('a second 403 does not ask again', count($GLOBALS['cron']), 1);
+
+// a Calendar schedule batch is tracked apart from the listing
+DS_Programs_Data::log_fetch(array('site'=>'46287','ok'=>false,'code'=>500,'tries'=>3,'why'=>'calendar expired','err'=>'HTTP 500'));
+$h3 = DS_Programs_Data::health()['sites'][0];
+chk('calendar failures go to the cal row, not the listing', array($h3['cal']['fails'], $h3['cal']['code'], $h3['fails']), array(1, 500, 2));
+
+// not connected to HQ: nothing scheduled, ever
+unset($GLOBALS['opts']['ds_programs_hq_ping'],$GLOBALS['opts']['ds_programs_health']); $GLOBALS['cron']=array(); DS_HQ_Link::$key=false;
+foreach (array(1,2,3) as $n) { delete_transient($key); $GLOBALS['http']=array(array('code'=>403,'body'=>'','headers'=>array())); DS_Programs_Data::get(array($site)); }
+chk('no HQ key: health still recorded, no check-in scheduled', array(DS_Programs_Data::health()['sites'][0]['fails'], count($GLOBALS['cron'])), array(3, 0));
+DS_HQ_Link::$key=true; $GLOBALS['hooked']=array();
+unset($GLOBALS['opts']['ds_programs_health']); foreach (array(1,2,3) as $n) { delete_transient($key); DS_Programs_Data::get(array($site)); }
+chk('HQ link switched off (no check-in hook): nothing scheduled', count($GLOBALS['cron']), 0);
+chk('health option is not autoloaded', $GLOBALS['autoload']['ds_programs_health'] ?? null, false);
 
 echo "\n" . ($fails ? "$fails FAILED" : "all passed") . "\n";
 exit($fails ? 1 : 0);

@@ -305,6 +305,8 @@ class DS_HQ_Link {
 				'last_mail_tier'   => (string) ( $ln['tier'] ?? '' ),
 			),
 			'findings'  => array_values( $findings ),
+			// LeagueApps sync health (1.19.0): HQ raises a Toolkit warning when a site's feed is refused or keeps failing.
+			'leagueapps' => class_exists( 'DS_Programs_Data' ) ? DS_Programs_Data::health() : null,
 		);
 	}
 

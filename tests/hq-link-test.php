@@ -190,6 +190,15 @@ DS_HQ_Link::on_alert( 'CRITICAL', array( '[CRITICAL] shell at /www/y.php', '[HIG
 $b = json_decode( sent_last()[1]['body'], true );
 ok( 'HIGH' === $b['findings'][1]['tier'] && 'shell at /www/y.php' === $b['findings'][0]['text'], 'alert lines parse into tier + text' );
 
+// 9b. LeagueApps sync health rides along with every report (1.19.0); null when no LeagueApps block is switched on.
+ok( array_key_exists( 'leagueapps', $b ) && null === $b['leagueapps'], 'no LeagueApps feature loaded: leagueapps is null' );
+if ( ! class_exists( 'DS_Programs_Data' ) ) {
+	eval( 'class DS_Programs_Data { static function health() { return array( "v" => 1, "in_use" => array( "programs" => 1, "calendar" => 0 ), "copy_days" => 30, "sites" => array( array( "id" => "2457", "fails" => 3, "code" => 403 ) ) ); } }' );
+}
+DS_HQ_Link::on_checked();
+$b = json_decode( sent_last()[1]['body'], true );
+ok( 'checkin' === $b['kind'] && 403 === $b['leagueapps']['sites'][0]['code'] && 30 === $b['leagueapps']['copy_days'], 'check-in carries DS_Programs_Data::health()' );
+
 // 10. Retired on HQ: the site stops sending, never re-enrolls by itself, and the card says so.
 $pk_before = DS_HQ_Link::state()['pk'];
 $GLOBALS['reply_code'] = 403; $GLOBALS['reply'] = array( 'code' => 'retired' );

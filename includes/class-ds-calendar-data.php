@@ -36,7 +36,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_Calendar_Data {
 
 	const TTL           = HOUR_IN_SECONDS;        // a schedule and the merged calendar stay fresh this long
-	const STALE_TTL     = 7 * DAY_IN_SECONDS;     // last-good copies
+	const STALE_TTL     = 7 * DAY_IN_SECONDS;     // remembered teams/types
+	const COPY_TTL      = 30 * DAY_IN_SECONDS;    // last-good copies and their keys (7 days before 1.19.0)
 	const NOT_FOUND_TTL = 6 * HOUR_IN_SECONDS;    // "Schedule Not Found" is not asked again for this long
 	const FAIL_TTL      = 5 * MINUTE_IN_SECONDS;
 	const FAIL_TTL_MAX  = HOUR_IN_SECONDS;
@@ -355,7 +356,7 @@ class DS_Calendar_Data {
 		$out            = self::pack( $norm, array( 'errors' => $errors, 'stale' => ! empty( $feed['stale'] ), 'fetched' => $now ) );
 
 		set_transient( $key, $out, $errors ? self::FAIL_TTL : self::TTL );
-		set_transient( $stale_key, $out, self::STALE_TTL );
+		set_transient( $stale_key, $out, self::COPY_TTL );
 		set_transient( 'ds_calendar_known', array( 'teams' => $out['teams'], 'types' => $out['types'] ), self::STALE_TTL );
 		self::unlock( $lock );
 		return $out;
@@ -383,7 +384,7 @@ class DS_Calendar_Data {
 	}
 
 	private static function store_put( $sid, array $s ) {
-		set_transient( 'ds_calendar_store_' . $sid, $s, self::STALE_TTL );
+		set_transient( 'ds_calendar_store_' . $sid, $s, self::COPY_TTL );
 	}
 
 	private static function api_url( array $site, $pid ) {
@@ -489,7 +490,7 @@ class DS_Calendar_Data {
 		$keys = is_array( $keys ) ? $keys : array();
 		if ( ! in_array( $key, $keys, true ) ) {
 			$keys[] = $key;
-			set_transient( 'ds_calendar_keys', $keys, self::STALE_TTL );
+			set_transient( 'ds_calendar_keys', $keys, self::COPY_TTL );
 		}
 	}
 

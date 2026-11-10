@@ -56,7 +56,7 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
             <div class="dst-card-icon"><span class="dashicons dashicons-update"></span></div>
             <div class="dst-card-info">
                 <strong>Feed cache</strong>
-                <span>Listings are fetched from LeagueApps at most every 10 minutes and the last good copy is kept for 7 days in case LeagueApps is unreachable. Saving this tab clears the cache. Editors also get a "Refresh LeagueApps listings" link in the admin bar on the front end.
+                <span>Listings are fetched from LeagueApps at most every 10 minutes and the last good copy is kept for 30 days in case LeagueApps is unreachable (visitors never see an error; Design Shop HQ is told when a sync keeps failing). Saving this tab clears the cache. Editors also get a "Refresh LeagueApps listings" link in the admin bar on the front end.
                 <?php if ( $la_sports ) : ?>
                     Sports seen in the last feed: <?php echo esc_html( implode( ', ', $la_sports ) ); ?>.
                 <?php endif; ?>
@@ -89,6 +89,24 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
                         <?php endif; ?>
                     <?php endif; ?>
                 </span>
+                <?php
+                // Sync health per LeagueApps site (DS_Programs_Data::health(), sent to Design Shop HQ with every check-in).
+                $la_health = class_exists( 'DS_Programs_Data' ) ? DS_Programs_Data::health() : array( 'sites' => array() );
+                foreach ( (array) $la_health['sites'] as $hs ) :
+                    $hs_name = $hs['label'] ? $hs['label'] . ' (' . $hs['id'] . ')' : 'Site ' . $hs['id'];
+                ?>
+                    <span style="display:block;margin-top:6px">
+                        <?php echo esc_html( $hs_name ); ?>:
+                        <?php if ( $hs['fails'] ) : ?>
+                            <strong style="color:#b32d2e">failing since <?php echo esc_html( human_time_diff( (int) $hs['since'], time() ) ); ?> ago<?php echo $hs['code'] ? ' (HTTP ' . (int) $hs['code'] . ')' : ''; ?>, <?php echo (int) $hs['fails']; ?> failed fetch<?php echo 1 === (int) $hs['fails'] ? '' : 'es'; ?> in a row.</strong>
+                            <?php echo $hs['last_ok'] ? esc_html( 'Visitors see the copy from ' . human_time_diff( (int) $hs['last_ok'], time() ) . ' ago.' ) : 'No good copy yet, so the block shows its empty message.'; ?>
+                        <?php elseif ( $hs['last_ok'] ) : ?>
+                            last good sync <?php echo esc_html( human_time_diff( (int) $hs['last_ok'], time() ) ); ?> ago.
+                        <?php else : ?>
+                            no sync yet.
+                        <?php endif; ?>
+                    </span>
+                <?php endforeach; ?>
             </div>
         </div>
         <?php if ( $la_ledger ) : ?>
