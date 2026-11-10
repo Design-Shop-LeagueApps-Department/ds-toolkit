@@ -4,6 +4,21 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.19.0] - 2026-11-11
+MINOR: Design Shop HQ now hears when a site's LeagueApps sync keeps failing, and Programs and Calendar keep their last good copy 30 days instead of 7.
+
+### Added
+- **LeagueApps sync health in the HQ check-in** (Alipio, 2026-11-11: "how do we know something breaks in the syncing? ... should we be notified internally through HQ?"). A failing feed was invisible: visitors get the last good copy, editors only see a note if they open that page logged in, and nothing told anyone. The toolkit now keeps, per LeagueApps site, the last try, the last good fetch, the failure streak and the last error (option `ds_programs_health`, not autoloaded, kept apart from the 50-line Feed activity log so a long streak never pushes the last good fetch out of view), with Calendar schedule batches tracked on their own row. `DS_Programs_Data::health()` goes to Design Shop HQ with every check-in (`leagueapps` in the report), together with how many published layouts hold a Programs or Calendar block, so HQ can tell a broken sync from a site nobody visited.
+- **Early check-in.** A hard refusal (HTTP 401/403/404: key revoked, wrong site ID, a changed LeagueApps address), the third failure in a row, and the first good fetch after such a streak each send a check-in about a minute later instead of waiting for the regular one, at most one every 15 minutes. Nothing is sent when the site is not connected to HQ.
+- HQ side (Design Shop HQ, `dshq-tripwire/class-dshq-feed-health.php`): failing sites are listed under Needs you and in a LeagueApps sync panel on /tripwire/, each site page shows its LeagueApps sync, and design@ gets one email per failing site (reminder every 3 days). When many sites fail at once it sends one LeagueApps outage email instead.
+- **LeagueApps tab:** each site's sync state under Feed activity (last good sync, or failing since when with the HTTP code and what visitors see).
+
+### Changed
+- **Programs and Calendar keep their last good copy 30 days** (was 7; `STALE_COPY_TTL`, `DS_Calendar_Data::COPY_TTL`), so a long LeagueApps outage never blanks a listing. Remembered seasons, levels, sports and Calendar teams/types keep their 7 days.
+- `tests/programs-feed-test.php` 22 new checks, `tests/hq-link-test.php` 2 new checks.
+
+---
+
 ## [1.17.3] - 2026-11-09
 PATCH: LeagueApps Roster photo files are named with opaque UUIDs, so no public file name can be traced back to a LeagueApps user id.
 

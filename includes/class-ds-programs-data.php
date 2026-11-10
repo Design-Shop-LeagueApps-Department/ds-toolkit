@@ -37,8 +37,21 @@ class DS_Programs_Data {
 	/** Fresh-cache lifetime. */
 	const TTL = 10 * MINUTE_IN_SECONDS;
 
-	/** Stale fallback lifetime: what is served when the API is unreachable. */
+	/** How long remembered values (seasons, levels, sports, cache keys) are kept. */
 	const STALE_TTL = 7 * DAY_IN_SECONDS;
+
+	/**
+	 * Stale fallback lifetime: what is served when the API is unreachable. 30 days
+	 * (7 before 1.19.0), so a long LeagueApps outage never blanks a listing; Design
+	 * Shop HQ is told about the outage long before the copy runs out (health()).
+	 */
+	const STALE_COPY_TTL = 30 * DAY_IN_SECONDS;
+
+	/** Per LeagueApps site: last try, last good fetch, failure streak, last error (health()). */
+	const HEALTH_OPTION = 'ds_programs_health';
+
+	/** Earliest time the next early check-in to HQ may go (ping_hq()). */
+	const PING_OPTION = 'ds_programs_hq_ping';
 
 	/**
 	 * How long one request may hold the refetch lock. Long enough for a slow
@@ -336,7 +349,7 @@ class DS_Programs_Data {
 		// A partial result is served but not cached as the good copy for long,
 		// so the next request retries the site that failed.
 		set_transient( $key, $pack, $errors ? MINUTE_IN_SECONDS : self::TTL );
-		set_transient( $stale_key, $pack, self::STALE_TTL );
+		set_transient( $stale_key, $pack, self::STALE_COPY_TTL );
 		self::remember_key( $key );
 		self::remember_sports( $rows );
 		self::remember_values( $rows );
@@ -863,7 +876,107 @@ class DS_Programs_Data {
 		ksort( $hours );
 
 		update_option( self::LEDGER_OPTION, array( 'recent' => $recent, 'hours' => $hours ), false );
+		self::note_health( $e );
 		do_action( 'ds_programs_fetch', $e );
+	}
+
+	/**
+	 * Sync health, one row per LeagueApps site (Calendar schedule batches under
+	 * "cal:<id>"). Kept apart from the 50-line ledger so a long failure streak can
+	 * never push the last good fetch out of view. Visitors keep seeing the last good
+	 * copy while a site fails, so this is the only place a broken sync shows: it goes
+	 * to Design Shop HQ with every check-in, and a hard refusal (401/403/404), the
+	 * third failure in a row, or the first success after such a streak sends a
+	 * check-in early.
+	 */
+	private static function note_health( array $e ) {
+		$sid = (string) ( $e['site'] ?? '' );
+		if ( '' === $sid ) { return; }
+		$k = ( 0 === strpos( (string) ( $e['why'] ?? '' ), 'calendar' ) ? 'cal:' : '' ) . $sid;
+		$h = get_option( self::HEALTH_OPTION, array() );
+		if ( ! is_array( $h ) ) { $h = array(); }
+		$r = ( isset( $h[ $k ] ) && is_array( $h[ $k ] ) ) ? $h[ $k ] : array();
+		$was = (int) ( $r['fails'] ?? 0 );
+		$t   = (int) ( $e['t'] ?? time() );
+		$r['last_try'] = $t;
+		if ( ! empty( $e['ok'] ) ) {
+			$r = array_merge( $r, array( 'last_ok' => $t, 'fails' => 0, 'since' => 0, 'code' => 0, 'err' => '' ) );
+		} else {
+			$r['fails'] = $was + 1;
+			$r['since'] = $was ? (int) ( $r['since'] ?? $t ) : $t;
+			$r['code']  = (int) ( $e['code'] ?? 0 );
+			$r['err']   = substr( (string) ( $e['err'] ?? '' ), 0, 160 );
+			$r['last_ok'] = (int) ( $r['last_ok'] ?? 0 );
+		}
+		$h[ $k ] = $r;
+		update_option( self::HEALTH_OPTION, $h, false );
+
+		$hard = in_array( (int) ( $r['code'] ?? 0 ), array( 401, 403, 404 ), true );
+		if ( empty( $e['ok'] ) ? ( ( $hard && 1 === $r['fails'] ) || 3 === $r['fails'] ) : $was >= 3 ) {
+			self::ping_hq();
+		}
+	}
+
+	/**
+	 * Ask the HQ link for a check-in about a minute from now, at most one every 15
+	 * minutes (a later request lands at the end of that window instead). Does
+	 * nothing when the site is not connected to HQ.
+	 */
+	private static function ping_hq() {
+		if ( ! class_exists( 'DS_HQ_Link' ) || ! has_action( DS_HQ_Link::CHECKIN_HOOK ) || ! DS_HQ_Link::has_key() ) { return; }
+		$next = (int) get_option( self::PING_OPTION, 0 );
+		$at   = max( time() + MINUTE_IN_SECONDS, $next );
+		update_option( self::PING_OPTION, $at + 15 * MINUTE_IN_SECONDS, false );
+		wp_schedule_single_event( $at, DS_HQ_Link::CHECKIN_HOOK );
+	}
+
+	/**
+	 * What HQ needs to tell a broken sync from a quiet one, for the check-in
+	 * (features/class-ds-hq-link.php). A site nobody visits sends no fetches, so
+	 * HQ reads `last_try` against `last_ok`, never the age of `last_ok` alone.
+	 * `in_use` counts published layouts that hold a Programs or Calendar block.
+	 */
+	public static function health() {
+		$h     = get_option( self::HEALTH_OPTION, array() );
+		$h     = is_array( $h ) ? $h : array();
+		$pick  = function ( $r ) {
+			$r = is_array( $r ) ? $r : array();
+			return array(
+				'last_try' => (int) ( $r['last_try'] ?? 0 ),
+				'last_ok'  => (int) ( $r['last_ok'] ?? 0 ),
+				'fails'    => (int) ( $r['fails'] ?? 0 ),
+				'since'    => (int) ( $r['since'] ?? 0 ),
+				'code'     => (int) ( $r['code'] ?? 0 ),
+				'err'      => (string) ( $r['err'] ?? '' ),
+			);
+		};
+		$sites = array();
+		foreach ( array_slice( self::configured_sites(), 0, 10 ) as $s ) {
+			$id      = (string) $s['site_id'];
+			$row     = $pick( $h[ $id ] ?? null );
+			$row     = array( 'id' => $id, 'label' => (string) $s['label'] ) + $row;
+			$row['cal'] = isset( $h[ 'cal:' . $id ] ) ? $pick( $h[ 'cal:' . $id ] ) : null;
+			$sites[] = $row;
+		}
+		return array( 'v' => 1, 'in_use' => self::in_use(), 'copy_days' => (int) ( self::STALE_COPY_TTL / DAY_IN_SECONDS ), 'sites' => $sites );
+	}
+
+	/** Published layouts holding a Programs / Calendar block, recounted twice a day. */
+	public static function in_use() {
+		$c = get_transient( 'ds_programs_in_use' );
+		if ( is_array( $c ) ) { return $c; }
+		global $wpdb;
+		$c = array( 'programs' => 0, 'calendar' => 0 );
+		if ( is_object( $wpdb ) ) {
+			foreach ( array( 'programs' => 'ds-programs', 'calendar' => 'ds-la-calendar' ) as $k => $slug ) {
+				$c[ $k ] = (int) $wpdb->get_var( $wpdb->prepare(
+					"SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_fl_builder_data' WHERE p.post_status = 'publish' AND m.meta_value LIKE %s",
+					'%' . $wpdb->esc_like( '"' . $slug . '"' ) . '%'
+				) );
+			}
+		}
+		set_transient( 'ds_programs_in_use', $c, 12 * HOUR_IN_SECONDS );
+		return $c;
 	}
 
 	/** The most recent fetches, newest first. */
@@ -933,7 +1046,7 @@ class DS_Programs_Data {
 		$keys = self::known_keys();
 		if ( ! in_array( $key, $keys, true ) ) {
 			$keys[] = $key;
-			set_transient( 'ds_programs_keys', $keys, self::STALE_TTL );
+			set_transient( 'ds_programs_keys', $keys, self::STALE_COPY_TTL );
 		}
 	}
 
