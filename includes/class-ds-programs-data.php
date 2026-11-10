@@ -368,14 +368,60 @@ class DS_Programs_Data {
 	}
 
 	/**
-	 * One site. Only `/programs/current` exists; the API has no server-side
+	 * One site, with its private programs included so public_rows() can tell
+	 * which main programs the partner hid (a private main program is simply
+	 * missing from the plain feed, while its public sub-programs are not). If
+	 * LeagueApps ever refuses the parameter (400), the plain feed is fetched
+	 * instead: the module then behaves exactly as before 1.17.4.
+	 */
+	private static function fetch_site( $site_id, $api_key ) {
+		$res = self::fetch_url( self::API_BASE . rawurlencode( $site_id ) . '/programs/current?includePrivate=true&x-api-key=' . rawurlencode( $api_key ) );
+		if ( is_wp_error( $res ) && 400 === self::$last_code ) {
+			$tries = self::$last_tries;
+			$res   = self::fetch_url( self::API_BASE . rawurlencode( $site_id ) . '/programs/current?x-api-key=' . rawurlencode( $api_key ) );
+			self::$last_tries += $tries;
+		}
+		return is_wp_error( $res ) ? $res : self::public_rows( $res );
+	}
+
+	/**
+	 * Only what LeagueApps shows the public: a program whose "visible to the
+	 * public" box is unticked is dropped, and so is every sub-program of a main
+	 * program that is (District Soccer, 2026-11-09: unticking "2027 Winter - 7s"
+	 * hid the league but every division under it kept listing, because each
+	 * division carries its own Public flag). A sub-program whose main program
+	 * is absent from the feed for any other reason still lists as itself.
+	 * Runs before anything is cached, so no module ever sees a private row.
+	 */
+	public static function public_rows( array $rows ) {
+		$hidden = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) { continue; }
+			$vis = (string) ( $row['visibility'] ?? '' );
+			if ( ( $vis && 0 !== strcasecmp( $vis, 'Public' ) ) || ! empty( $row['deleted'] ) ) {
+				$hidden[ (int) ( $row['programId'] ?? 0 ) ] = true;
+			}
+		}
+		unset( $hidden[0] );
+		$out = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) { continue; }
+			$pid = (int) ( $row['programId'] ?? 0 );
+			$mid = (int) ( $row['masterProgramId'] ?? 0 );
+			if ( isset( $hidden[ $pid ] ) || ( $mid && isset( $hidden[ $mid ] ) ) ) { continue; }
+			$out[] = $row;
+		}
+		return $out;
+	}
+
+	/**
+	 * One request. Only `/programs/current` exists; the API has no server-side
 	 * filtering. Retries are for connection-level failures and a garbled body
 	 * only. Any HTTP error is returned at once: a 429 or a 5xx means LeagueApps
 	 * is struggling, and retrying into that is the one thing a well-behaved
 	 * client must not do.
 	 */
-	private static function fetch_site( $site_id, $api_key ) {
-		$url  = self::API_BASE . rawurlencode( $site_id ) . '/programs/current?x-api-key=' . rawurlencode( $api_key );
+	private static function fetch_url( $url ) {
 		$last = null;
 		self::$last_tries = 0;
 		self::$last_code  = 0;
@@ -438,7 +484,8 @@ class DS_Programs_Data {
 	 *             picked at checkout, a college camp whose children are add-ons).
 	 *   both      the master's row and then its children.
 	 * A child whose master is not in the feed is a standalone row whatever the
-	 * mode, because there is no master row to stand in for it.
+	 * mode, because there is no master row to stand in for it. The children of
+	 * a private master never get here: public_rows() drops them at fetch time.
 	 */
 	private static function build_rows( array $raw, array $overrides, array $format, $grouping = 'children' ) {
 		$grouping  = in_array( $grouping, array( 'master', 'both' ), true ) ? $grouping : 'children';
