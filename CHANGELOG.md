@@ -5,7 +5,7 @@ All notable changes to DS Toolkit are documented here.
 ---
 
 ## [1.17.4] - 2026-11-10
-PATCH: unticking "This league will be visible to the public" on a grouped program in LeagueApps now hides its divisions too, in the Programs table and the Calendar.
+PATCH: unticking "This league will be visible to the public" on a grouped program in LeagueApps now hides its divisions too (#340), and the form submit button follows the Global Styles button colours (#339).
 
 ### Fixed
 - **LeagueApps Programs: a private main program hides its sub-programs** (District Soccer, 2026-11-09: the partner unticked "visible to the public" on "2027 Winter - 7s", the league disappeared but every division under it kept listing on /play/leagues/). LeagueApps keeps that box per program, so a division stays Public when its league is hidden, and the plain feed simply leaves the private league out. The module now asks for `/programs/current?includePrivate=true`, then drops every program that is not Public and every sub-program of one, before anything is cached: no module and no cache ever holds a private row. A sub-program whose main program is missing for any other reason still lists as itself, as before.
@@ -14,6 +14,7 @@ PATCH: unticking "This league will be visible to the public" on a grouped progra
 - Checked on six LeagueApps sites (District Soccer and five on designshopdemo/dslaunchpad7): the public programs in the private-aware feed are exactly the plain feed on every one, so nothing listed today disappears except the divisions of hidden leagues (5 on District Soccer: the private "2026 Fall - Federal Triangles SC Programs" and "2026 District Soccer Pickup Cup").
 - Changes show within the usual 10-minute feed cache.
 - `tests/programs-feed-test.php`: 10 new checks (all three grouping modes, raw(), nothing private cached, the 400 fallback).
+- **Form style: the submit button follows the Beaver Builder Global Styles button colours** (#339). The Theme Setting form style printed the Forminator submit text as white whatever the Button colour, so a light Button colour made it unreadable (apexlacrosse, lime `#88ff34`: 1.28:1). Its text and background, and the hover/focus state, now read BB's own `--fl-global-button-color` / `--fl-global-button-background` / `--fl-global-button-hover-*` variables, with the old values as the fallback when BB has none. Same fix as the never-merged #275, rebuilt on current main. No `!important`, so the BB button settings keep control.
 
 ---
 
