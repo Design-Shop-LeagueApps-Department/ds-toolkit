@@ -704,25 +704,25 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 						'help'    => __( 'Choose a CTA layout. More styles will be added; the options below adapt to the selected style.', 'ds-toolkit' ),
 						'toggle'  => array(
 							'style1' => array(
-								'sections' => array( 'section_style', 'header', 'cards', 'grid', 'clip', 'overlay', 'colors', 'typography', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'header_colors', 'cards', 'grid', 'clip', 'overlay', 'colors', 'typography', 'spacing' ),
 							),
 							'style2' => array(
-								'sections' => array( 'section_style', 'header', 'cards', 'grid', 'card2', 'overlay', 'colors', 'typography', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'header_colors', 'cards', 'grid', 'card2', 'overlay', 'colors', 'typography', 'spacing' ),
 							),
 							'style3' => array(
-								'sections' => array( 'section_style', 'header', 'cards', 'grid', 'bento', 'colors', 'typography', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'header_colors', 'cards', 'grid', 'bento', 'colors', 'typography', 'spacing' ),
 							),
 							'style4' => array(
 								'sections' => array( 'hero', 'hero_contact', 'hero_button', 'hero_social', 'hero_bg', 'hero_box', 'hero_colors', 'hero_social_style', 'hero_typography', 'spacing' ),
 							),
 							'style5' => array(
-								'sections' => array( 'section_style', 'header', 'cards', 'mcard', 'mcard_fx', 'mcard_logo', 'typography', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'header_colors', 'cards', 'mcard', 'mcard_fx', 'mcard_logo', 'typography', 'spacing' ),
 							),
 							'style6' => array(
-								'sections' => array( 'section_style', 'header', 'programs_sec', 'program_opts', 'program_chrome', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'header_colors', 'programs_sec', 'program_opts', 'program_chrome', 'spacing' ),
 							),
 							'style7' => array(
-								'sections' => array( 'section_style', 'header', 'programs_sec', 'pp_layout', 'pp_number', 'pp_text', 'spacing' ),
+								'sections' => array( 'section_style', 'header', 'header_colors', 'programs_sec', 'pp_layout', 'pp_number', 'pp_text', 'spacing' ),
 							),
 						),
 					),
@@ -1041,6 +1041,13 @@ FLBuilder::register_module( 'DS_CTA_Module', array(
 					),
 					'title_color'         => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Title', 'ds-toolkit' ), 'default' => 'var(--fl-global-white)', 'show_reset' => true ),
 					'card_bg'             => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Card Background', 'ds-toolkit' ), 'default' => 'var(--fl-global-dark-background)', 'show_reset' => true ),
+				),
+			),
+			// The header's own colours, in their own section: every style with a header lists it (styles 5, 6
+			// and 7 show a header but not the Colours section, so these three fields could not be reached).
+			'header_colors' => array(
+				'title'  => __( 'Header Colours', 'ds-toolkit' ),
+				'fields' => array(
 					'header_color'        => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Header Text', 'ds-toolkit' ), 'default' => 'var(--fl-global-headings)', 'show_reset' => true ),
 					'header_accent_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Header Accent', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
 					'header_label_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Header Label', 'ds-toolkit' ), 'default' => 'var(--fl-global-body)', 'show_reset' => true ),

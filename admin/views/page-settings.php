@@ -38,7 +38,7 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
 
     <div class="dst-filter-bar">
         <span class="dashicons dashicons-search" aria-hidden="true"></span>
-        <input type="search" id="dst-filter" placeholder="Filter features… (e.g. turnstile, shortcode, hero)" autocomplete="off">
+        <input type="search" id="dst-filter" placeholder="Filter features… (e.g. bot, shortcode, hero)" autocomplete="off">
     </div>
 
     <!-- ============================== SECURITY & ACCESS ============================== -->
@@ -124,7 +124,6 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
     </div>
     <?php endif; ?>
 
-        </div>
     <!-- Bot Shield (fleet-wide) -->
     <div class="dst-card">
         <div class="dst-card-row">
@@ -242,9 +241,7 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
         </div>
     </div>
 
-    <!-- LeagueApps modules (Beaver Builder blocks) — opt-in on ANY blueprint, off by default below gen 6 -->
-    <p class="dst-section-title">LeagueApps Modules (Beaver Builder blocks)</p>
-
+        </div>
     </details>
 
     <!-- ============================== PARTNER EXPERIENCE ============================== -->
@@ -391,14 +388,16 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
         </div>
     </details>
 
-    <?php if ( $dst_bp6 ) : ?>
     <!-- ============================== SITE & CONTENT ============================== -->
+    <!-- The group shows on every blueprint: Nested Pages Order is not blueprint-gated. Its other cards are gen 6+. -->
     <details class="dst-group" data-dst-group="site" open>
         <summary class="dst-group-head">
             <span class="dst-group-title"><span class="dashicons dashicons-admin-customizer" aria-hidden="true"></span> Site &amp; Content</span>
             <span class="dst-group-count"><?php echo esc_html( $dst_count( $dst_grp_site ) ); ?></span>
         </summary>
         <div class="dst-group-body">
+
+    <?php if ( $dst_bp6 ) : ?>
 
     <!-- Theme Setting page (blueprint generation 6+) -->
     <div class="dst-card">
@@ -475,8 +474,7 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
             </div>
         </div>
     </div>
-
-        </div>
+    <?php endif; ?>
 
     <!-- Nested Pages order on the front end -->
     <div class="dst-card">
@@ -493,8 +491,9 @@ $dst_mod_all = count( DS_Toolkit::module_features() );
             </div>
         </div>
     </div>
+
+        </div>
     </details>
-    <?php endif; ?>
 
     <!-- ============================== SHORTCODES & DEV TOOLS ============================== -->
     <details class="dst-group" data-dst-group="dev">

@@ -11,7 +11,7 @@
  * License:           GPL-2.0+
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Requires at least: 5.8
- * Tested up to:      6.7
+ * Tested up to:      7.1
  * Requires PHP:      7.4
  */
 
