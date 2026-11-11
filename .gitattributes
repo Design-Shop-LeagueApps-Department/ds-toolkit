@@ -1,0 +1,7 @@
+# Left out of `git archive` and of the release zip (the release workflow excludes the same paths): sites never
+# need them, and tests/ holds web-shell fixtures a scanner would have to exempt.
+/tests export-ignore
+/docs export-ignore
+/CONTRIBUTING.md export-ignore
+/.github export-ignore
+/.gitattributes export-ignore

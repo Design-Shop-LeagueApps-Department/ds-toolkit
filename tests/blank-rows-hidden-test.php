@@ -5,6 +5,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
  * starts with blank rows, which rendered as empty "#" links with empty headings and empty stat boxes.
  * Renders modules in memory with Beaver Builder (nothing is saved):
  *   wp eval-file tests/blank-rows-hidden-test.php
+ *   @requires wordpress (tests/run.sh runs it only with --wp)
  * Exit code 1 on any failure.
  */
 if ( ! class_exists( 'FLBuilder' ) || ! class_exists( 'DS_CTA_Module' ) || ! class_exists( 'DS_OrgStats_Module' ) ) { echo "Beaver Builder or the DS modules are not active.\n"; exit( 1 ); }

@@ -4,6 +4,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HT
  * Administrator accounts and the staff rule (1.12.0).
  *
  *   wp eval-file tests/partner-admin-guard-test.php
+ *   @requires wordpress (tests/run.sh runs it only with --wp)
  *
  * Creates temporary users (a Partner, two administrators, a subscriber), deletes them at the end, and puts
  * default_role back. Needs the Partner role (User Roles feature, on by default).

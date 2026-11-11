@@ -5,6 +5,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
  * keeps no file, and who may read, store or replace a CSV. Drives the real handler
  * as an administrator, with wp_die captured:
  *   wp eval-file tests/table-ajax-test.php
+ *   @requires wordpress (tests/run.sh runs it only with --wp)
  * Exit code 1 on any failure. Writes nothing: storing a file needs a real HTTP upload,
  * so that path is covered by the builder end-to-end test instead.
  */
