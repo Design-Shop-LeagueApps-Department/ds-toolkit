@@ -87,9 +87,9 @@ class DS_Theme_Setting {
 .forminator-ui.forminator-custom-form select.forminator-select:focus{border-color:var(--fl-global-accent);box-shadow:0 0 0 3px rgba(0,0,0,.06);outline:none;}
 .forminator-ui.forminator-custom-form input::placeholder,
 .forminator-ui.forminator-custom-form textarea::placeholder{color:rgba(0,0,0,.42);}
-.forminator-ui.forminator-custom-form button.forminator-button-submit{background:var(--fl-global-button);color:var(--fl-global-white);border:0;padding:14px 32px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;border-radius:6px;cursor:pointer;transition:background .2s ease,color .2s ease;}
+.forminator-ui.forminator-custom-form button.forminator-button-submit{background:var(--fl-global-button-background,var(--fl-global-button));color:var(--fl-global-button-color,var(--fl-global-white));border:0;padding:14px 32px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;border-radius:6px;cursor:pointer;transition:background .2s ease,color .2s ease;}
 .forminator-ui.forminator-custom-form button.forminator-button-submit:hover,
-.forminator-ui.forminator-custom-form button.forminator-button-submit:focus{background:var(--fl-global-accent);color:var(--fl-global-white);}
+.forminator-ui.forminator-custom-form button.forminator-button-submit:focus{background:var(--fl-global-button-hover-background,var(--fl-global-accent));color:var(--fl-global-button-hover-color,var(--fl-global-white));}
 CSS;
         echo '<style id="ds-form-style">' . $css . '</style>' . "\n";
     }

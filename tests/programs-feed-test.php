@@ -36,7 +36,7 @@ class WP_Error {
   function get_error_data(){ return $this->d; }
 }
 function wp_remote_get($url,$args=array()){
-  $GLOBALS['calls']++; $GLOBALS['calls_total']=($GLOBALS['calls_total']??0)+1; $GLOBALS['last_args']=$args;
+  $GLOBALS['calls']++; $GLOBALS['urls'][]=$url; $GLOBALS['calls_total']=($GLOBALS['calls_total']??0)+1; $GLOBALS['last_args']=$args;
   $q=&$GLOBALS['http'];
   $r = count($q)>1 ? array_shift($q) : ($q[0] ?? array('code'=>200,'body'=>'[]','headers'=>array()));
   return $r;
@@ -190,7 +190,8 @@ chk('ledger: reason is cache expired (stale copy existed)', $led[0]['why'], 'exp
 echo "other 4xx\n";
 delete_transient($key); $GLOBALS['http']=array(array('code'=>400,'body'=>'','headers'=>array())); $GLOBALS['calls']=0;
 DS_Programs_Data::get(array($site));
-chk('one call, no retry into a deterministic 4xx', $GLOBALS['calls'], 1);
+chk('a 400 on the private-aware feed: one plain-feed fallback, no further retry', $GLOBALS['calls'], 2);
+chk('the fallback drops includePrivate', array(strpos(end($GLOBALS['urls']),'includePrivate')===false, strpos(prev($GLOBALS['urls']),'includePrivate=true')!==false), array(true,true));
 
 
 echo "refetch lock held AND a stale copy exists (no sleep, no HTTP)\n";
@@ -326,6 +327,38 @@ chk('"1st-4th Grade" ranks 1', DS_Programs_Data::age_rank('1st-4th Grade'), 1);
 chk('U-forms still win: "U9" is 9', DS_Programs_Data::age_rank('U9'), 9);
 chk('"10u" still 10', DS_Programs_Data::age_rank('10u Boys'), 10);
 chk('no age still last', DS_Programs_Data::age_rank('Adult Open'), 999);
+
+echo "private main programs hide their sub-programs (District Soccer, 2026-11-09)\n";
+// The shape seen on districtsoccer.org: with includePrivate=true the unticked league comes back
+// as visibility Private, and every division under it is still Public on its own.
+$GLOBALS['tr']=array(); $GLOBALS['urls']=array(); $GLOBALS['calls']=0;
+$pv = function($id,$name,$vis,$extra=array()){ return array_merge(array('programId'=>$id,'name'=>$name,'type'=>'LEAGUE','mode'=>'ADULT','state'=>'UPCOMING','visibility'=>$vis,
+  'startTime'=>1799000000000,'endTime'=>1799100000000,'programUrlHtml'=>"//x.leagueapps.com/leagues/$id"),$extra); };
+$GLOBALS['http']=array(array('code'=>200,'headers'=>array(),'body'=>json_encode(array(
+  $pv(100,'2027 Winter - 7s','Private',array('isMaster'=>true)),
+  $pv(101,'Thursday 7s - CoEd D3','Public',array('masterProgramId'=>100)),
+  $pv(102,'Thursday 7s - Men\'s+ D1','Public',array('masterProgramId'=>100)),
+  $pv(200,'2027 Winter - 9s','Public',array('isMaster'=>true)),
+  $pv(201,'Sunday 9s - CoEd','Public',array('masterProgramId'=>200)),
+  $pv(202,'Sunday 9s - Early Bird','Private',array('masterProgramId'=>200)),
+  $pv(300,'Hidden standalone clinic','Private'),
+  $pv(400,'Open standalone clinic','Public'),
+  $pv(501,'Division of a master not in the feed','Public',array('masterProgramId'=>500)),
+  $pv(600,'Deleted league','Public',array('isMaster'=>true,'deleted'=>true)),
+  $pv(601,'Division of a deleted league','Public',array('masterProgramId'=>600)),
+  $pv(700,'Lower-case visibility','private'),
+  $pv(800,'No visibility field (old shape)',null),
+))));
+$r = DS_Programs_Data::get(array($site));
+chk('the feed is asked for private programs too', strpos($GLOBALS['urls'][0],'/programs/current?includePrivate=true&x-api-key=')!==false, true);
+chk('children mode: private league\'s divisions gone, the rest kept', $ids($r), array(201,400,501,800));
+chk('master mode: private league is no row of its own either', $ids(DS_Programs_Data::get(array($site), array(), array(), 'master')), array(200,400,501,800));
+chk('both mode: same, the public league keeps only its public division', $ids(DS_Programs_Data::get(array($site), array(), array(), 'both')), array(200,201,400,501,800));
+chk('raw() (Calendar, Schedule) never sees a private row or a hidden division', array_map(function($p){ return $p['programId']; }, DS_Programs_Data::raw(array($site))['rows']), array(200,201,400,501,800));
+chk('nothing private is cached', strpos(json_encode(get_transient($key)), 'Private')===false && strpos(json_encode(get_transient($key.'_stale')), 'Thursday')===false, true);
+chk('one request for all of it', $GLOBALS['calls'], 1);
+chk('public_rows: a feed with no private rows is unchanged', count(DS_Programs_Data::public_rows(array($pv(1,'a','Public'),$pv(2,'b','Public',array('masterProgramId'=>1))))), 2);
+chk('public_rows: non-array rows are skipped, not fatal', DS_Programs_Data::public_rows(array('x',null,$pv(3,'c','Public')))[0]['programId'], 3);
 
 echo "\n" . ($fails ? "$fails FAILED" : "all passed") . "\n";
 exit($fails ? 1 : 0);
