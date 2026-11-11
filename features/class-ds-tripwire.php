@@ -153,6 +153,7 @@ class DS_Tripwire {
     /* ------------------------------------------ content engine (1.9.132) ------------------ */
     /** Hourly behaviour-scan hook, separate from the daily IOC check so each cost is bounded alone. */
     const CONTENT_HOOK = 'ds_tripwire_content';
+    const DAILY_SPREAD = 5400; // the daily run lands between 03:10 and 04:40 site time, one fixed minute per site
     const MAILCHECK_HOOK = 'ds_tripwire_mailcheck';
     /** Seconds of scanning per cron run; the file list resumes from a cursor next run. */
     const CONTENT_BUDGET_S = 15;
@@ -217,12 +218,17 @@ class DS_Tripwire {
         add_action( 'add_user_role', array( $this, 'on_role_added' ), 10, 2 );
 
         if ( is_admin() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
-            if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
-                // 03:10 site-local time: off-peak, and offset from the :00 herd.
-                // strtotime against the tz-shifted clock gives a "local reading";
-                // subtract the offset to get the real UTC timestamp cron expects.
-                $local  = strtotime( 'tomorrow 03:10', current_time( 'timestamp' ) );
-                $first  = $local ? $local - (int) round( (float) get_option( 'gmt_offset', 0 ) * HOUR_IN_SECONDS ) : 0;
+            // Off-peak, in the site's own time: 03:10 plus this site's own offset (see daily_offset()).
+            // A site still on the old fixed 03:10 slot is moved to its own minute once.
+            $tz_shift = (int) round( (float) get_option( 'gmt_offset', 0 ) * HOUR_IN_SECONDS );
+            $host     = (string) wp_parse_url( (string) home_url(), PHP_URL_HOST );
+            $next     = wp_next_scheduled( self::CRON_HOOK );
+            if ( $next && self::is_legacy_daily_slot( (int) $next, $tz_shift ) && self::daily_offset( $host ) > 0 ) {
+                wp_clear_scheduled_hook( self::CRON_HOOK );
+                $next = false;
+            }
+            if ( ! $next ) {
+                $first = self::daily_first_run( (int) current_time( 'timestamp' ), $tz_shift, $host );
                 wp_schedule_event( $first ? $first : time() + DAY_IN_SECONDS, 'daily', self::CRON_HOOK );
             }
             if ( ! wp_next_scheduled( self::CONTENT_HOOK ) ) {
@@ -1148,6 +1154,31 @@ class DS_Tripwire {
     }
 
     /* ------------------------------------------------- instant admin alerts */
+
+    /**
+     * This site's own offset into the daily window, in seconds, from its address: the same every day, different
+     * from site to site. Every site used to run at exactly 03:10 its own time, so a whole time zone scanned and
+     * then reported to Design Shop HQ in the same minute. Never a whole hour, so a moved slot can be told from the
+     * old one.
+     */
+    public static function daily_offset( $host ) {
+        $off = (int) ( abs( crc32( strtolower( (string) $host ) ) ) % self::DAILY_SPREAD );
+        return 0 === $off % HOUR_IN_SECONDS ? $off + 60 : $off;
+    }
+
+    /**
+     * The first daily run as a real (UTC) timestamp: tomorrow 03:10 by the site's clock, plus its offset.
+     * $local_now is the site's clock reading (current_time( 'timestamp' )), $tz_shift its distance from UTC.
+     */
+    public static function daily_first_run( $local_now, $tz_shift, $host ) {
+        $local = strtotime( 'tomorrow 03:10', (int) $local_now );
+        return $local ? $local + self::daily_offset( $host ) - (int) $tz_shift : 0;
+    }
+
+    /** Is this scheduled run still on the old slot (ten past an hour, to the second, by the site's clock)? */
+    public static function is_legacy_daily_slot( $ts, $tz_shift ) {
+        return 600 === ( ( (int) $ts + (int) $tz_shift ) % HOUR_IN_SECONDS + HOUR_IN_SECONDS ) % HOUR_IN_SECONDS;
+    }
 
     public function on_user_change( $user_id ) {
         $user = get_userdata( $user_id );

@@ -56,6 +56,12 @@ if ( ( defined( 'WP_CLI' ) && WP_CLI ) || is_admin() ) {
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-toolkit.php';
 
 register_activation_hook( __FILE__, array( 'DS_Toolkit', 'activate' ) );
+// Deactivating stops the scheduled jobs and removes the Origin Guard mu-plugin, which would otherwise keep
+// running without the plugin. The class is read only when that happens. WordPress does not call this on updates.
+register_deactivation_hook( __FILE__, function () {
+	require_once DS_TOOLKIT_PATH . 'includes/class-ds-lifecycle.php';
+	DS_Toolkit_Lifecycle::deactivate();
+} );
 
 add_action( 'plugins_loaded', function() {
     $plugin = new DS_Toolkit();

@@ -161,10 +161,24 @@ class DS_HQ_Link {
 		return max( self::EVERY_MIN, min( self::EVERY_MAX, $e ?: self::EVERY_MAX ) );
 	}
 
-	/** One single event at now + interval; any earlier one is replaced, so a changed interval applies at once. */
+	/**
+	 * One single event at now + interval; any earlier one is replaced, so a changed interval applies at once.
+	 * A few random minutes on top (at most 5% of the interval, at most 15 minutes) so sites that sent together
+	 * once do not keep arriving at HQ together. HQ calls a site silent after two intervals plus an hour.
+	 */
 	public static function schedule_next() {
+		$every = self::every();
 		wp_clear_scheduled_hook( self::CHECKIN_HOOK );
-		wp_schedule_single_event( time() + self::every(), self::CHECKIN_HOOK );
+		wp_schedule_single_event( time() + $every + wp_rand( 0, (int) min( 900, $every / 20 ) ), self::CHECKIN_HOOK );
+	}
+
+	/**
+	 * Seconds to wait before sending the queue again after HQ could not take it: 5 minutes, doubling with each
+	 * failure in a row, 6 hours at most. A flat 5 minutes meant every site hammered an overloaded HQ in step.
+	 */
+	public static function retry_delay( $fails ) {
+		$fails = max( 1, min( 12, (int) $fails ) );
+		return (int) min( 6 * HOUR_IN_SECONDS, 5 * MINUTE_IN_SECONDS * pow( 2, $fails - 1 ) );
 	}
 
 	/** This install's key, made now if missing or if the stored one belongs to the install this site was copied from. */
@@ -397,6 +411,7 @@ class DS_HQ_Link {
 					$s2['last_ok'] = time();
 					$s2['status']  = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
 					$s2['error']   = '';
+					$s2['fails']   = 0;
 					self::save( $s2 );
 					continue;
 				}
@@ -422,11 +437,15 @@ class DS_HQ_Link {
 					}
 					break;
 				}
+				// Unreachable, overloaded, or a time clash with another sender (409 replay): keep it for next time.
+				$keep        = ( 0 === $code || $code >= 500 || 429 === $code || 409 === $code );
 				$s2          = self::state();
 				$s2['error'] = 'Report: ' . ( $code ? 'HTTP ' . $code . ' ' . (string) ( is_array( $out ) ? ( $out['code'] ?? '' ) : '' ) : (string) $out );
+				if ( $keep ) {
+					$s2['fails'] = min( 12, (int) ( $s2['fails'] ?? 0 ) + 1 ); // sets the wait before the next try
+				}
 				self::save( $s2 );
-				// Unreachable, overloaded, or a time clash with another sender (409 replay): keep it for next time.
-				if ( 0 === $code || $code >= 500 || 429 === $code || 409 === $code ) {
+				if ( $keep ) {
 					break;
 				}
 				self::shift(); // any other refusal (bad signature, malformed) cannot be fixed by resending
@@ -438,7 +457,7 @@ class DS_HQ_Link {
 		if ( 'retired' !== ( $s['status'] ?? '' ) ) {
 			self::schedule_next();
 			if ( ! empty( $s['queue'] ) && ! wp_next_scheduled( self::FLUSH_HOOK ) ) {
-				wp_schedule_single_event( time() + 5 * MINUTE_IN_SECONDS, self::FLUSH_HOOK ); // retry what is left
+				wp_schedule_single_event( time() + self::retry_delay( (int) ( $s['fails'] ?? 1 ) ) + wp_rand( 0, 60 ), self::FLUSH_HOOK ); // retry what is left
 			}
 		}
 	}
