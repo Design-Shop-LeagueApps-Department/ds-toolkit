@@ -57,14 +57,14 @@ class DS_Programs_Module extends FLBuilderModule {
 	/** Sport picker: learned from the last fetched feed, else just "All". */
 	public static function sport_options() {
 		$out = array( '' => __( 'All sports', 'ds-toolkit' ) );
-		foreach ( DS_Programs_Data::known_sports() as $s ) { $out[ $s ] = $s; }
+		foreach ( ( DS_Module_UI::form_shown() ? DS_Programs_Data::known_sports() : array() ) as $s ) { $out[ $s ] = $s; }
 		return $out;
 	}
 
 	/** Season / Level picker: the values LeagueApps has sent on this site. */
 	public static function value_options( $field ) {
 		$out = array();
-		foreach ( DS_Programs_Data::known_values( $field ) as $v ) { $out[ $v ] = $v; }
+		foreach ( ( DS_Module_UI::form_shown() ? DS_Programs_Data::known_values( $field ) : array() ) as $v ) { $out[ $v ] = $v; }
 		return $out ? $out : array( '' => __( '(the list fills in once the programs have loaded on this site)', 'ds-toolkit' ) );
 	}
 

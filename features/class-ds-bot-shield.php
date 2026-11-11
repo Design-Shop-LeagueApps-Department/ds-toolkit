@@ -68,6 +68,14 @@ class DS_Bot_Shield {
         'applebot'             => array( '.applebot.apple.com', '.apple.com' ),
     );
 
+    /**
+     * How many NEW addresses claiming to be a search engine get the DNS check per 10 seconds without being
+     * about to be refused. A crawler verified once is remembered for a day, so real crawlers stay far under
+     * this; a flood of spoofed crawler requests on rotating addresses used to cost two blocking DNS lookups
+     * per request, and is now capped here. Before any refusal the check always runs, whatever the count.
+     */
+    const SE_VERIFY_BURST = 5;
+
     /** Paths that must stay reachable and are never challenged or limited. */
     const EXEMPT_PATHS = 'robots.txt,favicon.ico,sitemap,.well-known/,wp-cron.php';
 
@@ -281,19 +289,32 @@ class DS_Bot_Shield {
         // (zeros with a live "evaluated" number = genuinely quiet day).
         $this->bump_stat( 'seen' );
 
-        // Verified search engines are never refused, by anything. Checked
-        // here so indexing can't be harmed; spoofers fail verification and
-        // fall through to the rules below.
+        // Verified search engines are never refused, by anything: every refusal
+        // below asks is_verified_se() first, so indexing can't be harmed and
+        // spoofers (who fail verification) are policed like anyone else.
         //
-        // Without a memory backend the only verdict this method can still reach
-        // is a UA block, and nothing caches the DNS answer, so verifying here
-        // cost two blocking DNS lookups on EVERY request with a crawler UA (a
-        // flood with rotating IPs became a worker-exhaustion amplifier). There
-        // the check runs only when the request would actually be blocked;
-        // confirm_page_trap() verifies on its own. Same verdicts either way.
+        // The DNS check itself is two blocking lookups, so it is rationed:
+        //  - an address verified (or failed) earlier today is answered from the
+        //    cache, no lookup;
+        //  - a new address is checked right away only while fewer than
+        //    SE_VERIFY_BURST new ones arrived in this 10 s window, so a real
+        //    crawler passes on its first request and stays out of the counters,
+        //    while a spoofed-crawler flood on rotating addresses cannot make
+        //    every request pay for DNS (it was a worker-exhaustion amplifier);
+        //  - without a memory backend nothing caches the answer and the only
+        //    verdict left is a UA block, so the check waits for that.
+        // confirm_page_trap() verifies on its own.
         $has_backend = ( null !== $this->resolve_backend() );
-        if ( $has_backend && $this->is_verified_se( $ua, $ip ) ) {
-            return 'pass';
+        if ( $has_backend && null !== $this->se_domains( $ua ) ) {
+            $known = $this->cache_get( 'se_' . md5( $ip ) );
+            if ( false !== $known ) {
+                $this->se_checked = (bool) $known;
+            } elseif ( $this->cache_incr( 'sev_' . (int) floor( time() / 10 ), 30 ) <= self::SE_VERIFY_BURST ) {
+                $this->is_verified_se( $ua, $ip );
+            }
+            if ( true === $this->se_checked ) {
+                return 'pass';
+            }
         }
 
         // Pagination URL trap (Site Stability Push cause #1): WordPress
@@ -312,7 +333,7 @@ class DS_Bot_Shield {
 
         // UA blocklist, cheapest check that can block.
         if ( '' !== $ua && $this->ua_matches( $ua, $this->ua_blocklist() ) ) {
-            if ( ! $has_backend && $this->is_verified_se( $ua, $ip ) ) {
+            if ( $this->is_verified_se( $ua, $ip ) ) {
                 return 'pass';
             }
             return 'ua-block';
@@ -327,13 +348,16 @@ class DS_Bot_Shield {
 
         // Penalty box first: already-flagged IPs answer instantly.
         if ( $this->cache_get( 'pen_' . $ip_key ) ) {
-            return 'rate-limit';
+            return $this->is_verified_se( $ua, $ip ) ? 'pass' : 'rate-limit';
         }
 
         // 1) Per-IP fixed window (per minute).
         $limit = max( 30, (int) $this->opt( 'bot_shield_ip_limit', 180 ) );
         $count = $this->cache_incr( 'ip_' . $ip_key . '_' . (int) floor( time() / 60 ), 120 );
         if ( $count > $limit ) {
+            if ( $this->is_verified_se( $ua, $ip ) ) {
+                return 'pass'; // a real crawler that was not checked on arrival (over the burst): never penalised
+            }
             $this->cache_set( 'pen_' . $ip_key, 1, max( 1, (int) $this->opt( 'bot_shield_penalty_mins', 10 ) ) * 60 );
             $this->log_event( 'ip-penalty', $ip );
             return 'rate-limit';
@@ -372,6 +396,9 @@ class DS_Bot_Shield {
                 return 'pass';
             }
             if ( $this->cache_get( 'nochallenge' ) ) {
+                return 'pass';
+            }
+            if ( $this->is_verified_se( $ua, $ip ) ) {
                 return 'pass';
             }
             return 'challenge';
@@ -608,8 +635,9 @@ class DS_Bot_Shield {
      * Reverse-DNS then forward-confirm, the method Google and Bing document.
      * A spoofed user agent fails because the requesting IP's PTR record will
      * not resolve into the search engine's own domain. Results are cached per
-     * IP for a day, and the lookup only runs for a request that both claims to
-     * be a crawler and is otherwise about to be refused, so it is rare.
+     * IP for a day. The lookup runs for a request that claims to be a crawler
+     * and is about to be refused, and for a few new crawler addresses per 10 s
+     * on arrival (SE_VERIFY_BURST), so it is rare and cannot be driven by a flood.
      */
     private function is_verified_se( $ua, $ip ) {
         if ( null === $this->se_checked ) {
@@ -622,14 +650,7 @@ class DS_Bot_Shield {
         if ( '' === $ua || '' === $ip ) {
             return false;
         }
-        $ua_l  = strtolower( $ua );
-        $hosts = null;
-        foreach ( self::SE_VERIFY as $needle => $domains ) {
-            if ( false !== strpos( $ua_l, $needle ) ) {
-                $hosts = $domains;
-                break;
-            }
-        }
+        $hosts = $this->se_domains( $ua );
         if ( null === $hosts ) {
             return false; // does not even claim to be one
         }
@@ -641,13 +662,13 @@ class DS_Bot_Shield {
         }
 
         $ok   = false;
-        $host = @gethostbyaddr( $ip );
+        $host = $this->dns( 'ptr', $ip );
         if ( $host && $host !== $ip ) {
             $host_l = strtolower( rtrim( $host, '.' ) );
             foreach ( $hosts as $suffix ) {
                 if ( substr( $host_l, -strlen( $suffix ) ) === $suffix ) {
                     // Forward-confirm so a hostile PTR record cannot fake it.
-                    $forward = @gethostbynamel( $host_l );
+                    $forward = $this->dns( 'a', $host_l );
                     if ( is_array( $forward ) && in_array( $ip, $forward, true ) ) {
                         $ok = true;
                     }
@@ -657,6 +678,29 @@ class DS_Bot_Shield {
         }
         $this->cache_set( $key, $ok ? 1 : 0, DAY_IN_SECONDS );
         return $ok;
+    }
+
+    /** The domains a crawler with this user agent must resolve into, or null when it does not claim to be one. */
+    private function se_domains( $ua ) {
+        $ua_l = strtolower( (string) $ua );
+        if ( '' === $ua_l ) {
+            return null;
+        }
+        foreach ( self::SE_VERIFY as $needle => $domains ) {
+            if ( false !== strpos( $ua_l, $needle ) ) {
+                return $domains;
+            }
+        }
+        return null;
+    }
+
+    /** One DNS lookup ('ptr' = address to name, 'a' = name to addresses). The filter lets a test answer instead. */
+    private function dns( $kind, $value ) {
+        $pre = apply_filters( 'ds_bot_shield_dns', null, $kind, $value );
+        if ( null !== $pre ) {
+            return $pre;
+        }
+        return 'ptr' === $kind ? @gethostbyaddr( $value ) : @gethostbynamel( $value ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
     }
 
     // ------------------------------------------------------------------- ua

@@ -59,6 +59,9 @@ class DS_Content_Router_Module extends FLBuilderModule {
 			'0'    => __( '— Select a saved template —', 'ds-toolkit' ),
 			'self' => __( '📄 This page’s own content (edit on the page itself)', 'ds-toolkit' ),
 		);
+		if ( ! DS_Module_UI::form_shown() ) {
+			return $out; // a visitor's page view: no template lookup (it ran twice per request, one per field)
+		}
 		$tpls = get_posts( array(
 			'post_type'      => 'fl-builder-template',
 			'posts_per_page' => -1,

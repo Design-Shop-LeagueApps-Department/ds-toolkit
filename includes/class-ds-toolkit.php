@@ -448,10 +448,52 @@ class DS_Toolkit {
         if ( ! update_option( 'ds_toolkit_assets_version', DS_TOOLKIT_VERSION, true ) ) {
             return;
         }
+        // A release that changed nothing a cached layout is built from (a Tripwire list, a settings card, the
+        // updater) used to clear every page's assets and purge the host's page cache all the same: 80 releases
+        // in 46 days, each a fleet-wide cold cache. The fingerprint is taken once per version change, never
+        // on an ordinary request. No fingerprint (unreadable folder) = clear, as before.
+        $print = self::assets_fingerprint();
+        if ( '' !== $print && get_option( 'ds_toolkit_assets_print' ) === $print ) {
+            return;
+        }
         if ( class_exists( 'FLBuilderModel' ) && method_exists( 'FLBuilderModel', 'delete_asset_cache_for_all_posts' ) ) {
             FLBuilderModel::delete_asset_cache_for_all_posts();
             do_action( 'fl_builder_cache_cleared' );
+            // Saved only once a clear has run: with Beaver Builder switched off nothing was cleared, so the
+            // next version change still clears whatever cache it finds.
+            update_option( 'ds_toolkit_assets_print', $print, false );
         }
+    }
+
+    /**
+     * One hash over every PHP, CSS and JS file in modules/ and includes/: the module templates, styles and
+     * scripts, and the shared classes their frontend.css.php / frontend.js.php files call (DS_Module_UI,
+     * DS_LA_Colors, the data classes). Deliberately wide: a release that touches any of them clears the cache.
+     */
+    public static function assets_fingerprint() {
+        $rows = array();
+        foreach ( array( 'modules', 'includes' ) as $dir ) {
+            $root = DS_TOOLKIT_PATH . $dir;
+            if ( ! is_dir( $root ) ) {
+                return '';
+            }
+            try {
+                $it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ) );
+                foreach ( $it as $file ) {
+                    if ( $file->isFile() && in_array( strtolower( $file->getExtension() ), array( 'php', 'css', 'js' ), true ) ) {
+                        $hash = md5_file( $file->getPathname() );
+                        if ( false === $hash ) {
+                            return '';
+                        }
+                        $rows[] = str_replace( '\\', '/', substr( $file->getPathname(), strlen( DS_TOOLKIT_PATH ) ) ) . ':' . $hash;
+                    }
+                }
+            } catch ( Exception $e ) {
+                return '';
+            }
+        }
+        sort( $rows, SORT_STRING );
+        return $rows ? md5( implode( "\n", $rows ) ) : '';
     }
 
     public static function activate() {
@@ -670,6 +712,14 @@ class DS_Toolkit {
     public function run() {
         $settings = $this->maybe_set_defaults();
 
+        // Bot Shield goes first: a request it refuses ends inside init(), so nothing below (the admin and
+        // updater classes, 50 other feature files) is read or hooked for a request that gets a 403 or 429.
+        $shield = 'bot_shield_enabled';
+        if ( ! empty( $settings[ $shield ] ) && isset( $this->features[ $shield ] ) ) {
+            require_once DS_TOOLKIT_PATH . $this->features[ $shield ]['file'];
+            ( new $this->features[ $shield ]['class']( $settings ) )->init();
+        }
+
         add_action( 'init', array( __CLASS__, 'maybe_clear_builder_cache' ), 99 );
         add_filter( 'fl_builder_render_css', array( __CLASS__, 'css_cannot_close_style' ), 99999 );
         add_filter( 'editable_roles', array( __CLASS__, 'editable_roles' ) );
@@ -730,6 +780,9 @@ class DS_Toolkit {
             // EXCEPT the LeagueApps modules: those are additive builder blocks that
             // are opt-in on any blueprint (off by default below their generation),
             // so an existing site can enable individual blocks without a blueprint bump.
+            if ( $shield === $key ) {
+                continue; // started at the top of run()
+            }
             $is_module = isset( $module_keys[ $key ] );
             if ( ! empty( $feature['min_blueprint'] ) && ! $is_module && $blueprint < (int) $feature['min_blueprint'] ) {
                 continue;

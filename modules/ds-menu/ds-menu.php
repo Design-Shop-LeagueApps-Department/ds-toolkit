@@ -41,6 +41,9 @@ class DS_Menu_Module extends FLBuilderModule {
 	/** Options for the menu-picker field (built at registration time). */
 	public static function menu_options() {
 		$opts = array( '' => __( '— Select a menu —', 'ds-toolkit' ) );
+		if ( ! DS_Module_UI::form_shown() ) {
+			return $opts; // a visitor's page view: the header renders its saved menu, the picker is not needed
+		}
 		foreach ( wp_get_nav_menus() as $menu ) {
 			$opts[ $menu->term_id ] = $menu->name;
 		}

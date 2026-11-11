@@ -107,7 +107,7 @@ $ds_ros_color  = function ( $label, $help = '' ) {
 };
 // The team list reads every stored roster: built only where the form is shown (the builder), never on a
 // visitor's page view, where this file is loaded too.
-$ds_ros_teams = ( class_exists( 'FLBuilderModel' ) && ( FLBuilderModel::is_builder_active() || ( class_exists( 'FLBuilderAJAX' ) && FLBuilderAJAX::doing_ajax() ) ) ) ? DS_Roster_Data::team_options() : array();
+$ds_ros_teams = DS_Module_UI::form_shown() ? DS_Roster_Data::team_options() : array();
 
 FLBuilder::register_module( 'DS_Roster_Module', array(
 

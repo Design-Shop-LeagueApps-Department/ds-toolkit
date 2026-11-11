@@ -52,6 +52,7 @@ class DS_Info_List_Module extends FLBuilderModule {
 	public static function acf_field_options() {
 		$out = array( '' => __( '— None (use Value below) —', 'ds-toolkit' ) );
 		if ( ! function_exists( 'acf_get_field_groups' ) || ! function_exists( 'acf_get_fields' ) ) { return $out; }
+		if ( ! DS_Module_UI::form_shown() ) { return $out; } // a visitor's page view: no walk over every ACF field group
 		foreach ( acf_get_field_groups() as $group ) {
 			$fields = acf_get_fields( $group['key'] );
 			if ( ! is_array( $fields ) ) { continue; }

@@ -19,6 +19,31 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class DS_Module_UI {
 
 	/**
+	 * True where a module's settings form can be shown: the builder, its settings scripts, its AJAX calls, and
+	 * WP-CLI. Module files are loaded on every request, so a picker that reads the database for its choices (saved
+	 * templates, menus, ACF fields, the teams or seasons LeagueApps sent) builds them only when this is true. On a
+	 * visitor's page view the list stays at its placeholder, which nothing reads: rendering uses the saved value,
+	 * not the choices.
+	 *
+	 * Modules register on init, before the main query exists, and FLBuilderModel::is_builder_active() answers "no"
+	 * until the queried post is known. The Roster team picker asked it there and so was always empty in the builder
+	 * (1.10.41 to 1.17.4). This reads what Beaver Builder itself will read: ?fl_builder on the builder page and on
+	 * the settings scripts it loads (also from the block editor), fl_builder_data on its AJAX posts. Signed-in only,
+	 * so a visitor adding ?fl_builder to an address gets no lookups.
+	 */
+	public static function form_shown() {
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			return true;
+		}
+		if ( ! class_exists( 'FLBuilderModel' ) ) {
+			return false;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification -- only tells a builder request from a page view
+		$asked = isset( $_GET['fl_builder'] ) || isset( $_GET['fl_builder_load_settings_config'] ) || isset( $_POST['fl_builder_data'] );
+		return $asked && function_exists( 'is_user_logged_in' ) && is_user_logged_in();
+	}
+
+	/**
 	 * Offer a module in the builder's module list only while editing a Beaver Themer layout
 	 * or a saved template, the only places a context-driven module makes sense. Beaver keeps
 	 * a disabled module registered and still builds its settings form, so an instance already
