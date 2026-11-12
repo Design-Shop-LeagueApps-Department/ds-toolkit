@@ -11,6 +11,7 @@ $u = array( 'DS_Module_UI', 'u' );
 
 $g   = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 /* ---- Alignment (responsive) ----
  * The base align comes from the .ds-heading--{align} wrapper class (static CSS).
@@ -103,7 +104,7 @@ if ( ( $settings->divider_show ?? 'yes' ) === 'yes' ) {
 	// Image divider (GH #169): authored HEIGHT, width follows, per breakpoint. Same
 	// max-height approach as the Style 2 end mark so the aspect ratio is preserved.
 	if ( 'image' === ( $settings->divider_type ?? 'line' ) ) {
-		foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+		foreach ( array( '' => '', '_large' => $bpl, '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 			$v = $settings->{ 'divider_img_h' . $sfx } ?? '';
 			if ( '' === $v || null === $v ) { continue; }
 			$rule = "$node .ds-heading-rule-img { max-height: " . (int) $v . "px; }";
@@ -196,7 +197,7 @@ if ( 'double' === ( $settings->style2_sep_style ?? 'single' ) ) {
 		echo "$node .ds-heading-sep--double::after { background: {$sep_c2}; }\n";
 	}
 }
-foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+foreach ( array( '' => '', '_large' => $bpl, '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 	$v = $settings->{'style2_mark_h' . $sfx} ?? '';
 	if ( '' === $v || null === $v ) { continue; }
 	// max-height, not height: paired with width:auto/max-width:100% the mark scales

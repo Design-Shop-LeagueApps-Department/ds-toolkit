@@ -12,6 +12,7 @@ $u = array( 'DS_Module_UI', 'u' );
 
 $g   = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 /* ---- Section background (shared) ---- */
 $sbg = $col( $settings->section_bg ?? '' );
@@ -169,7 +170,7 @@ $cimw = $u( $settings->caption_image_max_width ?? '', 90 );
 echo "$node .ds-carousel-caption { --ds-cap-img-maxw: {$cimw}px; }\n";
 foreach ( array( 'caption_image_height' => array( '--ds-cap-img-h', 22 ), 'caption_image_max_width' => array( '--ds-cap-img-maxw', 90 ) ) as $key => $meta ) {
 	list( $prop, $def ) = $meta;
-	foreach ( array( 'medium' => $bpm, 'responsive' => $bpr ) as $sfx => $bp ) {
+	foreach ( array( 'large' => $bpl, 'medium' => $bpm, 'responsive' => $bpr ) as $sfx => $bp ) {
 		$v = $settings->{$key . '_' . $sfx} ?? '';
 		if ( '' !== $v && null !== $v ) {
 			echo "@media (max-width: {$bp}px) { $node .ds-carousel-caption { {$prop}: " . $u( $v, $def ) . "px; } }\n";

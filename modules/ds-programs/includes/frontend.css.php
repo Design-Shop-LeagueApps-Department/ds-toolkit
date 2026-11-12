@@ -16,6 +16,7 @@ $st   = function ( $key, $default = '' ) use ( $module ) { return $module->style
 $sc   = function ( $key ) use ( $st, $col ) { return call_user_func( $col, $st( $key ) ); };
 $px   = function ( $key, $default = '' ) use ( $st ) { $v = $st( $key, $default ); return ( '' !== $v && is_numeric( $v ) ) ? (int) $v . 'px' : ''; };
 list( $bp_md, $bp_sm ) = DS_Module_UI::breakpoints();
+$bp_lg = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 /* ---------- Modern preset (the default for new modules) ----------
  * Only what the preset fields cannot carry: small-caps headings and labels, the dropdown arrow
@@ -121,7 +122,7 @@ if ( $pad_base ) { echo "$node .ds-programs-th,$node .ds-programs-td{padding:$pa
 // Modern, under 1200px: tighter cells so a full LeagueApps table (8 columns) still fits its box
 // with the Register column in view. The editor's own tablet / phone padding, emitted next, wins.
 if ( $modern && '' === (string) ( $settings->cell_pad ?? '' ) ) { echo "@media(max-width:1199px){{$node} .ds-programs-th,{$node} .ds-programs-td{padding:12px 10px;}}\n"; }
-foreach ( array( 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
+foreach ( array( 'large' => $bp_lg, 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
 	$pv = $settings->{"cell_pad_$suffix"} ?? '';
 	if ( '' !== $pv && is_numeric( $pv ) ) { echo "@media(max-width:{$bp}px){{$node} .ds-programs-th,{$node} .ds-programs-td{padding:" . (int) $pv . "px;}}\n"; }
 }
@@ -171,7 +172,7 @@ if ( $ap ) { echo "$node .ds-programs-pager .ds-programs-page.is-current{" . imp
 $v = $sc( 'sort_icon_color' ); if ( $v ) { echo "$node .ds-programs-sortbtn.is-asc .ds-programs-sorticon,$node .ds-programs-sortbtn.is-desc .ds-programs-sorticon{color:$v;}\n"; }
 $v = $px( 'bar_gap' );       if ( $v ) { echo "$node .ds-programs-bar{gap:$v;}\n"; }
 $v = $px( 'bar_space' );     if ( $v ) { echo "$node .ds-programs-bar{margin-bottom:$v;}\n"; }
-foreach ( array( 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
+foreach ( array( 'large' => $bp_lg, 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
 	$pv = $settings->{"bar_space_$suffix"} ?? '';
 	if ( '' !== $pv && is_numeric( $pv ) ) { echo "@media(max-width:{$bp}px){{$node} .ds-programs-bar{margin-bottom:" . (int) $pv . "px;}}\n"; }
 }
@@ -266,7 +267,6 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 	$cols_lg = ( '' !== ( $settings->card_cols_large ?? '' ) ) ? max( 1, min( 4, (int) $settings->card_cols_large ) ) : '';
 	$gap_lg  = ( '' !== ( $settings->card_gap_large ?? '' ) && is_numeric( $settings->card_gap_large ) ) ? (int) $settings->card_gap_large . 'px' : '';
 	if ( '' !== $cols_lg || '' !== $gap_lg ) {
-		$bp_lg = DS_Module_UI::breakpoint_map()['_large'];
 		echo "@media(max-width:{$bp_lg}px){{$node} .ds-programs-grid{" . ( '' !== $cols_lg ? "--ds-card-cols:$cols_lg;" : '' ) . ( '' !== $gap_lg ? "--ds-card-gap:$gap_lg;" : '' ) . "}}\n";
 	}
 	echo "@media(max-width:{$bp_md}px){{$node} .ds-programs-grid{--ds-card-cols:$cols_md;" . ( $gap_md ? "--ds-card-gap:$gap_md;" : '' ) . "}}\n";
@@ -316,7 +316,7 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 	echo "$node .ds-programs-card .ds-programs-card-title .ds-programs-link:hover{text-decoration:underline;text-underline-offset:3px;}\n";
 	// Responsive padding: the band's negative margins must track the padding at each breakpoint
 	// or it stops being edge to edge on tablets and phones.
-	foreach ( array( 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
+	foreach ( array( 'large' => $bp_lg, 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
 		$pv = $settings->{"card_pad_$suffix"} ?? '';
 		if ( '' === $pv || ! is_numeric( $pv ) ) { continue; }
 		$pv = (int) $pv . 'px';

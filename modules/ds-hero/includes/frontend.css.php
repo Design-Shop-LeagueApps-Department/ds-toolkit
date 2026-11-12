@@ -44,6 +44,7 @@ $mix = function( $color, $op ) use ( $col ) {
 
 $g   = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 // ---- Min height (responsive) — Style 1 only; Style 2 banner uses adaptive heights and
 // Style 3 takes its height from the slide, so neither may inherit this. ----
@@ -131,7 +132,7 @@ if ( ( '' !== $gs || '' !== $ge ) && ( '' !== $gs_raw || '' !== $ge_raw || false
 // Same max-height approach as the Heading module's divider image so the aspect
 // ratio is preserved. Dynamic (0,3,1) so it beats the static 72px default.
 if ( 'style1' === $style ) {
-	foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+	foreach ( array( '' => '', '_large' => $bpl, '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 		$v = $settings->{ 'eyebrow_img_h' . $sfx } ?? '';
 		if ( '' === $v || null === $v ) { continue; }
 		$rule = "$node .ds-hero .ds-hero-eyebrow-img img { max-height: " . (int) $v . "px; }";
@@ -198,7 +199,7 @@ if ( 'style2' === $style ) {
 
 	// ---- Shape & Accent Line (Style > Shape & Accent Line) and the pill breadcrumb (Breadcrumbs Style = Pill) ----
 	$corners = ( ( $settings->banner_radius_corners ?? 'bottom' ) === 'all' ) ? 'all' : 'bottom';
-	foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+	foreach ( array( '' => '', '_large' => $bpl, '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 		$rv = $settings->{ 'banner_radius' . $sfx } ?? '';
 		if ( '' === $rv || null === $rv ) { continue; }
 		$r    = max( 0, (int) $rv ) . 'px';
@@ -227,7 +228,7 @@ if ( 'style2' === $style ) {
 	if ( ( $settings->breadcrumbs_position ?? 'top' ) === 'edge' ) {
 		$just = array( 'left' => 'flex-start', 'right' => 'flex-end' )[ $settings->banner_align ?? 'center' ] ?? 'center';
 		echo "$node .ds-banner-edge { position: relative; z-index: 3; display: flex; justify-content: {$just}; height: 0; padding: 0 20px; }\n";
-		foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+		foreach ( array( '' => '', '_large' => $bpl, '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 			$lv = $settings->{ 'breadcrumbs_edge_lift' . $sfx } ?? '';
 			if ( '' === $lv || null === $lv ) { if ( '' !== $sfx ) { continue; } $lv = 30; }
 			$rule = "$node .ds-banner-edge > .ds-banner-crumbs { margin-top: -" . max( 0, (int) $lv ) . 'px; align-self: flex-start; }';

@@ -15,6 +15,7 @@ $st   = function ( $key, $default = '' ) use ( $module ) { return $module->style
 $sc   = function ( $key ) use ( $st, $col ) { return call_user_func( $col, $st( $key ) ); };
 $px   = function ( $key, $default = '' ) use ( $st ) { $v = $st( $key, $default ); return ( '' !== $v && is_numeric( $v ) ) ? (int) $v . 'px' : ''; };
 list( $bp_md, $bp_sm ) = DS_Module_UI::breakpoints();
+$bp_lg = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 $cards = 'scroll' !== ( $settings->mobile_mode ?? 'cards' );
 
 /* ---------- Modern preset (the default for new tables) ----------
@@ -88,7 +89,7 @@ $v = $sc( 'link_hover' );  if ( $v ) { echo "$w .ds-table-t a.ds-table-link:hove
 
 $pad = $px( 'cell_pad' );
 if ( $pad ) { echo "$w .ds-table-t .ds-table-th,$w .ds-table-t .ds-table-td{padding:$pad " . ( (int) $pad + 2 ) . "px;}\n"; }
-foreach ( array( 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
+foreach ( array( 'large' => $bp_lg, 'medium' => $bp_md, 'responsive' => $bp_sm ) as $suffix => $bp ) {
 	$pv = $settings->{"cell_pad_$suffix"} ?? '';
 	if ( '' !== $pv && is_numeric( $pv ) ) { echo "@media(max-width:{$bp}px){{$w} .ds-table-t .ds-table-th,{$w} .ds-table-t .ds-table-td{padding:" . (int) $pv . 'px ' . ( (int) $pv + 2 ) . "px;}}\n"; }
 }

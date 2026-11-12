@@ -67,6 +67,14 @@ $css = file_get_contents( $root . 'modules/ds-programs/includes/frontend.css.php
 chk( 'it reads Cards per row and Gap under Large, at the site\'s Large breakpoint', array( false !== strpos( $css, 'card_cols_large' ), false !== strpos( $css, 'card_gap_large' ), false !== strpos( $css, "DS_Module_UI::breakpoint_map()['_large']" ) ), array( true, true, true ) );
 chk( 'and prints nothing new when Large was left blank', (bool) preg_match( "/if \( '' !== \\\$cols_lg \|\| '' !== \\\$gap_lg \) \{/", $css ), true );
 
+echo "more adopters: the loops that print a setting per breakpoint include Large\n";
+foreach ( array( 'ds-heading' => 2, 'ds-hero' => 3, 'ds-carousel' => 1, 'ds-programs' => 3, 'ds-table' => 1 ) as $mod => $loops ) {
+	$c       = file_get_contents( $root . 'modules/' . $mod . '/includes/frontend.css.php' );
+	$with    = substr_count( $c, "'_large' => \$bpl, '_medium' => \$bpm, '_responsive' => \$bpr )" ) + substr_count( $c, "'large' => \$bpl, 'medium' => \$bpm, 'responsive' => \$bpr )" ) + substr_count( $c, "'large' => \$bp_lg, 'medium' => \$bp_md, 'responsive' => \$bp_sm )" );
+	$without = substr_count( $c, "array( '' => '', '_medium' => \$bpm," ) + substr_count( $c, "array( 'medium' => \$bpm," ) + substr_count( $c, "array( 'medium' => \$bp_md," );
+	chk( $mod . ': ' . $loops . ' loop(s) read Large, widest first, none left without it', array( $with, $without, false !== strpos( $c, "DS_Module_UI::breakpoint_map()['_large']" ) ), array( $loops, 0, true ) );
+}
+
 echo "house spelling\n";
 $left = array();
 foreach ( array_merge( glob( $root . 'modules/*/*.php' ), glob( $root . 'modules/*/includes/*.php' ) ) as $f ) { // a split module keeps its form in includes/
