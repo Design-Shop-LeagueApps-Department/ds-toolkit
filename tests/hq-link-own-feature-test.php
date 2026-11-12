@@ -56,7 +56,7 @@ $count = array_sum( array_map( 'count', $GLOBALS['hooks'] ) );
 $is( 'starting it twice adds nothing', array_sum( array_map( 'count', $GLOBALS['hooks'] ) ), $count );
 
 echo "Tripwire no longer starts it\n";
-$tw = file_get_contents( DS_TOOLKIT_PATH . 'features/class-ds-tripwire.php' );
+$tw = file_get_contents( DS_TOOLKIT_PATH . 'features/class-ds-tripwire.php' ) . implode( '', array_map( 'file_get_contents', glob( DS_TOOLKIT_PATH . 'features/tripwire/*.php' ) ) ); // the class and its parts
 $is( 'DS_Tripwire::init() does not boot HQ Link', false === strpos( $tw, 'DS_HQ_Link::boot' ), true );
 $core = file_get_contents( DS_TOOLKIT_PATH . 'includes/class-ds-toolkit.php' );
 preg_match( '/Reporting to Design Shop HQ switched off.*?DS_HQ_Link::unschedule\(\);/s', $core, $m );
