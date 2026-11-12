@@ -30,9 +30,15 @@ class DS_Toolkit_Lifecycle {
 		'ds_tripwire_daily', 'ds_tripwire_content', 'ds_tripwire_mailcheck',
 		'ds_hq_link_enroll', 'ds_hq_link_checkin', 'ds_hq_link_flush', 'ds_hq_update_run',
 		'ds_la_roster_sync', 'ds_la_roster_continue', 'ds_la_roster_photos',
-		'ds_la_schedule_refresh', 'ds_calendar_refresh',
+		'ds_calendar_refresh',
 		'ds_table_sync', 'ds_table_refresh',
 	);
+
+	/**
+	 * Hooks of code that no longer ships (the Schedule block, retired in 1.10.44 and removed in the 2026-11
+	 * audit). Nothing schedules them now; a job queued by an old version is still cleared with the rest.
+	 */
+	const RETIRED_CRON_HOOKS = array( 'ds_la_schedule_refresh' );
 
 	/** Options removed on uninstall, by exact name. */
 	const OPTIONS = array(
@@ -57,7 +63,7 @@ class DS_Toolkit_Lifecycle {
 
 	/** Plugins > Deactivate. */
 	public static function deactivate() {
-		foreach ( self::CRON_HOOKS as $hook ) {
+		foreach ( array_merge( self::CRON_HOOKS, self::RETIRED_CRON_HOOKS ) as $hook ) {
 			wp_unschedule_hook( $hook ); // every event of the hook, whatever its arguments
 		}
 		self::remove_origin_guard();

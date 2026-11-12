@@ -1346,7 +1346,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 		echo '<section class="ds-news ds-people ds-sponsors"><div class="ds-news-wrap">';
 		$this->render_head();
 		if ( empty( $items ) ) {
-			$this->empty_state( __( 'No sponsors yet. Add them in the Query tab (Sponsors list).', 'ds-toolkit' ) );
+			$this->empty_state( __( 'No sponsors yet. Add them on the Content tab, under Sponsors (manual list).', 'ds-toolkit' ) );
 			echo '</div></section>'; return;
 		}
 		$this->loop_open( 'ds-sponsor-grid' );
@@ -1647,7 +1647,7 @@ class DS_Post_Loop_Module extends FLBuilderModule {
 	public function render_program() {
 		DS_Program_Cards::render(
 			$this->settings,
-			__( 'No program cards yet. Add them in the Query tab (Program Cards list).', 'ds-toolkit' )
+			__( 'No program cards yet. Add them on the Content tab, under Program Cards (manual list).', 'ds-toolkit' )
 		);
 	}
 

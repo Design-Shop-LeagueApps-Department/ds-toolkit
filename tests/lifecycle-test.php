@@ -75,7 +75,7 @@ file_put_contents( $ours, "<?php\n/**\n * Plugin Name: DS Origin Guard\n */\n" )
 file_put_contents( WPMU_PLUGIN_DIR . '/someone-else.php', "<?php // not ours\n" );
 $GLOBALS['opts'] = array( 'ds_origin_guard_state' => 'abc', 'ds_toolkit_settings' => array( 'x' => 1 ), 'ds_tripwire_state' => array( 'y' => 1 ) );
 DS_Toolkit_Lifecycle::deactivate();
-$is( 'every scheduled job is cleared', $GLOBALS['unscheduled'], DS_Toolkit_Lifecycle::CRON_HOOKS );
+$is( 'every scheduled job is cleared, and the jobs of code that no longer ships', $GLOBALS['unscheduled'], array_merge( DS_Toolkit_Lifecycle::CRON_HOOKS, DS_Toolkit_Lifecycle::RETIRED_CRON_HOOKS ) );
 $is( 'the Origin Guard mu-plugin is removed, a stranger\'s file is not', array( file_exists( $ours ), file_exists( WPMU_PLUGIN_DIR . '/someone-else.php' ) ), array( false, true ) );
 $is( 'its fingerprint is forgotten, so reactivating writes it again', isset( $GLOBALS['opts']['ds_origin_guard_state'] ), false );
 $is( 'settings and Tripwire state stay (reactivating restores the site)', array( isset( $GLOBALS['opts']['ds_toolkit_settings'] ), isset( $GLOBALS['opts']['ds_tripwire_state'] ) ), array( true, true ) );
@@ -96,7 +96,7 @@ $is( 'site content stays (' . implode( ', ', $kept ) . ')', array_keys( $GLOBALS
 $q = $GLOBALS['sql'][0] ?? '';
 $is( 'one DELETE covers every option prefix and both rows of every transient prefix', array( count( $GLOBALS['sql'] ), substr_count( $q, 'option_name LIKE' ) ), array( 1, count( DS_Toolkit_Lifecycle::OPTION_PREFIXES ) + 2 * count( DS_Toolkit_Lifecycle::TRANSIENT_PREFIXES ) ) );
 $is( '... with the underscores escaped (ds_table_ must not match "dsXtableY")', false !== strpos( $q, "'ds\\_table\\_last\\_%'" ) && false !== strpos( $q, "'\\_transient\\_timeout\\_ds\\_programs\\_%'" ), true );
-$is( 'the jobs are cleared on uninstall too', $GLOBALS['unscheduled'], DS_Toolkit_Lifecycle::CRON_HOOKS );
+$is( 'the jobs are cleared on uninstall too', $GLOBALS['unscheduled'], array_merge( DS_Toolkit_Lifecycle::CRON_HOOKS, DS_Toolkit_Lifecycle::RETIRED_CRON_HOOKS ) );
 $is( 'downloaded roster photos and their folder are removed', is_dir( $TMP . '/uploads/ds-la-roster' ), false );
 
 @unlink( WPMU_PLUGIN_DIR . '/someone-else.php' ); @rmdir( WPMU_PLUGIN_DIR ); @rmdir( $TMP . '/uploads' ); @rmdir( $TMP );
