@@ -1,5 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
 
 /**
  * Home page templates: pick the home page layout of a new build from Theme Setting.
@@ -74,13 +75,8 @@ class DS_Home_Templates {
 
 	/** A development copy of the site: a local or host-provided address, not the partner's domain. */
 	public static function is_dev_host( $host = null ) {
-		$host = strtolower( (string) ( $host ?? wp_parse_url( home_url(), PHP_URL_HOST ) ) );
-		$dev  = array( 'localhost', '.local', '.test', '.wpenginepowered.com', '.wpengine.com', '.flywheelsites.com', '.flywheelstaging.com' );
-		$is   = false;
-		foreach ( $dev as $d ) {
-			if ( $host === ltrim( $d, '.' ) || ( '.' === $d[0] && substr( $host, -strlen( $d ) ) === $d ) ) { $is = true; break; }
-		}
-		return (bool) apply_filters( 'ds_home_templates_dev_host', $is, $host );
+		$host = strtolower( (string) ( $host ?? DS_Env::host() ) );
+		return (bool) apply_filters( 'ds_home_templates_dev_host', DS_Env::is_dev_host( $host ), $host );
 	}
 
 	/** The picker runs here: a development address, and the site is not marked launched. */

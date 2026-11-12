@@ -1,5 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once __DIR__ . '/class-ds-env.php';
 
 /**
  * Every feature and every setting of the toolkit, declared ONCE.
@@ -102,7 +103,7 @@ class DS_Features {
 		if ( null !== self::$all ) {
 			return self::$all;
 		}
-		$staff = defined( 'DS_TOOLKIT_ADMIN_DOMAIN' ) ? DS_TOOLKIT_ADMIN_DOMAIN : '@leagueapps.com';
+		$staff = DS_Env::staff_domain();
 		$all   = array(
 
 			'enable_login_branding' => self::feature( 'login-branding', 'DS_Login_Branding', array(
@@ -358,7 +359,7 @@ class DS_Features {
 				'default' => 1, 'label' => 'Tripwire', 'icon' => 'warning', 'scope' => 'fleet',
 				'summary' => 'Checks the site every day for signs of compromise and emails the team when something changes or a new administrator appears.',
 				'more'    => '<p>Looks at must-use plugins, executable files in the web root, known malware markers, the toolkit\'s own files and the administrator list, and scans plugin and theme code by behaviour every hour. With it off the site still checks in with Design Shop HQ (see Report to Design Shop HQ), which then shows Tripwire as off.</p>',
-				'fields'  => array( 'tripwire_alert_email' => array( 'type' => 'email', 'default' => 'design@leagueapps.com', 'label' => 'Alert email', 'help' => 'Where alerts are sent.', 'advanced' => true ) ),
+				'fields'  => array( 'tripwire_alert_email' => array( 'type' => 'email', 'default' => DS_Env::ALERT_EMAIL, 'label' => 'Alert email', 'help' => 'Where alerts are sent.', 'advanced' => true ) ),
 			) ),
 
 			'design_academy_enabled' => self::feature( 'design-academy', 'DS_Design_Academy', array(

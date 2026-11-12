@@ -35,12 +35,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
+
 class DS_HQ_Update {
 
 	const OPT             = 'ds_hq_update';
 	const HOOK            = 'ds_hq_update_run';
 	const LOCK_OPT        = 'ds_hq_update_lock';
-	const REPO            = 'Design-Shop-LeagueApps-Department/ds-toolkit';
+	const REPO            = DS_Env::REPO;
 	const PLUGIN          = 'ds-toolkit/ds-toolkit.php';
 	const RELEASE_PUBKEYS = array( '0D3wnvnMHv1MsMwK8eYvpNFJQN6p8q0vFtLYBmyFd1w=' ); // private half: never on HQ
 	const ORDER_SKEW      = 900;      // an order is good for 15 minutes after HQ signed it

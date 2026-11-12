@@ -1,5 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
 
 /**
  * DS Tripwire — daily indicator-of-compromise check + instant new-admin alert.
@@ -275,19 +276,10 @@ class DS_Tripwire {
      * was on a live custom domain. Build work simply looks like an intrusion to a few rules.
      */
     public static function prelaunch() {
-        $host = strtolower( (string) wp_parse_url( (string) home_url(), PHP_URL_HOST ) );
-        if ( '' === $host ) {
-            return false; // cannot tell: treat as live and keep mailing
-        }
-        if ( 'localhost' === $host || '.local' === substr( $host, -6 ) || '.test' === substr( $host, -5 ) ) {
-            return true;
-        }
-        foreach ( array( '.wpenginepowered.com', '.flywheelsites.com' ) as $suffix ) {
-            if ( substr( $host, -strlen( $suffix ) ) === $suffix ) {
-                return true;
-            }
-        }
-        return false;
+        // One list for every feature (DS_Env). An unreadable hostname answers false there: treated as live,
+        // so the alert is still mailed. Since the 2026-11 audit the list also holds *.wpengine.com and
+        // *.flywheelstaging.com, which the Home Templates picker already counted as development addresses.
+        return DS_Env::is_dev_host();
     }
 
     /**
@@ -1878,7 +1870,7 @@ class DS_Tripwire {
         $raw = (string) ( $this->settings['tripwire_alert_email'] ?? '' );
         $to  = array_filter( array_map( 'trim', explode( ',', $raw ) ), 'is_email' );
         if ( ! $to ) {
-            $to = array( 'design@leagueapps.com' );
+            $to = array( DS_Env::ALERT_EMAIL );
         }
         $to   = apply_filters( 'ds_tripwire_alert_email', $to );
         $site = home_url();

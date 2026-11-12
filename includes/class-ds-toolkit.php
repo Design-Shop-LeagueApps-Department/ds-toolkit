@@ -1,5 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once __DIR__ . '/class-ds-env.php';
 
 class DS_Toolkit {
 
@@ -30,7 +31,7 @@ class DS_Toolkit {
         if ( ! ( $user instanceof WP_User ) || ! $user->exists() || empty( $user->user_email ) ) {
             return false;
         }
-        if ( ! preg_match( '/' . preg_quote( DS_TOOLKIT_ADMIN_DOMAIN, '/' ) . '$/i', $user->user_email ) ) {
+        if ( ! DS_Env::is_staff_email( $user->user_email ) ) {
             return false;
         }
         return self::is_administrator( $user );

@@ -1,10 +1,11 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once __DIR__ . '/class-ds-env.php';
 
 class DS_Toolkit_Updater {
 
     private $slug = 'ds-toolkit';
-    private $repo = 'Design-Shop-LeagueApps-Department/ds-toolkit';
+    private $repo = DS_Env::REPO;
     private $memo = array(); // this request's answer from GitHub, per channel
 
     /**
@@ -13,15 +14,12 @@ class DS_Toolkit_Updater {
      *  - WP_ENVIRONMENT_TYPE = 'production'                        → stable
      *  - WP_ENVIRONMENT_TYPE = 'local' / 'development' / 'staging' → beta
      *  - WP_ENVIRONMENT_TYPE not set → falls back to site URL:
-     *      *.local / *.test / *.dev / localhost / 127.x / 192.168.x → beta
+     *      *.local / *.test / localhost / 127.x / 192.168.x → beta (the rule lives in DS_Env; ".dev" was
+     *      dropped in the 2026-11 audit: it is a public domain ending now)
      *      anything else (live domain)                               → stable
      */
     private function is_beta_channel() {
-        if ( defined( 'WP_ENVIRONMENT_TYPE' ) ) {
-            return WP_ENVIRONMENT_TYPE !== 'production';
-        }
-        $host = (string) parse_url( get_site_url(), PHP_URL_HOST );
-        return (bool) preg_match( '/\.(local|test|dev)$|^localhost$|^127\.|^192\.168\./', $host );
+        return DS_Env::is_beta_channel();
     }
 
     public function init() {

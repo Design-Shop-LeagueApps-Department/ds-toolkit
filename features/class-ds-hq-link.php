@@ -55,11 +55,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
+
 class DS_HQ_Link {
 
 	const OPT          = 'ds_hq_link';
 	const ENROLL_HOOK  = 'ds_hq_link_enroll';
-	const ENDPOINT     = 'https://designshophq.wpenginepowered.com/wp-json/dshq/v1/tripwire/';
+	const ENDPOINT     = DS_Env::HQ_URL . 'wp-json/dshq/v1/tripwire/';
 	const QUEUE_MAX    = 10;
 	const RETRY_AFTER  = 43200; // re-enroll at most twice a day
 	const CHECKIN_HOOK = 'ds_hq_link_checkin';

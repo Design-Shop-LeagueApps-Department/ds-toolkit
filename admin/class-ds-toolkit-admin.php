@@ -21,7 +21,7 @@ class DS_Toolkit_Admin {
     }
 
     /** Where the team's guides live. The reference folds of the Global CSS, Global JS and MCP tabs link here. */
-    const HQ_DOCS_URL = 'https://designshophq.wpenginepowered.com/toolkit/';
+    const HQ_DOCS_URL = DS_Env::HQ_URL . 'toolkit/';
 
     /**
      * The University Logo Finder was listed twice: as a tab here and under Media. The Media page is the one

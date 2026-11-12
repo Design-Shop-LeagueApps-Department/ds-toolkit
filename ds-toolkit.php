@@ -46,6 +46,8 @@ if ( ! defined( 'DS_TOOLKIT_ADMIN_DOMAIN' ) ) {
 
 // Shared module helpers (CSS/colour/unit/button helpers + card/people markup
 // + SVG icon registry), loaded once so every in-house module can reuse them.
+// Hosts, addresses and the "is this a development site" rule, in one place (DS_Env).
+require_once DS_TOOLKIT_PATH . 'includes/class-ds-env.php';
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-module-ui.php';
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-card.php';
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-program-cards.php';
