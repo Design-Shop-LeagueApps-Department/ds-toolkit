@@ -186,7 +186,7 @@ class DS_Settings_Cards {
 				<?php elseif ( 'int' === $f['type'] ) : ?>
 					<input type="number" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $input ); ?>" value="<?php echo esc_attr( $value ); ?>"<?php echo isset( $f['min'] ) ? ' min="' . (int) $f['min'] . '"' : ''; ?><?php echo isset( $f['max'] ) ? ' max="' . (int) $f['max'] . '"' : ''; ?> step="1"<?php echo $describe; // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 				<?php else : ?>
-					<input type="<?php echo esc_attr( in_array( $f['type'], array( 'url', 'email' ), true ) ? $f['type'] : 'text' ); ?>" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $input ); ?>" value="<?php echo esc_attr( $value ); ?>"<?php echo 'digits' === $f['type'] ? ' inputmode="numeric" pattern="[0-9]*"' : ''; ?><?php echo $describe; // phpcs:ignore WordPress.Security.EscapeOutput ?>>
+					<input type="<?php echo esc_attr( in_array( $f['type'], array( 'url', 'email' ), true ) ? $f['type'] : 'text' ); ?>" id="<?php echo esc_attr( $id ); ?>" name="<?php echo esc_attr( $input ); ?>" value="<?php echo esc_attr( $value ); ?>"<?php echo 'digits' === $f['type'] ? ' inputmode="numeric" pattern="[0-9]*"' : ''; ?><?php echo 'email' === $f['type'] && ! empty( $f['multiple'] ) ? ' multiple' : ''; ?><?php echo $describe; // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 				<?php endif; ?>
 				<?php if ( $help ) : ?><span class="dst-field-help" id="<?php echo esc_attr( $id ); ?>-help"><?php echo esc_html( $help ); ?></span><?php endif; ?>
 			</span>
