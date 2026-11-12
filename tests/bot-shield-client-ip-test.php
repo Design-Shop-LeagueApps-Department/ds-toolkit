@@ -44,6 +44,11 @@ $is( 'a junk header from Cloudflare falls back to REMOTE_ADDR', $at( '172.68.1.1
 $se = new ReflectionProperty( $bs, 'se_checked' );
 if ( PHP_VERSION_ID < 80100 ) { $se->setAccessible( true ); }
 $se->setValue( $bs, null );
+// Pin "no backend". It is otherwise read from the machine: GitHub's PHP runners have APCu enabled, so there the
+// shield HAS a backend and correctly checks the crawler, which is not what this case is about.
+$be = new ReflectionProperty( $bs, 'backend' );
+if ( PHP_VERSION_ID < 80100 ) { $be->setAccessible( true ); }
+$be->setValue( $bs, false );
 $v = $bs->evaluate( 'GET', '/news/', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)', '203.0.113.9', array() );
 $is( 'no backend: a crawler UA that would pass anyway costs no DNS lookup', array( $v, $se->getValue( $bs ) ), array( 'pass', null ) );
 
