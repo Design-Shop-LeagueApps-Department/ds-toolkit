@@ -113,6 +113,7 @@ class DS_Toolkit_Admin {
                     <p>Search a college or university and import its logo into the Media Library.</p>
                 </div>
             </div>
+            <hr class="wp-header-end"><?php // admin notices go here, not inside the dark header ?>
             <?php require DS_TOOLKIT_PATH . 'admin/views/page-logo-finder.php'; ?>
         </div>
         <?php
@@ -255,6 +256,12 @@ class DS_Toolkit_Admin {
                 <?php endif; ?>
                 <span class="dst-badge">v<?php echo esc_html( DS_TOOLKIT_VERSION ); ?></span>
             </div>
+            <?php
+            // WordPress moves every admin notice ("Settings saved.", a plugin's warning) to just after the first
+            // heading of the page, which is inside the dark header: the notice landed in the header. This marker is
+            // where WordPress puts them instead (wp-admin/js/common.js looks for .wp-header-end first).
+            ?>
+            <hr class="wp-header-end">
 
             <nav class="dst-tabs" aria-label="DS Toolkit sections">
                 <?php foreach ( self::TABS as $slug => $label ) : $here = $slug === $active_tab; ?>
