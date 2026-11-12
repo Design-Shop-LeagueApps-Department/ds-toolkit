@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.2', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, gd, sodium, openssl, curl, zip
+          coverage: none
+
+      # 7.4 is the plugin's "Requires PHP": every file must parse there. The tests themselves run on 8.x.
+      - name: Lint (PHP ${{ matrix.php }})
+        if: matrix.php == '7.4'
+        run: |
+          fail=0
+          while IFS= read -r f; do php -l "$f" >/dev/null || fail=1; done < <(find . -name '*.php' -not -path './.git/*' -not -path './tests/*')
+          exit $fail
+
+      - name: Lint and tests (PHP ${{ matrix.php }})
+        if: matrix.php != '7.4'
+        run: bash tests/run.sh
