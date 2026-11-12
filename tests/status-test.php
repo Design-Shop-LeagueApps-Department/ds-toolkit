@@ -108,7 +108,7 @@ $view = file_get_contents( DS_TOOLKIT_PATH . 'admin/views/page-settings.php' );
 $is( 'the card is drawn only when there are rows, with no inline style', array( false !== strpos( $view, "! empty( \$dst_health )" ), substr_count( $view, 'style=' ) ), array( true, 0 ) );
 $adm = file_get_contents( DS_TOOLKIT_PATH . 'admin/class-ds-toolkit-admin.php' );
 $is( 'rows are built for staff only', (bool) preg_match( '/if \( \$this->is_leagueapps_user\(\) \) \{\s+\$dst_health\s+= DS_Status::rows/', $adm ), true );
-$bs = file_get_contents( DS_TOOLKIT_PATH . 'features/class-ds-bot-shield.php' );
+$bs = file_get_contents( DS_TOOLKIT_PATH . 'features/class-ds-bot-shield.php' ) . implode( '', array_map( 'file_get_contents', glob( DS_TOOLKIT_PATH . 'features/bot-shield/*.php' ) ) ); // the class and its parts
 $is( 'Bot Shield can name its backend', false !== strpos( $bs, 'public function backend_name()' ), true );
 
 echo "\n" . ( $fails ? "$fails of $n FAILED" : "all $n passed" ) . "\n";
