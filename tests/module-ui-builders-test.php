@@ -76,7 +76,7 @@ foreach ( array( 'ds-heading' => 2, 'ds-hero' => 3, 'ds-carousel' => 1, 'ds-prog
 }
 
 echo "and the modules that write one line or one block per breakpoint\n";
-foreach ( array( 'ds-marquee' => array( 'height_large', 'img_h_large' ), 'ds-team-detail' => array( 'coach_gap_large', 'coach_icon_size_large' ), 'ds-pathway' => array( 'gap_large' ), 'ds-orgstats' => array( 'columns_large', 'item_pad_v_large', 'item_pad_h_large', 'card_min_height_large' ), 'ds-social' => array( 'icon_size_large', 'icon_gap_large', 'bg_padding_large', 'alignment_large' ), 'ds-cta' => array( 'min_height_large', 'hero_min_height_large', 'social_icon_size_large', 'social_gap_large' ), 'ds-post-loop' => array( 'card_min_h_large', 'card2_min_large' ) ) as $mod => $keys ) {
+foreach ( array( 'ds-marquee' => array( 'height_large', 'img_h_large' ), 'ds-team-detail' => array( 'coach_gap_large', 'coach_icon_size_large' ), 'ds-pathway' => array( 'gap_large' ), 'ds-orgstats' => array( 'columns_large', 'item_pad_v_large', 'item_pad_h_large', 'card_min_height_large' ), 'ds-social' => array( 'icon_size_large', 'icon_gap_large', 'bg_padding_large', 'alignment_large' ), 'ds-cta' => array( 'min_height_large', 'hero_min_height_large', 'social_icon_size_large', 'social_gap_large', 'columns_large', 'gap_large', 'row_height_large', 'mc_cols_large', 'pp_cols_large', 'pp_gap_large', 'pp_num_size_large' ), 'ds-post-loop' => array( 'card_min_h_large', 'card2_min_large', 'gap_large', 'feature_min_h_large', 'cols2_large', 'gap2_large', 'loop_cols_large', 'staff_cols_large', 'staff_avatar_layout_large', 'cr_cols_large', 'commit_cols_large', 'car_per_view_large' ) ) as $mod => $keys ) {
 	$c    = file_get_contents( $root . 'modules/' . $mod . '/includes/frontend.css.php' );
 	$miss = array_values( array_filter( $keys, function ( $k ) use ( $c ) { return false === strpos( $c, $k ); } ) );
 	// Large must be PRINTED before Medium, or the narrower value would lose to it: compare where the two
@@ -98,6 +98,23 @@ foreach ( array( 'ds-marquee' => array( 'height_large', 'img_h_large' ), 'ds-tea
 	$order = null !== $a && null !== $b && $a < $b;
 	chk( $mod . ': reads ' . count( $keys ) . ' setting(s) under Large, before Medium', array( $miss, $order ), array( array(), true ) );
 }
+
+echo "the grids whose Medium and Responsive rules always print (CTA, Post Loop)\n";
+$cta = file_get_contents( $root . 'modules/ds-cta/includes/frontend.css.php' );
+$pl  = file_get_contents( $root . 'modules/ds-post-loop/includes/frontend.css.php' );
+// A Large rule must sit behind "the editor typed a value": a module with no Large value prints what it printed before.
+$unchecked = array();
+foreach ( array( 'ds-cta' => array( $cta, array( 'columns', 'gap', 'row_height', 'pp_cols', 'pp_gap', 'pp_num_size' ) ), 'ds-post-loop' => array( $pl, array( 'gap', 'feature_min_h', 'cols2', 'gap2', 'loop_cols', 'staff_cols', 'cr_cols', 'commit_cols', 'car_per_view' ) ) ) as $mod => $set ) {
+	foreach ( $set[1] as $k ) {
+		$q = preg_quote( $k . '_large', '/' );
+		if ( ! preg_match( "/'' !== \( \\\$settings->{$q} \?\? '' \)|\( \\\$settings->{$q} \?\? '' \) !== ''/", $set[0] ) ) { $unchecked[] = $mod . ':' . $k; }
+	}
+}
+chk( 'every Large grid value is used only when the editor typed one', $unchecked, array() );
+chk( 'the circle layout prints a Large rule only when it differs from the desktop layout', (bool) preg_match( '/if \( \$layL !== \$lay \)\s+\{ echo "@media \(max-width:\{\$bpl\}px\)/', $pl ), true );
+chk( 'a blank Medium counts its fallback from the Large value', array( substr_count( $cta, 'min( $colsB, 2 )' ), substr_count( $cta, 'min( $cb, 2 )' ), substr_count( $pl, 'min( $cols2B, 2 )' ), substr_count( $pl, 'min( $lcolsB, 2 )' ), substr_count( $pl, 'min( $scolsB, 2 )' ), substr_count( $pl, 'min( $rcolsB, 2 )' ), substr_count( $pl, 'min( $ccolsB, 2 )' ), substr_count( $pl, 'min( $pvB, 2 )' ), substr_count( $pl, 'min( $fhB, 340 )' ) ), array( 1, 1, 1, 1, 1, 1, 1, 1, 1 ) );
+chk( 'a bento card wider than the Large column count is cut to it, above Medium only', false !== strpos( $cta, 'echo "@media (min-width:" . ( $bpm + 1 ) . "px) and (max-width:{$bpl}px){ " . implode( \', \', $wide ) . " { grid-column: span {$cols3l} !important; } }\n";' ), true );
+chk( 'Motion Cards read the Large breakpoint from the one map', false === strpos( $cta, 'large_breakpoint' ), true );
 
 echo "house spelling\n";
 $left = array();

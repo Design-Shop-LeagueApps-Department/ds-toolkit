@@ -40,11 +40,20 @@ echo "$node .ds-cta-grid { grid-template-columns: repeat({$cols}, 1fr); gap: {$g
 // Always emit node-scoped responsive rules so they beat the desktop base rule
 // (a node-scoped base would otherwise out-specify the static media queries and
 // keep N columns on phones). Defaults: tablet = min(cols,2), mobile = 1.
-$colsM = $u( $settings->columns_medium ?? '', min( $cols, 2 ) );
-$gapM  = $u( $settings->gap_medium ?? '', $gap );
+// Large: only when the editor typed a value there. A blank Medium or Responsive then counts its fallback
+// from the Large value, so nothing changes for a module with no Large value.
+$colsB = $cols;
+$gapB  = $gap;
+if ( '' !== ( $settings->columns_large ?? '' ) || '' !== ( $settings->gap_large ?? '' ) ) {
+	$colsB = max( 1, $u( $settings->columns_large ?? '', $cols ) );
+	$gapB  = $u( $settings->gap_large ?? '', $gap );
+	echo "@media (max-width:{$bpl}px){ $node .ds-cta-grid { grid-template-columns: repeat({$colsB},1fr); gap: {$gapB}px; } }\n";
+}
+$colsM = $u( $settings->columns_medium ?? '', min( $colsB, 2 ) );
+$gapM  = $u( $settings->gap_medium ?? '', $gapB );
 echo "@media (max-width:{$bpm}px){ $node .ds-cta-grid { grid-template-columns: repeat({$colsM},1fr); gap: {$gapM}px; } }\n";
 $colsR = $u( $settings->columns_responsive ?? '', 1 );
-$gapR  = $u( $settings->gap_responsive ?? '', max( 12, $gap ) );
+$gapR  = $u( $settings->gap_responsive ?? '', max( 12, $gapB ) );
 echo "@media (max-width:{$bpr}px){ $node .ds-cta-grid { grid-template-columns: repeat({$colsR},1fr); gap: {$gapR}px; } }\n";
 
 // ---- Header colours (shared) ----
@@ -76,6 +85,23 @@ if ( 'style3' === $style ) {
 	// Responsive: honour the Columns / Gap / Row Height tablet + mobile values; blank
 	// keeps the original defaults (tablet 2-up with auto rows, mobile 1-up). Span resets
 	// use !important to beat the per-cell inline spans.
+	// Large: only when the editor typed a value there. The cards carry their span inline, and a span past
+	// the last column would add a column and push the grid wider than the page, so a card wider than the
+	// Large column count is cut to it, between the Medium and Large breakpoints only (Medium resets every span).
+	$b3     = array();
+	$cols3l = ( '' !== ( $settings->columns_large ?? '' ) ) ? max( 1, (int) $settings->columns_large ) : 0;
+	if ( $cols3l ) { $b3[] = "grid-template-columns: repeat({$cols3l},1fr);"; }
+	if ( '' !== ( $settings->gap_large ?? '' ) ) { $b3[] = 'gap: ' . (int) $settings->gap_large . 'px;'; }
+	if ( '' !== ( $settings->row_height_large ?? '' ) ) { $b3[] = 'grid-auto-rows: ' . (int) $settings->row_height_large . 'px;'; }
+	if ( $b3 ) {
+		echo "@media (max-width:{$bpl}px){ $node .ds-cta-bento { " . implode( ' ', $b3 ) . " } }\n";
+		$wide = array();
+		foreach ( ( $cols3l && isset( $settings->cards ) && is_array( $settings->cards ) ? $settings->cards : array() ) as $cell ) {
+			$cs = max( 1, (int) ( ( (object) $cell )->col_span ?? 1 ) );
+			if ( $cs > $cols3l ) { $wide[ $cs ] = "$node .ds-cta-bento-cell[style*=\"grid-column:span {$cs};\"]"; }
+		}
+		if ( $wide ) { echo "@media (min-width:" . ( $bpm + 1 ) . "px) and (max-width:{$bpl}px){ " . implode( ', ', $wide ) . " { grid-column: span {$cols3l} !important; } }\n"; }
+	}
 	$cols3m = ( '' !== ( $settings->columns_medium ?? '' ) ) ? max( 1, (int) $settings->columns_medium ) : 2;
 	$cols3r = ( '' !== ( $settings->columns_responsive ?? '' ) ) ? max( 1, (int) $settings->columns_responsive ) : 1;
 	$gap3m  = ( '' !== ( $settings->gap_medium ?? '' ) ) ? ' gap: ' . (int) $settings->gap_medium . 'px;' : '';
@@ -314,8 +340,7 @@ if ( 'style3' === $style ) {
 		// Responsive Columns (GH #88) at the site's builder breakpoints; unset
 		// tiers keep the legacy defaults (2 on medium, 1 on small).
 		if ( '' !== $cl ) {
-			$bp_lg = (int) ( FLBuilderModel::get_global_settings()->large_breakpoint ?? 1200 );
-			echo "@media(max-width:{$bp_lg}px){ $node .ds-mcard-grid{grid-template-columns:repeat(" . max( 1, (int) $cl ) . ",1fr);} }\n";
+			echo "@media(max-width:{$bpl}px){ $node .ds-mcard-grid{grid-template-columns:repeat(" . max( 1, (int) $cl ) . ",1fr);} }\n";
 		}
 		$cmv = '' !== $cm ? max( 1, (int) $cm ) : min( $cols, 2 );
 		echo "@media(max-width:{$bpm}px){ $node .ds-mcard-grid{grid-template-columns:repeat({$cmv},1fr);} }\n";
@@ -415,17 +440,23 @@ if ( 'style7' === $style ) {
 	foreach ( array( 'pp_title_color' => '--pp-title', 'pp_sub_color' => '--pp-sub', 'pp_desc_color' => '--pp-desc' ) as $k => $var ) { $c = $col( $settings->$k ?? '' ); if ( '' !== $c ) { $v[] = "{$var}:{$c}"; } }
 	// Columns, gap and number size per breakpoint (blank tablet/phone falls back to the size above).
 	$cd = max( 1, min( 6, (int) ( ( $settings->pp_cols ?? '' ) !== '' ? $settings->pp_cols : 3 ) ) );
-	$cm = ( $settings->pp_cols_medium ?? '' ) !== '' ? max( 1, min( 6, (int) $settings->pp_cols_medium ) ) : min( $cd, 2 );
-	$cr = ( $settings->pp_cols_responsive ?? '' ) !== '' ? max( 1, min( 6, (int) $settings->pp_cols_responsive ) ) : 1;
 	$gd = ( $settings->pp_gap ?? '' ) !== '' ? (int) $settings->pp_gap : 40;
-	$gm = ( $settings->pp_gap_medium ?? '' ) !== '' ? (int) $settings->pp_gap_medium : $gd;
-	$gr = ( $settings->pp_gap_responsive ?? '' ) !== '' ? (int) $settings->pp_gap_responsive : $gm;
 	$nd = ( $settings->pp_num_size ?? '' ) !== '' ? (int) $settings->pp_num_size : 104;
-	$nm = ( $settings->pp_num_size_medium ?? '' ) !== '' ? (int) $settings->pp_num_size_medium : $nd;
+	// Large: only when the editor typed a value there; a blank tablet value then falls back to it.
+	$cb = $cd; $gb = $gd; $nb = $nd; $pl = array();
+	if ( ( $settings->pp_cols_large ?? '' ) !== '' )     { $cb = max( 1, min( 6, (int) $settings->pp_cols_large ) ); $pl[] = "--pp-cols:{$cb}"; }
+	if ( ( $settings->pp_gap_large ?? '' ) !== '' )      { $gb = (int) $settings->pp_gap_large; $pl[] = "--pp-gap:{$gb}px"; }
+	if ( ( $settings->pp_num_size_large ?? '' ) !== '' ) { $nb = (int) $settings->pp_num_size_large; $pl[] = "--pp-num:{$nb}px"; }
+	$cm = ( $settings->pp_cols_medium ?? '' ) !== '' ? max( 1, min( 6, (int) $settings->pp_cols_medium ) ) : min( $cb, 2 );
+	$cr = ( $settings->pp_cols_responsive ?? '' ) !== '' ? max( 1, min( 6, (int) $settings->pp_cols_responsive ) ) : 1;
+	$gm = ( $settings->pp_gap_medium ?? '' ) !== '' ? (int) $settings->pp_gap_medium : $gb;
+	$gr = ( $settings->pp_gap_responsive ?? '' ) !== '' ? (int) $settings->pp_gap_responsive : $gm;
+	$nm = ( $settings->pp_num_size_medium ?? '' ) !== '' ? (int) $settings->pp_num_size_medium : $nb;
 	$nr = ( $settings->pp_num_size_responsive ?? '' ) !== '' ? (int) $settings->pp_num_size_responsive : min( $nm, 88 );
 	$v[] = "--pp-cols:{$cd}"; $v[] = "--pp-gap:{$gd}px"; $v[] = "--pp-num:{$nd}px";
 	echo "$node .ds-cta--style7 { " . implode( '; ', $v ) . "; }
 ";
+	if ( $pl ) { echo "@media (max-width:{$bpl}px){ $node .ds-cta--style7 { " . implode( '; ', $pl ) . "; } }\n"; }
 	echo "@media (max-width:{$bpm}px){ $node .ds-cta--style7 { --pp-cols:{$cm}; --pp-gap:{$gm}px; --pp-num:{$nm}px; } }
 ";
 	echo "@media (max-width:{$bpr}px){ $node .ds-cta--style7 { --pp-cols:{$cr}; --pp-gap:{$gr}px; --pp-num:{$nr}px; } }
