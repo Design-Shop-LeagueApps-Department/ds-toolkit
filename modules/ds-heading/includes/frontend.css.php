@@ -34,8 +34,13 @@ $align_css = static function ( $a ) {
 	return "ALIGN_INNER{align-items:{$items};text-align:{$text};margin-left:{$ml};margin-right:{$mr};}ALIGN_RULE{justify-content:{$rule_justify};}"
 		. "ALIGN_AFTER{display:{$after};}";
 };
+$al = in_array( $settings->alignment_large ?? '', array( 'left', 'center', 'right' ), true ) ? $settings->alignment_large : '';
 $am = in_array( $settings->alignment_medium ?? '', array( 'left', 'center', 'right' ), true ) ? $settings->alignment_medium : '';
 $ar = in_array( $settings->alignment_responsive ?? '', array( 'left', 'center', 'right' ), true ) ? $settings->alignment_responsive : '';
+if ( '' !== $al ) {
+	$css = str_replace( array( 'ALIGN_INNER', 'ALIGN_RULE', 'ALIGN_AFTER' ), array( "$node .ds-heading-inner", "$node .ds-heading-rule", "$node .ds-heading-sub--withrule .ds-heading-rule--after" ), $align_css( $al ) );
+	echo "@media (max-width:{$bpl}px){ {$css} }\n";
+}
 if ( '' !== $am ) {
 	$css = str_replace( array( 'ALIGN_INNER', 'ALIGN_RULE', 'ALIGN_AFTER' ), array( "$node .ds-heading-inner", "$node .ds-heading-rule", "$node .ds-heading-sub--withrule .ds-heading-rule--after" ), $align_css( $am ) );
 	echo "@media (max-width:{$bpm}px){ {$css} }\n";
@@ -48,11 +53,13 @@ if ( '' !== $ar ) {
 /* ---- Element gap (responsive) ---- */
 $gap = $u( $settings->gap ?? '', 12 );
 echo "$node .ds-heading-inner { gap: {$gap}px; }\n";
+if ( '' !== ( $settings->gap_large ?? '' ) )      { echo "@media (max-width:{$bpl}px){ $node .ds-heading-inner { gap: " . (int) $settings->gap_large . "px; } }\n"; }
 if ( '' !== ( $settings->gap_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-heading-inner { gap: " . (int) $settings->gap_medium . "px; } }\n"; }
 if ( '' !== ( $settings->gap_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-heading-inner { gap: " . (int) $settings->gap_responsive . "px; } }\n"; }
 
 /* ---- Max width (responsive) ---- */
 if ( '' !== ( $settings->max_width ?? '' ) )            { echo "$node .ds-heading-inner { max-width: " . (int) $settings->max_width . "px; }\n"; }
+if ( '' !== ( $settings->max_width_large ?? '' ) )      { echo "@media (max-width:{$bpl}px){ $node .ds-heading-inner { max-width: " . (int) $settings->max_width_large . "px; } }\n"; }
 if ( '' !== ( $settings->max_width_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-heading-inner { max-width: " . (int) $settings->max_width_medium . "px; } }\n"; }
 if ( '' !== ( $settings->max_width_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-heading-inner { max-width: " . (int) $settings->max_width_responsive . "px; } }\n"; }
 
@@ -162,6 +169,8 @@ $sub_align = static function ( $typo ) {
 };
 $sa = $sub_align( $settings->subheading_typography ?? null );
 if ( '' !== $sa ) { echo "$node .ds-heading-sub{align-self:{$sa};}\n"; }
+$sa = $sub_align( $settings->subheading_typography_large ?? null );
+if ( '' !== $sa ) { echo "@media (max-width:{$bpl}px){ $node .ds-heading-sub{align-self:{$sa};} }\n"; }
 $sa = $sub_align( $settings->subheading_typography_medium ?? null );
 if ( '' !== $sa ) { echo "@media (max-width:{$bpm}px){ $node .ds-heading-sub{align-self:{$sa};} }\n"; }
 $sa = $sub_align( $settings->subheading_typography_responsive ?? null );

@@ -68,7 +68,7 @@ chk( 'it reads Cards per row and Gap under Large, at the site\'s Large breakpoin
 chk( 'and prints nothing new when Large was left blank', (bool) preg_match( "/if \( '' !== \\\$cols_lg \|\| '' !== \\\$gap_lg \) \{/", $css ), true );
 
 echo "more adopters: the loops that print a setting per breakpoint include Large\n";
-foreach ( array( 'ds-heading' => 2, 'ds-hero' => 3, 'ds-carousel' => 1, 'ds-programs' => 3, 'ds-table' => 1 ) as $mod => $loops ) {
+foreach ( array( 'ds-heading' => 2, 'ds-hero' => 4, 'ds-carousel' => 1, 'ds-programs' => 3, 'ds-table' => 1 ) as $mod => $loops ) {
 	$c       = file_get_contents( $root . 'modules/' . $mod . '/includes/frontend.css.php' );
 	$with    = substr_count( $c, "'_large' => \$bpl, '_medium' => \$bpm, '_responsive' => \$bpr )" ) + substr_count( $c, "'large' => \$bpl, 'medium' => \$bpm, 'responsive' => \$bpr )" ) + substr_count( $c, "'large' => \$bp_lg, 'medium' => \$bp_md, 'responsive' => \$bp_sm )" );
 	$without = substr_count( $c, "array( '' => '', '_medium' => \$bpm," ) + substr_count( $c, "array( 'medium' => \$bpm," ) + substr_count( $c, "array( 'medium' => \$bp_md," );
@@ -115,6 +115,24 @@ chk( 'the circle layout prints a Large rule only when it differs from the deskto
 chk( 'a blank Medium counts its fallback from the Large value', array( substr_count( $cta, 'min( $colsB, 2 )' ), substr_count( $cta, 'min( $cb, 2 )' ), substr_count( $pl, 'min( $cols2B, 2 )' ), substr_count( $pl, 'min( $lcolsB, 2 )' ), substr_count( $pl, 'min( $scolsB, 2 )' ), substr_count( $pl, 'min( $rcolsB, 2 )' ), substr_count( $pl, 'min( $ccolsB, 2 )' ), substr_count( $pl, 'min( $pvB, 2 )' ), substr_count( $pl, 'min( $fhB, 340 )' ) ), array( 1, 1, 1, 1, 1, 1, 1, 1, 1 ) );
 chk( 'a bento card wider than the Large column count is cut to it, above Medium only', false !== strpos( $cta, 'echo "@media (min-width:" . ( $bpm + 1 ) . "px) and (max-width:{$bpl}px){ " . implode( \', \', $wide ) . " { grid-column: span {$cols3l} !important; } }\n";' ), true );
 chk( 'Motion Cards read the Large breakpoint from the one map', false === strpos( $cta, 'large_breakpoint' ), true );
+
+echo "the last settings that skipped a breakpoint\n";
+$src  = function ( $mod ) use ( $root ) { return file_get_contents( $root . 'modules/' . $mod . '/includes/frontend.css.php' ); };
+$miss = array();
+foreach ( array(
+	'ds-carousel' => array( 'reel_cols_large', 'columns_large', 'gap_large', 'logo_height_large', 'tile_padding_large', 'logo_max_height_large', 'deck_height_custom_large' ),
+	'ds-heading'  => array( 'alignment_large', 'gap_large', 'max_width_large', 'subheading_typography_large' ),
+	'ds-hero'     => array( 'min_height_large', 'align_large', 'btn_align_large' ),
+	'ds-la-roster' => array( 'columns_large' ),
+) as $mod => $keys ) {
+	foreach ( $keys as $k ) { if ( false === strpos( $src( $mod ), '$settings->' . $k ) ) { $miss[] = $mod . ':' . $k; } }
+}
+chk( 'Carousel, Heading, Hero and Roster read their Large values', $miss, array() );
+chk( 'the Page Banner heights are read at all three breakpoints (only the tablet one was)', (bool) preg_match( "/foreach \( array\( '_large' => \\\$bpl, '_medium' => \\\$bpm, '_responsive' => \\\$bpr \) as \\\$sfx => \\\$bp \) \{\s+if \( '' !== \( \\\$settings->\{ 'banner_h_bg' \. \\\$sfx \}/", $src( 'ds-hero' ) ), true );
+chk( 'the Table image size is read at Large and tablet too (only the phone one was)', false !== strpos( $src( 'ds-table' ), "foreach ( array( 'large' => \$bp_lg, 'medium' => \$bp_md ) as \$sfx => \$bp ) {\n\t\t\$isz_x = (int) ( \$settings->{ 'img_size_' . \$sfx } ?? 0 );" ), true );
+chk( 'the Team Detail section gap is read at Large and tablet too (only the phone one was)', false !== strpos( $src( 'ds-team-detail' ), "foreach ( array( '_large' => \$bpl, '_medium' => \$bpm ) as \$sfx => \$bp ) {\n\tif ( '' !== ( \$settings->{ 'section_gap' . \$sfx } ?? '' ) ) {" ), true );
+// A rule that was there before must print the same bytes: the three "{ gap: ", "{ max-width: ", "{ min-height: " openings keep their space.
+chk( 'no declaration lost its space when a Large line was added above it', preg_match_all( '/\{ (?:gap|max-width|min-height):" \. \(int\)/', $src( 'ds-heading' ) . $src( 'ds-hero' ) ), 0 );
 
 echo "house spelling\n";
 $left = array();

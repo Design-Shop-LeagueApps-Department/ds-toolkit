@@ -28,6 +28,12 @@ echo "$node .ds-teamdetail-media img{border-radius:{$mr};}\n";
 /* ---- Section gap (responsive) ---- */
 $sg = $u( $settings->section_gap ?? '', 36 );
 echo "$node .ds-teamdetail-main{gap:{$sg}px;}\n";
+// Large and tablet gaps were saved and never used before the 2026-11 audit; each prints only when typed.
+foreach ( array( '_large' => $bpl, '_medium' => $bpm ) as $sfx => $bp ) {
+	if ( '' !== ( $settings->{ 'section_gap' . $sfx } ?? '' ) ) {
+		echo "@media (max-width:{$bp}px){ $node .ds-teamdetail-main{gap:" . (int) $settings->{ 'section_gap' . $sfx } . "px;} }\n";
+	}
+}
 if ( '' !== ( $settings->section_gap_responsive ?? '' ) ) {
 	echo "@media (max-width:{$bpr}px){ $node .ds-teamdetail-main{gap:" . (int) $settings->section_gap_responsive . "px;} }\n";
 }

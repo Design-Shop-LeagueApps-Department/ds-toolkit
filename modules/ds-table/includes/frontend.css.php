@@ -139,6 +139,11 @@ if ( $has_type( 'image' ) ) {
 	$fit   = 'cover' === ( $settings->img_fit ?? 'contain' ) ? 'cover' : 'contain';
 	$isz   = (int) ( $settings->img_size ?? 0 ) ?: 56;
 	echo "$w .ds-table-img{width:{$isz}px;height:{$isz}px;object-fit:$fit;border-radius:$rad;}\n";
+	// Large and tablet sizes were saved and never used before the 2026-11 audit; each prints only when typed.
+	foreach ( array( 'large' => $bp_lg, 'medium' => $bp_md ) as $sfx => $bp ) {
+		$isz_x = (int) ( $settings->{ 'img_size_' . $sfx } ?? 0 );
+		if ( $isz_x ) { echo "@media(max-width:{$bp}px){ $w .ds-table-img{width:{$isz_x}px;height:{$isz_x}px;} }\n"; }
+	}
 	$isz_r = (int) ( $settings->img_size_responsive ?? 0 );
 	if ( $isz_r ) { echo "@media(max-width:{$bp_sm}px){ $w .ds-table-img{width:{$isz_r}px;height:{$isz_r}px;} }\n"; }
 }

@@ -51,6 +51,7 @@ $bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint
 if ( 'style1' === $style ) {
 	$mh = $u( $settings->min_height ?? '', 92 );
 	echo "$node .ds-hero { min-height: {$mh}vh; }\n";
+	if ( '' !== ( $settings->min_height_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-hero { min-height: " . (int) $settings->min_height_large . "vh; } }\n"; }
 	if ( '' !== ( $settings->min_height_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-hero { min-height: " . (int) $settings->min_height_medium . "vh; } }\n"; }
 	if ( '' !== ( $settings->min_height_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-hero { min-height: " . (int) $settings->min_height_responsive . "vh; } }\n"; }
 }
@@ -146,8 +147,12 @@ if ( 'style2' === $style ) {
 	$hno = $u( $settings->banner_h_nobg ?? '', 28 );
 	echo "$node .ds-banner--has-bg { min-height: {$hbg}vh; }\n";
 	echo "$node .ds-banner--no-bg { min-height: {$hno}vh; }\n";
-	if ( '' !== ( $settings->banner_h_bg_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-banner--has-bg { min-height: " . (int) $settings->banner_h_bg_medium . "vh; } }\n"; }
-	if ( '' !== ( $settings->banner_h_nobg_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-banner--no-bg { min-height: " . (int) $settings->banner_h_nobg_medium . "vh; } }\n"; }
+	// Widest first, each only when the editor typed a value. Before the 2026-11 audit only the tablet value was read:
+	// a Large or a phone height was saved and never used.
+	foreach ( array( '_large' => $bpl, '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+		if ( '' !== ( $settings->{ 'banner_h_bg' . $sfx } ?? '' ) ) { echo "@media (max-width:{$bp}px){ $node .ds-banner--has-bg { min-height: " . (int) $settings->{ 'banner_h_bg' . $sfx } . "vh; } }\n"; }
+		if ( '' !== ( $settings->{ 'banner_h_nobg' . $sfx } ?? '' ) ) { echo "@media (max-width:{$bp}px){ $node .ds-banner--no-bg { min-height: " . (int) $settings->{ 'banner_h_nobg' . $sfx } . "vh; } }\n"; }
+	}
 
 	// No-image background: colour + optional tileable pattern.
 	$nb = array();
@@ -329,6 +334,7 @@ $align_rules = function( $align ) use ( $node ) {
 		. "$node .ds-hero .ds-hero-eyebrow::after{display:none;}"
 		. "$node .ds-hero .ds-hero-sub{margin-left:0;margin-right:0;}";
 };
+if ( '' !== ( $settings->align_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){" . $align_rules( $settings->align_large ) . "}\n"; }
 if ( '' !== ( $settings->align_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){" . $align_rules( $settings->align_medium ) . "}\n"; }
 if ( '' !== ( $settings->align_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){" . $align_rules( $settings->align_responsive ) . "}\n"; }
 
@@ -338,6 +344,8 @@ if ( '' !== ( $settings->align_responsive ?? '' ) ) { echo "@media (max-width:{$
 $ba_map = array( 'left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end' );
 $ba = $settings->btn_align ?? '';
 if ( isset( $ba_map[ $ba ] ) ) { echo "$node .ds-hero .ds-hero-cta{justify-content:{$ba_map[ $ba ]};}\n"; }
+$bal = $settings->btn_align_large ?? '';
+if ( isset( $ba_map[ $bal ] ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-hero .ds-hero-cta{justify-content:{$ba_map[ $bal ]};} }\n"; }
 $bam = $settings->btn_align_medium ?? '';
 if ( isset( $ba_map[ $bam ] ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-hero .ds-hero-cta{justify-content:{$ba_map[ $bam ]};} }\n"; }
 $bar = $settings->btn_align_responsive ?? '';
