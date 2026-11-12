@@ -609,7 +609,7 @@ $ds_pl_form = array(
 			),
 			'tournament_opts' => array(
 				'title'       => __( 'Tournament Cards', 'ds-toolkit' ),
-				'description' => __( 'Ordering is automatic: upcoming events first, sorted by the Event Date field, with past events hidden. (The Query tab\'s Order By / Order do not apply to this layout.)', 'ds-toolkit' ),
+				'description' => __( 'Ordering is automatic: upcoming events first, sorted by the Event Date field, with past events hidden. Entries with no Event Date (programs, clinics) follow them in the Query tab\'s Order By / Order. Number of Posts blank shows 6.', 'ds-toolkit' ),
 				'fields' => array(
 					'tn_style'       => array(
 						'type'    => 'select',
@@ -659,6 +659,16 @@ $ds_pl_form = array(
 					'tn_meta_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Date / Location Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'tn_icon_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Meta Icon Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true ),
 					'tourn_btn'      => array( 'type' => 'text', 'label' => __( 'Button Text', 'ds-toolkit' ), 'default' => 'View More' ),
+					'tn_excerpt'       => array(
+						'type'    => 'select',
+						'label'   => __( 'Excerpt', 'ds-toolkit' ),
+						'default' => 'hide',
+						'options' => array( 'hide' => __( 'Hide', 'ds-toolkit' ), 'show' => __( 'Show', 'ds-toolkit' ) ),
+						'toggle'  => array( 'show' => array( 'fields' => array( 'tn_excerpt_words', 'tn_excerpt_color' ) ) ),
+						'help'    => __( 'A short description under the details: the entry\'s Excerpt, or the start of its content when the Excerpt is empty.', 'ds-toolkit' ),
+					),
+					'tn_excerpt_words' => array( 'type' => 'unit', 'label' => __( 'Excerpt Length', 'ds-toolkit' ), 'default' => '18', 'description' => __( 'words', 'ds-toolkit' ), 'slider' => array( 'min' => 5, 'max' => 60, 'step' => 1 ) ),
+					'tn_excerpt_color' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Excerpt Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'tn_title_typo'  => array( 'type' => 'typography', 'label' => __( 'Title Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-tourn-title' ) ),
 					'tn_meta_typo'   => array( 'type' => 'typography', 'label' => __( 'Date / Location Typography', 'ds-toolkit' ), 'responsive' => true, 'preview' => array( 'type' => 'css', 'selector' => '.ds-tourn-meta' ) ),
 				),

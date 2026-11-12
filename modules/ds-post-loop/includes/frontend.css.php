@@ -277,6 +277,7 @@ if ( ( $settings->card_layout ?? '' ) === 'tournament' ) {
 	$c = $col( $settings->tn_card_bg ?? '' );    if ( $c ) { echo "$node .ds-tourn-body{background:{$c};}\n"; }
 	$c = $col( $settings->tn_title_color ?? '' ); if ( $c ) { echo "$node .ds-tourn-title{color:{$c};}\n"; }
 	$c = $col( $settings->tn_meta_color ?? '' );  if ( $c ) { echo "$node .ds-tourn-date,$node .ds-tourn-loc{color:{$c};}\n"; }
+	$c = $col( $settings->tn_excerpt_color ?? '' ); if ( $c ) { echo "$node .ds-tourn-excerpt{color:{$c};}\n"; }
 	$c = $col( $settings->tn_icon_color ?? '' );  if ( $c ) { echo "$node .ds-tourn-date svg,$node .ds-tourn-loc svg{color:{$c};}\n"; }
 }
 

@@ -149,7 +149,14 @@ trait DS_Post_Loop_Tournament {
 		// Pull wide (ordering + the past-event drop happen below, on event_date), but
 		// still scope to the Taxonomy Filter so two pages can list two different sets
 		// of events (e.g. a Boys and a Girls tournaments page off one CPT).
-		$q_args = array( 'post_type' => $ptype, 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'date', 'order' => 'DESC' );
+		// Entries without an Event Date all tie in the sort below, which keeps the query's order (usort is stable on
+		// PHP 8), so the query follows the Query tab's Order By / Order. Before 1.18.2 it was always newest first,
+		// so a programs page set to Menu Order came out in publish order (lovellhockey Rockland).
+		$ob = (string) ( $s->order_by ?? 'date' );
+		if ( ! in_array( $ob, array( 'date', 'title', 'menu_order', 'modified', 'rand' ), true ) ) { $ob = 'date'; }
+		$od = ( strtoupper( (string) ( $s->order ?? 'DESC' ) ) === 'ASC' ) ? 'ASC' : 'DESC';
+		if ( 'menu_order' === $ob && self::nested_order_enabled() ) { $od = 'ASC'; }
+		$q_args = array( 'post_type' => $ptype, 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'rand' === $ob ? 'rand' : array( $ob => $od, 'ID' => 'ASC' ) );
 		$tq     = $this->tax_query_args();
 		if ( ! empty( $tq ) ) { $q_args['tax_query'] = $tq; }
 		// This layout builds its own query (it sorts on the event_date ACF field, so it
@@ -184,7 +191,10 @@ trait DS_Post_Loop_Tournament {
 
 		// Enriched rows (the Event Card style + filter bar read tabs/division/state).
 		// The tab facet is developer-chosen: a taxonomy, a meta field, or none.
-		$tabsrc = (string) ( $s->tn_filter_tabs ?? '' );
+		$tabsrc     = (string) ( $s->tn_filter_tabs ?? '' );
+		$excerpt_on = 'show' === ( $s->tn_excerpt ?? 'hide' );
+		$excerpt_n  = (int) ( $s->tn_excerpt_words ?? 18 );
+		$excerpt_n  = $excerpt_n > 0 ? min( 60, max( 5, $excerpt_n ) ) : 18;
 		$rows = array();
 		foreach ( $items as $it ) {
 			$p = $it['p']; $pid = $p->ID;
@@ -203,6 +213,7 @@ trait DS_Post_Loop_Tournament {
 				'tabs'     => $this->tourn_tab_values( $pid, $tabsrc ),
 				'division' => $this->tourn_list( $pid, 'event_division' ),
 				'state'    => $this->tourn_state( $pid, $loc ),
+				'excerpt'  => $excerpt_on ? wp_trim_words( wp_strip_all_tags( get_the_excerpt( $p ) ), $excerpt_n, '…' ) : '',
 			);
 		}
 
@@ -241,7 +252,9 @@ trait DS_Post_Loop_Tournament {
 				echo '<span class="ds-tourn-rowmeta">';
 				if ( '' !== $r['loc'] )  { echo '<span class="ds-tourn-loc">' . $pin . '<span>' . esc_html( $r['loc'] ) . '</span></span>'; }
 				if ( '' !== $r['date'] ) { echo '<span class="ds-tourn-date">' . $cal . '<span>' . esc_html( $r['date'] ) . '</span></span>'; }
-				echo '</span></span>';
+				echo '</span>';
+				if ( '' !== $r['excerpt'] ) { echo '<span class="ds-tourn-excerpt">' . esc_html( $r['excerpt'] ) . '</span>'; }
+				echo '</span>';
 				echo '<span class="ds-tourn-rowside">';
 				if ( ! empty( $r['division'] ) ) {
 					echo '<span class="ds-tourn-chips">';
@@ -272,6 +285,7 @@ trait DS_Post_Loop_Tournament {
 				echo '</span></span>';
 			}
 			echo '</div>';
+			if ( '' !== $r['excerpt'] ) { echo '<p class="ds-tourn-excerpt">' . esc_html( $r['excerpt'] ) . '</p>'; }
 			echo '<span class="ds-tourn-btn' . ( 'event' === $style ? ' ds-tourn-btn--full' : '' ) . '">' . esc_html( $btn ) . '</span>';
 			echo '</div></a>';
 		}
