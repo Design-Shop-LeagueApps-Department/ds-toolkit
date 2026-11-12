@@ -280,95 +280,61 @@ class DS_Toolkit_Admin {
                 require DS_TOOLKIT_PATH . 'admin/views/page-mcp.php';
 
             } else {
-                $enabled                            = ! empty( $opts['enable_login_branding'] );
-                $logo_id                            = ! empty( $opts['login_logo_id'] ) ? absint( $opts['login_logo_id'] ) : 0;
-                $logo_url                           = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
-                $default_url                        = DS_TOOLKIT_URL . 'assets/images/cropped-LA-circle-logo-1.png';
-                $hide_fl_assistant                  = ! empty( $opts['hide_fl_assistant'] );
-                $acf_css_vars_enabled               = ! empty( $opts['acf_css_vars_enabled'] );
-                $acf_css_vars_mappings              = ! empty( $opts['acf_css_vars_mappings'] ) ? $opts['acf_css_vars_mappings'] : array();
-                $getsubmenu_enabled                 = ! empty( $opts['getsubmenu_enabled'] );
-                $current_year_enabled               = ! empty( $opts['current_year_enabled'] );
-                $overlay_nav_enabled                = ! empty( $opts['overlay_nav_enabled'] );
-                $forminator_email_partner_enabled   = ! empty( $opts['forminator_email_partner_enabled'] );
-                $forminator_email_partner_fallback  = ! empty( $opts['forminator_email_partner_fallback'] )
-                    ? $opts['forminator_email_partner_fallback']
-                    : 'designshop@leagueapps.com';
-                $child_pages_enabled         = ! empty( $opts['child_pages_enabled'] );
-                $nested_order_enabled        = ! empty( $opts['nested_order_enabled'] );
-                $child_pages_template_id     = ! empty( $opts['child_pages_template_id'] ) ? $opts['child_pages_template_id'] : '56369';
-                $child_pages_columns         = ! empty( $opts['child_pages_columns'] )        ? (int) $opts['child_pages_columns']        : 3;
-                $child_pages_columns_tablet  = ! empty( $opts['child_pages_columns_tablet'] ) ? (int) $opts['child_pages_columns_tablet'] : 2;
-                $child_pages_columns_mobile  = ! empty( $opts['child_pages_columns_mobile'] ) ? (int) $opts['child_pages_columns_mobile'] : 1;
-                $uabb_post_loop_fix_enabled  = ! empty( $opts['uabb_post_loop_fix_enabled'] );
-                $defender_flywheel_reset_fix_enabled = ! empty( $opts['defender_flywheel_reset_fix_enabled'] );
-                $hummingbird_critical_fix_enabled    = ! empty( $opts['hummingbird_critical_fix_enabled'] );
-                // Blueprint-gated feature toggles — only surfaced on qualifying installs.
-                $blueprint_version        = DS_Toolkit::blueprint_version();
-                $disable_comments_enabled = ! empty( $opts['disable_comments_enabled'] );
-                $theme_setting_enabled    = ! empty( $opts['theme_setting_enabled'] );
-                $theme_setting_all_users  = ! empty( $opts['theme_setting_all_users'] );
-                $admin_menu_tidy_enabled  = ! empty( $opts['admin_menu_tidy_enabled'] );
-                $user_roles_enabled       = ! empty( $opts['user_roles_enabled'] );
-                $partner_plugin_access    = ! empty( $opts['partner_plugin_access'] );
-                $design_academy_enabled   = ! empty( $opts['design_academy_enabled'] );
-                $school_emblems_enabled   = ! isset( $opts['school_emblems_enabled'] ) || ! empty( $opts['school_emblems_enabled'] );
-                $academy_pinned_url       = ! empty( $opts['academy_pinned_url'] ) ? $opts['academy_pinned_url'] : 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/';
-                $academy_pinned_label     = ! empty( $opts['academy_pinned_label'] ) ? $opts['academy_pinned_label'] : "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder";
-                $ds_menu_module_enabled   = ! empty( $opts['ds_menu_module_enabled'] );
-                $image_optimization_enabled = ! empty( $opts['image_optimization_enabled'] );
-                $pattern_library_enabled    = ! empty( $opts['ds_pattern_library_enabled'] );
-                $bot_shield_enabled           = ! empty( $opts['bot_shield_enabled'] );
-                $bot_shield_mode              = ( isset( $opts['bot_shield_mode'] ) && 'block' === $opts['bot_shield_mode'] ) ? 'block' : 'monitor';
-                $bot_shield_page_cap          = ! empty( $opts['bot_shield_page_cap'] ) ? (int) $opts['bot_shield_page_cap'] : 20;
-                $bot_shield_ip_limit          = ! empty( $opts['bot_shield_ip_limit'] ) ? (int) $opts['bot_shield_ip_limit'] : 180;
-                $bot_shield_penalty_mins      = ! empty( $opts['bot_shield_penalty_mins'] ) ? (int) $opts['bot_shield_penalty_mins'] : 10;
-                $bot_shield_global_limit      = ! empty( $opts['bot_shield_global_limit'] ) ? (int) $opts['bot_shield_global_limit'] : 150;
-                $bot_shield_attack_mins       = ! empty( $opts['bot_shield_attack_mins'] ) ? (int) $opts['bot_shield_attack_mins'] : 10;
-                $bot_shield_challenge_enabled = ! empty( $opts['bot_shield_challenge_enabled'] );
-                $bot_shield_ua_blocklist      = isset( $opts['bot_shield_ua_blocklist'] ) ? $opts['bot_shield_ua_blocklist'] : '';
-                $bot_shield_ip_allowlist      = isset( $opts['bot_shield_ip_allowlist'] ) ? $opts['bot_shield_ip_allowlist'] : '';
-                $origin_guard_enabled         = ! empty( $opts['origin_guard_enabled'] );
-                $origin_guard_block_login     = ! isset( $opts['origin_guard_block_login'] ) || ! empty( $opts['origin_guard_block_login'] );
-                $origin_guard_block_xmlrpc    = ! isset( $opts['origin_guard_block_xmlrpc'] ) || ! empty( $opts['origin_guard_block_xmlrpc'] );
-                // Tripwire -> Design Shop HQ card (asks HQ for this site's status, at most every 5 minutes).
-                $tripwire_enabled   = ! isset( $opts['tripwire_enabled'] ) || ! empty( $opts['tripwire_enabled'] );
-                $tripwire_hq_report = ! isset( $opts['tripwire_hq_report'] ) || ! empty( $opts['tripwire_hq_report'] );
-                $tripwire_hq_status = array( 'warn', 'Tripwire is off, so nothing is reported.' );
-                if ( $tripwire_enabled && $tripwire_hq_report ) {
-                    require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-link.php';
-                    $tripwire_hq_status = DS_HQ_Link::status_line();
-                } elseif ( $tripwire_enabled ) {
-                    $tripwire_hq_status = array( 'warn', 'Reporting to Design Shop HQ is off. Alerts still go by email.' );
-                }
-                // Is the mu-plugin actually on disk right now? (installer may
-                // have failed to write, e.g. read-only mu-plugins dir.)
-                $origin_guard_installed = file_exists( ( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ) . '/ds-origin-guard.php' );
-                // Today's block counters (cache reads only; empty string hides the line).
-                $bot_shield_stats = '';
-                if ( $bot_shield_enabled ) {
+                // The Features tab draws itself from the schema (DS_Features, admin/class-ds-settings-cards.php).
+                // Only the live status lines are worked out here: key => html, shown under the card's summary.
+                $opts       = is_array( $opts ) ? $opts : array();
+                $dst_status = array();
+
+                // Bot Shield: today's counters (cache reads only).
+                if ( ! empty( $opts['bot_shield_enabled'] ) ) {
                     require_once DS_TOOLKIT_PATH . 'features/class-ds-bot-shield.php';
-                    $shield = new DS_Bot_Shield( $opts );
-                    $parts  = array();
+                    $shield  = new DS_Bot_Shield( $opts );
+                    $monitor = ! ( isset( $opts['bot_shield_mode'] ) && 'block' === $opts['bot_shield_mode'] );
+                    $parts   = array();
                     foreach ( array( 'rate-limit' => 'rate-limited', 'ua-block' => 'crawlers blocked', 'challenge' => 'browser checks', 'page-trap' => 'pagination traps' ) as $sk => $sl ) {
                         if ( $shield->stat( $sk ) ) {
                             $parts[] = $shield->stat( $sk ) . ' ' . $sl;
                         }
                     }
-                    $bot_shield_stats = implode( ', ', $parts );
-                    if ( $bot_shield_stats && 'monitor' === $bot_shield_mode ) {
-                        $bot_shield_stats = 'would have blocked: ' . $bot_shield_stats;
+                    $line = implode( ', ', $parts );
+                    if ( $line && $monitor ) {
+                        $line = 'would have blocked: ' . $line;
                     }
                     $seen = $shield->stat( 'seen' );
                     if ( $seen ) {
-                        $bot_shield_stats = $seen . ' requests evaluated' . ( $bot_shield_stats ? ', ' . $bot_shield_stats : ', nothing to block' );
+                        $line = $seen . ' requests evaluated' . ( $line ? ', ' . $line : ', nothing to block' );
+                    }
+                    if ( $line ) {
+                        $dst_status['bot_shield_enabled'] = '<strong>Today:</strong> ' . esc_html( $line );
                     }
                 }
-                // Per-module on/off states for the always-visible "LeagueApps Modules" section.
-                $ds_module_states = array();
-                foreach ( DS_Toolkit::module_features() as $mod_key => $mod_meta ) {
-                    $ds_module_states[ $mod_key ] = ! empty( $opts[ $mod_key ] );
+
+                // Origin Guard: is the mu-plugin on disk right now? (The installer may have failed to write it.)
+                $guard_on        = ! empty( $opts['origin_guard_enabled'] );
+                $guard_installed = file_exists( ( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ) . '/ds-origin-guard.php' );
+                if ( $guard_on && ! $guard_installed ) {
+                    $dst_status['origin_guard_enabled'] = '<strong class="dst-state dst-state--bad">Not installed:</strong> the mu-plugins directory could not be written. Check filesystem permissions.';
+                } elseif ( $guard_installed ) {
+                    $dst_status['origin_guard_enabled'] = '<strong class="dst-state dst-state--ok">Active</strong>, running as <code>mu-plugins/ds-origin-guard.php</code>.';
                 }
+
+                // Report to Design Shop HQ: how HQ sees this site (asked at most every 5 minutes), and Reconnect.
+                $tw_on = ! isset( $opts['tripwire_enabled'] ) || ! empty( $opts['tripwire_enabled'] );
+                $hq_on = ! isset( $opts['tripwire_hq_report'] ) || ! empty( $opts['tripwire_hq_report'] );
+                $hq    = array( 'warn', 'Tripwire is off, so nothing is reported.' );
+                if ( $tw_on && $hq_on ) {
+                    require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-link.php';
+                    $hq = DS_HQ_Link::status_line();
+                } elseif ( $tw_on ) {
+                    $hq = array( 'warn', 'Reporting to Design Shop HQ is off. Alerts still go by email.' );
+                }
+                $hq_class = in_array( $hq[0], array( 'ok', 'warn', 'bad' ), true ) ? $hq[0] : 'warn';
+                $dst_status['tripwire_hq_report'] = '<strong class="dst-state dst-state--' . $hq_class . '">' . esc_html( $hq[1] ) . '</strong>';
+                if ( $tw_on && $hq_on ) {
+                    $dst_status['tripwire_hq_report'] .= ' <a class="button button-small" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ds_hq_link_reconnect' ), 'ds_hq_link_reconnect' ) ) . '">Reconnect</a>';
+                }
+
+                require_once DS_TOOLKIT_PATH . 'admin/class-ds-settings-cards.php';
                 require DS_TOOLKIT_PATH . 'admin/views/page-settings.php';
             }
             ?>

@@ -11,15 +11,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-editor-code"></span></div>
         <div class="dst-card-info">
-            <strong>Global JavaScript — Plugin Managed</strong>
+            <strong id="dst-t-global_js_enabled">Global JavaScript — Plugin Managed</strong>
             <span>Site utilities injected before <code>&lt;/body&gt;</code> on every page. Managed in <code>includes/defaults/global-js.js</code> — updates automatically with the plugin. Toggle off to disable output entirely.</span>
         </div>
         <div class="dst-toggle">
             <form method="post" action="options.php" style="display:contents;">
                 <?php settings_fields( 'ds_toolkit_options' ); ?>
                 <input type="hidden" name="ds_toolkit_settings[global_js_enabled]" value="0">
-                <input type="checkbox" id="global_js_enabled" name="ds_toolkit_settings[global_js_enabled]" value="1" <?php checked( $global_js_enabled ); ?> onchange="this.form.submit()">
-                <label for="global_js_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-global_js_enabled" id="global_js_enabled" name="ds_toolkit_settings[global_js_enabled]" value="1" <?php checked( $global_js_enabled ); ?> onchange="this.form.submit()">
+                <label for="global_js_enabled" aria-hidden="true"></label>
             </form>
         </div>
     </div>

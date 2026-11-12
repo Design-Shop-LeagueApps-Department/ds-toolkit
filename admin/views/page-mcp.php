@@ -40,78 +40,78 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-admin-page"></span></div>
             <div class="dst-card-info">
-                <strong>Posts &amp; Pages</strong>
+                <strong id="dst-t-mcp_posts_pages_enabled">Posts &amp; Pages</strong>
                 <span>Allow Claude to list, read, create, edit, and delete standard WordPress posts and pages.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_posts_pages_enabled]" value="0">
-                <input type="checkbox" id="mcp_posts_pages_enabled" name="ds_toolkit_settings[mcp_posts_pages_enabled]" value="1" <?php checked( $mcp_posts_pages_enabled ); ?>>
-                <label for="mcp_posts_pages_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_posts_pages_enabled" id="mcp_posts_pages_enabled" name="ds_toolkit_settings[mcp_posts_pages_enabled]" value="1" <?php checked( $mcp_posts_pages_enabled ); ?>>
+                <label for="mcp_posts_pages_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-database"></span></div>
             <div class="dst-card-info">
-                <strong>Custom Post Types</strong>
+                <strong id="dst-t-mcp_cpt_enabled">Custom Post Types</strong>
                 <span>Allow Claude to access CPTs — Events, Athletes, Staff, Teams, and any future custom post types registered on this site.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_cpt_enabled]" value="0">
-                <input type="checkbox" id="mcp_cpt_enabled" name="ds_toolkit_settings[mcp_cpt_enabled]" value="1" <?php checked( $mcp_cpt_enabled ); ?>>
-                <label for="mcp_cpt_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_cpt_enabled" id="mcp_cpt_enabled" name="ds_toolkit_settings[mcp_cpt_enabled]" value="1" <?php checked( $mcp_cpt_enabled ); ?>>
+                <label for="mcp_cpt_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-tag"></span></div>
             <div class="dst-card-info">
-                <strong>Taxonomies</strong>
+                <strong id="dst-t-mcp_taxonomies_enabled">Taxonomies</strong>
                 <span>Allow Claude to list, create, edit, and delete taxonomy terms — Athlete Categories, Staff Categories, Team Categories, and any other taxonomies.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_taxonomies_enabled]" value="0">
-                <input type="checkbox" id="mcp_taxonomies_enabled" name="ds_toolkit_settings[mcp_taxonomies_enabled]" value="1" <?php checked( $mcp_taxonomies_enabled ); ?>>
-                <label for="mcp_taxonomies_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_taxonomies_enabled" id="mcp_taxonomies_enabled" name="ds_toolkit_settings[mcp_taxonomies_enabled]" value="1" <?php checked( $mcp_taxonomies_enabled ); ?>>
+                <label for="mcp_taxonomies_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-forms"></span></div>
             <div class="dst-card-info">
-                <strong>ACF / Custom Fields</strong>
+                <strong id="dst-t-mcp_acf_enabled">ACF / Custom Fields</strong>
                 <span>Allow Claude to read and update ACF field values on posts and CPT entries. Uses ACF's <code>get_fields()</code> / <code>update_field()</code> if ACF is active.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_acf_enabled]" value="0">
-                <input type="checkbox" id="mcp_acf_enabled" name="ds_toolkit_settings[mcp_acf_enabled]" value="1" <?php checked( $mcp_acf_enabled ); ?>>
-                <label for="mcp_acf_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_acf_enabled" id="mcp_acf_enabled" name="ds_toolkit_settings[mcp_acf_enabled]" value="1" <?php checked( $mcp_acf_enabled ); ?>>
+                <label for="mcp_acf_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-admin-settings"></span></div>
             <div class="dst-card-info">
-                <strong>DS Toolkit Settings</strong>
+                <strong id="dst-t-mcp_toolkit_settings_enabled">DS Toolkit Settings</strong>
                 <span>Allow Claude to read and update DS Toolkit feature settings — toggles, column counts, Global CSS/JS, template IDs, etc.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_toolkit_settings_enabled]" value="0">
-                <input type="checkbox" id="mcp_toolkit_settings_enabled" name="ds_toolkit_settings[mcp_toolkit_settings_enabled]" value="1" <?php checked( $mcp_toolkit_settings_enabled ); ?>>
-                <label for="mcp_toolkit_settings_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_toolkit_settings_enabled" id="mcp_toolkit_settings_enabled" name="ds_toolkit_settings[mcp_toolkit_settings_enabled]" value="1" <?php checked( $mcp_toolkit_settings_enabled ); ?>>
+                <label for="mcp_toolkit_settings_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-art"></span></div>
             <div class="dst-card-info">
-                <strong>Beaver Builder</strong>
+                <strong id="dst-t-mcp_bb_enabled">Beaver Builder</strong>
                 <span>Allow Claude to read and update Beaver Builder Global Style colors — Primary, Accent, Headings, Body, and all other named colors.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_bb_enabled]" value="0">
-                <input type="checkbox" id="mcp_bb_enabled" name="ds_toolkit_settings[mcp_bb_enabled]" value="1" <?php checked( $mcp_bb_enabled ); ?>>
-                <label for="mcp_bb_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_bb_enabled" id="mcp_bb_enabled" name="ds_toolkit_settings[mcp_bb_enabled]" value="1" <?php checked( $mcp_bb_enabled ); ?>>
+                <label for="mcp_bb_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
@@ -119,25 +119,25 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <div class="dst-card-icon"><span class="dashicons dashicons-networking"></span></div>
             <div class="dst-card-info">
                 <strong>ACF Schema <span style="color:#b32d2e;font-size:11px;font-weight:600;background:#fce8e8;padding:1px 6px;border-radius:3px;margin-left:4px;">&#9888; Destructive</span></strong>
-                <span>Allow Claude to create, update, and delete ACF Post Types and Taxonomies. <strong>Restricted to @leagueapps.com accounts only</strong> — even if enabled, non-LeagueApps users cannot use these tools.</span>
+                <span>Allow Claude to create, update, and delete ACF Post Types and Taxonomies. <strong id="dst-t-mcp_acf_schema_enabled">Restricted to @leagueapps.com accounts only</strong> — even if enabled, non-LeagueApps users cannot use these tools.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_acf_schema_enabled]" value="0">
-                <input type="checkbox" id="mcp_acf_schema_enabled" name="ds_toolkit_settings[mcp_acf_schema_enabled]" value="1" <?php checked( $mcp_acf_schema_enabled ); ?>>
-                <label for="mcp_acf_schema_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_acf_schema_enabled" id="mcp_acf_schema_enabled" name="ds_toolkit_settings[mcp_acf_schema_enabled]" value="1" <?php checked( $mcp_acf_schema_enabled ); ?>>
+                <label for="mcp_acf_schema_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
             <div class="dst-card-info">
-                <strong>Menus</strong>
+                <strong id="dst-t-mcp_menus_enabled">Menus</strong>
                 <span>Allow Claude to list menus, read menu structure, replace all menu items, and assign menus to theme locations.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_menus_enabled]" value="0">
-                <input type="checkbox" id="mcp_menus_enabled" name="ds_toolkit_settings[mcp_menus_enabled]" value="1" <?php checked( $mcp_menus_enabled ); ?>>
-                <label for="mcp_menus_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_menus_enabled" id="mcp_menus_enabled" name="ds_toolkit_settings[mcp_menus_enabled]" value="1" <?php checked( $mcp_menus_enabled ); ?>>
+                <label for="mcp_menus_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
@@ -145,12 +145,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <div class="dst-card-icon"><span class="dashicons dashicons-admin-tools"></span></div>
             <div class="dst-card-info">
                 <strong>Maintenance</strong>
-                <span>Allow Claude to flush rewrite rules, flush object cache, delete transients, and run search &amp; replace on the database. <strong>search_replace restricted to @leagueapps.com accounts.</strong></span>
+                <span>Allow Claude to flush rewrite rules, flush object cache, delete transients, and run search &amp; replace on the database. <strong id="dst-t-mcp_maintenance_enabled">search_replace restricted to @leagueapps.com accounts.</strong></span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_maintenance_enabled]" value="0">
-                <input type="checkbox" id="mcp_maintenance_enabled" name="ds_toolkit_settings[mcp_maintenance_enabled]" value="1" <?php checked( $mcp_maintenance_enabled ); ?>>
-                <label for="mcp_maintenance_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_maintenance_enabled" id="mcp_maintenance_enabled" name="ds_toolkit_settings[mcp_maintenance_enabled]" value="1" <?php checked( $mcp_maintenance_enabled ); ?>>
+                <label for="mcp_maintenance_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
@@ -158,25 +158,25 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <div class="dst-card-icon"><span class="dashicons dashicons-database"></span></div>
             <div class="dst-card-info">
                 <strong>Options <span style="color:#b32d2e;font-size:11px;font-weight:600;background:#fce8e8;padding:1px 6px;border-radius:3px;margin-left:4px;">&#9888; Destructive</span></strong>
-                <span>Allow Claude to read and write WordPress options (wp_options). <strong>Restricted to @leagueapps.com accounts only.</strong></span>
+                <span>Allow Claude to read and write WordPress options (wp_options). <strong id="dst-t-mcp_options_enabled">Restricted to @leagueapps.com accounts only.</strong></span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_options_enabled]" value="0">
-                <input type="checkbox" id="mcp_options_enabled" name="ds_toolkit_settings[mcp_options_enabled]" value="1" <?php checked( $mcp_options_enabled ); ?>>
-                <label for="mcp_options_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_options_enabled" id="mcp_options_enabled" name="ds_toolkit_settings[mcp_options_enabled]" value="1" <?php checked( $mcp_options_enabled ); ?>>
+                <label for="mcp_options_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-admin-users"></span></div>
             <div class="dst-card-info">
-                <strong>Users &amp; Media</strong>
+                <strong id="dst-t-mcp_users_enabled">Users &amp; Media</strong>
                 <span>Allow Claude to list and read WordPress users and regenerate image thumbnails.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[mcp_users_enabled]" value="0">
-                <input type="checkbox" id="mcp_users_enabled" name="ds_toolkit_settings[mcp_users_enabled]" value="1" <?php checked( $mcp_users_enabled ); ?>>
-                <label for="mcp_users_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-mcp_users_enabled" id="mcp_users_enabled" name="ds_toolkit_settings[mcp_users_enabled]" value="1" <?php checked( $mcp_users_enabled ); ?>>
+                <label for="mcp_users_enabled" aria-hidden="true"></label>
             </div>
         </div>
 

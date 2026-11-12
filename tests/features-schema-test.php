@@ -65,7 +65,8 @@ foreach ( glob( $ROOT . '/admin/views/*.php' ) as $view ) {
 }
 $posted = array_values( array_unique( $posted ) );
 $extra  = array( 'leagueapps_sites' ); // the LeagueApps tab's rows: cleaned by DS_Toolkit_Admin, they are not a typed field
-$is( 'the scan found the posted fields (' . count( $posted ) . ')', count( $posted ) >= 20, true );
+// The Features tab draws its fields from the schema, so only the hand-written tabs and extras are found here.
+$is( 'the scan found the hand-written fields (' . count( $posted ) . ')', count( $posted ) >= 10, true );
 $is( 'none is unknown to the schema', array_values( array_diff( $posted, array_keys( $known ), $extra ) ), array() );
 
 echo "saving cleans by type\n";

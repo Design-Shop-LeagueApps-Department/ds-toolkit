@@ -13,14 +13,14 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <div class="dst-card-icon"><span class="dashicons dashicons-editor-code"></span></div>
         <div class="dst-card-info">
             <strong>Global CSS — Plugin Managed</strong>
-            <span>Base styles live in <code>includes/defaults/global-css.css</code> and update with the plugin. Use <strong>CSS Overrides</strong> below to change variable values per-site — overrides are stored in the database and survive every plugin update.</span>
+            <span>Base styles live in <code>includes/defaults/global-css.css</code> and update with the plugin. Use <strong id="dst-t-global_css_enabled">CSS Overrides</strong> below to change variable values per-site — overrides are stored in the database and survive every plugin update.</span>
         </div>
         <div class="dst-toggle">
             <form method="post" action="options.php" style="display:contents;">
                 <?php settings_fields( 'ds_toolkit_options' ); ?>
                 <input type="hidden" name="ds_toolkit_settings[global_css_enabled]" value="0">
-                <input type="checkbox" id="global_css_enabled" name="ds_toolkit_settings[global_css_enabled]" value="1" <?php checked( $global_css_enabled ); ?> onchange="this.form.submit()">
-                <label for="global_css_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-global_css_enabled" id="global_css_enabled" name="ds_toolkit_settings[global_css_enabled]" value="1" <?php checked( $global_css_enabled ); ?> onchange="this.form.submit()">
+                <label for="global_css_enabled" aria-hidden="true"></label>
             </form>
         </div>
     </div>

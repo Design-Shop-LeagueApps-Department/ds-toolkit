@@ -16,13 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-editor-textcolor"></span></div>
             <div class="dst-card-info">
-                <strong>[ds_copyright] Shortcode</strong>
+                <strong id="dst-t-copyright_shortcode_enabled">[ds_copyright] Shortcode</strong>
                 <span>Outputs the footer copyright line below anywhere you place <code>[ds_copyright]</code>. The token <code>{year}</code> is replaced with the current year automatically.</span>
             </div>
             <div class="dst-toggle">
                 <input type="hidden" name="ds_toolkit_settings[copyright_shortcode_enabled]" value="0">
-                <input type="checkbox" id="copyright_shortcode_enabled" name="ds_toolkit_settings[copyright_shortcode_enabled]" value="1" <?php checked( $copyright_shortcode_enabled ); ?>>
-                <label for="copyright_shortcode_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-copyright_shortcode_enabled" id="copyright_shortcode_enabled" name="ds_toolkit_settings[copyright_shortcode_enabled]" value="1" <?php checked( $copyright_shortcode_enabled ); ?>>
+                <label for="copyright_shortcode_enabled" aria-hidden="true"></label>
             </div>
         </div>
 
