@@ -1107,3 +1107,83 @@ details.dst-health > summary.dst-health-head:focus-visible {
 @media (max-width: 782px) {
     .dst-health-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---- Classes that replaced the inline style attributes of the other tabs (2026-11 audit, item 20) ----
+   Same values as the attributes they replace, except the three small grey notes: #8c9aaa and #888 on
+   white were 2.9:1 and 3.5:1, now #50575e (7.6:1). */
+.dst-mt-20 { margin-top: 20px; }
+.dst-mt-24 { margin-top: 24px; }
+.dst-mt-28 { margin-top: 28px; }
+.dst-mt-40 { margin-top: 40px; }
+.dst-w-15 { width: 15em; }
+.dst-w-full,
+.dst-field-inline input.dst-w-full:not([type="radio"]):not([type="checkbox"]) { width: 100%; }
+/* Two classes on purpose: WordPress styles .wp-core-ui .button with display, which a single class loses to.
+   jQuery show() and slideDown() still reveal an element hidden this way. */
+.dst-wrap .dst-is-hidden.dst-is-hidden { display: none; }
+.dst-form-inline { display: contents; }
+.dst-card--lead { margin-bottom: 20px; }
+.dst-card--note { margin-bottom: 16px; padding: 16px 20px; }
+.dst-note-lead { margin: 0 0 10px; color: #4a5568; font-size: 13px; }
+.dst-note-pre {
+    margin: 0 0 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #4a5568;
+}
+.dst-note-foot { margin: 0; color: #50575e; font-size: 12px; }
+.dst-title-note { font-weight: 400; text-transform: none; letter-spacing: 0; color: #50575e; font-size: 11px; }
+.dst-title-aside { font-weight: 400; color: #50575e; }
+.dst-readonly-code { cursor: default; }
+.dst-line { display: block; margin-top: 8px; }
+.dst-line--strong { font-weight: 600; }
+.dst-ok { color: #1a7f37; }
+.dst-bad { color: #b32d2e; }
+.dst-warn { color: #996800; }
+.dst-card-row--block { display: block; }
+.dst-card-row--end { justify-content: flex-end; }
+.dst-card-info--wide { max-width: none; }
+.dst-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
+.dst-actions-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dst-history { margin-top: 10px; }
+.dst-history > summary { cursor: pointer; }
+.dst-history-list { margin: 6px 0 0 18px; list-style: disc; }
+.dst-mcp-note--full { width: 100%; margin-top: 6px; }
+.dst-field-inline--wide { min-width: 220px; }
+.dst-radio { display: block; }
+.dst-radio + .dst-radio { margin-top: 6px; }
+.dst-badge-danger {
+    margin-left: 4px;
+    padding: 1px 6px;
+    background: #fce8e8;
+    border-radius: 3px;
+    color: #b32d2e;
+    font-size: 11px;
+    font-weight: 600;
+}
+.dst-staff-note { color: #b32d2e; font-size: 11px; }
+.dst-card-info strong.dst-prompt-group { display: block; margin-top: 12px; }
+/* A tool group whose switch is off: still listed, shown as unavailable. */
+.dst-card.dst-is-dim { opacity: .5; }
+
+/* Reference text of the Global CSS, Global JS and MCP tabs (item 19): the same group fold as the Features
+   tab, closed until asked for, so the settings are the first thing on the page. */
+details.dst-ref { margin-top: 20px; }
+details.dst-ref + details.dst-ref { margin-top: 0; }
+details.dst-ref > .dst-group-body > .dst-section-title:first-child { margin-top: 4px; }
+.dst-ref-pointer { margin: 0 0 14px; color: #50575e; font-size: 12px; }
+
+/* WordPress paints every read-only textarea light grey (textarea[readonly], one element plus one attribute),
+   which beat the single class above: the generated Claude config showed pale green on light grey, about
+   1.4:1. The element in the selector puts the dark panel back (pale green on #1d2327 is 10.6:1). */
+textarea.dst-mcp-textarea[readonly] { background: #1d2327; color: #a8d8a8; }
+
+/* Phones: a 220px field beside the label left the label about 60px wide, one word per line (MCP config
+   generator). The field drops under the label instead. */
+@media (max-width: 600px) {
+    .dst-card-row:has(> .dst-field-inline--wide) { flex-wrap: wrap; }
+    .dst-card-row > .dst-field-inline--wide { flex: 1 1 100%; }
+}

@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <code class="dst-mcp-endpoint"><?php echo esc_html( $mcp_url ); ?></code>
         <button type="button" class="button dst-copy-url-btn" data-url="<?php echo esc_attr( $mcp_url ); ?>">Copy URL</button>
         <?php if ( $is_local ) : ?>
-        <span class="dst-mcp-note" style="width:100%;margin-top:6px;">&#9432; LocalWP detected — using <strong>http://</strong> to avoid Node.js SSL issues with local certificates. Application Passwords work because <code>WP_ENVIRONMENT_TYPE=local</code> is set in wp-config.php.</span>
+        <span class="dst-mcp-note dst-mcp-note--full">&#9432; LocalWP detected — using <strong>http://</strong> to avoid Node.js SSL issues with local certificates. Application Passwords work because <code>WP_ENVIRONMENT_TYPE=local</code> is set in wp-config.php.</span>
         <?php endif; ?>
     <?php elseif ( ! $wp_version_ok ) : ?>
         <span class="dst-mcp-dot dst-mcp-dot--off"></span>
@@ -34,7 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 <form method="post" action="options.php">
     <?php settings_fields( 'ds_toolkit_options' ); ?>
 
-    <p class="dst-section-title" style="margin-top:24px;">Claude Access Controls</p>
+    <p class="dst-section-title dst-mt-24">Claude Access Controls</p>
     <div class="dst-card">
 
         <div class="dst-card-row">
@@ -118,7 +118,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-networking"></span></div>
             <div class="dst-card-info">
-                <strong>ACF Schema <span style="color:#b32d2e;font-size:11px;font-weight:600;background:#fce8e8;padding:1px 6px;border-radius:3px;margin-left:4px;">&#9888; Destructive</span></strong>
+                <strong>ACF Schema <span class="dst-badge-danger">&#9888; Destructive</span></strong>
                 <span>Allow Claude to create, update, and delete ACF Post Types and Taxonomies. <strong id="dst-t-mcp_acf_schema_enabled">Restricted to @leagueapps.com accounts only</strong> — even if enabled, non-LeagueApps users cannot use these tools.</span>
             </div>
             <div class="dst-toggle">
@@ -157,7 +157,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-database"></span></div>
             <div class="dst-card-info">
-                <strong>Options <span style="color:#b32d2e;font-size:11px;font-weight:600;background:#fce8e8;padding:1px 6px;border-radius:3px;margin-left:4px;">&#9888; Destructive</span></strong>
+                <strong>Options <span class="dst-badge-danger">&#9888; Destructive</span></strong>
                 <span>Allow Claude to read and write WordPress options (wp_options). <strong id="dst-t-mcp_options_enabled">Restricted to @leagueapps.com accounts only.</strong></span>
             </div>
             <div class="dst-toggle">
@@ -185,8 +185,15 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     <?php submit_button( 'Save Access Controls' ); ?>
 </form>
 
+<details class="dst-group dst-ref">
+    <summary class="dst-group-head">
+        <span class="dst-group-title"><span class="dashicons dashicons-book" aria-hidden="true"></span> Setup guide</span>
+        <span class="dst-group-count">What this is and the five setup steps</span>
+    </summary>
+    <div class="dst-group-body">
+
 <!-- What is this -->
-<p class="dst-section-title" style="margin-top:24px;">What is this?</p>
+<p class="dst-section-title dst-mt-24">What is this?</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-rest-api"></span></div>
@@ -205,13 +212,13 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Setup steps -->
-<p class="dst-section-title" style="margin-top:24px;">Setup Instructions</p>
+<p class="dst-section-title dst-mt-24">Setup Instructions</p>
 <div class="dst-card">
 
     <div class="dst-card-row">
         <div class="dst-card-icon dst-step-num">1</div>
         <div class="dst-card-info">
-            <strong>Install Node.js <span style="font-weight:400;color:#888;">(required on all platforms)</span></strong>
+            <strong>Install Node.js <span class="dst-title-aside">(required on all platforms)</span></strong>
             <span>Download and install the <strong>LTS version</strong> from <a href="https://nodejs.org/en/download" target="_blank" rel="noopener"><strong>nodejs.org/en/download</strong></a>. After install, open a terminal and run <code>node -v</code> to confirm it works.</span>
         </div>
     </div>
@@ -219,7 +226,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     <div class="dst-card-row">
         <div class="dst-card-icon dst-step-num">2</div>
         <div class="dst-card-info">
-            <strong>Install the mcp-remote package <span style="font-weight:400;color:#888;">(Windows only)</span></strong>
+            <strong>Install the mcp-remote package <span class="dst-title-aside">(Windows only)</span></strong>
             <span>On <strong>Windows</strong>, Claude Desktop cannot resolve <code>npx</code> directly. Install mcp-remote globally so it's available as a <code>.cmd</code> file:<br>Open <strong>Command Prompt or PowerShell</strong> and run: <code>npm install -g mcp-remote</code></span>
         </div>
     </div>
@@ -250,8 +257,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 </div>
 
+    </div>
+</details>
+
 <!-- Config generator -->
-<p class="dst-section-title" style="margin-top:24px;">Generate Claude Config</p>
+<p class="dst-section-title dst-mt-24">Generate Claude Config</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-desktop"></span></div>
@@ -259,9 +269,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <strong>Operating System</strong>
             <span>Select the OS of the computer running Claude</span>
         </div>
-        <div class="dst-field-inline" style="min-width:220px;">
-            <label style="display:block;margin-bottom:6px;"><input type="radio" name="dst-mcp-os" value="mac" checked> Mac / Linux</label>
-            <label style="display:block;"><input type="radio" name="dst-mcp-os" value="windows"> Windows</label>
+        <div class="dst-field-inline dst-field-inline--wide">
+            <label class="dst-radio"><input type="radio" name="dst-mcp-os" value="mac" checked> Mac / Linux</label>
+            <label class="dst-radio"><input type="radio" name="dst-mcp-os" value="windows"> Windows</label>
         </div>
     </div>
     <div class="dst-card-row">
@@ -270,8 +280,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <strong>WordPress Username</strong>
             <span>Your WP admin username (the one you log in with)</span>
         </div>
-        <div class="dst-field-inline" style="min-width:220px;">
-            <input type="text" id="dst-mcp-username" class="regular-text" placeholder="your_username" style="width:100%;">
+        <div class="dst-field-inline dst-field-inline--wide">
+            <input type="text" id="dst-mcp-username" class="regular-text dst-w-full" placeholder="your_username">
         </div>
     </div>
     <div class="dst-card-row">
@@ -280,18 +290,18 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <strong>Application Password</strong>
             <span>The password from Step 3 — spaces are fine</span>
         </div>
-        <div class="dst-field-inline" style="min-width:220px;">
-            <input type="text" id="dst-mcp-apppass" class="regular-text" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" style="width:100%;">
+        <div class="dst-field-inline dst-field-inline--wide">
+            <input type="text" id="dst-mcp-apppass" class="regular-text dst-w-full" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx">
         </div>
     </div>
-    <div class="dst-card-row" style="justify-content:flex-end;">
+    <div class="dst-card-row dst-card-row--end">
         <button type="button" class="button button-primary" id="dst-mcp-generate">Generate Config</button>
     </div>
 
-    <div id="dst-mcp-output" style="display:none;">
+    <div id="dst-mcp-output" class="dst-is-hidden">
 
         <div class="dst-card-row dst-mcp-config-block">
-            <div style="width:100%;">
+            <div class="dst-w-full">
                 <p class="dst-mcp-config-label">
                     <strong>Claude Desktop</strong>
                     <span id="dst-mcp-desktop-path">Add inside <code>mcpServers</code> in your Claude Desktop config file</span>
@@ -304,7 +314,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
 
         <div class="dst-card-row dst-mcp-config-block">
-            <div style="width:100%;">
+            <div class="dst-w-full">
                 <p class="dst-mcp-config-label">
                     <strong>Claude Code CLI</strong>
                     <span>Run this command in your terminal once to register the server</span>
@@ -319,11 +329,19 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     </div>
 </div>
 
+<details class="dst-group dst-ref">
+    <summary class="dst-group-head">
+        <span class="dst-group-title"><span class="dashicons dashicons-admin-tools" aria-hidden="true"></span> Tool reference</span>
+        <span class="dst-group-count">Every tool, by group</span>
+    </summary>
+    <div class="dst-group-body">
+        <p class="dst-ref-pointer">Guides for the modules and the builder are on <a href="<?php echo esc_url( DS_Toolkit_Admin::HQ_DOCS_URL ); ?>" target="_blank" rel="noopener">Design Shop HQ</a>. This list is the reference for what the plugin itself ships.</p>
+
 <!-- Available tools -->
-<p class="dst-section-title" style="margin-top:24px;">Available Tools</p>
+<p class="dst-section-title dst-mt-24">Available Tools</p>
 
 <p class="dst-section-title dst-section-subtitle">Posts &amp; Pages</p>
-<div class="dst-card" style="<?php echo $mcp_posts_pages_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_posts_pages_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
         <div class="dst-card-info"><strong>list_posts</strong><span>List posts or pages. Filter by status or keyword.</span></div>
@@ -362,7 +380,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <p class="dst-section-title dst-section-subtitle">Custom Post Types</p>
-<div class="dst-card" style="<?php echo $mcp_cpt_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_cpt_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-database"></span></div>
         <div class="dst-card-info"><strong>list_post_types</strong><span>Discover all registered CPTs — Events, Athletes, Staff, Teams, and any future types.</span></div>
@@ -381,7 +399,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <p class="dst-section-title dst-section-subtitle">Taxonomies</p>
-<div class="dst-card" style="<?php echo $mcp_taxonomies_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_taxonomies_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-tag"></span></div>
         <div class="dst-card-info"><strong>list_taxonomies</strong><span>List all public taxonomies and which post types they belong to.</span></div>
@@ -415,7 +433,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <p class="dst-section-title dst-section-subtitle">ACF / Custom Fields</p>
-<div class="dst-card" style="<?php echo $mcp_acf_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_acf_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-forms"></span></div>
         <div class="dst-card-info"><strong>get_post_fields</strong><span>Read all ACF fields on a post or CPT entry. Falls back to post meta if ACF is not active.</span></div>
@@ -429,7 +447,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <p class="dst-section-title dst-section-subtitle">Partner Settings</p>
-<div class="dst-card" style="<?php echo $mcp_acf_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_acf_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-admin-site"></span></div>
         <div class="dst-card-info"><strong>get_partner_settings</strong><span>Read all ACF Partner Settings — logo, email, phone, address, and social links (Facebook, Instagram, X, YouTube, LinkedIn, TikTok, LeagueApps).</span></div>
@@ -443,7 +461,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <p class="dst-section-title dst-section-subtitle">DS Toolkit Settings</p>
-<div class="dst-card" style="<?php echo $mcp_toolkit_settings_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_toolkit_settings_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-admin-settings"></span></div>
         <div class="dst-card-info"><strong>get_toolkit_settings</strong><span>Read all DS Toolkit settings — feature toggles, column counts, template IDs, etc.</span></div>
@@ -456,8 +474,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     </div>
 </div>
 
-<p class="dst-section-title dst-section-subtitle">ACF Schema <span style="color:#b32d2e;font-size:11px;">&#9888; @leagueapps.com only</span></p>
-<div class="dst-card" style="<?php echo $mcp_acf_schema_enabled ? '' : 'opacity:.5;'; ?>">
+<p class="dst-section-title dst-section-subtitle">ACF Schema <span class="dst-staff-note">&#9888; @leagueapps.com only</span></p>
+<div class="dst-card<?php echo $mcp_acf_schema_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
         <div class="dst-card-info"><strong>acf_list_post_types</strong><span>List all ACF-managed post types — returns key, slug, labels, and settings.</span></div>
@@ -500,8 +518,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     </div>
 </div>
 
-<p class="dst-section-title dst-section-subtitle">ACF Field Groups <span style="color:#b32d2e;font-size:11px;">&#9888; @leagueapps.com only</span></p>
-<div class="dst-card" style="<?php echo $mcp_acf_schema_enabled ? '' : 'opacity:.5;'; ?>">
+<p class="dst-section-title dst-section-subtitle">ACF Field Groups <span class="dst-staff-note">&#9888; @leagueapps.com only</span></p>
+<div class="dst-card<?php echo $mcp_acf_schema_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
         <div class="dst-card-info"><strong>acf_list_field_groups</strong><span>List all ACF field groups — returns key, title, active status, and location rules.</span></div>
@@ -529,8 +547,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     </div>
 </div>
 
-<p class="dst-section-title dst-section-subtitle">ACF Options Pages <span style="color:#b32d2e;font-size:11px;">&#9888; @leagueapps.com only &bull; ACF Pro 6.2+</span></p>
-<div class="dst-card" style="<?php echo $mcp_acf_schema_enabled ? '' : 'opacity:.5;'; ?>">
+<p class="dst-section-title dst-section-subtitle">ACF Options Pages <span class="dst-staff-note">&#9888; @leagueapps.com only &bull; ACF Pro 6.2+</span></p>
+<div class="dst-card<?php echo $mcp_acf_schema_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
         <div class="dst-card-info"><strong>acf_list_options_pages</strong><span>List all ACF Pro options pages — returns key, title, menu_slug, and parent_slug.</span></div>
@@ -549,7 +567,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <p class="dst-section-title dst-section-subtitle">Beaver Builder</p>
-<div class="dst-card" style="<?php echo $mcp_bb_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_bb_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-art"></span></div>
         <div class="dst-card-info"><strong>get_bb_global_colors</strong><span>Read all BB Global Style colors — returns a label → hex map (e.g. Primary, Accent, Headings).</span></div>
@@ -573,7 +591,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <p class="dst-section-title dst-section-subtitle">Menus</p>
-<div class="dst-card" style="<?php echo $mcp_menus_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_menus_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
         <div class="dst-card-info"><strong>list_menus</strong><span>List all nav menus with their IDs, slugs, item counts, and assigned theme locations.</span></div>
@@ -593,7 +611,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <p class="dst-section-title dst-section-subtitle">Maintenance</p>
-<div class="dst-card" style="<?php echo $mcp_maintenance_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_maintenance_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-admin-tools"></span></div>
         <div class="dst-card-info"><strong>flush_rewrite_rules</strong><span>Flush WordPress rewrite rules — fixes 404s after adding CPTs or changing permalink structure.</span></div>
@@ -613,8 +631,8 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     </div>
 </div>
 
-<p class="dst-section-title dst-section-subtitle">Options <span style="color:#b32d2e;font-size:11px;">&#9888; @leagueapps.com only</span></p>
-<div class="dst-card" style="<?php echo $mcp_options_enabled ? '' : 'opacity:.5;'; ?>">
+<p class="dst-section-title dst-section-subtitle">Options <span class="dst-staff-note">&#9888; @leagueapps.com only</span></p>
+<div class="dst-card<?php echo $mcp_options_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-database"></span></div>
         <div class="dst-card-info"><strong>get_option</strong><span>Read any WordPress option by key (e.g. blogname, siteurl, blogdescription).</span></div>
@@ -628,7 +646,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <p class="dst-section-title dst-section-subtitle">Users &amp; Media</p>
-<div class="dst-card" style="<?php echo $mcp_users_enabled ? '' : 'opacity:.5;'; ?>">
+<div class="dst-card<?php echo $mcp_users_enabled ? '' : ' dst-is-dim'; ?>">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-admin-users"></span></div>
         <div class="dst-card-info"><strong>list_users</strong><span>List users filtered by role, search keyword, with pagination.</span></div>
@@ -651,8 +669,18 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     </div>
 </div>
 
+    </div>
+</details>
+
+<details class="dst-group dst-ref">
+    <summary class="dst-group-head">
+        <span class="dst-group-title"><span class="dashicons dashicons-format-chat" aria-hidden="true"></span> Example prompts</span>
+        <span class="dst-group-count">Things to ask Claude</span>
+    </summary>
+    <div class="dst-group-body">
+
 <!-- Example prompts -->
-<p class="dst-section-title" style="margin-top:24px;">Example Claude Prompts</p>
+<p class="dst-section-title dst-mt-24">Example Claude Prompts</p>
 <div class="dst-card">
     <div class="dst-card-row dst-shortcode-docs">
         <div class="dst-card-icon"><span class="dashicons dashicons-format-chat"></span></div>
@@ -663,7 +691,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <p>Assign taxonomy terms</p>
             <code>Assign the "Basketball" and "Spring 2025" terms to post ID 88</code>
 
-            <strong style="margin-top:12px;display:block;">Design</strong>
+            <strong class="dst-prompt-group">Design</strong>
             <p>Switch the site header</p>
             <code>Change the site header to Header Style 4</code>
             <p>Switch the homepage layout</p>
@@ -673,7 +701,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <p>Edit global CSS</p>
             <code>Show me the Global CSS, then add a rule that makes all h2 headings color #333</code>
 
-            <strong style="margin-top:12px;display:block;">ACF Schema</strong>
+            <strong class="dst-prompt-group">ACF Schema</strong>
             <p>Explore field groups</p>
             <code>List all ACF field groups and show me the fields inside the "Event Details" group</code>
             <p>Create a field group</p>
@@ -681,19 +709,19 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <p>Manage post types</p>
             <code>List all ACF post types and show me the settings for the "athletes" one</code>
 
-            <strong style="margin-top:12px;display:block;">Menus</strong>
+            <strong class="dst-prompt-group">Menus</strong>
             <p>Rebuild a menu</p>
             <code>Replace the Primary Menu with these items: Home (page ID 2), About (page ID 14), Programs (custom link /programs/), Contact (page ID 22)</code>
             <p>Assign a menu</p>
             <code>Assign the "Main Menu" to the primary-menu location</code>
 
-            <strong style="margin-top:12px;display:block;">Maintenance</strong>
+            <strong class="dst-prompt-group">Maintenance</strong>
             <p>Flush everything</p>
             <code>Flush the rewrite rules, object cache, and delete all transients</code>
             <p>Fix a URL after migration</p>
             <code>Search and replace "https://old-domain.com" with "https://new-domain.com" in the database</code>
 
-            <strong style="margin-top:12px;display:block;">Settings</strong>
+            <strong class="dst-prompt-group">Settings</strong>
             <p>Toggle a feature</p>
             <code>Disable the [current_year] shortcode in DS Toolkit settings</code>
             <p>Read a WP option</p>
@@ -701,6 +729,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
     </div>
 </div>
+
+    </div>
+</details>
 
 <script type="text/javascript">
 (function ($) {

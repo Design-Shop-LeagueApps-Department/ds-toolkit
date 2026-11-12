@@ -8,7 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 ?>
 
 <!-- Info card -->
-<div class="dst-card" style="margin-bottom:20px;">
+<div class="dst-card dst-card--lead">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-editor-code"></span></div>
         <div class="dst-card-info">
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <span>Base styles live in <code>includes/defaults/global-css.css</code> and update with the plugin. Use <strong id="dst-t-global_css_enabled">CSS Overrides</strong> below to change variable values per-site — overrides are stored in the database and survive every plugin update.</span>
         </div>
         <div class="dst-toggle">
-            <form method="post" action="options.php" style="display:contents;">
+            <form method="post" action="options.php" class="dst-form-inline">
                 <?php settings_fields( 'ds_toolkit_options' ); ?>
                 <input type="hidden" name="ds_toolkit_settings[global_css_enabled]" value="0">
                 <input type="checkbox" role="switch" aria-labelledby="dst-t-global_css_enabled" id="global_css_enabled" name="ds_toolkit_settings[global_css_enabled]" value="1" <?php checked( $global_css_enabled ); ?> onchange="this.form.submit()">
@@ -27,19 +27,19 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- CSS Variable Overrides -->
-<p class="dst-section-title" style="margin-top:20px;">CSS Variable Overrides <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8c9aaa;font-size:11px;">— stored in database · survives plugin updates</span></p>
+<p class="dst-section-title dst-mt-20">CSS Variable Overrides <span class="dst-title-note">— stored in database · survives plugin updates</span></p>
 
 <form method="post" action="options.php">
     <?php settings_fields( 'ds_toolkit_options' ); ?>
     <input type="hidden" name="ds_toolkit_settings[global_css_enabled]" value="<?php echo $global_css_enabled ? '1' : '0'; ?>">
 
-    <div class="dst-card" style="margin-bottom:16px;padding:16px 20px;">
-        <p style="margin:0 0 10px;color:#4a5568;font-size:13px;">Override any <code>--dst-*</code> variable below. Only add what you want to change — defaults apply for everything else.</p>
-        <pre style="background:#f8f9fa;border:1px solid #e2e8f0;border-radius:6px;padding:12px;font-size:12px;color:#4a5568;margin:0 0 12px;">:root {
+    <div class="dst-card dst-card--note">
+        <p class="dst-note-lead">Override any <code>--dst-*</code> variable below. Only add what you want to change — defaults apply for everything else.</p>
+        <pre class="dst-note-pre">:root {
   --dst-height-tall:   80vh;   /* was 65vh */
   --dst-border-radius: 16px;   /* was 10px */
 }</pre>
-        <p style="margin:0;color:#8c9aaa;font-size:12px;"><strong>Available variables:</strong> <code>--dst-height-tall</code> · <code>--dst-height-tall-tablet</code> · <code>--dst-height-medium</code> · <code>--dst-height-medium-tablet</code> · <code>--dst-height-small</code> · <code>--dst-height-avatar</code> · <code>--dst-small-icon</code> · <code>--dst-sponsor-height</code> · <code>--dst-border-radius</code> · <code>--dst-zindex-medium</code> · <code>--dst-zindex-high</code> · <code>--dst-sticky-logo-width</code> · <code>--dst-sticky-logo-height</code> · <code>--dst-sticky-logo-margin</code> · <code>--dst-h2-home</code> · <code>--dst-h2-home-mobile</code> · <code>--dst-grid-gap</code> · <code>--dst-grid-gap-tablet</code> · <code>--dst-grid-item-padding</code></p>
+        <p class="dst-note-foot"><strong>Available variables:</strong> <code>--dst-height-tall</code> · <code>--dst-height-tall-tablet</code> · <code>--dst-height-medium</code> · <code>--dst-height-medium-tablet</code> · <code>--dst-height-small</code> · <code>--dst-height-avatar</code> · <code>--dst-small-icon</code> · <code>--dst-sponsor-height</code> · <code>--dst-border-radius</code> · <code>--dst-zindex-medium</code> · <code>--dst-zindex-high</code> · <code>--dst-sticky-logo-width</code> · <code>--dst-sticky-logo-height</code> · <code>--dst-sticky-logo-margin</code> · <code>--dst-h2-home</code> · <code>--dst-h2-home-mobile</code> · <code>--dst-grid-gap</code> · <code>--dst-grid-gap-tablet</code> · <code>--dst-grid-item-padding</code></p>
     </div>
 
     <div class="dst-code-editor-wrap">
@@ -55,8 +55,16 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     </div>
 </form>
 
+<details class="dst-group dst-ref">
+    <summary class="dst-group-head">
+        <span class="dst-group-title"><span class="dashicons dashicons-book" aria-hidden="true"></span> Reference: utility classes</span>
+        <span class="dst-group-count">Class list and the full stylesheet</span>
+    </summary>
+    <div class="dst-group-body">
+        <p class="dst-ref-pointer">Guides for the modules and the builder are on <a href="<?php echo esc_url( DS_Toolkit_Admin::HQ_DOCS_URL ); ?>" target="_blank" rel="noopener">Design Shop HQ</a>. This list is the reference for what the plugin itself ships.</p>
+
 <!-- Image Heights -->
-<p class="dst-section-title" style="margin-top:28px;">Image Heights</p>
+<p class="dst-section-title dst-mt-28">Image Heights</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-format-image"></span></div>
@@ -89,7 +97,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Text Colors -->
-<p class="dst-section-title" style="margin-top:20px;">Text Colors</p>
+<p class="dst-section-title dst-mt-20">Text Colors</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-editor-textcolor"></span></div>
@@ -114,7 +122,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Outline Text -->
-<p class="dst-section-title" style="margin-top:20px;">Outline Text</p>
+<p class="dst-section-title dst-mt-20">Outline Text</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-text"></span></div>
@@ -135,7 +143,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Layout Utilities -->
-<p class="dst-section-title" style="margin-top:20px;">Layout Utilities</p>
+<p class="dst-section-title dst-mt-20">Layout Utilities</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-layout"></span></div>
@@ -160,7 +168,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Blend Modes -->
-<p class="dst-section-title" style="margin-top:20px;">Blend Modes</p>
+<p class="dst-section-title dst-mt-20">Blend Modes</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-admin-appearance"></span></div>
@@ -173,7 +181,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Menu -->
-<p class="dst-section-title" style="margin-top:20px;">Menu</p>
+<p class="dst-section-title dst-mt-20">Menu</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
@@ -186,7 +194,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Sticky Header -->
-<p class="dst-section-title" style="margin-top:20px;">Sticky Header</p>
+<p class="dst-section-title dst-mt-20">Sticky Header</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-admin-appearance"></span></div>
@@ -195,7 +203,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Carousels -->
-<p class="dst-section-title" style="margin-top:20px;">Carousels</p>
+<p class="dst-section-title dst-mt-20">Carousels</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-images-alt2"></span></div>
@@ -204,7 +212,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- CTA / Infobox -->
-<p class="dst-section-title" style="margin-top:20px;">CTA / Infobox</p>
+<p class="dst-section-title dst-mt-20">CTA / Infobox</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-megaphone"></span></div>
@@ -221,7 +229,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Animation -->
-<p class="dst-section-title" style="margin-top:20px;">Animation</p>
+<p class="dst-section-title dst-mt-20">Animation</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-arrow-down"></span></div>
@@ -230,7 +238,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Social -->
-<p class="dst-section-title" style="margin-top:20px;">Social Icons</p>
+<p class="dst-section-title dst-mt-20">Social Icons</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-share"></span></div>
@@ -239,7 +247,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Full CSS source -->
-<p class="dst-section-title" style="margin-top:28px;">Full CSS Source <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8c9aaa;font-size:11px;">— read only · edit in <code>includes/defaults/global-css.css</code></span></p>
+<p class="dst-section-title dst-mt-28">Full CSS Source <span class="dst-title-note">— read only · edit in <code>includes/defaults/global-css.css</code></span></p>
 <div class="dst-code-editor-wrap">
-    <textarea readonly rows="40" style="cursor:default;"><?php echo esc_textarea( file_get_contents( DS_TOOLKIT_PATH . 'includes/defaults/global-css.css' ) ); ?></textarea>
+    <textarea readonly rows="40" class="dst-readonly-code"><?php echo esc_textarea( file_get_contents( DS_TOOLKIT_PATH . 'includes/defaults/global-css.css' ) ); ?></textarea>
 </div>
+
+    </div>
+</details>
+

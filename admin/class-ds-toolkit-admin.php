@@ -13,10 +13,25 @@ class DS_Toolkit_Admin {
         // opening the page. Staff are unchanged.
         add_filter( 'option_page_capability_ds_toolkit_options', array( $this, 'settings_capability' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+        add_action( 'load-settings_page_ds-toolkit', array( $this, 'redirect_retired_tabs' ) );
 
         require_once DS_TOOLKIT_PATH . 'admin/class-ds-logo-finder.php';
         $this->logo_finder = new DS_Logo_Finder();
         $this->logo_finder->init();
+    }
+
+    /** Where the team's guides live. The reference folds of the Global CSS, Global JS and MCP tabs link here. */
+    const HQ_DOCS_URL = 'https://designshophq.wpenginepowered.com/toolkit/';
+
+    /**
+     * The University Logo Finder was listed twice: as a tab here and under Media. The Media page is the one
+     * partners can reach, so it is the one kept; an old bookmark of the tab lands there.
+     */
+    public function redirect_retired_tabs() {
+        if ( isset( $_GET['tab'] ) && 'logos' === sanitize_key( wp_unslash( $_GET['tab'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing
+            wp_safe_redirect( admin_url( 'upload.php?page=ds-logo-finder' ) );
+            exit;
+        }
     }
 
     private function get_mcp_url() {
@@ -56,8 +71,8 @@ class DS_Toolkit_Admin {
     }
 
     /**
-     * Media -> University Logo Finder. Same view and import handler as the
-     * DS Toolkit tab, without the settings chrome around it.
+     * Media -> University Logo Finder, the one place the finder lives (the DS Toolkit tab that repeated it
+     * was retired in the 2026-11 audit).
      */
     public function render_logo_finder_page() {
         if ( ! current_user_can( 'upload_files' ) ) {
@@ -149,10 +164,7 @@ class DS_Toolkit_Admin {
             DS_TOOLKIT_VERSION
         );
 
-        if ( $active_tab === 'logos' ) {
-            $this->logo_finder->enqueue_assets();
-
-        } elseif ( $active_tab === 'global-css' ) {
+        if ( $active_tab === 'global-css' ) {
             $settings = wp_enqueue_code_editor( array( 'type' => 'text/css' ) );
             if ( $settings ) {
                 wp_add_inline_script(
@@ -211,9 +223,6 @@ class DS_Toolkit_Admin {
                     General
                 </a>
                 <?php endif; ?>
-                <a href="<?php echo esc_url( $base_url . '&tab=logos' ); ?>" class="dst-tab<?php echo $active_tab === 'logos' ? ' is-active' : ''; ?>">
-                    University Logo Finder
-                </a>
                 <a href="<?php echo esc_url( $base_url . '&tab=global-css' ); ?>" class="dst-tab<?php echo $active_tab === 'global-css' ? ' is-active' : ''; ?>">
                     Global CSS
                 </a>
@@ -235,9 +244,6 @@ class DS_Toolkit_Admin {
                 $footer_copyright_text     = isset( $opts['footer_copyright_text'] ) ? $opts['footer_copyright_text'] : '';
                 $copyright_shortcode_enabled = ! empty( $opts['copyright_shortcode_enabled'] );
                 require DS_TOOLKIT_PATH . 'admin/views/page-general.php';
-
-            } elseif ( $active_tab === 'logos' ) {
-                require DS_TOOLKIT_PATH . 'admin/views/page-logo-finder.php';
 
             } elseif ( $active_tab === 'leagueapps' ) {
                 require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
