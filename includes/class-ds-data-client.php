@@ -26,18 +26,22 @@ class DS_Data_Client {
 	 *
 	 * @param string $url
 	 * @param array  $args timeout (seconds, default 8), attempts (default 3), deadline (unix time as float,
-	 *                     0 = none), agent (short name for the User-Agent, e.g. "programs"), headers (array),
-	 *                     pause (microseconds between attempts, multiplied by the attempt number; default 300000).
-	 * @return array ok (bool), code (int, 0 = no answer), tries (int), json (array|null), retry_after (int
-	 *               seconds, 429 only), kind ('' | connection | json | key | missing | throttled | http |
-	 *               deadline), error (string), wp_error (the transport's own WP_Error on a connection failure).
+	 *                     0 = none), agent (short name for the User-Agent, e.g. "programs") or user_agent (the
+	 *                     whole string, for a caller that must not name the site), headers (array), pause
+	 *                     (microseconds between attempts, multiplied by the attempt number; default 300000),
+	 *                     http (more wp_remote_get arguments: sslverify, redirection, reject_unsafe_urls).
+	 * @return array ok (bool), code (int, 0 = no answer), tries (int), json (array|null), body (string, whatever
+	 *               the service sent), retry_after (int seconds, when the service asked for a wait), kind ('' |
+	 *               connection | json | key | missing | throttled | http | deadline), error (string), wp_error
+	 *               (the transport's own WP_Error on a connection failure).
 	 */
 	public static function get_json( $url, array $args = array() ) {
 		$timeout  = max( 1, (int) ( $args['timeout'] ?? 8 ) );
 		$attempts = max( 1, (int) ( $args['attempts'] ?? 3 ) );
 		$deadline = (float) ( $args['deadline'] ?? 0 );
 		$pause    = (int) ( $args['pause'] ?? 300000 );
-		$out      = array( 'ok' => false, 'code' => 0, 'tries' => 0, 'json' => null, 'retry_after' => 0, 'kind' => 'connection', 'error' => 'no attempt made', 'wp_error' => null );
+		$out      = array( 'ok' => false, 'code' => 0, 'tries' => 0, 'json' => null, 'body' => '', 'retry_after' => 0, 'kind' => 'connection', 'error' => 'no attempt made', 'wp_error' => null );
+		$agent    = isset( $args['user_agent'] ) ? (string) $args['user_agent'] : self::user_agent( (string) ( $args['agent'] ?? 'data' ) );
 
 		for ( $attempt = 1; $attempt <= $attempts; $attempt++ ) {
 			$wait = $timeout;
@@ -53,11 +57,11 @@ class DS_Data_Client {
 				$wait = (int) max( 1, min( $timeout, floor( $left ) ) );
 			}
 			$out['tries'] = $attempt;
-			$res = wp_remote_get( $url, array(
+			$res = wp_remote_get( $url, array_merge( (array) ( $args['http'] ?? array() ), array(
 				'timeout'    => $wait,
-				'user-agent' => self::user_agent( (string) ( $args['agent'] ?? 'data' ) ),
+				'user-agent' => $agent,
 				'headers'    => array_merge( array( 'Accept' => 'application/json' ), (array) ( $args['headers'] ?? array() ) ),
-			) );
+			) ) );
 
 			if ( is_wp_error( $res ) ) {
 				// DNS, TLS, timeout: a blip on our side, worth another try.
@@ -67,8 +71,9 @@ class DS_Data_Client {
 			} else {
 				$code        = (int) wp_remote_retrieve_response_code( $res );
 				$out['code'] = $code;
+				$out['body'] = (string) wp_remote_retrieve_body( $res );
 				if ( 200 === $code ) {
-					$json = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+					$json = json_decode( $out['body'], true );
 					if ( is_array( $json ) ) {
 						return array_merge( $out, array( 'ok' => true, 'json' => $json, 'kind' => '', 'error' => '', 'wp_error' => null ) );
 					}
@@ -80,9 +85,8 @@ class DS_Data_Client {
 					$out['kind']     = $kinds[ $code ] ?? 'http';
 					$out['error']    = 'HTTP ' . $code;
 					$out['wp_error'] = null;
-					if ( 429 === $code ) {
-						$out['retry_after'] = max( 0, (int) wp_remote_retrieve_header( $res, 'retry-after' ) );
-					}
+					// Sent with a 429, and sometimes with a 503: either way the service is asking for a wait.
+					$out['retry_after'] = max( 0, (int) wp_remote_retrieve_header( $res, 'retry-after' ) );
 					return $out; // the service answered: final for this call
 				}
 			}

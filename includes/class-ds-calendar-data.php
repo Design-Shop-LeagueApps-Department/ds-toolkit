@@ -1,6 +1,7 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 require_once __DIR__ . '/class-ds-lock.php';
+require_once __DIR__ . '/class-ds-data-client.php';
 
 /**
  * LeagueApps team schedules for the LeagueApps Calendar module.
@@ -444,12 +445,14 @@ class DS_Calendar_Data {
 			if ( $left < 2 ) {
 				break;
 			}
-			$r = wp_remote_get( $u, array( 'timeout' => min( self::TIMEOUT, $left ), 'user-agent' => $ua, 'headers' => array( 'Accept' => 'application/json' ) ) );
-			if ( is_wp_error( $r ) ) {
+			// One request, no retry here: the batch has its own deadline and its own back-off. The shared client
+			// only carries the request and reads the code, the body and Retry-After.
+			$r = DS_Data_Client::get_json( $u, array( 'timeout' => min( self::TIMEOUT, $left ), 'attempts' => 1, 'user_agent' => $ua ) );
+			if ( 0 === $r['code'] ) {
 				$out[ $k ] = array( 'code' => 0, 'body' => '' );
 				continue;
 			}
-			$out[ $k ] = array( 'code' => (int) wp_remote_retrieve_response_code( $r ), 'body' => wp_remote_retrieve_body( $r ), 'retry_after' => (int) wp_remote_retrieve_header( $r, 'retry-after' ) );
+			$out[ $k ] = array( 'code' => (int) $r['code'], 'body' => (string) $r['body'], 'retry_after' => (int) $r['retry_after'] );
 			if ( 429 === $out[ $k ]['code'] ) {
 				break;
 			}

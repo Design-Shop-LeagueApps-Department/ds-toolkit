@@ -49,6 +49,17 @@ $r = $get( array( array( 'code' => 429, 'headers' => array( 'retry-after' => '12
 chk( 'a 429 stops at once and carries Retry-After', array( $pick( $r ), $r['retry_after'] ), array( array( false, 429, 1, 'throttled' ), 120 ) );
 chk( 'attempts can be set', $pick( $get( array( $down ), array( 'attempts' => 1 ) ) ), array( false, 0, 1, 'connection' ) );
 
+echo "what a caller can set, and what it gets back\n";
+$r = $get( array( array( 'code' => 200, 'body' => '{"a":1}', 'headers' => array() ) ), array( 'user_agent' => 'ds-toolkit-roster/1', 'http' => array( 'sslverify' => true, 'redirection' => 0, 'timeout' => 99 ), 'headers' => array( 'Authorization' => 'Bearer x' ) ) );
+chk( 'its own User-Agent, extra transport settings, extra headers', array( $GLOBALS['calls'][0]['user-agent'], $GLOBALS['calls'][0]['redirection'], $GLOBALS['calls'][0]['sslverify'], $GLOBALS['calls'][0]['headers'] ), array( 'ds-toolkit-roster/1', 0, true, array( 'Accept' => 'application/json', 'Authorization' => 'Bearer x' ) ) );
+chk( 'a transport setting cannot override the timeout the client worked out', $GLOBALS['calls'][0]['timeout'], 8 );
+chk( 'the body comes back as sent', $r['body'], '{"a":1}' );
+$r = $get( array( array( 'code' => 503, 'body' => 'busy', 'headers' => array( 'retry-after' => '30' ) ) ) );
+chk( 'a 503 that asks for a wait carries it, with the body', array( $r['code'], $r['retry_after'], $r['body'], $r['kind'] ), array( 503, 30, 'busy', 'http' ) );
+$r = $get( array( $down ), array( 'attempts' => 1 ) );
+chk( 'no answer: code 0 and an empty body', array( $r['code'], $r['body'] ), array( 0, '' ) );
+chk( 'the Calendar\'s one-at-a-time requests go through the client', (bool) preg_match( "/DS_Data_Client::get_json\( \\\$u, array\( 'timeout' => min\( self::TIMEOUT, \\\$left \), 'attempts' => 1, 'user_agent' => \\\$ua \) \)/", file_get_contents( dirname( __DIR__ ) . '/includes/class-ds-calendar-data.php' ) ), true );
+
 echo "deadline\n";
 $r = $get( array( $ok ), array( 'deadline' => microtime( true ) - 1 ) );
 chk( 'past the deadline: no request is made', array( $pick( $r ), count( $GLOBALS['calls'] ) ), array( array( false, 0, 0, 'deadline' ), 0 ) );
