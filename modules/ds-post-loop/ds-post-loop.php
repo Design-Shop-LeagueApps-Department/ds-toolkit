@@ -2410,7 +2410,7 @@ $ds_pl_form = array(
 						'help'    => __( 'Border around each card. “Theme Default” keeps the layout’s built-in border.', 'ds-toolkit' ),
 					),
 					'card_bd_width'  => array( 'type' => 'unit', 'label' => __( 'Border Width', 'ds-toolkit' ), 'default' => '1', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 10, 'step' => 1 ) ),
-					'card_bd_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Color', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
+					'card_bd_color'  => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Border Colour', 'ds-toolkit' ), 'default' => '', 'show_reset' => true ),
 					'card_bd_radius' => array( 'type' => 'unit', 'label' => __( 'Corner Radius', 'ds-toolkit' ), 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 40, 'step' => 1 ), 'help' => __( 'Blank keeps the layout default.', 'ds-toolkit' ) ),
 				),
 			),

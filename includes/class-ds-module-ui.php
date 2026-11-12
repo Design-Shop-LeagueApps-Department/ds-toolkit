@@ -225,6 +225,117 @@ class DS_Module_UI {
 	}
 
 	/**
+	 * Every breakpoint of THIS site, widest first: setting suffix => max-width in px. Read from Beaver
+	 * Builder's global settings, Large included, so a block follows the site instead of a width typed into
+	 * its stylesheet (the modules carried 1024, 768, 767, 600, 480 and 1199, and only 2 of 82 responsive
+	 * fields read the Large value an editor can type).
+	 */
+	public static function breakpoint_map() {
+		$g = class_exists( 'FLBuilderModel' ) ? FLBuilderModel::get_global_settings() : null;
+		list( $md, $sm ) = self::breakpoints();
+		$lg = ( $g && ! empty( $g->large_breakpoint ) ) ? (int) $g->large_breakpoint : 1200;
+		return array( '_large' => $lg, '_medium' => $md, '_responsive' => $sm );
+	}
+
+	/**
+	 * The CSS for ONE responsive setting: the base rule, then one media rule per breakpoint where the editor
+	 * typed a value (the base value is not repeated at a breakpoint that was left blank: it cascades).
+	 *
+	 *   echo DS_Module_UI::responsive_css( ".fl-node-$id .ds-x-grid", 'gap', $settings, 'grid_gap' );
+	 *   echo DS_Module_UI::responsive_css( $sel, '--ds-cols', $settings, 'cols', 'int', '3' );
+	 *
+	 * @param string          $selector full selector, already node-scoped
+	 * @param string|string[] $prop     one property, or several that take the same value
+	 * @param object          $settings the module settings
+	 * @param string          $key      the setting name; `<key>_large`, `<key>_medium` and `<key>_responsive` are read too
+	 * @param string|callable $format   'px' (a number becomes Npx), 'int', 'unit' (a number plus the unit the
+	 *                                  editor picked, read from `<key>_unit` per breakpoint), 'raw' (a clean
+	 *                                  CSS length or keyword), or a callable( $raw ) returning the CSS value
+	 *                                  or '' to skip
+	 * @param string          $default  base value when the setting is blank ('' = no base rule)
+	 * @return string CSS, one rule per line, or ''
+	 */
+	public static function responsive_css( $selector, $prop, $settings, $key, $format = 'px', $default = '' ) {
+		$value = function ( $raw, $suffix = '' ) use ( $format, $settings, $key ) {
+			if ( null === $raw || '' === $raw || is_array( $raw ) || is_object( $raw ) ) {
+				return '';
+			}
+			if ( 'unit' === $format ) {
+				$unit = (string) ( $settings->{ $key . $suffix . '_unit' } ?? ( $settings->{ $key . '_unit' } ?? 'px' ) );
+				$unit = in_array( $unit, array( 'px', '%', 'vw', 'vh', 'em', 'rem' ), true ) ? $unit : 'px';
+				return is_numeric( $raw ) ? ( 0 + $raw ) . $unit : '';
+			}
+			if ( is_callable( $format ) ) {
+				return (string) call_user_func( $format, $raw );
+			}
+			$raw = trim( (string) $raw );
+			if ( 'int' === $format ) {
+				return is_numeric( $raw ) ? (string) (int) $raw : '';
+			}
+			if ( 'raw' === $format ) {
+				// A length or a keyword only: nothing that could close the rule and start another.
+				return preg_match( '/^[a-zA-Z0-9.%() ,+\-\/*]+$/', $raw ) ? $raw : '';
+			}
+			return is_numeric( $raw ) ? ( 0 + $raw ) . 'px' : '';
+		};
+		$rule = function ( $v ) use ( $prop ) {
+			$out = '';
+			foreach ( (array) $prop as $p ) {
+				$out .= $p . ':' . $v . ';';
+			}
+			return $out;
+		};
+		$base = $value( $settings->{$key} ?? '' );
+		if ( '' === $base ) {
+			$base = (string) $default;
+		}
+		$css = '' !== $base ? "{$selector}{" . $rule( $base ) . "}\n" : '';
+		foreach ( self::breakpoint_map() as $suffix => $bp ) {
+			$v = $value( $settings->{ $key . $suffix } ?? '', $suffix );
+			if ( '' !== $v ) {
+				$css .= "@media(max-width:{$bp}px){{$selector}{" . $rule( $v ) . "}}\n";
+			}
+		}
+		return $css;
+	}
+
+	/* ------------------------------------------------------------------
+	 * Field builders (the house style in docs/BUILDER-FORMS.md).
+	 *
+	 * The same literal was typed again in every form: the colour field 275 times, with five private
+	 * factories of it. New fields use these; an existing field moves over when its module is next edited.
+	 * A builder only shapes the control: the setting KEY is the caller's and never changes.
+	 * ---------------------------------------------------------------- */
+
+	/** A colour: blank by default (so the preset or the theme shows through), with reset and global colours. */
+	public static function color_field( $label, array $extra = array() ) {
+		return array_merge( array( 'type' => 'color', 'label' => $label, 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ) ), $extra );
+	}
+
+	/** A size in px with a slider. Pass 'responsive' => true in $extra and emit it with responsive_css(). */
+	public static function unit_field( $label, $min, $max, array $extra = array() ) {
+		return array_merge( array( 'type' => 'unit', 'label' => $label, 'default' => '', 'description' => 'px', 'slider' => array( 'min' => $min, 'max' => $max, 'step' => 1 ) ), $extra );
+	}
+
+	/** On or off: a select storing 'yes' or 'no', listed No then Yes. */
+	public static function yes_no_field( $label, $default = 'no', array $extra = array() ) {
+		return array_merge( array( 'type' => 'select', 'label' => $label, 'default' => 'yes' === $default ? 'yes' : 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ) ), $extra );
+	}
+
+	/** Show or hide one part: a select storing 'show' or 'hide'. */
+	public static function show_hide_field( $label, $default = 'show', array $extra = array() ) {
+		return array_merge( array( 'type' => 'select', 'label' => $label, 'default' => 'hide' === $default ? 'hide' : 'show', 'options' => array( 'show' => __( 'Show', 'ds-toolkit' ), 'hide' => __( 'Hide', 'ds-toolkit' ) ) ), $extra );
+	}
+
+	/**
+	 * A block's own width: a unit with px, % and vw, different per screen size. Emit it with
+	 * responsive_css( $selector, 'max-width', $settings, $key, 'unit' ).
+	 */
+	public static function width_field( $label, array $extra = array() ) {
+		return array_merge( array( 'type' => 'unit', 'label' => $label, 'default' => '', 'units' => array( 'px', '%', 'vw' ), 'default_unit' => 'px', 'responsive' => true, 'slider' => array( 'px' => array( 'min' => 0, 'max' => 1600, 'step' => 10 ), '%' => array( 'min' => 0, 'max' => 100, 'step' => 1 ), 'vw' => array( 'min' => 0, 'max' => 100, 'step' => 1 ) ) ), $extra );
+	}
+
+	/**
 	 * Normalised global Button values, so an in-house button can ride the theme button
 	 * with one call instead of re-reading FLBuilderGlobalStyles in each module.
 	 * Returns null when global styles are unavailable; else array:

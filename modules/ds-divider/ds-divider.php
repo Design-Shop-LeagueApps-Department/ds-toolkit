@@ -181,10 +181,10 @@ FLBuilder::register_module( 'DS_Divider_Module', array(
 				),
 			),
 			'colors'  => array(
-				'title'  => __( 'Colors', 'ds-toolkit' ),
+				'title'  => __( 'Colours', 'ds-toolkit' ),
 				'fields' => array(
-					'color1' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Color', 'ds-toolkit' ), 'default' => 'var(--fl-global-primary)', 'show_reset' => true, 'show_alpha' => true ),
-					'color2' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Second Color', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Used by Gradient (the blend) and Running Light (the sweep colour).', 'ds-toolkit' ) ),
+					'color1' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-primary)', 'show_reset' => true, 'show_alpha' => true ),
+					'color2' => array( 'type' => 'color', 'connections' => array( 'color' ), 'label' => __( 'Second Colour', 'ds-toolkit' ), 'default' => 'var(--fl-global-accent)', 'show_reset' => true, 'show_alpha' => true, 'help' => __( 'Used by Gradient (the blend) and Running Light (the sweep colour).', 'ds-toolkit' ) ),
 				),
 			),
 			'size'    => array(

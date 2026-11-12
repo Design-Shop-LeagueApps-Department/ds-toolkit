@@ -466,12 +466,9 @@ FLBuilder::register_settings_form( 'ds_programs_map_form', array(
 
 $ds_prg_sites   = DS_Programs_Module::site_options();
 $ds_prg_bp      = DS_Module_UI::breakpoints();
-$ds_prg_colour  = function ( $label, $extra = array() ) {
-	return array_merge( array( 'type' => 'color', 'label' => $label, 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ) ), $extra );
-};
-$ds_prg_unit = function ( $label, $min, $max, $extra = array() ) {
-	return array_merge( array( 'type' => 'unit', 'label' => $label, 'default' => '', 'description' => 'px', 'slider' => array( 'min' => $min, 'max' => $max, 'step' => 1 ) ), $extra );
-};
+// The shared builders (DS_Module_UI, docs/BUILDER-FORMS.md): the same fields this file used to shape itself.
+$ds_prg_colour  = array( 'DS_Module_UI', 'color_field' );
+$ds_prg_unit    = array( 'DS_Module_UI', 'unit_field' );
 
 FLBuilder::register_module( 'DS_Programs_Module', array(
 

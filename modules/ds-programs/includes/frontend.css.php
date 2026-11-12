@@ -261,6 +261,14 @@ if ( 'cards' === ( $settings->layout ?? 'table' ) ) {
 	$gap_md    = ( '' !== ( $settings->card_gap_medium ?? '' ) && is_numeric( $settings->card_gap_medium ) ) ? (int) $settings->card_gap_medium . 'px' : '';
 	$gap_sm    = ( '' !== ( $settings->card_gap_responsive ?? '' ) && is_numeric( $settings->card_gap_responsive ) ) ? (int) $settings->card_gap_responsive . 'px' : '';
 	echo "$node .ds-programs-grid{--ds-card-cols:$cols_base;--ds-card-gap:$gap;}\n";
+	// Large screens (the site's own Large breakpoint): only when the editor typed a value there. Until the
+	// 2026-11 audit a Cards per row or Gap typed under Large was saved and never used.
+	$cols_lg = ( '' !== ( $settings->card_cols_large ?? '' ) ) ? max( 1, min( 4, (int) $settings->card_cols_large ) ) : '';
+	$gap_lg  = ( '' !== ( $settings->card_gap_large ?? '' ) && is_numeric( $settings->card_gap_large ) ) ? (int) $settings->card_gap_large . 'px' : '';
+	if ( '' !== $cols_lg || '' !== $gap_lg ) {
+		$bp_lg = DS_Module_UI::breakpoint_map()['_large'];
+		echo "@media(max-width:{$bp_lg}px){{$node} .ds-programs-grid{" . ( '' !== $cols_lg ? "--ds-card-cols:$cols_lg;" : '' ) . ( '' !== $gap_lg ? "--ds-card-gap:$gap_lg;" : '' ) . "}}\n";
+	}
 	echo "@media(max-width:{$bp_md}px){{$node} .ds-programs-grid{--ds-card-cols:$cols_md;" . ( $gap_md ? "--ds-card-gap:$gap_md;" : '' ) . "}}\n";
 	echo "@media(max-width:{$bp_sm}px){{$node} .ds-programs-grid{--ds-card-cols:$cols_sm;" . ( $gap_sm ? "--ds-card-gap:$gap_sm;" : '' ) . "}}\n";
 
