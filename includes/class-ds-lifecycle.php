@@ -30,7 +30,7 @@ class DS_Toolkit_Lifecycle {
 		'ds_tripwire_daily', 'ds_tripwire_content', 'ds_tripwire_mailcheck',
 		'ds_hq_link_enroll', 'ds_hq_link_checkin', 'ds_hq_link_flush', 'ds_hq_update_run',
 		'ds_la_roster_sync', 'ds_la_roster_continue', 'ds_la_roster_photos',
-		'ds_calendar_refresh',
+		'ds_calendar_refresh', 'ds_programs_refresh',
 		'ds_table_sync', 'ds_table_refresh',
 	);
 
@@ -53,7 +53,7 @@ class DS_Toolkit_Lifecycle {
 	);
 
 	/** Options removed on uninstall, by prefix (one row per site, team, program or token). */
-	const OPTION_PREFIXES = array( 'ds_la_roster_', 'ds_la_sched_', 'ds_calendar_lock_', 'ds_mailcheck_claim_', 'ds_table_last_' );
+	const OPTION_PREFIXES = array( 'ds_programs_good_', 'ds_la_roster_', 'ds_la_sched_', 'ds_calendar_lock_', 'ds_mailcheck_claim_', 'ds_table_last_' );
 
 	/** Transients removed on uninstall, by prefix. */
 	const TRANSIENT_PREFIXES = array(

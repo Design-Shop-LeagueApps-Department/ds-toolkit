@@ -68,7 +68,7 @@ $la_flush_url = wp_nonce_url( admin_url( 'admin-post.php?action=ds_programs_flus
         </div>
 
         <?php if ( $leagueapps_sites ) :
-            $la_why = array( 'first' => 'first load', 'expired' => 'cache expired', 'flush' => 'manual refresh' );
+            $la_why = array( 'first' => 'first load', 'expired' => 'cache expired', 'flush' => 'manual refresh', 'refresh' => 'background refresh' );
         ?>
         <div class="dst-card-row">
             <div class="dst-card-icon"><span class="dashicons dashicons-chart-line"></span></div>

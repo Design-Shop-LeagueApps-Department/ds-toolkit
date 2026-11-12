@@ -196,7 +196,7 @@ class DS_Calendar_Data {
 		$flushed  = false !== get_transient( 'ds_calendar_flushed' );
 		$why      = $flushed ? 'calendar flush' : ( is_array( get_transient( $stale_key ) ) ? 'calendar expired' : 'calendar first' );
 
-		$feed   = DS_Programs_Data::raw( $sites );
+		$feed   = DS_Programs_Data::raw( $sites, true ); // this IS a refresh: the current list, not the last copy
 		$listed = array(); // site id => program ids LeagueApps listed
 		foreach ( (array) $feed['rows'] as $p ) {
 			$sid = (string) ( $p['_site'] ?? '' );

@@ -38,6 +38,9 @@ class DS_Programs_Module extends FLBuilderModule {
 	/** Fetch warnings, surfaced to admins only. */
 	public $feed_errors = array();
 
+	/** True when LeagueApps could not be reached and there is no earlier copy to show. */
+	public $feed_unavailable = false;
+
 	public function __construct() {
 		parent::__construct( array(
 			'name'            => __( 'Programs', 'ds-toolkit' ),
@@ -152,6 +155,12 @@ class DS_Programs_Module extends FLBuilderModule {
 		$rows = $feed['programs'];
 		$this->feed_stale  = ! empty( $feed['stale'] );
 		$this->feed_errors = $feed['errors'];
+		$this->feed_unavailable = ! empty( $feed['unavailable'] );
+		if ( $this->feed_unavailable ) {
+			// "Temporarily unavailable" is true for minutes, not for as long as a page cache keeps a page.
+			if ( ! defined( 'DONOTCACHEPAGE' ) ) { define( 'DONOTCACHEPAGE', true ); }
+			if ( ! headers_sent() ) { nocache_headers(); }
+		}
 
 		$types = self::type_list( $s->program_type ?? array() );
 		$mode  = strtoupper( (string) ( $s->program_mode ?? '' ) );
@@ -589,6 +598,7 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					'link_program'  => array( 'type' => 'select', 'label' => __( 'Link the program name to its LeagueApps page', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ) ),
 					'empty_text'    => array( 'type' => 'text', 'label' => __( 'Message when nothing is listed', 'ds-toolkit' ), 'default' => __( 'No programs are open right now. Please check back soon.', 'ds-toolkit' ) ),
 					'none_text'     => array( 'type' => 'text', 'label' => __( 'Message when no row matches the filters', 'ds-toolkit' ), 'default' => __( 'No programs match those filters.', 'ds-toolkit' ) ),
+					'unavailable_text' => array( 'type' => 'text', 'label' => __( 'Message when LeagueApps cannot be reached', 'ds-toolkit' ), 'default' => __( 'Programs are temporarily unavailable. Please check back shortly.', 'ds-toolkit' ), 'help' => __( 'Shown only when LeagueApps does not answer and this site holds no earlier copy of the list. With a copy, visitors keep seeing the last list.', 'ds-toolkit' ) ),
 				),
 			),
 			'mapping' => array(

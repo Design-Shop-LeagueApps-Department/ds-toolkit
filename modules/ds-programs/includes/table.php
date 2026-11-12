@@ -40,6 +40,11 @@ $srch_ph   = trim( (string) ( $s->search_placeholder ?? '' ) ) ?: __( 'Search pr
 $prev_txt  = trim( (string) ( $s->pager_prev ?? '' ) ) ?: __( 'Previous', 'ds-toolkit' );
 $next_txt  = trim( (string) ( $s->pager_next ?? '' ) ) ?: __( 'Next', 'ds-toolkit' );
 $empty_txt = trim( (string) ( $s->empty_text ?? '' ) ) ?: __( 'No programs are open right now. Please check back soon.', 'ds-toolkit' );
+// LeagueApps did not answer and there is no earlier copy: say so, instead of telling visitors nothing is open.
+$unavail   = ! empty( $this->feed_unavailable );
+if ( $unavail ) {
+	$empty_txt = trim( (string) ( $s->unavailable_text ?? '' ) ) ?: __( 'Programs are temporarily unavailable. Please check back shortly.', 'ds-toolkit' );
+}
 $none_txt  = trim( (string) ( $s->none_text ?? '' ) ) ?: __( 'No programs match those filters.', 'ds-toolkit' );
 
 /** Cell content for one column. Everything is escaped here. */
@@ -200,7 +205,7 @@ $row_attrs = function ( $i, $r ) use ( $cols, $filters, $sortable, $sort_val, $r
 	<?php endif; ?>
 
 	<?php if ( empty( $rows ) ) : ?>
-		<p class="ds-programs-empty"><?php echo esc_html( $empty_txt ); ?></p>
+		<p class="ds-programs-empty<?php echo $unavail ? ' ds-programs-unavailable' : ''; ?>"><?php echo esc_html( $empty_txt ); ?></p>
 	<?php elseif ( 'cards' === $layout ) :
 		// Card roles: the program name is the title, the age group a badge, price and
 		// the register button sit in the footer, everything else the editor chose is a
