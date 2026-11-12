@@ -31,6 +31,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once __DIR__ . '/class-ds-data-client.php';
 
 class DS_Programs_Data {
 
@@ -326,7 +327,7 @@ class DS_Programs_Data {
 
 	/** The last good copy of a site set, or null when there is none or it is older than STALE_TTL. */
 	private static function good( $key ) {
-		$g = get_option( self::GOOD_PREFIX . substr( $key, 12 ), null );
+		$g = DS_Data_Client::kept( self::GOOD_PREFIX . substr( $key, 12 ) );
 		if ( ! is_array( $g ) || empty( $g['rows'] ) ) {
 			$g = get_transient( $key . '_stale' ); // a copy written before the 2026-11 audit
 		}
@@ -455,7 +456,7 @@ class DS_Programs_Data {
 		// A partial result is served but not cached as the good copy for long,
 		// so the next request retries the site that failed.
 		set_transient( $key, $pack, $errors ? MINUTE_IN_SECONDS : self::TTL );
-		update_option( self::GOOD_PREFIX . substr( $key, 12 ), $pack, false );
+		DS_Data_Client::keep( self::GOOD_PREFIX . substr( $key, 12 ), $pack );
 		delete_transient( $key . '_stale' ); // the pre-audit home of the last good copy
 		delete_transient( $key . '_queued' );
 		self::remember_key( $key );
@@ -547,44 +548,28 @@ class DS_Programs_Data {
 	 * client must not do.
 	 */
 	private static function fetch_url( $url ) {
-		$last = null;
-		self::$last_tries = 0;
-		self::$last_code  = 0;
-
-		for ( $attempt = 1; $attempt <= 3; $attempt++ ) {
-			self::$last_tries = $attempt;
-			$res = wp_remote_get( $url, array(
-				'timeout'    => self::TIMEOUT,
-				'user-agent' => 'ds-toolkit-programs/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '0' ) . ' (+' . home_url( '/' ) . ')',
-				'headers'    => array( 'Accept' => 'application/json' ),
-			) );
-
-			if ( is_wp_error( $res ) ) {
-				// DNS, TLS, timeout: a blip on our side, worth one more try.
-				$last = $res;
-			} else {
-				$code = (int) wp_remote_retrieve_response_code( $res );
-				$body = wp_remote_retrieve_body( $res );
-				self::$last_code = $code;
-				if ( 200 === $code ) {
-					$json = json_decode( $body, true );
-					if ( is_array( $json ) ) { return $json; }
-					$last = new WP_Error( 'ds_programs_json', 'malformed JSON' );
-				} elseif ( 403 === $code ) {
-					return new WP_Error( 'ds_programs_key', __( 'LeagueApps rejected the API key (403)', 'ds-toolkit' ) );
-				} elseif ( 404 === $code ) {
-					return new WP_Error( 'ds_programs_site', __( 'site not found for this key (404)', 'ds-toolkit' ) );
-				} elseif ( 429 === $code ) {
-					// Throttled. Stop now and pass Retry-After up so the back-off honours it.
-					$ra = (int) wp_remote_retrieve_header( $res, 'retry-after' );
-					return new WP_Error( 'ds_programs_throttled', __( 'LeagueApps is rate limiting requests (429)', 'ds-toolkit' ), array( 'retry_after' => $ra ) );
-				} else {
-					return new WP_Error( 'ds_programs_http', 'HTTP ' . $code );
-				}
-			}
-			if ( $attempt < 3 ) { usleep( 300000 * $attempt ); }
+		// The shared client decides what is worth retrying (a failure on our side of the wire only) and reads
+		// Retry-After; this class keeps its own wording for what went wrong.
+		$r = DS_Data_Client::get_json( $url, array( 'timeout' => self::TIMEOUT, 'attempts' => 3, 'agent' => 'programs' ) );
+		self::$last_tries = (int) $r['tries'];
+		self::$last_code  = (int) $r['code'];
+		if ( $r['ok'] ) {
+			return $r['json'];
 		}
-		return $last ?: new WP_Error( 'ds_programs_unknown', 'unknown error' );
+		switch ( $r['kind'] ) {
+			case 'key':
+				return new WP_Error( 'ds_programs_key', __( 'LeagueApps rejected the API key (403)', 'ds-toolkit' ) );
+			case 'missing':
+				return new WP_Error( 'ds_programs_site', __( 'site not found for this key (404)', 'ds-toolkit' ) );
+			case 'throttled':
+				// Throttled: Retry-After goes up so the back-off honours it.
+				return new WP_Error( 'ds_programs_throttled', __( 'LeagueApps is rate limiting requests (429)', 'ds-toolkit' ), array( 'retry_after' => (int) $r['retry_after'] ) );
+			case 'http':
+				return new WP_Error( 'ds_programs_http', 'HTTP ' . $r['code'] );
+			case 'json':
+				return new WP_Error( 'ds_programs_json', 'malformed JSON' );
+		}
+		return ( $r['wp_error'] instanceof WP_Error ) ? $r['wp_error'] : new WP_Error( 'ds_programs_unknown', 'unknown error' );
 	}
 
 	/* ------------------------------------------------------------------

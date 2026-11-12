@@ -56,6 +56,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
+require_once dirname( __DIR__ ) . '/includes/class-ds-lock.php';
 
 class DS_HQ_Link {
 
@@ -367,34 +368,22 @@ class DS_HQ_Link {
 	}
 
 	/**
-	 * One flush at a time. INSERT IGNORE on the options table's unique option_name is atomic, so of two processes
-	 * exactly one gets the row (add_option() is not: it checks first and then upserts, so both can "win").
-	 * A lock older than 5 minutes is stale (a killed request) and is taken over.
+	 * One flush at a time, across requests and containers (DS_Lock: an options row taken with INSERT IGNORE,
+	 * which add_option() cannot replace: it checks first and then upserts, so two processes can both "win").
+	 * A lock older than 5 minutes belongs to a killed request and is taken over.
 	 */
 	private static function lock() {
 		global $wpdb;
 		if ( ! is_object( $wpdb ) ) {
-			return add_option( self::LOCK_OPT, time(), '', 'no' );
+			return add_option( self::LOCK_OPT, time(), '', 'no' ); // no database (a stub test)
 		}
-		$take = function () use ( $wpdb ) {
-			return 1 === (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", self::LOCK_OPT, (string) time() ) );
-		};
-		if ( $take() ) {
-			return true;
-		}
-		$since = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPT ) );
-		if ( time() - $since > 300 ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK_OPT, (string) $since ) );
-			return $take();
-		}
-		return false;
+		return DS_Lock::acquire( self::LOCK_OPT, 300 );
 	}
 
 	private static function unlock() {
 		global $wpdb;
 		if ( is_object( $wpdb ) ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPT ) );
-			wp_cache_delete( self::LOCK_OPT, 'options' );
+			DS_Lock::release( self::LOCK_OPT );
 		} else {
 			delete_option( self::LOCK_OPT );
 		}

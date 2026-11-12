@@ -1,5 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once __DIR__ . '/class-ds-lock.php';
 
 /**
  * LeagueApps team schedules for the LeagueApps Calendar module.
@@ -155,27 +156,13 @@ class DS_Calendar_Data {
 		}
 	}
 
-	/**
-	 * Atomic lock: INSERT IGNORE on the options table either creates the row (we own the
-	 * lock) or does nothing. A lock older than LOCK_TTL (a request that died) is taken over
-	 * with a compare-and-swap UPDATE, so two takers cannot both win.
-	 */
+	/** One refresh at a time per site set, across requests and containers (DS_Lock). */
 	private static function lock( $name ) {
-		global $wpdb;
-		$now = time();
-		if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) $now ) ) ) {
-			return true;
-		}
-		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
-		if ( $now - $held > self::LOCK_TTL ) {
-			return 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", (string) $now, $name, (string) $held ) );
-		}
-		return false;
+		return DS_Lock::acquire( $name, self::LOCK_TTL );
 	}
 
 	private static function unlock( $name ) {
-		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		DS_Lock::release( $name );
 	}
 
 	/** Fetch what is due, under the lock, and rebuild the merged calendar. */
