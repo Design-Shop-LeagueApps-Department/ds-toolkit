@@ -380,7 +380,7 @@ class DS_Features {
 				'default' => 1, 'label' => 'Tripwire', 'icon' => 'warning', 'scope' => 'fleet',
 				'summary' => 'Checks the site every day for signs of compromise and emails the team when something changes or a new administrator appears.',
 				'more'    => '<p>Looks at must-use plugins, executable files in the web root, known malware markers, the toolkit\'s own files and the administrator list, and scans plugin and theme code by behaviour every hour. With it off the site still checks in with Design Shop HQ (see Report to Design Shop HQ), which then shows Tripwire as off.</p>',
-				'fields'  => array( 'tripwire_alert_email' => array( 'type' => 'email', 'default' => DS_Env::ALERT_EMAIL, 'label' => 'Alert email', 'help' => 'Where alerts are sent.', 'advanced' => true ) ),
+				'fields'  => array( 'tripwire_alert_email' => array( 'type' => 'email', 'multiple' => true, 'default' => DS_Env::ALERT_EMAIL, 'label' => 'Alert email', 'help' => 'Where alerts are sent. Separate several addresses with commas.', 'advanced' => true ) ),
 			) ),
 
 			'design_academy_enabled' => self::feature( 'design-academy', 'DS_Design_Academy', array(
@@ -537,8 +537,19 @@ class DS_Features {
 					$new[ $name ] = '' !== $d ? $d : $keep;
 					break;
 				case 'email':
-					$e            = is_scalar( $value ) ? sanitize_email( trim( (string) $value ) ) : '';
-					$new[ $name ] = ( '' !== $e && is_email( $e ) ) ? $e : $keep;
+					// A field marked multiple (the Tripwire alert list) takes addresses separated by commas; each is
+					// cleaned on its own and a bad one is dropped. An address is taken only as typed: sanitize_email
+					// turns a list into one mangled address that still passes is_email.
+					$parts = is_scalar( $value ) ? ( empty( $f['multiple'] ) ? array( (string) $value ) : explode( ',', (string) $value ) ) : array();
+					$good  = array();
+					foreach ( $parts as $part ) {
+						$part = trim( $part );
+						$e    = sanitize_email( $part );
+						if ( '' !== $e && $e === $part && is_email( $e ) && ! isset( $good[ strtolower( $e ) ] ) ) {
+							$good[ strtolower( $e ) ] = $e; // the first spelling of a repeated address is kept
+						}
+					}
+					$new[ $name ] = $good ? implode( ',', $good ) : $keep;
 					break;
 				case 'url':
 					$u            = is_scalar( $value ) ? esc_url_raw( trim( (string) $value ), array( 'http', 'https' ) ) : '';

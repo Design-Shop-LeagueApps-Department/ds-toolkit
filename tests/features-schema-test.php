@@ -79,6 +79,9 @@ $is( 'an empty number box keeps the saved value (never 0 requests a minute)', $s
 $is( 'a number with no saved value falls back to its default', DS_Features::sanitize( array( 'bot_shield_page_cap' => 'x' ), array() ), array( 'bot_shield_page_cap' => 20 ) );
 $is( 'a broken email keeps the saved one (alerts never go nowhere)', $s( array( 'tripwire_alert_email' => 'design@' ) ), array( 'tripwire_alert_email' => 'design@leagueapps.com' ) );
 $is( 'a good email is saved', $s( array( 'tripwire_alert_email' => ' ops@leagueapps.com ' ) ), array( 'tripwire_alert_email' => 'ops@leagueapps.com' ) );
+$is( 'an alert list keeps every address (lvlelitetravel: two addresses)', $s( array( 'tripwire_alert_email' => 'design@leagueapps.com, agabriel@leagueapps.com' ) ), array( 'tripwire_alert_email' => 'design@leagueapps.com,agabriel@leagueapps.com' ) );
+$is( 'a bad address in the list is dropped, the good ones kept', $s( array( 'tripwire_alert_email' => 'ops@leagueapps.com,nope@, OPS@leagueapps.com' ) ), array( 'tripwire_alert_email' => 'ops@leagueapps.com' ) );
+$is( 'a single-address field still refuses a list', DS_Features::sanitize( array( 'forminator_email_partner_fallback' => 'a@leagueapps.com,b@leagueapps.com' ), array( 'forminator_email_partner_fallback' => 'designshop@leagueapps.com' ) ), array( 'forminator_email_partner_fallback' => 'designshop@leagueapps.com' ) );
 $is( 'a mode that does not exist keeps the saved one', $s( array( 'bot_shield_mode' => 'nuke' ) ), array( 'bot_shield_mode' => 'monitor' ) );
 $is( 'a real mode is saved', $s( array( 'bot_shield_mode' => 'block' ) ), array( 'bot_shield_mode' => 'block' ) );
 $is( 'a javascript: link is refused', $s( array( 'academy_pinned_url' => 'javascript:alert(1)' ) )['academy_pinned_url'], '' === ( $saved['academy_pinned_url'] ?? '' ) ? DS_Features::settings()['academy_pinned_url']['default'] : '' );

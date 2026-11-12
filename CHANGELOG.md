@@ -4,6 +4,23 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.18.1] - 2026-11-12
+PATCH: Save Changes on the Features tab did nothing on sites whose Tripwire alert email lists two addresses.
+
+### Fixed
+- **Save Changes works again with an alert list.** The 1.18.0 Alert email box was a single-address box, so a saved list
+  such as `design@leagueapps.com,agabriel@leagueapps.com` failed the browser's check and stopped the save. The box sits
+  in Tripwire's closed Advanced fold, so the browser could not point at it and the button looked dead
+  (lvlelitetravel.com). The box now takes addresses separated by commas, and saving cleans each one on its own,
+  drops a bad one and keeps the rest.
+- **A refused value is shown, never hidden.** If the browser refuses any box (a number out of range, a broken address)
+  and that box is in a closed group, a closed Advanced fold or a card the filter hid, the page now opens the way to it,
+  scrolls to it and shows the browser's message.
+- **A single-address box no longer saves a mangled list.** `sanitize_email()` turned `a@x.com,b@x.com` into one
+  address that still passed `is_email()`; an address is now taken only as typed.
+
+---
+
 ## [1.18.0] - 2026-11-12
 MINOR: a redesigned settings screen (four tabs, a toolbar, a status panel, LeagueApps site cards) and the 2026-11 architecture audit: one feature schema, server-side validation, a clean deactivate and uninstall, quieter HQ check-ins, Programs that keep showing during a LeagueApps outage, Large breakpoint values that apply, and the big files split. Pages render the same: on four live test sites (WP Engine DSPS 4, 5, 7 and one Flywheel site) 86 pages matched their status, visible text and DS modules before and after.
 

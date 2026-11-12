@@ -254,6 +254,27 @@
 		refresh();
 	} );
 	form.addEventListener( 'submit', function () { submitting = true; } );
+	// A value the browser refuses (a number out of range, a broken address) stops the save. When that box sits
+	// in a closed group, a closed Advanced fold or a card the filter hid, the browser cannot point at it and Save
+	// looked dead (lvlelitetravel, 1.18.0). Open the way to the first one and show its message there.
+	var revealing = false;
+	form.addEventListener( 'invalid', function ( e ) {
+		if ( revealing ) { return; }
+		revealing = true;
+		var el = e.target, p;
+		for ( p = el.parentNode; p && p !== form; p = p.parentNode ) {
+			if ( p.hidden ) { if ( input ) { input.value = ''; } setMode( 'all' ); break; }
+		}
+		for ( p = el.parentNode; p && p !== form; p = p.parentNode ) {
+			if ( 'DETAILS' === p.tagName ) { p.open = true; }
+		}
+		window.setTimeout( function () {
+			revealing = false;
+			el.scrollIntoView( { block: 'center' } );
+			el.focus( { preventScroll: true } );
+			if ( el.reportValidity ) { el.reportValidity(); }
+		}, 0 );
+	}, true );
 	window.addEventListener( 'beforeunload', function ( e ) {
 		if ( ! submitting && changes() > 0 ) {
 			e.preventDefault();
