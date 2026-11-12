@@ -178,7 +178,7 @@ FLBuilder::register_module( 'DS_Social_Module', array(
 					'icon_color'       => array(
 						'type'        => 'color',
 						'connections' => array( 'color' ),
-						'label'       => __( 'Icon Color', 'ds-toolkit' ),
+						'label'       => __( 'Icon Colour', 'ds-toolkit' ),
 						'default'     => 'var(--fl-global-white)',
 						'show_reset'  => true,
 						'show_alpha'  => true,
@@ -186,7 +186,7 @@ FLBuilder::register_module( 'DS_Social_Module', array(
 					'icon_hover_color' => array(
 						'type'        => 'color',
 						'connections' => array( 'color' ),
-						'label'       => __( 'Icon Hover Color', 'ds-toolkit' ),
+						'label'       => __( 'Icon Hover Colour', 'ds-toolkit' ),
 						'show_reset'  => true,
 						'show_alpha'  => true,
 						'help'        => __( 'Blank keeps the icon color on hover.', 'ds-toolkit' ),
@@ -211,7 +211,7 @@ FLBuilder::register_module( 'DS_Social_Module', array(
 					'bg_color'        => array(
 						'type'        => 'color',
 						'connections' => array( 'color' ),
-						'label'       => __( 'Background Color', 'ds-toolkit' ),
+						'label'       => __( 'Background Colour', 'ds-toolkit' ),
 						'default'     => 'var(--fl-global-primary)',
 						'show_reset'  => true,
 						'show_alpha'  => true,
@@ -219,7 +219,7 @@ FLBuilder::register_module( 'DS_Social_Module', array(
 					'bg_hover_color'  => array(
 						'type'        => 'color',
 						'connections' => array( 'color' ),
-						'label'       => __( 'Background Hover Color', 'ds-toolkit' ),
+						'label'       => __( 'Background Hover Colour', 'ds-toolkit' ),
 						'default'     => 'var(--fl-global-accent)',
 						'show_reset'  => true,
 						'show_alpha'  => true,

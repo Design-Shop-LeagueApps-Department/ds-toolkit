@@ -11,7 +11,7 @@ class FLBuilderModule { public function __construct( $a = array() ) {} }
 class FLBuilder { public static function register_module() {} }
 class FLBuilderCSS { public static function typography_field_rule() {} }
 class DS_Calendar_Data { public static function site_options() { return array(); } public static function known() { return array(); } }
-class DS_Module_UI { public static function color( $v ) { $v = trim( (string) $v ); return '' === $v ? '' : ( preg_match( '/^[0-9a-f]{3,8}$/i', $v ) ? '#' . $v : $v ); } public static function u( $v, $d ) { return $d; } }
+class DS_Module_UI { public static function color( $v ) { $v = trim( (string) $v ); return '' === $v ? '' : ( preg_match( '/^[0-9a-f]{3,8}$/i', $v ) ? '#' . $v : $v ); } public static function u( $v, $d ) { return $d; } public static function form_shown() { return true; } }
 function __( $s, $d = '' ) { return $s; }
 function sanitize_title( $s ) { return strtolower( preg_replace( '/\s+/', '-', $s ) ); }
 $GLOBALS['primary'] = '#069e33';

@@ -19,6 +19,7 @@ class DS_LA_Roster {
 
 	public function init() {
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
+		DS_Programs_Data::hooks(); // the feed's background refresh needs its handler in the cron request
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-roster-data.php';
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-la-colors.php';
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-roster-photos.php';

@@ -26,6 +26,7 @@ $mix = function( $color, $op ) use ( $col ) {
 };
 
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 // ---- Hover & animation (unified across every card layout) ----
 $he      = preg_replace( '/[^a-z]/', '', (string) ( $settings->hover_effect ?? 'lift' ) );
@@ -78,21 +79,34 @@ $feat = trim( (string) ( $settings->feature_width ?? '1.4fr' ) ) ?: '1.4fr';
 if ( ! preg_match( '#^[0-9.]+(fr|px|%|rem|em|vw)$#', $feat ) ) { $feat = '1.4fr'; }
 $gap  = $u( $settings->gap ?? '', 20 );
 echo "$node .ds-news-grid { grid-template-columns: {$feat} 1fr 1fr; gap: {$gap}px; }\n";
-$gapM = $u( $settings->gap_medium ?? '', $gap );
+// Large, here and for every grid below: only when the editor typed a value there. A blank Medium or
+// Responsive then counts its fallback from the Large value, so nothing changes for a module with no Large value.
+$gapB = $gap;
+if ( '' !== ( $settings->gap_large ?? '' ) ) {
+	$gapB = $u( $settings->gap_large, $gap );
+	echo "@media (max-width:{$bpl}px){ $node .ds-news-grid { gap: {$gapB}px; } }\n";
+}
+$gapM = $u( $settings->gap_medium ?? '', $gapB );
 echo "@media (max-width:{$bpm}px){ $node .ds-news-grid { grid-template-columns: 1fr 1fr; gap: {$gapM}px; } $node .ds-news-feature { grid-column: 1 / -1; grid-row: auto; } }\n";
-$gapR = $u( $settings->gap_responsive ?? '', max( 12, $gap ) );
+$gapR = $u( $settings->gap_responsive ?? '', max( 12, $gapB ) );
 echo "@media (max-width:{$bpr}px){ $node .ds-news-grid { grid-template-columns: 1fr; gap: {$gapR}px; } }\n";
 
 // ---- Heights (featured + small cards) ----
 $fh = $u( $settings->feature_min_h ?? '', 420 );
 echo "$node .ds-news-feature { min-height: {$fh}px; }\n";
-$fhM = $u( $settings->feature_min_h_medium ?? '', min( $fh, 340 ) );
+$fhB = $fh;
+if ( '' !== ( $settings->feature_min_h_large ?? '' ) ) {
+	$fhB = $u( $settings->feature_min_h_large, $fh );
+	echo "@media (max-width:{$bpl}px){ $node .ds-news-feature { min-height: {$fhB}px; } }\n";
+}
+$fhM = $u( $settings->feature_min_h_medium ?? '', min( $fhB, 340 ) );
 echo "@media (max-width:{$bpm}px){ $node .ds-news-feature { min-height: {$fhM}px; } }\n";
-$fhR = $u( $settings->feature_min_h_responsive ?? '', min( $fh, 280 ) );
+$fhR = $u( $settings->feature_min_h_responsive ?? '', min( $fhB, 280 ) );
 echo "@media (max-width:{$bpr}px){ $node .ds-news-feature { min-height: {$fhR}px; } }\n";
 
 $ch = $u( $settings->card_min_h ?? '', 195 );
 echo "$node .ds-news-card { min-height: {$ch}px; }\n";
+if ( '' !== ( $settings->card_min_h_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-news-card { min-height: " . (int) $settings->card_min_h_large . "px; } }\n"; }
 if ( '' !== ( $settings->card_min_h_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-news-card { min-height: " . (int) $settings->card_min_h_medium . "px; } }\n"; }
 if ( '' !== ( $settings->card_min_h_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-news-card { min-height: " . (int) $settings->card_min_h_responsive . "px; } }\n"; }
 
@@ -308,11 +322,18 @@ if ( class_exists( 'FLBuilderCSS' ) ) {
 $cols2 = $u( $settings->cols2 ?? '', 4 );
 $gap2  = $u( $settings->gap2 ?? '', 20 );
 echo "$node .ds-news-grid2 { grid-template-columns: repeat({$cols2},1fr); gap: {$gap2}px; }\n";
-$cols2M = $u( $settings->cols2_medium ?? '', min( $cols2, 2 ) );
-$gap2M  = $u( $settings->gap2_medium ?? '', $gap2 );
+$cols2B = $cols2;
+$gap2B  = $gap2;
+if ( '' !== ( $settings->cols2_large ?? '' ) || '' !== ( $settings->gap2_large ?? '' ) ) {
+	$cols2B = max( 1, $u( $settings->cols2_large ?? '', $cols2 ) );
+	$gap2B  = $u( $settings->gap2_large ?? '', $gap2 );
+	echo "@media (max-width:{$bpl}px){ $node .ds-news-grid2 { grid-template-columns: repeat({$cols2B},1fr); gap: {$gap2B}px; } }\n";
+}
+$cols2M = $u( $settings->cols2_medium ?? '', min( $cols2B, 2 ) );
+$gap2M  = $u( $settings->gap2_medium ?? '', $gap2B );
 echo "@media (max-width:{$bpm}px){ $node .ds-news-grid2 { grid-template-columns: repeat({$cols2M},1fr); gap: {$gap2M}px; } }\n";
 $cols2R = $u( $settings->cols2_responsive ?? '', 1 );
-$gap2R  = $u( $settings->gap2_responsive ?? '', max( 14, $gap2 ) );
+$gap2R  = $u( $settings->gap2_responsive ?? '', max( 14, $gap2B ) );
 echo "@media (max-width:{$bpr}px){ $node .ds-news-grid2 { grid-template-columns: repeat({$cols2R},1fr); gap: {$gap2R}px; } }\n";
 
 $cmin = $u( $settings->card2_min ?? '', 210 );
@@ -322,10 +343,16 @@ echo "$node .ds-news-card2-img { height: {$cmin}px; }\n";
 $lcols = max( 1, $u( $settings->loop_cols ?? '', 3 ) );
 $lgap  = $u( $settings->loop_gap ?? '', 24 );
 echo "$node .ds-news-loopgrid { grid-template-columns: repeat({$lcols},1fr); gap: {$lgap}px; }\n";
-$lcolsM = $u( $settings->loop_cols_medium ?? '', min( $lcols, 2 ) );
+$lcolsB = $lcols;
+if ( '' !== ( $settings->loop_cols_large ?? '' ) ) {
+	$lcolsB = max( 1, $u( $settings->loop_cols_large, $lcols ) );
+	echo "@media (max-width:{$bpl}px){ $node .ds-news-loopgrid { grid-template-columns: repeat({$lcolsB},1fr); } }\n";
+}
+$lcolsM = $u( $settings->loop_cols_medium ?? '', min( $lcolsB, 2 ) );
 echo "@media (max-width:{$bpm}px){ $node .ds-news-loopgrid { grid-template-columns: repeat({$lcolsM},1fr); } }\n";
 $lcolsR = $u( $settings->loop_cols_responsive ?? '', 1 );
 echo "@media (max-width:{$bpr}px){ $node .ds-news-loopgrid { grid-template-columns: repeat({$lcolsR},1fr); } }\n";
+if ( '' !== ( $settings->card2_min_large ?? '' ) )     { echo "@media (max-width:{$bpl}px){ $node .ds-news-card2-img { height: " . (int) $settings->card2_min_large . "px; } }\n"; }
 if ( '' !== ( $settings->card2_min_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-news-card2-img { height: " . (int) $settings->card2_min_medium . "px; } }\n"; }
 if ( '' !== ( $settings->card2_min_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-news-card2-img { height: " . (int) $settings->card2_min_responsive . "px; } }\n"; }
 
@@ -360,7 +387,12 @@ if ( ( $settings->card_layout ?? '' ) === 'staff_card' ) {
 	$scols = max( 1, $u( $settings->staff_cols ?? '', 4 ) );
 	$sgap  = $u( $settings->staff_gap ?? '', 24 );
 	echo "$node .ds-people-grid { grid-template-columns: repeat({$scols},1fr); gap: {$sgap}px; }\n";
-	$scolsM = max( 1, $u( $settings->staff_cols_medium ?? '', min( $scols, 2 ) ) );
+	$scolsB = $scols;
+	if ( '' !== ( $settings->staff_cols_large ?? '' ) ) {
+		$scolsB = max( 1, $u( $settings->staff_cols_large, $scols ) );
+		echo "@media (max-width:{$bpl}px){ $node .ds-people-grid { grid-template-columns: repeat({$scolsB},1fr); } }\n";
+	}
+	$scolsM = max( 1, $u( $settings->staff_cols_medium ?? '', min( $scolsB, 2 ) ) );
 	echo "@media (max-width:{$bpm}px){ $node .ds-people-grid { grid-template-columns: repeat({$scolsM},1fr); } }\n";
 	$scolsR = max( 1, $u( $settings->staff_cols_responsive ?? '', 1 ) );
 	echo "@media (max-width:{$bpr}px){ $node .ds-people-grid { grid-template-columns: repeat({$scolsR},1fr); } }\n";
@@ -391,9 +423,11 @@ if ( ( $settings->card_layout ?? '' ) === 'staff_card' ) {
 		};
 		$ok   = array( 'stack', 'side' );
 		$lay  = in_array( $settings->staff_avatar_layout ?? '', $ok, true ) ? $settings->staff_avatar_layout : 'stack';
-		$layM = in_array( $settings->staff_avatar_layout_medium ?? '', $ok, true ) ? $settings->staff_avatar_layout_medium : $lay;
+		$layL = in_array( $settings->staff_avatar_layout_large ?? '', $ok, true ) ? $settings->staff_avatar_layout_large : $lay;
+		$layM = in_array( $settings->staff_avatar_layout_medium ?? '', $ok, true ) ? $settings->staff_avatar_layout_medium : $layL;
 		$layR = in_array( $settings->staff_avatar_layout_responsive ?? '', $ok, true ) ? $settings->staff_avatar_layout_responsive : $layM;
-		if ( $layM !== $lay )  { echo "@media (max-width:{$bpm}px){ " . $lay_css( $layM ) . " }\n"; }
+		if ( $layL !== $lay )  { echo "@media (max-width:{$bpl}px){ " . $lay_css( $layL ) . " }\n"; }
+		if ( $layM !== $layL ) { echo "@media (max-width:{$bpm}px){ " . $lay_css( $layM ) . " }\n"; }
 		if ( $layR !== $layM ) { echo "@media (max-width:{$bpr}px){ " . $lay_css( $layR ) . " }\n"; }
 	}
 
@@ -427,7 +461,12 @@ if ( $strip ) {
 	$rcols = max( 1, $u( $settings->cr_cols ?? '', 3 ) );
 	$rgap  = $u( $settings->cr_gap ?? '', 16 );
 	echo "$node .ds-people-grid { grid-template-columns: repeat({$rcols},1fr); gap: {$rgap}px; }\n";
-	$rcolsM = max( 1, $u( $settings->cr_cols_medium ?? '', min( $rcols, 2 ) ) );
+	$rcolsB = $rcols;
+	if ( '' !== ( $settings->cr_cols_large ?? '' ) ) {
+		$rcolsB = max( 1, $u( $settings->cr_cols_large, $rcols ) );
+		echo "@media (max-width:{$bpl}px){ $node .ds-people-grid { grid-template-columns: repeat({$rcolsB},1fr); } }\n";
+	}
+	$rcolsM = max( 1, $u( $settings->cr_cols_medium ?? '', min( $rcolsB, 2 ) ) );
 	echo "@media (max-width:{$bpm}px){ $node .ds-people-grid { grid-template-columns: repeat({$rcolsM},1fr); } }\n";
 	$rcolsR = max( 1, $u( $settings->cr_cols_responsive ?? '', 1 ) );
 	echo "@media (max-width:{$bpr}px){ $node .ds-people-grid { grid-template-columns: repeat({$rcolsR},1fr); } }\n";
@@ -458,7 +497,12 @@ if ( $strip ) {
 	$ccols = max( 1, $u( $settings->commit_cols ?? '', 4 ) );
 	$cgap  = $u( $settings->commit_gap ?? '', 24 );
 	echo "$node .ds-people-grid { grid-template-columns: repeat({$ccols},1fr); gap: {$cgap}px; }\n";
-	$ccolsM = max( 1, $u( $settings->commit_cols_medium ?? '', min( $ccols, 2 ) ) );
+	$ccolsB = $ccols;
+	if ( '' !== ( $settings->commit_cols_large ?? '' ) ) {
+		$ccolsB = max( 1, $u( $settings->commit_cols_large, $ccols ) );
+		echo "@media (max-width:{$bpl}px){ $node .ds-people-grid { grid-template-columns: repeat({$ccolsB},1fr); } }\n";
+	}
+	$ccolsM = max( 1, $u( $settings->commit_cols_medium ?? '', min( $ccolsB, 2 ) ) );
 	echo "@media (max-width:{$bpm}px){ $node .ds-people-grid { grid-template-columns: repeat({$ccolsM},1fr); } }\n";
 	$ccolsR = max( 1, $u( $settings->commit_cols_responsive ?? '', 1 ) );
 	echo "@media (max-width:{$bpr}px){ $node .ds-people-grid { grid-template-columns: repeat({$ccolsR},1fr); } }\n";
@@ -539,7 +583,12 @@ if ( 'carousel' === $disp ) {
 	$pv = max( 1, $u( $settings->car_per_view ?? '', 4 ) );
 	$cg = $u( $settings->car_gap ?? '', 24 );
 	echo "$node .ds-loopcar-track { --lc-pv: {$pv}; --lc-gap: {$cg}px; }\n";
-	$pvM = max( 1, $u( $settings->car_per_view_medium ?? '', min( $pv, 2 ) ) );
+	$pvB = $pv;
+	if ( '' !== ( $settings->car_per_view_large ?? '' ) ) {
+		$pvB = max( 1, $u( $settings->car_per_view_large, $pv ) );
+		echo "@media (max-width:{$bpl}px){ $node .ds-loopcar-track { --lc-pv: {$pvB}; } }\n";
+	}
+	$pvM = max( 1, $u( $settings->car_per_view_medium ?? '', min( $pvB, 2 ) ) );
 	echo "@media (max-width:{$bpm}px){ $node .ds-loopcar-track { --lc-pv: {$pvM}; } }\n";
 	$pvR = max( 1, $u( $settings->car_per_view_responsive ?? '', 1 ) );
 	echo "@media (max-width:{$bpr}px){ $node .ds-loopcar-track { --lc-pv: {$pvR}; } }\n";

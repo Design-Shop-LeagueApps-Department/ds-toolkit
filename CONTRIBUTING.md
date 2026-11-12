@@ -1,7 +1,7 @@
 # Contributing to DS Toolkit
 
 Thanks for contributing. Please read this before opening a PR. **If you are using
-Claude Code or another AI assistant to make changes, point it at this file first** —
+Claude Code or another AI assistant to make changes, point it at this file first**:
 most rejected PRs fail the feature-wiring checklist below, not code review.
 
 ## The one rule that trips people up
@@ -24,28 +24,53 @@ class DS_<Name> {
 }
 ```
 
-To make it actually load, **all** of these are required in the same PR:
+To make it actually load, add **one entry** to `DS_Features::layout()` in
+`includes/class-ds-features.php`, in the group where its card belongs:
 
-1. **Register it.** Add one entry to `$features[]` in
-   `includes/class-ds-toolkit.php` (key = settings flag, value = file + class).
-2. **Give it a default.** Add the settings key to `get_defaults()` in the same
-   file. New optional features default to `0` (off) unless they are a no-op
-   compat patch.
-3. **Make it toggleable.** Add a toggle card to
-   `admin/views/page-settings.php` and initialize the matching `$<key>` variable
-   in `DS_Toolkit_Admin::render_page()` (`admin/class-ds-toolkit-admin.php`).
-   Without this the feature can never be turned on.
-4. **If it creates DB rows or cron events:** extend `uninstall.php` to remove
-   them, and add schema install to `DS_Toolkit::activate()`.
+```php
+'my_feature_enabled' => self::feature( 'my-feature', 'DS_My_Feature', array(
+    'default' => 0, 'label' => 'My Feature', 'icon' => 'admin-generic', 'scope' => 'fleet',
+    'summary' => 'One sentence an editor can read.',
+    'more'    => 'The detail, shown behind "More".',
+    'fields'  => array( 'my_feature_limit' => array( 'type' => 'int', 'default' => 10, 'min' => 1, 'max' => 100, 'label' => 'Limit' ) ),
+) ),
+```
 
-A feature missing steps 1-3 is dead code. The PR checklist enforces this.
+That entry is the loader registration, the default, the validation on save and the settings card. There is
+no second place to edit: the settings page is drawn from the schema (`admin/class-ds-settings-cards.php`).
+The file's header lists every key an entry can carry and every field type.
+
+1. **New optional features default to `0`** (off) unless they are a no-op compatibility patch.
+2. **Run `php tests/features-schema-test.php`.** It pins the registry and the defaults to the last release
+   (`tests/fixtures/features-1.17.4.json`). A new feature is a deliberate change: add it to the fixture and
+   say why in its `_changes` list. It also fails on a summary that runs long.
+3. **If it stores anything outside `ds_toolkit_settings`, or schedules a job:** add the option, transient
+   prefix or cron hook to `includes/class-ds-lifecycle.php`, in the same change. Deactivation and uninstall
+   work from those lists, and `tests/lifecycle-test.php` fails on a scheduled job the file does not know.
+4. **A lock or a fresh read of an option** comes from `DS_Lock` (`includes/class-ds-lock.php`), not a new
+   hand-written one.
+5. **A host name, the staff email domain, the repository or "is this a development site"** comes from
+   `DS_Env` (`includes/class-ds-env.php`). `tests/env-test.php` fails on a second copy.
+6. **A Beaver Builder block** follows `docs/BUILDER-FORMS.md` (tab names, labels, which control for which
+   need), and every `<button>` it prints carries `fl-content-ui-button`.
+
+A feature class with no schema entry is dead code.
+
+## Tests
+
+`tests/run.sh` lints every PHP file and runs every `tests/*-test.php` (a test passes when it exits 0).
+Tests that need a running WordPress say `@requires wordpress` in their header and run with
+`tests/run.sh --wp "<wp-cli command for a test site>"`. A change in behaviour comes with a test that fails
+without it.
 
 ## Code conventions
 
 - Guard every PHP file with `if ( ! defined( 'ABSPATH' ) ) exit;`.
 - Escape all output (`esc_html`, `esc_url`, `esc_attr`, `wp_kses_*`).
-- All settings live in the single `ds_toolkit_settings` option array. Do not add
-  new `wp_options` rows.
+- Settings live in the single `ds_toolkit_settings` option array. State that is not a setting (a cache, a
+  lock, a run record) gets its own option, not autoloaded, and is listed in `includes/class-ds-lifecycle.php`.
+- No inline `style=` attributes in the admin views: add a class to `assets/css/admin.css`
+  (`tests/admin-views-test.php` fails on a new one).
 - End files with a single trailing newline, no trailing whitespace.
 
 ## Branch, version, and release workflow
@@ -82,8 +107,9 @@ A feature missing steps 1-3 is dead code. The PR checklist enforces this.
 
 ## Architecture in one paragraph
 
-`ds-toolkit.php` boots `DS_Toolkit` (`includes/class-ds-toolkit.php`), which holds
-the feature registry, the defaults, and conditional instantiation: each feature
-class is loaded and `init()`-ed only if its settings key is truthy. The admin
-settings page and MCP endpoint are always loaded but restricted by email domain.
-That is the whole model — features are opt-in, registry-driven, and single-option.
+`ds-toolkit.php` loads `DS_Env` (names and the development-site rule), the feature schema `DS_Features`
+and `DS_Toolkit` (`includes/class-ds-toolkit.php`). `DS_Toolkit::run()` starts Bot Shield first, then walks
+`DS_Features::registry()` in order: a feature class is loaded and `init()`-ed only if its settings key is
+on and the site's blueprint generation allows it. The settings page (drawn from the same schema) and the
+MCP endpoint are always loaded and are limited to Design Shop staff: an administrator whose email ends in
+the staff domain. Features are opt-in, schema-driven, and share one settings option.

@@ -11,6 +11,7 @@ $u = array( 'DS_Module_UI', 'u' );
 
 $g   = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 /* ---- Alignment (responsive) ----
  * The base align comes from the .ds-heading--{align} wrapper class (static CSS).
@@ -33,8 +34,13 @@ $align_css = static function ( $a ) {
 	return "ALIGN_INNER{align-items:{$items};text-align:{$text};margin-left:{$ml};margin-right:{$mr};}ALIGN_RULE{justify-content:{$rule_justify};}"
 		. "ALIGN_AFTER{display:{$after};}";
 };
+$al = in_array( $settings->alignment_large ?? '', array( 'left', 'center', 'right' ), true ) ? $settings->alignment_large : '';
 $am = in_array( $settings->alignment_medium ?? '', array( 'left', 'center', 'right' ), true ) ? $settings->alignment_medium : '';
 $ar = in_array( $settings->alignment_responsive ?? '', array( 'left', 'center', 'right' ), true ) ? $settings->alignment_responsive : '';
+if ( '' !== $al ) {
+	$css = str_replace( array( 'ALIGN_INNER', 'ALIGN_RULE', 'ALIGN_AFTER' ), array( "$node .ds-heading-inner", "$node .ds-heading-rule", "$node .ds-heading-sub--withrule .ds-heading-rule--after" ), $align_css( $al ) );
+	echo "@media (max-width:{$bpl}px){ {$css} }\n";
+}
 if ( '' !== $am ) {
 	$css = str_replace( array( 'ALIGN_INNER', 'ALIGN_RULE', 'ALIGN_AFTER' ), array( "$node .ds-heading-inner", "$node .ds-heading-rule", "$node .ds-heading-sub--withrule .ds-heading-rule--after" ), $align_css( $am ) );
 	echo "@media (max-width:{$bpm}px){ {$css} }\n";
@@ -47,11 +53,13 @@ if ( '' !== $ar ) {
 /* ---- Element gap (responsive) ---- */
 $gap = $u( $settings->gap ?? '', 12 );
 echo "$node .ds-heading-inner { gap: {$gap}px; }\n";
+if ( '' !== ( $settings->gap_large ?? '' ) )      { echo "@media (max-width:{$bpl}px){ $node .ds-heading-inner { gap: " . (int) $settings->gap_large . "px; } }\n"; }
 if ( '' !== ( $settings->gap_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-heading-inner { gap: " . (int) $settings->gap_medium . "px; } }\n"; }
 if ( '' !== ( $settings->gap_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-heading-inner { gap: " . (int) $settings->gap_responsive . "px; } }\n"; }
 
 /* ---- Max width (responsive) ---- */
 if ( '' !== ( $settings->max_width ?? '' ) )            { echo "$node .ds-heading-inner { max-width: " . (int) $settings->max_width . "px; }\n"; }
+if ( '' !== ( $settings->max_width_large ?? '' ) )      { echo "@media (max-width:{$bpl}px){ $node .ds-heading-inner { max-width: " . (int) $settings->max_width_large . "px; } }\n"; }
 if ( '' !== ( $settings->max_width_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-heading-inner { max-width: " . (int) $settings->max_width_medium . "px; } }\n"; }
 if ( '' !== ( $settings->max_width_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-heading-inner { max-width: " . (int) $settings->max_width_responsive . "px; } }\n"; }
 
@@ -103,7 +111,7 @@ if ( ( $settings->divider_show ?? 'yes' ) === 'yes' ) {
 	// Image divider (GH #169): authored HEIGHT, width follows, per breakpoint. Same
 	// max-height approach as the Style 2 end mark so the aspect ratio is preserved.
 	if ( 'image' === ( $settings->divider_type ?? 'line' ) ) {
-		foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+		foreach ( array( '' => '', '_large' => $bpl, '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 			$v = $settings->{ 'divider_img_h' . $sfx } ?? '';
 			if ( '' === $v || null === $v ) { continue; }
 			$rule = "$node .ds-heading-rule-img { max-height: " . (int) $v . "px; }";
@@ -161,6 +169,8 @@ $sub_align = static function ( $typo ) {
 };
 $sa = $sub_align( $settings->subheading_typography ?? null );
 if ( '' !== $sa ) { echo "$node .ds-heading-sub{align-self:{$sa};}\n"; }
+$sa = $sub_align( $settings->subheading_typography_large ?? null );
+if ( '' !== $sa ) { echo "@media (max-width:{$bpl}px){ $node .ds-heading-sub{align-self:{$sa};} }\n"; }
 $sa = $sub_align( $settings->subheading_typography_medium ?? null );
 if ( '' !== $sa ) { echo "@media (max-width:{$bpm}px){ $node .ds-heading-sub{align-self:{$sa};} }\n"; }
 $sa = $sub_align( $settings->subheading_typography_responsive ?? null );
@@ -196,7 +206,7 @@ if ( 'double' === ( $settings->style2_sep_style ?? 'single' ) ) {
 		echo "$node .ds-heading-sep--double::after { background: {$sep_c2}; }\n";
 	}
 }
-foreach ( array( '' => '', '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
+foreach ( array( '' => '', '_large' => $bpl, '_medium' => $bpm, '_responsive' => $bpr ) as $sfx => $bp ) {
 	$v = $settings->{'style2_mark_h' . $sfx} ?? '';
 	if ( '' === $v || null === $v ) { continue; }
 	// max-height, not height: paired with width:auto/max-width:100% the mark scales

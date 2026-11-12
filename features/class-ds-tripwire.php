@@ -1,5 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
 
 /**
  * DS Tripwire — daily indicator-of-compromise check + instant new-admin alert.
@@ -61,10 +62,38 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * CRITICAL on 10,893 clean blueprint files. Its resource contract is in the method's
  * docblock and in fleet-audit/SCANNER-SPEC.md section 6c.
  */
+require_once __DIR__ . '/tripwire/trait-vendor.php';
+require_once __DIR__ . '/tripwire/trait-lists.php';
+require_once __DIR__ . '/tripwire/trait-admins.php';
+
 class DS_Tripwire {
+
+    // The jobs that support the detectors live in features/tripwire/, one trait each: checking a file against
+    // the vendor's own checksums, the fleet allow and deny lists, and alerts on administrator accounts.
+    // The detectors, every constant and both scans stay here: this is the file Tripwire exempts from its own scan.
+    // alert() and run_mailcheck() stay here too, on purpose. With either one moved out, Windows Defender reads what
+    // is left of this file as Backdoor:PHP/Remoteshell.A and deletes it from a Windows checkout (measured
+    // 2026-11-12: full file clean, three traits out clean, alert or the mail check out flagged). Before moving
+    // anything else out of this file, scan the result: MpCmdRun.exe -Scan -ScanType 3 -File <path> -DisableRemediation.
+    use DS_Tripwire_Vendor,
+        DS_Tripwire_Lists,
+        DS_Tripwire_Admins;
 
     const CRON_HOOK = 'ds_tripwire_daily';
     const STATE_OPT = 'ds_tripwire_state';
+    /**
+     * One Tripwire run at a time (the daily checks and the hourly content scan both rewrite STATE_OPT; before the
+     * 2026-11 audit neither took a lock, so two overlapping runs, or a run and the check that landed in the middle
+     * of it, could each save an older copy over the other's result). A run that died frees the lock after LOCK_TTL.
+     */
+    const LOCK_OPT  = 'ds_tripwire_lock';
+    const LOCK_TTL  = 180;
+    /**
+     * The whole hourly run (file walk, list fetches, scan, integrity check, save) must end inside this many seconds,
+     * and inside the host's own time limit. CONTENT_BUDGET_S only ever covered the scan loop, so slow pre-work could
+     * push a run past the limit: the request was killed, nothing was saved, and the run counted as "incomplete".
+     */
+    const RUN_CEILING_S = 25;
 
     /**
      * Hard blocklist: mu-plugins basenames that are malware camouflage in this
@@ -153,6 +182,7 @@ class DS_Tripwire {
     /* ------------------------------------------ content engine (1.9.132) ------------------ */
     /** Hourly behaviour-scan hook, separate from the daily IOC check so each cost is bounded alone. */
     const CONTENT_HOOK = 'ds_tripwire_content';
+    const DAILY_SPREAD = 5400; // the daily run lands between 03:10 and 04:40 site time, one fixed minute per site
     const MAILCHECK_HOOK = 'ds_tripwire_mailcheck';
     /** Seconds of scanning per cron run; the file list resumes from a cursor next run. */
     const CONTENT_BUDGET_S = 15;
@@ -205,9 +235,8 @@ class DS_Tripwire {
         // /usr/sbin/sendmail at all; Flywheel's is a setuid shim whose config is unreadable
         // outside a web request), so a CLI test reports a false negative on every site.
         add_action( self::MAILCHECK_HOOK, array( $this, 'run_mailcheck' ) );
-        // Copy every alert and a daily check-in to Design Shop HQ (features/class-ds-hq-link.php).
-        require_once __DIR__ . '/class-ds-hq-link.php';
-        DS_HQ_Link::boot( $this->settings );
+        // Alerts and the daily result reach Design Shop HQ through the ds_tripwire_alert and ds_tripwire_checked
+        // actions: HQ Link (features/class-ds-hq-link.php) is its own feature and listens for them.
 
         // Instant alert when an administrator appears. Registration and role
         // grants only ever happen in admin/AJAX/CLI flows, so these hooks are
@@ -217,12 +246,17 @@ class DS_Tripwire {
         add_action( 'add_user_role', array( $this, 'on_role_added' ), 10, 2 );
 
         if ( is_admin() || wp_doing_cron() || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
-            if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
-                // 03:10 site-local time: off-peak, and offset from the :00 herd.
-                // strtotime against the tz-shifted clock gives a "local reading";
-                // subtract the offset to get the real UTC timestamp cron expects.
-                $local  = strtotime( 'tomorrow 03:10', current_time( 'timestamp' ) );
-                $first  = $local ? $local - (int) round( (float) get_option( 'gmt_offset', 0 ) * HOUR_IN_SECONDS ) : 0;
+            // Off-peak, in the site's own time: 03:10 plus this site's own offset (see daily_offset()).
+            // A site still on the old fixed 03:10 slot is moved to its own minute once.
+            $tz_shift = (int) round( (float) get_option( 'gmt_offset', 0 ) * HOUR_IN_SECONDS );
+            $host     = (string) wp_parse_url( (string) home_url(), PHP_URL_HOST );
+            $next     = wp_next_scheduled( self::CRON_HOOK );
+            if ( $next && self::is_legacy_daily_slot( (int) $next, $tz_shift ) && self::daily_offset( $host ) > 0 ) {
+                wp_clear_scheduled_hook( self::CRON_HOOK );
+                $next = false;
+            }
+            if ( ! $next ) {
+                $first = self::daily_first_run( (int) current_time( 'timestamp' ), $tz_shift, $host );
                 wp_schedule_event( $first ? $first : time() + DAY_IN_SECONDS, 'daily', self::CRON_HOOK );
             }
             if ( ! wp_next_scheduled( self::CONTENT_HOOK ) ) {
@@ -257,19 +291,10 @@ class DS_Tripwire {
      * was on a live custom domain. Build work simply looks like an intrusion to a few rules.
      */
     public static function prelaunch() {
-        $host = strtolower( (string) wp_parse_url( (string) home_url(), PHP_URL_HOST ) );
-        if ( '' === $host ) {
-            return false; // cannot tell: treat as live and keep mailing
-        }
-        if ( 'localhost' === $host || '.local' === substr( $host, -6 ) || '.test' === substr( $host, -5 ) ) {
-            return true;
-        }
-        foreach ( array( '.wpenginepowered.com', '.flywheelsites.com' ) as $suffix ) {
-            if ( substr( $host, -strlen( $suffix ) ) === $suffix ) {
-                return true;
-            }
-        }
-        return false;
+        // One list for every feature (DS_Env). An unreadable hostname answers false there: treated as live,
+        // so the alert is still mailed. Since the 2026-11 audit the list also holds *.wpengine.com and
+        // *.flywheelstaging.com, which the Home Templates picker already counted as development addresses.
+        return DS_Env::is_dev_host();
     }
 
     /**
@@ -299,11 +324,62 @@ class DS_Tripwire {
         return false;
     }
 
-    public function run_checks() {
-        $state  = get_option( self::STATE_OPT, array() );
-        if ( ! is_array( $state ) ) {
-            $state = array();
+    private static function lock() {
+        require_once __DIR__ . '/../includes/class-ds-lock.php';
+        return DS_Lock::acquire( self::LOCK_OPT, self::LOCK_TTL );
+    }
+
+    private static function unlock() {
+        if ( class_exists( 'DS_Lock' ) ) {
+            DS_Lock::release( self::LOCK_OPT );
         }
+    }
+
+    /** The saved state as the DATABASE has it now (not a cached copy another container may have outdated). */
+    private static function fresh_state() {
+        require_once __DIR__ . '/../includes/class-ds-lock.php';
+        $state = DS_Lock::fresh_option( self::STATE_OPT, array() );
+        return is_array( $state ) ? $state : array();
+    }
+
+    /**
+     * Save the hourly scan's own part of the state ('content') and nothing else: the rest is re-read at the moment
+     * of saving, so a daily check or a new-administrator note written while the scan ran is never overwritten.
+     */
+    private static function save_content( array $content ) {
+        $state            = self::fresh_state();
+        $state['content'] = $content;
+        update_option( self::STATE_OPT, $state, false );
+    }
+
+    /** Seconds this request may still spend, by RUN_CEILING_S and by the host's limit (5 s kept in hand). */
+    private static function run_ceiling() {
+        $ceiling = self::RUN_CEILING_S;
+        $limit   = (int) ini_get( 'max_execution_time' );
+        if ( $limit > 0 ) {
+            $used    = isset( $_SERVER['REQUEST_TIME_FLOAT'] ) ? max( 0, microtime( true ) - (float) $_SERVER['REQUEST_TIME_FLOAT'] ) : 0;
+            $ceiling = min( $ceiling, (int) floor( $limit - $used - 5 ) );
+        }
+        return max( 6, $ceiling );
+    }
+
+    public function run_checks() {
+        // The hourly scan is running: come back in five minutes instead of saving over it (or being saved over).
+        if ( ! self::lock() ) {
+            if ( function_exists( 'wp_schedule_single_event' ) ) {
+                wp_schedule_single_event( time() + 5 * MINUTE_IN_SECONDS, self::CRON_HOOK );
+            }
+            return array();
+        }
+        try {
+            return $this->run_checks_locked();
+        } finally {
+            self::unlock();
+        }
+    }
+
+    private function run_checks_locked() {
+        $state  = self::fresh_state();
         $seeded = ! empty( $state['seeded'] );
 
         // Every finding is [ tier, text ]. CRITICAL = a shell or re-infection
@@ -333,6 +409,15 @@ class DS_Tripwire {
         $state['seeded']        = 1;
         $state['last_run']      = time();
         $state['last_findings'] = array_map( function ( $p ) { return $p[0] . ': ' . $p[1]; }, $f );
+        // The checks above took a while. Two parts of the state belong to other writers and may have changed since
+        // it was read: the hourly scan's results, and the note of who added which administrator (written the moment
+        // it happens). Take both as the database has them now.
+        $now_saved = self::fresh_state();
+        foreach ( array( 'content', 'admin_log' ) as $theirs ) {
+            if ( array_key_exists( $theirs, $now_saved ) ) {
+                $state[ $theirs ] = $now_saved[ $theirs ];
+            }
+        }
         update_option( self::STATE_OPT, $state, false );
 
         /* Pre-launch: the build-shaped findings are RECORDED but not mailed. Demoting to REVIEW is
@@ -564,166 +649,6 @@ class DS_Tripwire {
         return false !== strpos( $head, '<?php' );
     }
 
-    /**
-     * md5s of files already verified as known-good, loaded from includes/known-good.md5.
-     *
-     * This is the gate the engine's own header asks the caller to apply: "WHAT MAKES IT SAFE TO BE
-     * AGGRESSIVE: the CALLER suppresses findings whose md5 is known-good." fw-check-site-v2.sh has
-     * always done this with the fleet manifest and reported 3 findings on thepaohio.com; this plugin
-     * had no gate at all and alerted on 100 files there. Same engine, same rules - the list is the
-     * entire difference, and it is why stock Beaver Builder core (on every fleet site), Divi, Headway,
-     * Hummingbird and Wordfence were being reported as web shells.
-     *
-     * Suppression is by HASH, never by path or name: a file cannot be made to collide with a verified
-     * hash, and if it matches it IS that file. Missing or unreadable list = no suppression, so the
-     * failure mode is "keep scanning", never "go quiet". Regenerate with
-     * fleet-audit/bin/gen-known-good.sh on every release; a stale list only costs a false positive.
-     */
-    /**
-     * Is this file one the vendor verifiably ships, at this path, in the version the plugin declares?
-     * Returns true ONLY on an exact path + md5 hit in the official manifest. See VENDOR_BASE above
-     * for why this is hash equality and not a name or path exemption.
-     */
-    /**
-     * One manifest GET. $canonical lifts pre_http_request for the call, which is how we reach
-     * wordpress.org itself on a host that redirects WP's HTTP layer to a lagging mirror. The filter
-     * set is restored in every exit path, including a thrown one.
-     */
-    private static function vendor_get( $url, $canonical ) {
-        $args = array(
-            'timeout'     => self::VENDOR_TIMEOUT,
-            'redirection' => 1,
-            'sslverify'   => true,
-            'user-agent'  => 'DS-Tripwire/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '?' ),
-        );
-        if ( ! $canonical ) {
-            return wp_remote_get( $url, $args );
-        }
-        $saved = isset( $GLOBALS['wp_filter']['pre_http_request'] ) ? $GLOBALS['wp_filter']['pre_http_request'] : null;
-        if ( null !== $saved ) { unset( $GLOBALS['wp_filter']['pre_http_request'] ); }
-        try {
-            return wp_remote_get( $url, $args );
-        } catch ( \Throwable $e ) {
-            return new \WP_Error( 'ds_vendor_canonical', $e->getMessage() );
-        } finally {
-            if ( null !== $saved ) { $GLOBALS['wp_filter']['pre_http_request'] = $saved; }
-        }
-    }
-
-    private static function vendor_verified( $path, $md5 ) {
-        try {
-            if ( '' === (string) $path || '' === (string) $md5 ) { return false; }
-            $md5 = strtolower( $md5 );
-
-            // a file already verified on this site never needs the network again
-            if ( null === self::$vendor_ok ) {
-                $c = function_exists( 'get_transient' ) ? get_transient( 'ds_tripwire_vendor_ok' ) : false;
-                self::$vendor_ok = is_array( $c ) ? $c : array();
-            }
-            if ( isset( self::$vendor_ok[ $md5 ] ) ) { self::$vendor_stats['verified']++; return true; }
-
-            // the path must sit inside a plugin folder, and give us the slug + the vendor-relative path
-            $norm = str_replace( '\\', '/', (string) $path );
-            if ( ! preg_match( '#/wp-content/plugins/([^/]+)/(.+)$#', $norm, $mm ) ) { return false; }
-            $slug = $mm[1];
-            $rel  = $mm[2];
-            // our own plugin is never on wordpress.org; do not even ask
-            if ( 'ds-toolkit' === $slug || ! preg_match( '/^[a-z0-9][a-z0-9\-\.]*$/i', $slug ) ) { return false; }
-
-            $ver = self::plugin_version( $slug );
-            if ( '' === $ver || ! preg_match( '/^[0-9A-Za-z\.\-]+$/', $ver ) ) { return false; }
-
-            $key = $slug . '|' . $ver;
-            if ( isset( self::$vendor_tried[ $key ] ) ) {
-                // already fetched (or failed) this run. If it succeeded, the md5 set was merged, so
-                // arriving here means this file is simply not a verified vendor file.
-                return false;
-            }
-            if ( self::$vendor_fetches >= self::VENDOR_FETCH_MAX ) { self::$vendor_stats['budget']++; return false; }
-
-            self::$vendor_tried[ $key ] = true;
-            self::$vendor_fetches++;
-
-            if ( ! function_exists( 'wp_remote_get' ) ) { self::$vendor_stats['error']++; return false; }
-            $url = self::VENDOR_BASE . rawurlencode( $slug ) . '/' . rawurlencode( $ver ) . '.json';
-            $r   = self::vendor_get( $url, false );
-            $code = is_wp_error( $r ) ? 0 : (int) wp_remote_retrieve_response_code( $r );
-            // WP ENGINE MIRROR LAG. WPE hooks pre_http_request and serves wordpress.org from its own
-            // artifact bucket (wpe-wp-updater-artifacts-*), which trails the real index: on
-            // 2026-09-28 google-site-kit 1.188.0, released 09-21, was still NoSuchKey there while
-            // wordpress.org had it, and every one of 20 pilot installs was on 1.186-1.188. Smart
-            // Plugin Manager keeps WPE sites on the newest release, so the mirror is most likely to
-            // be missing exactly the version installed - i.e. it fails where we need it most. So on
-            // a 404 only, ask the canonical host once with those filters lifted. Read-only, one
-            // small GET, and the answer is cached for a week.
-            if ( 200 !== $code ) {
-                $r2 = self::vendor_get( $url, true );
-                $c2 = is_wp_error( $r2 ) ? 0 : (int) wp_remote_retrieve_response_code( $r2 );
-                if ( 200 === $c2 ) { $r = $r2; $code = $c2; self::$vendor_stats['canonical']++; }
-            }
-            if ( is_wp_error( $r ) ) { self::$vendor_stats['error']++; return false; }
-            if ( 200 !== $code ) { self::$vendor_stats['no_manifest']++; return false; }  // premium, or a version nobody published
-            $body = (string) wp_remote_retrieve_body( $r );
-            if ( '' === $body || strlen( $body ) > self::VENDOR_MAX_BYTES ) { self::$vendor_stats['error']++; return false; }
-            $d = json_decode( $body, true );
-            if ( ! is_array( $d ) || empty( $d['files'] ) || ! is_array( $d['files'] ) ) { self::$vendor_stats['error']++; return false; }
-
-            // Merge EVERY md5 this manifest declares into the verified set, so the rest of this run
-            // and the next week of runs cost nothing. Keyed by md5 only, which is safe because a
-            // match still had to come from this plugin's own manifest.
-            $add = array();
-            foreach ( $d['files'] as $fpath => $meta ) {
-                if ( is_array( $meta ) && ! empty( $meta['md5'] ) ) { $add[ strtolower( $meta['md5'] ) ] = true; }
-            }
-            $hit = isset( $d['files'][ $rel ] ) && is_array( $d['files'][ $rel ] )
-                && strtolower( (string) $d['files'][ $rel ]['md5'] ) === $md5;
-
-            if ( $hit ) {
-                self::$vendor_ok = array_merge( self::$vendor_ok, $add );
-                if ( function_exists( 'set_transient' ) ) {
-                    // cap the stored set so a site with many plugins cannot grow this without bound
-                    $keep = self::$vendor_ok;
-                    if ( count( $keep ) > 20000 ) { $keep = array_slice( $keep, -20000, null, true ); }
-                    set_transient( 'ds_tripwire_vendor_ok', $keep, self::VENDOR_TTL );
-                }
-                self::$vendor_stats['verified']++;
-                return true;
-            }
-            if ( ! isset( $d['files'][ $rel ] ) ) { self::$vendor_stats['not_shipped']++; }
-            else { self::$vendor_stats['mismatch']++; }
-            return false;
-        } catch ( \Throwable $e ) {
-            self::$vendor_stats['error']++;
-            return false;
-        }
-    }
-
-    /** The version a plugin declares, from its own main file header. '' when unknown. */
-    private static function plugin_version( $slug ) {
-        try {
-            $dir = ( defined( 'WP_PLUGIN_DIR' ) ? WP_PLUGIN_DIR : WP_CONTENT_DIR . '/plugins' ) . '/' . $slug;
-            if ( ! is_dir( $dir ) ) { return ''; }
-            $files = glob( $dir . '/*.php' );
-            if ( ! is_array( $files ) ) { return ''; }
-            // the main file is usually <slug>.php; try it first, then any file with a Version header
-            usort( $files, function ( $a, $b ) use ( $slug ) {
-                $pa = ( basename( $a ) === $slug . '.php' ) ? 0 : 1;
-                $pb = ( basename( $b ) === $slug . '.php' ) ? 0 : 1;
-                return $pa === $pb ? strcmp( $a, $b ) : $pa - $pb;
-            } );
-            foreach ( array_slice( $files, 0, 12 ) as $f ) {
-                $head = @file_get_contents( $f, false, null, 0, 8192 );
-                if ( false === $head ) { continue; }
-                if ( preg_match( '/^[ \t\/*#@]*Version:\s*(.+)$/mi', $head, $m ) ) {
-                    return trim( $m[1] );
-                }
-            }
-            return '';
-        } catch ( \Throwable $e ) {
-            return '';
-        }
-    }
-
     private static function known_good_md5() {
         static $set = null;
         if ( null !== $set ) {
@@ -759,7 +684,7 @@ class DS_Tripwire {
      * access to main, not read access to the file. A hash committed here is live on every site
      * within one cron cycle, with no release and no fleet push.
      */
-    const REMOTE_LIST_BASE = 'https://raw.githubusercontent.com/Design-Shop-LeagueApps-Department/ds-toolkit/main/lists/';
+    const REMOTE_LIST_BASE = 'https://raw.githubusercontent.com/' . DS_Env::REPO . '/main/lists/';
     const REMOTE_TTL       = 3600;   // one cron cycle
     const REMOTE_JITTER    = 900;    // per-site spread, so 1,100 sites do not hit GitHub in the same second
     const REMOTE_MAX_BYTES = 524288; // 512 KB; the remote lists are deltas, the ~530 KB bundle stays bundled
@@ -793,166 +718,6 @@ class DS_Tripwire {
     const VENDOR_MAX_BYTES = 4194304; // 4 MB; the largest manifests are ~500 KB
     const VENDOR_FETCH_MAX = 6;       // manifests per run. A scoring file is rare, so this is generous.
     const VENDOR_TTL       = 604800;  // 7 days; a slug+version manifest is immutable once published
-
-    private static $remote_status = array();
-
-    /** md5 => true for files this site has already verified against a vendor manifest. */
-    private static $vendor_ok = null;
-    /** slug|version => true for manifests already fetched (or failed) this run, to fetch each once. */
-    private static $vendor_tried = array();
-    private static $vendor_fetches = 0;
-    private static $vendor_stats = array( 'verified' => 0, 'no_manifest' => 0, 'not_shipped' => 0, 'mismatch' => 0, 'error' => 0, 'budget' => 0, 'canonical' => 0 );
-
-    /**
-     * Parse an md5 list body. PURE: no WordPress, no I/O, so the unit test can feed it garbage.
-     * A line counts only if its first 32 characters are hex and the 33rd is end-of-line or
-     * whitespace. Everything else is ignored: comments, an HTML error page, a rate-limit notice,
-     * a truncated line, a 31-character typo. For a named list the rest of the line is the label.
-     * Returns [md5 => true] or, when $named, [md5 => label].
-     */
-    private static function parse_md5_list( $body, $named = false ) {
-        $out = array();
-        if ( ! is_string( $body ) || '' === $body ) {
-            return $out;
-        }
-        foreach ( preg_split( '/\r\n|\r|\n/', $body ) as $line ) {
-            $line = trim( $line );
-            if ( '' === $line || '#' === $line[0] ) {
-                continue;
-            }
-            $md5  = strtolower( substr( $line, 0, 32 ) );
-            $tail = trim( (string) substr( $line, 32 ) );
-            if ( 32 !== strlen( $md5 ) || ! ctype_xdigit( $md5 ) ) {
-                continue;
-            }
-            if ( '' !== $tail && ! ctype_space( $line[32] ) ) {
-                continue; // 33+ hex chars run together: not a hash, do not guess
-            }
-            $out[ $md5 ] = $named ? ( '' !== $tail ? $tail : 'listed in the remote deny list' ) : true;
-        }
-        return $out;
-    }
-
-    /**
-     * Fetch one remote list, cached for a cron cycle. Built for a fleet of thousands where the worst
-     * bug is an email flood, so every failure path is conservative:
-     *   - not 200, not text, too large, transport error  -> failure
-     *   - a body with ZERO valid hashes                   -> failure (an error page, a rate-limit
-     *     notice and a truncated response all parse to zero; none may replace a good list)
-     *   - failure                                         -> the last GOOD copy if one exists, else
-     *     nothing, cached 15 min so a dead endpoint is retried, not hammered
-     *   - anything thrown                                 -> nothing
-     * "Nothing" means the bundled list runs alone, which is exactly the behaviour of every earlier
-     * release. This function can reduce suppression to what the bundle does; it can never widen a
-     * failure into silence, and it never throws.
-     */
-    private static function remote_list( $which ) {
-        $which = ( 'deny' === $which ) ? 'deny' : 'allow';
-        $named = ( 'deny' === $which );
-        // The ALLOW list silences findings, so since 1.12.0 it must carry a signature by the release key
-        // (tripwire-allow.md5.sig, see lists/README.md): without one a commit to main could no longer switch
-        // detection off fleet-wide. New cache keys, so a copy an older version cached unsigned is never used.
-        // The deny list only names findings the engine already scored, so it stays unsigned.
-        $signed = ! $named;
-        $key   = ( $signed ? 'ds_tripwire_rl2_' : 'ds_tripwire_rl_' ) . $which;
-        $good  = ( $signed ? 'ds_tripwire_rlg2_' : 'ds_tripwire_rlg_' ) . $which;
-        $day   = defined( 'DAY_IN_SECONDS' ) ? DAY_IN_SECONDS : 86400;
-        try {
-            if ( ! function_exists( 'get_transient' ) || ! function_exists( 'wp_remote_get' ) ) {
-                self::$remote_status[ $which ] = array( 'status' => 'unavailable', 'count' => 0 );
-                return array();
-            }
-            $cached = get_transient( $key );
-            if ( is_array( $cached ) ) {
-                self::$remote_status[ $which ] = array( 'status' => 'cached', 'count' => count( $cached ) );
-                return $cached;
-            }
-            $r    = wp_remote_get( self::REMOTE_LIST_BASE . 'tripwire-' . $which . '.md5', array(
-                'timeout'     => self::REMOTE_TIMEOUT,
-                'redirection' => 1,
-                'sslverify'   => true,
-                'headers'     => array( 'Accept' => 'text/plain' ),
-                'user-agent'  => 'DS-Tripwire/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '?' ),
-            ) );
-            $fail = '';
-            $list = array();
-            if ( is_wp_error( $r ) ) {
-                $fail = 'error: ' . substr( $r->get_error_message(), 0, 60 );
-            } else {
-                $code = (int) wp_remote_retrieve_response_code( $r );
-                $body = (string) wp_remote_retrieve_body( $r );
-                $ct   = (string) wp_remote_retrieve_header( $r, 'content-type' );
-                if ( 200 !== $code ) {
-                    $fail = 'http ' . $code;
-                } elseif ( strlen( $body ) > self::REMOTE_MAX_BYTES ) {
-                    $fail = 'too large';
-                } elseif ( '' !== $ct && 0 !== strpos( $ct, 'text/' ) ) {
-                    $fail = 'not text: ' . substr( $ct, 0, 40 );
-                } elseif ( $signed && '' !== ( $sig_fail = self::remote_list_sig_fail( 'tripwire-' . $which, $body ) ) ) {
-                    $fail = $sig_fail;
-                } else {
-                    $list = self::parse_md5_list( $body, $named );
-                    if ( 0 === count( $list ) ) {
-                        $fail = 'no valid hashes';
-                    }
-                }
-            }
-            if ( '' === $fail ) {
-                $spread = function_exists( 'home_url' ) ? ( crc32( (string) home_url() ) % self::REMOTE_JITTER ) : 0;
-                set_transient( $key, $list, self::REMOTE_TTL + $spread );
-                set_transient( $good, $list, 30 * $day );
-                self::$remote_status[ $which ] = array( 'status' => 'fetched', 'count' => count( $list ) );
-                return $list;
-            }
-            $last = get_transient( $good );
-            $last = is_array( $last ) ? $last : array();
-            set_transient( $key, $last, 900 );
-            self::$remote_status[ $which ] = array(
-                'status' => 'fail (' . $fail . ')' . ( $last ? ', using last good' : ', bundle only' ),
-                'count'  => count( $last ),
-            );
-            return $last;
-        } catch ( \Throwable $e ) {
-            self::$remote_status[ $which ] = array( 'status' => 'exception: ' . substr( $e->getMessage(), 0, 60 ), 'count' => 0 );
-            return array();
-        }
-    }
-
-    /** Why the fetched list $name is not signed by the release key, or '' when it is. */
-    private static function remote_list_sig_fail( $name, $body ) {
-        if ( ! class_exists( 'DS_HQ_Update' ) ) {
-            require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-update.php';
-        }
-        $r = wp_remote_get( self::REMOTE_LIST_BASE . $name . '.md5.sig', array(
-            'timeout'     => self::REMOTE_TIMEOUT,
-            'redirection' => 1,
-            'sslverify'   => true,
-            'user-agent'  => 'DS-Tripwire/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '?' ),
-        ) );
-        if ( is_wp_error( $r ) || 200 !== (int) wp_remote_retrieve_response_code( $r ) ) {
-            return 'unsigned (' . ( is_wp_error( $r ) ? 'no signature' : 'signature http ' . (int) wp_remote_retrieve_response_code( $r ) ) . ')';
-        }
-        return DS_HQ_Update::list_sig_ok( $name, hash( 'sha256', (string) $body ), (string) wp_remote_retrieve_body( $r ) ) ? '' : 'bad signature';
-    }
-
-    /**
-     * Bundled KNOWN_BAD_MD5 plus the remote deny list, [md5 => name]. A deny entry only NAMES a
-     * finding the engine has already scored on behaviour; it never creates one. So a wrong deny hash
-     * costs a wrong label on a real finding, and can never manufacture an alert on a clean file.
-     */
-    private static function known_bad_md5() {
-        static $bad = null;
-        if ( null !== $bad ) {
-            return $bad;
-        }
-        $bad = self::KNOWN_BAD_MD5;
-        foreach ( self::remote_list( 'deny' ) as $md5 => $name ) {
-            if ( ! isset( $bad[ $md5 ] ) ) {
-                $bad[ $md5 ] = is_string( $name ) ? $name : 'listed in the remote deny list';
-            }
-        }
-        return $bad;
-    }
 
     /** Count executable files under $dir, capped so a 35k-file WordPress copy does not stall the cron. */
     private static function exec_count( $dir, $cap = 300 ) {
@@ -1149,188 +914,29 @@ class DS_Tripwire {
 
     /* ------------------------------------------------- instant admin alerts */
 
-    public function on_user_change( $user_id ) {
-        $user = get_userdata( $user_id );
-        if ( $user && in_array( 'administrator', (array) $user->roles, true ) ) {
-            $this->alert_new_admin( $user, 'registered with the administrator role' );
-        }
-    }
-
-    public function on_role_change( $user_id, $role, $old_roles ) {
-        if ( 'administrator' === $role && ! in_array( 'administrator', (array) $old_roles, true ) ) {
-            $user = get_userdata( $user_id );
-            if ( $user ) $this->alert_new_admin( $user, 'was promoted to administrator' );
-        }
-    }
-
-    public function on_role_added( $user_id, $role ) {
-        if ( 'administrator' === $role ) {
-            $user = get_userdata( $user_id );
-            if ( $user ) $this->alert_new_admin( $user, 'was granted the administrator role' );
-        }
+    /**
+     * This site's own offset into the daily window, in seconds, from its address: the same every day, different
+     * from site to site. Every site used to run at exactly 03:10 its own time, so a whole time zone scanned and
+     * then reported to Design Shop HQ in the same minute. Never a whole hour, so a moved slot can be told from the
+     * old one.
+     */
+    public static function daily_offset( $host ) {
+        $off = (int) ( abs( crc32( strtolower( (string) $host ) ) ) % self::DAILY_SPREAD );
+        return 0 === $off % HOUR_IN_SECONDS ? $off + 60 : $off;
     }
 
     /**
-     * Alert on a new administrator, but only when the account cannot be explained
-     * by someone already trusted on this site.
-     *
-     * Two things were wrong with alerting on every new administrator (found
-     * 2026-09-04 on accessplus1, where a real partner user created by a Design
-     * Shop admin produced a "you may be compromised" email):
-     *
-     * 1. Routine provisioning paged the whole team. An alert that fires on our own
-     *    normal work teaches people to skim past it, and then the genuine one gets
-     *    skimmed past too, which is the exact failure this feature exists to avoid.
-     * 2. The same event was reported TWICE. check_admins() diffs against
-     *    admin_baseline, which this path never updated, so the account came back
-     *    that night as "appeared since yesterday".
-     *
-     * The campaign's signature is the opposite of routine provisioning: its admins
-     * (adminxix, the TDN####Cz@tripledown.org set, admin_xxxxxx@example.com) arrived
-     * with no logged-in creator at all. So attribution is the filter. An established
-     * administrator, or our own WP-CLI tooling, is recorded silently; anything
-     * unattributable, freshly escalated, or carrying a throwaway address still
-     * emails immediately.
-     *
-     * 1.9.130: a Design Shop staff address (@leagueapps.com) is recorded and never
-     * emailed, whoever created it. Our own cleanup logins on 2026-09-15 arrived as
-     * "unknown actor" and paged the team twice about ourselves.
+     * The first daily run as a real (UTC) timestamp: tomorrow 03:10 by the site's clock, plus its offset.
+     * $local_now is the site's clock reading (current_time( 'timestamp' )), $tz_shift its distance from UTC.
      */
-    private function alert_new_admin( $user, $how ) {
-        static $alerted = array();
-        if ( isset( $alerted[ $user->ID ] ) ) {
-            return;
-        }
-        $alerted[ $user->ID ] = true;
-
-        $actor = $this->current_actor();
-
-        // Recorded either way, so the nightly roster check never reports the same
-        // account a second time.
-        $this->remember_admin( $user, $actor );
-
-        if ( preg_match( '/@leagueapps\.com$/i', (string) $user->user_email ) ) {
-            return;
-        }
-        if ( $this->actor_is_established() && ! self::email_is_throwaway( $user->user_email ) ) {
-            return;
-        }
-
-        /* 1.13.1: created by Design Shop staff (an administrator with an @leagueapps.com address, the
-           1.12.0 rule) is our own onboarding, so it is recorded for HQ and not mailed, on any site. The
-           producer is usually new on the site, so actor_is_established() above cannot help. Every such
-           alert on HQ to 2026-10-29 (6) was our own onboarding (lpacheco adding partner admins on
-           futureswpl, goldstarlax, paplaymakers, teamhoustonbb). HQ closes the record itself when the line below names
-           a @leagueapps.com creator, so it is named by email, not login. A throwaway address still mails. */
-        $current = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
-        $staff   = class_exists( 'DS_Toolkit' ) && DS_Toolkit::is_leagueapps_staff( $current )
-            && ! self::email_is_throwaway( $user->user_email );
-        if ( $staff ) {
-            $actor = $current->user_email;
-        }
-
-        /* On a pre-launch build the producer is often newly added themselves, so actor_is_established()
-           above cannot help: goldstarlax raised three of these in 70 seconds on 2026-10-15 while
-           onboarding the partner's own staff. Record it for HQ, do not mail it. */
-        $this->alert(
-            'HIGH',
-            array(
-                "A new administrator just appeared on this site: {$user->user_login} <{$user->user_email}> ({$how}).",
-                "Created by: {$actor}.",
-                'If nobody on the team did this, the site may be compromised. In the recent attack a rogue admin account appeared two hours before the malware. Flag it to the Design Shop point person for security right away.',
-            ),
-            array(),
-            false,
-            ! self::prelaunch() && ! $staff
-        );
+    public static function daily_first_run( $local_now, $tz_shift, $host ) {
+        $local = strtotime( 'tomorrow 03:10', (int) $local_now );
+        return $local ? $local + self::daily_offset( $host ) - (int) $tz_shift : 0;
     }
 
-    /** Who is performing the change, for the alert body and the state log. */
-    private function current_actor() {
-        if ( function_exists( 'wp_get_current_user' ) ) {
-            $current = wp_get_current_user();
-            if ( $current && $current->exists() ) {
-                return $current->user_login;
-            }
-        }
-        if ( defined( 'WP_CLI' ) && WP_CLI ) {
-            return 'WP-CLI';
-        }
-        return 'unknown actor';
-    }
-
-    /**
-     * True when the change is attributable to someone already trusted here: our own
-     * WP-CLI tooling, or a logged-in administrator whose account is more than a day
-     * old. A brand-new administrator immediately creating another one is precisely
-     * the escalation chain we DO want to hear about, so the age floor matters.
-     */
-    private function actor_is_established() {
-        if ( defined( 'WP_CLI' ) && WP_CLI ) {
-            return true;
-        }
-        if ( ! function_exists( 'wp_get_current_user' ) ) {
-            return false;
-        }
-        $current = wp_get_current_user();
-        // No session at all: self-registration, which is how the campaign's
-        // accounts appeared. Always worth an email.
-        if ( ! $current || ! $current->exists() ) {
-            return false;
-        }
-        if ( ! in_array( 'administrator', (array) $current->roles, true ) ) {
-            return false;
-        }
-        $registered = strtotime( (string) $current->user_registered );
-        return $registered && ( time() - $registered ) > DAY_IN_SECONDS;
-    }
-
-    /** Disposable / placeholder domains seen on the campaign's rogue accounts. */
-    private static function email_is_throwaway( $email ) {
-        $at = strrpos( (string) $email, '@' );
-        if ( false === $at ) {
-            return true;
-        }
-        $domain = strtolower( substr( (string) $email, $at + 1 ) );
-        $bad    = array(
-            'example.com',
-            'example.org',
-            'example.net',
-            'example.invalid',
-            'test.com',
-            'mailinator.com',
-            'tripledown.org',
-        );
-        if ( in_array( $domain, $bad, true ) ) {
-            return true;
-        }
-        return '.invalid' === substr( $domain, -8 );
-    }
-
-    /**
-     * Fold a just-seen administrator into the nightly baseline so check_admins()
-     * does not re-report it, and keep a short local audit trail of who added whom.
-     * The label format must match check_admins() exactly or the diff misses.
-     */
-    private function remember_admin( $user, $actor ) {
-        $state = get_option( self::STATE_OPT, array() );
-        if ( ! is_array( $state ) ) {
-            $state = array();
-        }
-
-        $baseline                          = isset( $state['admin_baseline'] ) ? (array) $state['admin_baseline'] : array();
-        $baseline[ (int) $user->ID ]       = $user->user_login . ' <' . $user->user_email . '>';
-        $state['admin_baseline']           = $baseline;
-
-        $log   = isset( $state['admin_log'] ) ? (array) $state['admin_log'] : array();
-        $log[] = array(
-            'at'  => gmdate( 'Y-m-d H:i' ),
-            'who' => $user->user_login . ' <' . $user->user_email . '>',
-            'by'  => $actor,
-        );
-        $state['admin_log'] = array_slice( $log, -20 );
-
-        update_option( self::STATE_OPT, $state, false );
+    /** Is this scheduled run still on the old slot (ten past an hour, to the second, by the site's clock)? */
+    public static function is_legacy_daily_slot( $ts, $tz_shift ) {
+        return 600 === ( ( (int) $ts + (int) $tz_shift ) % HOUR_IN_SECONDS + HOUR_IN_SECONDS ) % HOUR_IN_SECONDS;
     }
 
     /* ------------------------------------------------------ content engine */
@@ -1362,9 +968,21 @@ class DS_Tripwire {
         if ( isset( $this->settings['tripwire_content_enabled'] ) && ! $this->settings['tripwire_content_enabled'] ) { return array(); }
         if ( ! apply_filters( 'ds_tripwire_content_enabled', true ) ) { return array(); }
 
-        $budget = $budget ? (int) $budget : self::CONTENT_BUDGET_S;
-        $state  = get_option( self::STATE_OPT, array() );
-        if ( ! is_array( $state ) ) { $state = array(); }
+        // One run at a time. A run already in flight (a second cron runner, a manual run, the daily checks) will do
+        // the work; this one leaves without touching the state.
+        if ( ! self::lock() ) { return array(); }
+        try {
+            return $this->run_content_scan_locked( $budget );
+        } finally {
+            self::unlock();
+        }
+    }
+
+    private function run_content_scan_locked( $budget ) {
+        $started = microtime( true );
+        $ceiling = self::run_ceiling();
+        $budget  = $budget ? (int) $budget : self::CONTENT_BUDGET_S;
+        $state   = self::fresh_state();
         $c = ( isset( $state['content'] ) && is_array( $state['content'] ) ) ? $state['content'] : array();
         $c['last_run'] = time();
         $c['error']    = '';
@@ -1372,22 +990,19 @@ class DS_Tripwire {
         $engine = DS_TOOLKIT_PATH . 'includes/ds-scan-engine.php';
         if ( PHP_VERSION_ID < 70400 || ! function_exists( 'token_get_all' ) || ! is_readable( $engine ) ) {
             $c['error'] = 'engine unavailable: php ' . PHP_VERSION . ', tokenizer ' . ( function_exists( 'token_get_all' ) ? 'present' : 'missing' ) . ', file ' . ( is_readable( $engine ) ? 'present' : 'missing' );
-            $state['content'] = $c;
-            update_option( self::STATE_OPT, $state, false );
+            self::save_content( $c );
             return array();
         }
         try {
             require_once $engine;
         } catch ( \Throwable $e ) {
             $c['error'] = 'engine failed to load: ' . get_class( $e ) . ': ' . substr( $e->getMessage(), 0, 120 );
-            $state['content'] = $c;
-            update_option( self::STATE_OPT, $state, false );
+            self::save_content( $c );
             return array();
         }
         if ( ! function_exists( 'dsscan_scan_list' ) || ! defined( 'DSSCAN_HIGH_SCORE' ) ) {
             $c['error'] = 'engine loaded but its API is missing';
-            $state['content'] = $c;
-            update_option( self::STATE_OPT, $state, false );
+            self::save_content( $c );
             return array();
         }
         $c['engine'] = defined( 'DSSCAN_VERSION' ) ? DSSCAN_VERSION : '?';
@@ -1398,8 +1013,7 @@ class DS_Tripwire {
         if ( $poison ) { $inc++; }
         $c['incomplete']  = $inc;
         $c['in_progress'] = 1;
-        $state['content'] = $c;
-        update_option( self::STATE_OPT, $state, false );
+        self::save_content( $c );
 
         list( $recent, $rest ) = self::content_candidates( self::web_root() );
         $cursor = isset( $c['cursor'] ) ? (int) $c['cursor'] : 0;
@@ -1423,10 +1037,15 @@ class DS_Tripwire {
         try { $known = self::known_good_md5(); } catch ( \Throwable $e ) { $known = array(); }
         try { $bad   = self::known_bad_md5();  } catch ( \Throwable $e ) { $bad   = self::KNOWN_BAD_MD5; }
         try { $own   = self::own_marker_md5(); } catch ( \Throwable $e ) { $own   = array(); }
+        // The scan gets its full budget unless the walk and the list fetches above already used so much of the
+        // run's ceiling that it would not finish in time; 3 s are kept for the integrity check and the save, and
+        // the scan always gets at least 3 s so the cursor moves on every run.
+        $spent    = microtime( true ) - $started;
+        $scan_for = (int) max( 3, min( $budget, floor( $ceiling - $spent - 3 ) ) );
         $opts    = array(
             'min'          => DSSCAN_HIGH_SCORE,
             'tokenize_cap' => $tokcap,
-            'deadline'     => time() + $budget,
+            'deadline'     => time() + $scan_for,
             'self_paths'   => $self,
         );
         try {
@@ -1466,8 +1085,14 @@ class DS_Tripwire {
             $stopped     = (int) $stats['stopped_at'];
             $c['cursor'] = ( $stopped > $n_recent ) ? $cursor + ( $stopped - $n_recent ) : $cursor;
         }
+        // The scan loop is over: save where it got to NOW. It used to be saved only at the very end, so a request
+        // killed during the integrity check or the mail lost the whole run's progress and scanned the same files
+        // again. "in_progress" stays set until the end: it is what marks a run that never finished.
+        self::save_content( $c );
 
-        $integrity = self::check_toolkit_integrity();
+        $t_integrity = microtime( true );
+        $integrity   = self::check_toolkit_integrity();
+        $t_integrity = microtime( true ) - $t_integrity;
 
         // record everything at HIGH and above; email CRITICAL only, once per file per day
         $alerted = isset( $c['alerted'] ) ? (array) $c['alerted'] : array();
@@ -1529,11 +1154,18 @@ class DS_Tripwire {
             'recent'  => $n_recent,
             'total'   => $n_recent + count( $rest ),
             'budget'  => $budget,
+            // What the run really cost, so "is the hourly scan too heavy for this host?" can be read, not guessed:
+            // seconds before the scan started (file walk + list fetches), the scan's own allowance this run, the
+            // integrity check, and the whole run against its ceiling.
+            'prep_s'      => round( $spent, 2 ),
+            'scan_for'    => $scan_for,
+            'integrity_s' => round( $t_integrity, 2 ),
+            'run_s'       => round( microtime( true ) - $started, 2 ),
+            'ceiling'     => $ceiling,
         );
         $c['in_progress'] = 0;
         $c['incomplete']  = ( '' === $c['error'] ) ? 0 : $inc + 1;
-        $state['content'] = $c;
-        update_option( self::STATE_OPT, $state, false );
+        self::save_content( $c );
 
         if ( $mail ) {
             $this->alert( 'CRITICAL', array_map( function ( $l ) { return '[CRITICAL] ' . $l; }, $mail ), $files, $repeat );
@@ -1752,7 +1384,7 @@ class DS_Tripwire {
         $raw = (string) ( $this->settings['tripwire_alert_email'] ?? '' );
         $to  = array_filter( array_map( 'trim', explode( ',', $raw ) ), 'is_email' );
         if ( ! $to ) {
-            $to = array( 'design@leagueapps.com' );
+            $to = array( DS_Env::ALERT_EMAIL );
         }
         $to   = apply_filters( 'ds_tripwire_alert_email', $to );
         $site = home_url();

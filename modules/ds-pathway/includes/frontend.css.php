@@ -8,6 +8,7 @@ $node = ".fl-node-$id";
 $col  = array( 'DS_Module_UI', 'color' );
 $u    = array( 'DS_Module_UI', 'u' );
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 // ---- Content width (boxed / full / custom) ----
 $cw = $settings->content_width ?? 'boxed';
@@ -37,6 +38,7 @@ if ( '' !== $dc ) { $vars[] = '--ds-path-divider-c:' . $dc; }
 echo "$node .ds-pathway { " . implode( '; ', $vars ) . "; }\n";
 
 // Responsive gap overrides.
+if ( '' !== ( $settings->gap_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-pathway { --ds-path-gap: " . (int) $settings->gap_large . "px; } }\n"; }
 if ( '' !== ( $settings->gap_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-pathway { --ds-path-gap: " . (int) $settings->gap_medium . "px; } }\n"; }
 if ( '' !== ( $settings->gap_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-pathway { --ds-path-gap: " . (int) $settings->gap_responsive . "px; } }\n"; }
 

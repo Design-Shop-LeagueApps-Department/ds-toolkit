@@ -55,11 +55,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
+require_once dirname( __DIR__ ) . '/includes/class-ds-lock.php';
+
 class DS_HQ_Link {
 
 	const OPT          = 'ds_hq_link';
 	const ENROLL_HOOK  = 'ds_hq_link_enroll';
-	const ENDPOINT     = 'https://designshophq.wpenginepowered.com/wp-json/dshq/v1/tripwire/';
+	const ENDPOINT     = DS_Env::HQ_URL . 'wp-json/dshq/v1/tripwire/';
 	const QUEUE_MAX    = 10;
 	const RETRY_AFTER  = 43200; // re-enroll at most twice a day
 	const CHECKIN_HOOK = 'ds_hq_link_checkin';
@@ -73,7 +76,23 @@ class DS_HQ_Link {
 
 	private static $booted = false;
 
-	/** Called from DS_Tripwire::init(). */
+	private $settings;
+
+	/**
+	 * Started by the feature loader under its own setting (tripwire_hq_report), whether or not Tripwire is on.
+	 * Until the 2026-11 audit only Tripwire started it, so switching Tripwire off also stopped the check-ins
+	 * (the site showed as Silent on HQ) and the toolkit updates HQ rolls out. Tripwire now only sends it events
+	 * (ds_tripwire_checked, ds_tripwire_alert); a check-in says whether Tripwire is on.
+	 */
+	public function __construct( $settings = array() ) {
+		$this->settings = is_array( $settings ) ? $settings : array();
+	}
+
+	public function init() {
+		self::boot( $this->settings );
+	}
+
+	/** Hooks and timers. Safe to call twice. */
 	public static function boot( $settings ) {
 		if ( self::$booted || ( isset( $settings['tripwire_hq_report'] ) && ! $settings['tripwire_hq_report'] ) ) {
 			return;
@@ -161,10 +180,24 @@ class DS_HQ_Link {
 		return max( self::EVERY_MIN, min( self::EVERY_MAX, $e ?: self::EVERY_MAX ) );
 	}
 
-	/** One single event at now + interval; any earlier one is replaced, so a changed interval applies at once. */
+	/**
+	 * One single event at now + interval; any earlier one is replaced, so a changed interval applies at once.
+	 * A few random minutes on top (at most 5% of the interval, at most 15 minutes) so sites that sent together
+	 * once do not keep arriving at HQ together. HQ calls a site silent after two intervals plus an hour.
+	 */
 	public static function schedule_next() {
+		$every = self::every();
 		wp_clear_scheduled_hook( self::CHECKIN_HOOK );
-		wp_schedule_single_event( time() + self::every(), self::CHECKIN_HOOK );
+		wp_schedule_single_event( time() + $every + wp_rand( 0, (int) min( 900, $every / 20 ) ), self::CHECKIN_HOOK );
+	}
+
+	/**
+	 * Seconds to wait before sending the queue again after HQ could not take it: 5 minutes, doubling with each
+	 * failure in a row, 6 hours at most. A flat 5 minutes meant every site hammered an overloaded HQ in step.
+	 */
+	public static function retry_delay( $fails ) {
+		$fails = max( 1, min( 12, (int) $fails ) );
+		return (int) min( 6 * HOUR_IN_SECONDS, 5 * MINUTE_IN_SECONDS * pow( 2, $fails - 1 ) );
 	}
 
 	/** This install's key, made now if missing or if the stored one belongs to the install this site was copied from. */
@@ -293,7 +326,9 @@ class DS_HQ_Link {
 			'platform'  => self::platform(),
 			'toolkit'   => class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::installed() : ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '' ),
 			'update'    => class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::report() : array(),
-			'tripwire'  => array(
+			// The health values of the Status card ride along as extra flat values (DS_Status::hq_fields()). The
+			// keys below win on a clash, so nothing HQ already reads can change meaning.
+			'tripwire'  => ( class_exists( 'DS_Status' ) ? DS_Status::hq_fields( $set ) : array() ) + array(
 				'enabled'          => isset( $set['tripwire_enabled'] ) ? (int) $set['tripwire_enabled'] : 1,
 				'content_enabled'  => isset( $set['tripwire_content_enabled'] ) ? (int) $set['tripwire_content_enabled'] : 1,
 				'last_run'         => (int) ( $st['last_run'] ?? 0 ),
@@ -333,34 +368,22 @@ class DS_HQ_Link {
 	}
 
 	/**
-	 * One flush at a time. INSERT IGNORE on the options table's unique option_name is atomic, so of two processes
-	 * exactly one gets the row (add_option() is not: it checks first and then upserts, so both can "win").
-	 * A lock older than 5 minutes is stale (a killed request) and is taken over.
+	 * One flush at a time, across requests and containers (DS_Lock: an options row taken with INSERT IGNORE,
+	 * which add_option() cannot replace: it checks first and then upserts, so two processes can both "win").
+	 * A lock older than 5 minutes belongs to a killed request and is taken over.
 	 */
 	private static function lock() {
 		global $wpdb;
 		if ( ! is_object( $wpdb ) ) {
-			return add_option( self::LOCK_OPT, time(), '', 'no' );
+			return add_option( self::LOCK_OPT, time(), '', 'no' ); // no database (a stub test)
 		}
-		$take = function () use ( $wpdb ) {
-			return 1 === (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", self::LOCK_OPT, (string) time() ) );
-		};
-		if ( $take() ) {
-			return true;
-		}
-		$since = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPT ) );
-		if ( time() - $since > 300 ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK_OPT, (string) $since ) );
-			return $take();
-		}
-		return false;
+		return DS_Lock::acquire( self::LOCK_OPT, 300 );
 	}
 
 	private static function unlock() {
 		global $wpdb;
 		if ( is_object( $wpdb ) ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPT ) );
-			wp_cache_delete( self::LOCK_OPT, 'options' );
+			DS_Lock::release( self::LOCK_OPT );
 		} else {
 			delete_option( self::LOCK_OPT );
 		}
@@ -397,6 +420,7 @@ class DS_HQ_Link {
 					$s2['last_ok'] = time();
 					$s2['status']  = 'pending' === ( $out['status'] ?? '' ) ? 'pending' : 'active';
 					$s2['error']   = '';
+					$s2['fails']   = 0;
 					self::save( $s2 );
 					continue;
 				}
@@ -422,11 +446,15 @@ class DS_HQ_Link {
 					}
 					break;
 				}
+				// Unreachable, overloaded, or a time clash with another sender (409 replay): keep it for next time.
+				$keep        = ( 0 === $code || $code >= 500 || 429 === $code || 409 === $code );
 				$s2          = self::state();
 				$s2['error'] = 'Report: ' . ( $code ? 'HTTP ' . $code . ' ' . (string) ( is_array( $out ) ? ( $out['code'] ?? '' ) : '' ) : (string) $out );
+				if ( $keep ) {
+					$s2['fails'] = min( 12, (int) ( $s2['fails'] ?? 0 ) + 1 ); // sets the wait before the next try
+				}
 				self::save( $s2 );
-				// Unreachable, overloaded, or a time clash with another sender (409 replay): keep it for next time.
-				if ( 0 === $code || $code >= 500 || 429 === $code || 409 === $code ) {
+				if ( $keep ) {
 					break;
 				}
 				self::shift(); // any other refusal (bad signature, malformed) cannot be fixed by resending
@@ -438,7 +466,7 @@ class DS_HQ_Link {
 		if ( 'retired' !== ( $s['status'] ?? '' ) ) {
 			self::schedule_next();
 			if ( ! empty( $s['queue'] ) && ! wp_next_scheduled( self::FLUSH_HOOK ) ) {
-				wp_schedule_single_event( time() + 5 * MINUTE_IN_SECONDS, self::FLUSH_HOOK ); // retry what is left
+				wp_schedule_single_event( time() + self::retry_delay( (int) ( $s['fails'] ?? 1 ) ) + wp_rand( 0, 60 ), self::FLUSH_HOOK ); // retry what is left
 			}
 		}
 	}

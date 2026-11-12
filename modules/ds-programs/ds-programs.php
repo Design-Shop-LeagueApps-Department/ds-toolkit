@@ -38,6 +38,9 @@ class DS_Programs_Module extends FLBuilderModule {
 	/** Fetch warnings, surfaced to admins only. */
 	public $feed_errors = array();
 
+	/** True when LeagueApps could not be reached and there is no earlier copy to show. */
+	public $feed_unavailable = false;
+
 	public function __construct() {
 		parent::__construct( array(
 			'name'            => __( 'Programs', 'ds-toolkit' ),
@@ -57,14 +60,14 @@ class DS_Programs_Module extends FLBuilderModule {
 	/** Sport picker: learned from the last fetched feed, else just "All". */
 	public static function sport_options() {
 		$out = array( '' => __( 'All sports', 'ds-toolkit' ) );
-		foreach ( DS_Programs_Data::known_sports() as $s ) { $out[ $s ] = $s; }
+		foreach ( ( DS_Module_UI::form_shown() ? DS_Programs_Data::known_sports() : array() ) as $s ) { $out[ $s ] = $s; }
 		return $out;
 	}
 
 	/** Season / Level picker: the values LeagueApps has sent on this site. */
 	public static function value_options( $field ) {
 		$out = array();
-		foreach ( DS_Programs_Data::known_values( $field ) as $v ) { $out[ $v ] = $v; }
+		foreach ( ( DS_Module_UI::form_shown() ? DS_Programs_Data::known_values( $field ) : array() ) as $v ) { $out[ $v ] = $v; }
 		return $out ? $out : array( '' => __( '(the list fills in once the programs have loaded on this site)', 'ds-toolkit' ) );
 	}
 
@@ -152,6 +155,12 @@ class DS_Programs_Module extends FLBuilderModule {
 		$rows = $feed['programs'];
 		$this->feed_stale  = ! empty( $feed['stale'] );
 		$this->feed_errors = $feed['errors'];
+		$this->feed_unavailable = ! empty( $feed['unavailable'] );
+		if ( $this->feed_unavailable ) {
+			// "Temporarily unavailable" is true for minutes, not for as long as a page cache keeps a page.
+			if ( ! defined( 'DONOTCACHEPAGE' ) ) { define( 'DONOTCACHEPAGE', true ); }
+			if ( ! headers_sent() ) { nocache_headers(); }
+		}
 
 		$types = self::type_list( $s->program_type ?? array() );
 		$mode  = strtoupper( (string) ( $s->program_mode ?? '' ) );
@@ -457,12 +466,9 @@ FLBuilder::register_settings_form( 'ds_programs_map_form', array(
 
 $ds_prg_sites   = DS_Programs_Module::site_options();
 $ds_prg_bp      = DS_Module_UI::breakpoints();
-$ds_prg_colour  = function ( $label, $extra = array() ) {
-	return array_merge( array( 'type' => 'color', 'label' => $label, 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ) ), $extra );
-};
-$ds_prg_unit = function ( $label, $min, $max, $extra = array() ) {
-	return array_merge( array( 'type' => 'unit', 'label' => $label, 'default' => '', 'description' => 'px', 'slider' => array( 'min' => $min, 'max' => $max, 'step' => 1 ) ), $extra );
-};
+// The shared builders (DS_Module_UI, docs/BUILDER-FORMS.md): the same fields this file used to shape itself.
+$ds_prg_colour  = array( 'DS_Module_UI', 'color_field' );
+$ds_prg_unit    = array( 'DS_Module_UI', 'unit_field' );
 
 FLBuilder::register_module( 'DS_Programs_Module', array(
 
@@ -589,6 +595,7 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					'link_program'  => array( 'type' => 'select', 'label' => __( 'Link the program name to its LeagueApps page', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ) ),
 					'empty_text'    => array( 'type' => 'text', 'label' => __( 'Message when nothing is listed', 'ds-toolkit' ), 'default' => __( 'No programs are open right now. Please check back soon.', 'ds-toolkit' ) ),
 					'none_text'     => array( 'type' => 'text', 'label' => __( 'Message when no row matches the filters', 'ds-toolkit' ), 'default' => __( 'No programs match those filters.', 'ds-toolkit' ) ),
+					'unavailable_text' => array( 'type' => 'text', 'label' => __( 'Message when LeagueApps cannot be reached', 'ds-toolkit' ), 'default' => __( 'Programs are temporarily unavailable. Please check back shortly.', 'ds-toolkit' ), 'help' => __( 'Shown only when LeagueApps does not answer and this site holds no earlier copy of the list. With a copy, visitors keep seeing the last list.', 'ds-toolkit' ) ),
 				),
 			),
 			'mapping' => array(

@@ -91,7 +91,7 @@ class DS_Calendar_Module extends FLBuilderModule {
 	/** Builder pickers learn teams and types from the last fetch. */
 	public static function team_options() {
 		$out = array();
-		foreach ( DS_Calendar_Data::known( 'teams' ) as $t ) {
+		foreach ( ( DS_Module_UI::form_shown() ? DS_Calendar_Data::known( 'teams' ) : array() ) as $t ) {
 			$out[ $t ] = $t;
 		}
 		return $out ? $out : array( '' => __( 'Teams appear here once the calendar has loaded once', 'ds-toolkit' ) );
@@ -99,7 +99,7 @@ class DS_Calendar_Module extends FLBuilderModule {
 
 	public static function type_options() {
 		$out = array();
-		foreach ( array_unique( array_merge( array( 'Tournament', 'Game', 'Practice', 'League', 'Camp', 'Clinic', 'Class', 'Event' ), DS_Calendar_Data::known( 'types' ) ) ) as $t ) {
+		foreach ( array_unique( array_merge( array( 'Tournament', 'Game', 'Practice', 'League', 'Camp', 'Clinic', 'Class', 'Event' ), DS_Module_UI::form_shown() ? DS_Calendar_Data::known( 'types' ) : array() ) ) as $t ) {
 			$out[ $t ] = $t;
 		}
 		return $out;

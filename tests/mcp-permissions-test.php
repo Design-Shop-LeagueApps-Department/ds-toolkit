@@ -5,6 +5,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a command-line test: does nothing over HT
  * and that an administrator keeps every tool. Calls the real REST route in-process.
  *
  *   wp eval-file tests/mcp-permissions-test.php
+ *   @requires wordpress (tests/run.sh runs it only with --wp)
  *
  * Creates two temporary users (an Author and an @leagueapps.com Administrator), switches every MCP group on
  * for the run and puts the saved settings back at the end, deletes the users and every post it made.

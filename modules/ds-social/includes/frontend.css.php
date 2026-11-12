@@ -23,6 +23,7 @@ $bg_radius  = $settings->bg_radius ?? '';
 // Responsive breakpoints (BB global settings).
 $g      = FLBuilderModel::get_global_settings();
 list( $bp_md, $bp_sm ) = DS_Module_UI::breakpoints();
+$bp_lg = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 // ---- Desktop (base) -------------------------------------------------------
 $size    = $u( $settings->icon_size ?? '', 18 );
@@ -56,6 +57,30 @@ if ( $show_bg ) {
 	if ( '' !== $bg_hover ) {
 		echo "$node .ds-social--bg .ds-social-link:hover { background-color: {$bg_hover}; }\n";
 	}
+}
+
+// ---- Large (only when the editor typed a value there) ---------------------------------------------------------------
+$size_lg    = $settings->icon_size_large ?? '';
+$gap_lg     = $settings->icon_gap_large ?? '';
+$pad_lg     = $settings->bg_padding_large ?? '';
+$justify_lg = in_array( $settings->alignment_large ?? '', $aligns, true ) ? $settings->alignment_large : '';
+
+if ( '' !== $size_lg || '' !== $gap_lg || '' !== $pad_lg || '' !== $justify_lg ) {
+	echo "@media (max-width: {$bp_lg}px) {\n";
+	if ( '' !== $gap_lg || '' !== $justify_lg ) {
+		echo "  $node .ds-social {";
+		if ( '' !== $gap_lg ) { echo ' gap: ' . (int) $gap_lg . 'px;'; }
+		if ( '' !== $justify_lg ) { echo ' justify-content: ' . $justify_lg . ';'; }
+		echo " }\n";
+	}
+	if ( '' !== $size_lg ) {
+		$sm = (int) $size_lg;
+		echo "  $node .ds-social-link svg { width: {$sm}px; height: {$sm}px; }\n";
+	}
+	if ( $show_bg && '' !== $pad_lg ) {
+		echo "  $node .ds-social--bg .ds-social-link { padding: " . (int) $pad_lg . "px; }\n";
+	}
+	echo "}\n";
 }
 
 // ---- Tablet ---------------------------------------------------------------

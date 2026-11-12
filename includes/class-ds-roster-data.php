@@ -1,5 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once __DIR__ . '/class-ds-lock.php';
 
 /**
  * LeagueApps team rosters for the LeagueApps Roster module.
@@ -102,30 +103,16 @@ class DS_Roster_Data {
 	}
 
 	/**
-	 * Atomic lock in the options table. Transients are not enough on hosts that keep the object cache per
-	 * container (WP Engine runs memcached on a local socket): two containers would both "get" the lock.
+	 * Atomic lock in the options table (DS_Lock). Transients are not enough on hosts that keep the object
+	 * cache per container (WP Engine runs memcached on a local socket): two containers would both "get" it.
+	 * Kept under these names because the roster feature and its sync call them.
 	 */
 	public static function lock( $name, $ttl ) {
-		global $wpdb;
-		if ( ! is_object( $wpdb ) ) {
-			return true;
-		}
-		$now = time();
-		if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) $now ) ) ) {
-			return true;
-		}
-		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
-		if ( $now - $held > $ttl ) { // a run that died: take it over
-			return 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", (string) $now, $name, (string) $held ) );
-		}
-		return false;
+		return DS_Lock::acquire( $name, $ttl );
 	}
 
 	public static function unlock( $name ) {
-		global $wpdb;
-		if ( is_object( $wpdb ) ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", $name ) );
-		}
+		DS_Lock::release( $name );
 	}
 
 	/** Subkey for one purpose ('pkey' or 'token'): a keyed BLAKE2b of the secret, so the two never share a key. */

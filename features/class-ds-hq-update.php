@@ -35,12 +35,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
+require_once dirname( __DIR__ ) . '/includes/class-ds-lock.php';
+
 class DS_HQ_Update {
 
 	const OPT             = 'ds_hq_update';
 	const HOOK            = 'ds_hq_update_run';
 	const LOCK_OPT        = 'ds_hq_update_lock';
-	const REPO            = 'Design-Shop-LeagueApps-Department/ds-toolkit';
+	const REPO            = DS_Env::REPO;
 	const PLUGIN          = 'ds-toolkit/ds-toolkit.php';
 	const RELEASE_PUBKEYS = array( '0D3wnvnMHv1MsMwK8eYvpNFJQN6p8q0vFtLYBmyFd1w=' ); // private half: never on HQ
 	const ORDER_SKEW      = 900;      // an order is good for 15 minutes after HQ signed it
@@ -220,27 +223,13 @@ class DS_HQ_Update {
 		}
 	}
 
-	/** One update at a time on this site (INSERT IGNORE is atomic; see DS_HQ_Link::lock()). */
+	/** One update at a time on this site, across requests and containers (DS_Lock). */
 	private static function lock() {
-		global $wpdb;
-		$take = function () use ( $wpdb ) {
-			return 1 === (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", self::LOCK_OPT, (string) time() ) );
-		};
-		if ( $take() ) {
-			return true;
-		}
-		$since = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPT ) );
-		if ( time() - $since > self::STUCK_AFTER ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK_OPT, (string) $since ) );
-			return $take();
-		}
-		return false;
+		return DS_Lock::acquire( self::LOCK_OPT, self::STUCK_AFTER );
 	}
 
 	private static function unlock() {
-		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", self::LOCK_OPT ) );
-		wp_cache_delete( self::LOCK_OPT, 'options' );
+		DS_Lock::release( self::LOCK_OPT );
 	}
 
 	/** The cron job: install the queued target. */

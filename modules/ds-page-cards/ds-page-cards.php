@@ -37,6 +37,9 @@ class DS_Page_Cards_Module extends FLBuilderModule {
 	/** Saved Beaver Builder templates for the "card" picker (layout / row types). */
 	public static function template_options() {
 		$out  = array( '0' => __( 'Select a saved card template', 'ds-toolkit' ) );
+		if ( ! DS_Module_UI::form_shown() ) {
+			return $out; // a visitor's page view: no template lookup
+		}
 		$tpls = get_posts( array(
 			'post_type'      => 'fl-builder-template',
 			'posts_per_page' => -1,

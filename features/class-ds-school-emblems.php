@@ -1,5 +1,6 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
 
 /**
  * School Emblems: pick a college on an athlete and its athletic logo comes with it.
@@ -20,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  */
 class DS_School_Emblems {
 
-	const HQ          = 'https://designshophq.wpenginepowered.com/wp-content/uploads/dshq-emblems/';
+	const HQ          = DS_Env::HQ_URL . 'wp-content/uploads/dshq-emblems/';
 	const INDEX_URL   = self::HQ . 'index.json';
 	const LOGO_BASE   = self::HQ . 'logos/';
 	const NAME_FIELD  = 'school_name';

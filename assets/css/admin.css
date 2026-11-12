@@ -1,5 +1,7 @@
 .dst-wrap {
-    max-width: 800px;
+    max-width: 1240px; /* was 800px: the Features and LeagueApps tabs use the right side for a panel */
+    --dst-accent: var(--wp-admin-theme-color, #2271b1); /* follows the user's admin colour scheme */
+    --dst-accent-dark: var(--wp-admin-theme-color-darker-10, #135e96);
 }
 
 /* Header */
@@ -75,11 +77,11 @@
     transition: color 0.15s, background 0.15s;
 }
 .dst-tab:hover {
-    color: #2271b1;
+    color: var(--dst-accent-dark);
     background: #f0f6ff;
 }
 .dst-tab.is-active {
-    color: #2271b1;
+    color: var(--dst-accent-dark);
     background: #fff;
     border-color: #e2e8f0;
     border-bottom-color: #fff;
@@ -92,7 +94,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.8px;
-    color: #8c9aaa;
+    color: #50575e;
     margin: 0 0 10px;
 }
 
@@ -208,16 +210,41 @@
 }
 .dst-card-info span {
     font-size: 12px;
-    color: #8c9aaa;
+    color: #50575e; /* was #8c9aaa: 2.9:1 on white, under the 4.5:1 body-text minimum */
     line-height: 1.4;
 }
 
 /* Toggle switch */
 .dst-toggle {
     flex-shrink: 0;
+    position: relative;
+    width: 40px;
+    height: 22px;
 }
-.dst-toggle input {
+.dst-toggle input[type="hidden"] {
     display: none;
+}
+.dst-toggle input[type="checkbox"] {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: block;
+    width: 40px;
+    height: 22px;
+    min-width: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+.dst-toggle input[type="checkbox"]:focus-visible + label {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+.dst-toggle input[type="checkbox"]:indeterminate + label {
+    background: #72aee6; /* some of the blocks are on */
+}
+.dst-toggle input[type="checkbox"]:indeterminate + label::after {
+    left: 12px;
 }
 .dst-toggle label {
     display: block;
@@ -242,7 +269,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .dst-toggle input:checked + label {
-    background: #2271b1;
+    background: var(--dst-accent);
 }
 .dst-toggle input:checked + label::after {
     left: 21px;
@@ -294,7 +321,7 @@
 }
 .dst-logo-label span {
     font-size: 12px;
-    color: #8c9aaa;
+    color: #50575e;
 }
 
 /* Mapping table */
@@ -317,7 +344,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color: #8c9aaa;
+    color: #50575e;
     padding: 0 8px 8px 0;
     border-bottom: 1px solid #f0f2f4;
 }
@@ -402,7 +429,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #8c9aaa;
+    color: #50575e;
 }
 .dst-columns-inputs input {
     width: 52px;
@@ -497,7 +524,7 @@
 }
 .dst-mcp-note {
     font-size: 12px;
-    color: #8c9aaa;
+    color: #50575e;
 }
 .dst-step-num {
     font-size: 14px;
@@ -536,7 +563,7 @@
 }
 .dst-mcp-config-label span {
     font-size: 11px;
-    color: #8c9aaa;
+    color: #50575e;
 }
 .dst-mcp-textarea-wrap {
     position: relative;
@@ -579,14 +606,14 @@
 }
 .dst-footer-meta {
     font-size: 11px;
-    color: #c8d0d8;
+    color: #646970;
 }
 .dst-footer-meta a {
-    color: #c8d0d8;
+    color: #646970;
     text-decoration: none;
 }
 .dst-footer-meta a:hover {
-    color: #8c9aaa;
+    color: #2271b1;
 }
 
 /* ---- Feature groups (collapsible <details> sections) ----------------------
@@ -677,4 +704,752 @@ details.dst-group > summary.dst-group-head:hover {
 }
 .dst-group-body > .dst-card:last-child {
     margin-bottom: 0;
+}
+
+
+/* ---- Features tab, drawn from the schema (admin/class-ds-settings-cards.php) ------------------------
+   One sentence per card; the detail behind "More"; rarely changed settings behind "Advanced"; a card's
+   own settings fold away while its feature is off. */
+.dst-wrap [hidden] {
+    display: none !important; /* the hidden attribute must win over the flex/grid display rules above */
+}
+.dst-card-info .dst-card-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+.dst-card-info .dst-card-title strong {
+    display: inline;
+    margin: 0;
+}
+.dst-card-info .dst-chip {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    line-height: 1.5;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #f0f0f1;
+    color: #50575e;
+    white-space: nowrap;
+}
+.dst-card-info .dst-chip--fleet  { background: #e7f5ea; color: #0a5a22; }
+.dst-card-info .dst-chip--lp6,
+.dst-card-info .dst-chip--lp7    { background: #f0f6ff; color: #135e96; }
+.dst-card-info .dst-chip--compat { background: #fcf3e0; color: #7a4b00; }
+.dst-card-info .dst-summary {
+    display: block;
+    max-width: 78ch;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #50575e;
+}
+.dst-card-info .dst-status {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #3c434a;
+}
+.dst-card-info .dst-status .button {
+    margin-left: 8px;
+    vertical-align: baseline;
+}
+.dst-state--ok   { color: #0a6b2b; }
+.dst-state--warn { color: #8a5a00; }
+.dst-state--bad  { color: #b32d2e; }
+
+.dst-more {
+    margin-top: 6px;
+}
+.dst-more > summary,
+.dst-advanced > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2271b1;
+    cursor: pointer;
+    list-style: none;
+    border-radius: 3px;
+}
+.dst-more > summary::-webkit-details-marker,
+.dst-advanced > summary::-webkit-details-marker {
+    display: none;
+}
+.dst-more > summary::after,
+.dst-advanced > summary::after {
+    content: "\f347"; /* dashicons arrow-down-alt2 */
+    font-family: dashicons;
+    font-size: 14px;
+    line-height: 1;
+    transition: transform 0.15s ease;
+}
+.dst-more[open] > summary::after,
+.dst-advanced[open] > summary::after {
+    transform: rotate(180deg);
+}
+.dst-more > summary:hover,
+.dst-advanced > summary:hover {
+    color: #135e96;
+}
+.dst-more > summary:focus-visible,
+.dst-advanced > summary:focus-visible,
+details.dst-group > summary.dst-group-head:focus-visible {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+.dst-more-body {
+    max-width: 78ch;
+    margin-top: 6px;
+    padding: 12px 14px;
+    background: #f6f7f7;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #3c434a;
+}
+.dst-more-body p {
+    margin: 0 0 8px;
+    font-size: 13px;
+}
+.dst-more-body > :last-child {
+    margin-bottom: 0;
+}
+.dst-more-body code {
+    display: inline-block;
+    padding: 1px 6px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.dst-more-body > code {
+    margin: 0 0 8px;
+}
+
+/* A feature's own settings. Left edge = the card's text (22px padding + 36px icon + 16px gap). */
+.dst-card-fields {
+    display: grid;
+    gap: 12px;
+    padding: 14px 22px 16px 74px;
+    border-top: 1px solid #f0f2f4;
+}
+.dst-card.is-off .dst-card-fields,
+.dst-card.is-off .dst-card-extra {
+    display: none;
+}
+.dst-field {
+    display: grid;
+    grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+    gap: 6px 16px;
+    align-items: start;
+}
+.dst-field > label,
+.dst-field > .dst-field-label {
+    padding-top: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d2327;
+}
+.dst-field-control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.dst-field-control input[type="text"],
+.dst-field-control input[type="url"],
+.dst-field-control input[type="email"],
+.dst-field-control textarea {
+    width: 100%;
+    max-width: 520px;
+    margin: 0;
+}
+.dst-field-control textarea {
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.dst-field-control input[type="number"] {
+    width: 110px;
+    margin: 0;
+}
+.dst-field--choice .dst-field-control {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    padding-top: 6px;
+    font-size: 13px;
+    color: #1d2327;
+}
+.dst-field-help {
+    max-width: 520px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #50575e;
+}
+.dst-field--check {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 8px;
+}
+.dst-field--check input[type="checkbox"] {
+    margin: 2px 0 0;
+}
+.dst-field--check > label {
+    padding-top: 0;
+}
+.dst-field--check .dst-field-help {
+    grid-column: 2;
+}
+.dst-advanced-body {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed #dcdcde;
+}
+.dst-advanced-count {
+    font-weight: 400;
+    color: #50575e;
+}
+.dst-filter-empty {
+    margin: 0 0 14px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px dashed #c3c4c7;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #50575e;
+}
+
+/* Save bar: always in view, says how many changes are waiting. */
+.dst-savebar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 20px;
+    padding: 12px 16px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+}
+.dst-savebar-state {
+    font-size: 13px;
+    font-weight: 600;
+    color: #50575e;
+}
+.dst-savebar.is-dirty {
+    border-top-color: #dba617;
+    box-shadow: 0 -2px 0 #dba617, 0 -4px 12px rgba(0, 0, 0, 0.06);
+}
+.dst-savebar.is-dirty .dst-savebar-state {
+    color: #8a5a00;
+}
+.dst-savebar-meta {
+    margin-left: auto;
+    font-size: 11px;
+    color: #646970;
+}
+.dst-savebar-meta a {
+    color: #646970;
+}
+.dst-savebar .button-primary {
+    height: 36px;
+    line-height: 34px;
+    padding: 0 20px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+@media (max-width: 782px) {
+    .dst-card-fields {
+        padding-left: 22px;
+    }
+    .dst-field:not(.dst-field--check) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .dst-field > label,
+    .dst-field > .dst-field-label {
+        padding-top: 0;
+    }
+    .dst-savebar-meta {
+        display: none;
+    }
+    .dst-savebar .button-primary {
+        margin-left: auto;
+    }
+}
+
+/* A card whose text runs to several lines (or has More open) keeps its icon and switch at the top, beside the name. */
+.dst-group .dst-card > .dst-card-row {
+    align-items: flex-start;
+}
+.dst-group .dst-card > .dst-card-row > .dst-toggle {
+    margin-top: 7px; /* centres the 22px switch on the 36px icon */
+}
+/* Seven tabs are wider than a phone: they scroll inside their own bar, so the page itself never scrolls sideways. */
+@media (max-width: 782px) {
+    .dst-tabs {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+    .dst-tab {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+}
+
+/* Status card (staff only): is the background work healthy? Rows are label, a state word, then one sentence. */
+details.dst-health {
+    margin: 0 0 14px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+}
+details.dst-health > summary.dst-health-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    border-radius: 8px;
+}
+details.dst-health > summary.dst-health-head::-webkit-details-marker { display: none; }
+details.dst-health > summary.dst-health-head:focus-visible {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+.dst-health-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #3c434a;
+}
+.dst-health-title .dashicons {
+    color: #8c9aaa;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+.dst-health-title .dst-chip {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #f0f0f1;
+    color: #50575e;
+}
+.dst-health-sum {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.dst-health-list {
+    margin: 0;
+    padding: 0 16px 6px;
+    border-top: 1px solid #f0f0f1;
+}
+.dst-health-row {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 4px 16px;
+    padding: 9px 0;
+    border-bottom: 1px solid #f0f0f1;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.dst-health-row:last-child { border-bottom: 0; }
+.dst-health-row dt {
+    margin: 0;
+    font-weight: 600;
+    color: #1d2327;
+}
+.dst-health-row dd {
+    margin: 0;
+    color: #3c434a;
+    /* the state word in its own column, so a sentence that wraps stays lined up beside it */
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr);
+    gap: 0 12px;
+    align-items: start;
+}
+.dst-health-text { overflow-wrap: anywhere; }
+.dst-health-state {
+    margin-top: 1px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    background: #f0f0f1;
+    color: #50575e;
+}
+.dst-health-state--ok   { background: #e7f5ea; color: #0a5a22; }
+.dst-health-state--warn { background: #fcf3e0; color: #7a4b00; }
+.dst-health-state--bad  { background: #fbeaea; color: #8a1f1f; }
+@media (max-width: 782px) {
+    .dst-health-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---- Classes that replaced the inline style attributes of the other tabs (2026-11 audit, item 20) ----
+   Same values as the attributes they replace, except the three small grey notes: #8c9aaa and #888 on
+   white were 2.9:1 and 3.5:1, now #50575e (7.6:1). */
+.dst-mt-20 { margin-top: 20px; }
+.dst-mt-24 { margin-top: 24px; }
+.dst-mt-28 { margin-top: 28px; }
+.dst-mt-40 { margin-top: 40px; }
+.dst-w-15 { width: 15em; }
+.dst-w-full,
+.dst-field-inline input.dst-w-full:not([type="radio"]):not([type="checkbox"]) { width: 100%; }
+/* Two classes on purpose: WordPress styles .wp-core-ui .button with display, which a single class loses to.
+   jQuery show() and slideDown() still reveal an element hidden this way. */
+.dst-wrap .dst-is-hidden.dst-is-hidden { display: none; }
+.dst-form-inline { display: contents; }
+.dst-card--lead { margin-bottom: 20px; }
+.dst-card--note { margin-bottom: 16px; padding: 16px 20px; }
+.dst-note-lead { margin: 0 0 10px; color: #4a5568; font-size: 13px; }
+.dst-note-pre {
+    margin: 0 0 12px;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #4a5568;
+}
+.dst-note-foot { margin: 0; color: #50575e; font-size: 12px; }
+.dst-title-note { font-weight: 400; text-transform: none; letter-spacing: 0; color: #50575e; font-size: 11px; }
+.dst-title-aside { font-weight: 400; color: #50575e; }
+.dst-readonly-code { cursor: default; }
+.dst-line { display: block; margin-top: 8px; }
+.dst-line--strong { font-weight: 600; }
+.dst-ok { color: #1a7f37; }
+.dst-bad { color: #b32d2e; }
+.dst-warn { color: #996800; }
+.dst-card-row--block { display: block; }
+.dst-card-row--end { justify-content: flex-end; }
+.dst-card-info--wide { max-width: none; }
+.dst-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
+.dst-actions-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dst-history { margin-top: 10px; }
+.dst-history > summary { cursor: pointer; }
+.dst-history-list { margin: 6px 0 0 18px; list-style: disc; }
+.dst-mcp-note--full { width: 100%; margin-top: 6px; }
+.dst-field-inline--wide { min-width: 220px; }
+.dst-radio { display: block; }
+.dst-radio + .dst-radio { margin-top: 6px; }
+.dst-badge-danger {
+    margin-left: 4px;
+    padding: 1px 6px;
+    background: #fce8e8;
+    border-radius: 3px;
+    color: #b32d2e;
+    font-size: 11px;
+    font-weight: 600;
+}
+.dst-staff-note { color: #b32d2e; font-size: 11px; }
+.dst-card-info strong.dst-prompt-group { display: block; margin-top: 12px; }
+/* A tool group whose switch is off: still listed, shown as unavailable. */
+.dst-card.dst-is-dim { opacity: .5; }
+
+/* Reference text of the Global CSS, Global JS and MCP tabs (item 19): the same group fold as the Features
+   tab, closed until asked for, so the settings are the first thing on the page. */
+details.dst-ref { margin-top: 20px; }
+details.dst-ref + details.dst-ref { margin-top: 0; }
+details.dst-ref > .dst-group-body > .dst-section-title:first-child { margin-top: 4px; }
+.dst-ref-pointer { margin: 0 0 14px; color: #50575e; font-size: 12px; }
+
+/* WordPress paints every read-only textarea light grey (textarea[readonly], one element plus one attribute),
+   which beat the single class above: the generated Claude config showed pale green on light grey, about
+   1.4:1. The element in the selector puts the dark panel back (pale green on #1d2327 is 10.6:1). */
+textarea.dst-mcp-textarea[readonly] { background: #1d2327; color: #a8d8a8; }
+
+/* Phones: a 220px field beside the label left the label about 60px wide, one word per line (MCP config
+   generator). The field drops under the label instead. */
+@media (max-width: 600px) {
+    .dst-card-row:has(> .dst-field-inline--wide) { flex-wrap: wrap; }
+    .dst-card-row > .dst-field-inline--wide { flex: 1 1 100%; }
+}
+
+/* MCP tab: the log of changes (item 23). A wide table inside a card: it scrolls sideways on a phone
+   instead of pushing the page wider. */
+.dst-mcp-log { overflow-x: auto; }
+.dst-mcp-log .widefat { border: 0; }
+
+/* ==== Settings redesign ====================================================================================
+   Same header, tabs, cards and switches as before. New: four tabs (General folded into Shortcodes & Dev Tools,
+   Global CSS and Global JS share Custom Code), a toolbar (find, Show chips, jump links), a two-column layout
+   with a right-hand panel (Status, what changed, this site), "Changed, not saved" tags, the blocks as a grid
+   of tiles, and one card per LeagueApps site. */
+
+/* Tabs that are mostly reading (Custom Code, MCP) keep the old measure. */
+.dst-narrow { max-width: 860px; }
+
+/* Header: the Status summary as a link to the panel. */
+.dst-header { flex-wrap: wrap; }
+.dst-header-text p { color: #c3c4c7; } /* was #8c9aaa: 5.6:1 on the dark header, now 10.4:1 */
+.dst-header-status {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    background: #e7f5ea;
+    color: #0a5a22;
+}
+.dst-header-status:hover,
+.dst-header-status:focus { color: #0a5a22; text-decoration: underline; }
+.dst-header-status--warn,
+.dst-header-status--warn:hover,
+.dst-header-status--warn:focus { background: #fcf3e0; color: #6b3d00; }
+.dst-header-status--bad,
+.dst-header-status--bad:hover,
+.dst-header-status--bad:focus { background: #fbeaea; color: #8a1f1f; }
+.dst-header-status:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.dst-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.dst-header-status + .dst-badge { margin-left: 0; }
+
+/* Custom Code: CSS / JavaScript. */
+.dst-subtabs { display: flex; gap: 6px; margin: 0 0 18px; }
+.dst-subtab {
+    padding: 6px 14px;
+    border: 1px solid #c3c4c7;
+    border-radius: 999px;
+    background: #fff;
+    color: #1d2327;
+    font-size: 13px;
+    text-decoration: none;
+}
+.dst-subtab:hover { color: var(--dst-accent-dark); border-color: var(--dst-accent); }
+.dst-subtab.is-active { background: #1d2327; border-color: #1d2327; color: #fff; font-weight: 600; }
+.dst-subtab:focus-visible { outline: 2px solid var(--dst-accent); outline-offset: 2px; }
+
+/* Toolbar: find, Show chips, jump links. */
+.dst-toolbar {
+    display: grid;
+    gap: 12px;
+    margin: 0 0 20px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+}
+.dst-toolbar .dst-filter-bar {
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 6px;
+}
+.dst-toolbar .dst-filter-bar:focus-within { border-color: var(--dst-accent); box-shadow: 0 0 0 1px var(--dst-accent); }
+.dst-toolbar .dst-filter-bar .dashicons { color: #50575e; }
+.dst-toolbar .dst-filter-bar input[type="search"] { min-height: 36px; font-size: 14px; }
+.dst-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dst-toolbar-label { font-size: 12px; color: #50575e; }
+.dst-toolbar-sep { width: 1px; height: 20px; margin: 0 6px; background: #dcdcde; }
+.dst-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.dst-chipbtn {
+    min-height: 28px;
+    padding: 0 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 999px;
+    background: #fff;
+    color: #1d2327;
+    font-size: 12px;
+    cursor: pointer;
+}
+.dst-chipbtn:hover { border-color: #1d2327; }
+.dst-chipbtn.is-active { background: #1d2327; border-color: #1d2327; color: #fff; font-weight: 600; }
+.dst-chipbtn:focus-visible,
+.dst-jump:focus-visible { outline: 2px solid var(--dst-accent); outline-offset: 2px; }
+.dst-jumps { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.dst-jump {
+    padding: 3px 10px;
+    border: 1px solid #dcdcde;
+    border-radius: 999px;
+    background: #f6f7f7;
+    color: #1d2327;
+    font-size: 12px;
+    text-decoration: none;
+}
+.dst-jump:hover { border-color: #8c8f94; color: #1d2327; }
+.dst-jump-count { color: #50575e; }
+
+/* Two columns: the settings, then the panel. The panel drops under the settings on a narrow screen. */
+.dst-layout { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
+.dst-main { flex: 999 1 560px; min-width: 0; }
+.dst-rail { flex: 1 1 280px; max-width: 380px; min-width: 0; display: grid; gap: 16px; }
+.dst-panel {
+    margin: 0;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.dst-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f1;
+}
+.dst-panel-head h2 { margin: 0; font-size: 14px; font-weight: 600; color: #1d2327; }
+.dst-panel-head .dashicons { color: #b32d2e; font-size: 16px; width: 16px; height: 16px; }
+.dst-panel-head .dst-chip {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #f0f0f1;
+    color: #50575e;
+}
+.dst-panel-note { margin: 0; padding: 12px 16px; font-size: 12px; color: #50575e; }
+.dst-rail .dst-health-list { border-top: 0; padding: 0 16px 4px; }
+.dst-rail .dst-health-row { grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 9px 0; }
+.dst-rail .dst-health-row dt { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.dst-rail .dst-health-row dd { display: block; font-size: 12px; color: #50575e; overflow-wrap: anywhere; }
+.dst-rail .dst-health-state { min-width: 46px; box-sizing: border-box; }
+#dst-health { scroll-margin-top: 48px; }
+.dst-changed-list { margin: 0; padding: 8px 16px 12px; list-style: none; display: grid; gap: 4px; font-size: 13px; }
+.dst-changed-list li { display: flex; justify-content: space-between; gap: 12px; margin: 0; }
+.dst-changed-list a { color: var(--dst-accent-dark); }
+.dst-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; margin: 0; padding: 12px 16px 4px; font-size: 12px; }
+.dst-facts dt { color: #50575e; }
+.dst-facts dd { margin: 0; color: #1d2327; }
+.dst-panel-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 8px 16px 14px; font-size: 12px; }
+
+/* "Changed, not saved": on every card that differs from what is saved. */
+.dst-card-info .dst-chip--changed { background: #fcf3e0; color: #6b3d00; text-transform: none; letter-spacing: 0; }
+.dst-card.is-changed { border-color: #dba617; }
+.dst-group { scroll-margin-top: 48px; }
+
+/* The save bar: Discard, and the button keeps to the right. */
+.dst-savebar #dst-discard { height: 36px; line-height: 34px; border-radius: 6px; }
+.dst-savebar.is-dirty .dst-savebar-state { color: #6b3d00; }
+.dst-filter-empty .button-link { color: var(--dst-accent-dark); text-decoration: underline; }
+
+/* The blocks: the "all modules" switch, then a grid of tiles. */
+.dst-modules-all {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 0 0 10px;
+    padding: 12px 18px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+.dst-modules-all-text { flex: 1; min-width: 0; font-size: 12px; color: #50575e; }
+.dst-modules-all-text strong { display: block; font-size: 13px; color: #1d2327; }
+.dst-module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.dst-module-grid > .dst-card { margin: 0; }
+.dst-group .dst-card--tile > .dst-card-row { gap: 12px; padding: 12px 14px; }
+.dst-group .dst-card--tile > .dst-card-row > .dst-toggle { margin-top: 2px; }
+.dst-card--tile .dst-card-info .dst-summary {
+    font-size: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ---- LeagueApps tab: one card per site ---- */
+.dst-la-intro { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 0 0 14px; }
+.dst-la-intro-text { flex: 1 1 320px; }
+.dst-la-intro-text .dst-section-title { margin-bottom: 4px; }
+.dst-la-intro-text p { margin: 0; font-size: 13px; color: #50575e; }
+.dst-la-notice { margin: 0 0 14px; padding: 10px 14px; border: 1px solid #dba617; border-radius: 8px; background: #fcf9e8; font-size: 13px; }
+.dst-sites { display: grid; gap: 14px; }
+.dst-site { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; overflow: hidden; }
+.dst-site--bad { border-color: #e65054; }
+.dst-site-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid #f0f0f1; }
+.dst-site-head h3 { margin: 0; font-size: 15px; }
+.dst-site-id { font-size: 12px; color: #50575e; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 999px; padding: 0 9px; }
+.dst-wrap .dst-site-head .dst-site-remove { margin-left: auto; color: #8a2424; border-color: #dcdcde; }
+.dst-site-dot { width: 10px; height: 10px; border-radius: 50%; background: #8c8f94; }
+.dst-site-dot--ok { background: #00a32a; }
+.dst-site-dot--warn { background: #dba617; }
+.dst-site-dot--bad { background: #d63638; }
+.dst-site-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 14px 18px; }
+.dst-site-field { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: #1d2327; }
+.dst-site-field input[type="text"],
+.dst-site-field input[type="password"] { width: 100%; min-height: 34px; margin: 0; font-weight: 400; }
+.dst-keybox { display: flex; gap: 6px; }
+.dst-keybox input { flex: 1 1 auto; min-width: 0; font-family: Consolas, Monaco, monospace; font-size: 12px; }
+.dst-wrap .dst-keybox .button { flex: 0 0 auto; min-height: 34px; }
+.dst-site-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; padding: 0 18px 16px; }
+.dst-statebox { padding: 12px 14px; border: 1px solid #dcdcde; border-radius: 6px; background: #f6f7f7; font-size: 13px; color: #3c434a; }
+.dst-statebox--warn { border-color: #dba617; background: #fcf9e8; }
+.dst-statebox--bad { border-color: #e65054; background: #fcf0f1; }
+.dst-statebox-head { display: flex; align-items: center; gap: 8px; color: #1d2327; }
+.dst-statebox p { margin: 4px 0 0; }
+.dst-statebox .dst-actions { margin-top: 10px; }
+.dst-statebox .dst-history { font-size: 12px; }
+
+/* Feed activity: fetches per hour for the last day. Heights are classes (the views carry no style attribute). */
+.dst-bars { display: flex; align-items: flex-end; gap: 3px; height: 64px; margin-top: 14px; border-bottom: 1px solid #dcdcde; }
+.dst-bar { flex: 1 1 0; min-width: 3px; border-radius: 3px 3px 0 0; background: var(--dst-accent); }
+.dst-bar--h0 { height: 3px; background: #dcdcde; }
+.dst-bar--h1 { height: 8px; }
+.dst-bar--h2 { height: 16px; }
+.dst-bar--h3 { height: 24px; }
+.dst-bar--h4 { height: 32px; }
+.dst-bar--h5 { height: 40px; }
+.dst-bar--h6 { height: 48px; }
+.dst-bar--h7 { height: 56px; }
+.dst-bar--h8 { height: 64px; }
+.dst-bar--fail { background: #d63638; }
+.dst-bars-axis { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: #50575e; }
+.dst-activity { padding: 16px 18px; }
+.dst-activity-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.dst-activity-head h2 { margin: 0; font-size: 14px; }
+.dst-activity-head span { margin-left: auto; font-size: 12px; color: #50575e; }
+.dst-activity details { margin-top: 10px; }
+.dst-activity summary { cursor: pointer; color: var(--dst-accent-dark); font-size: 13px; }
+.dst-activity .dst-mapping-container { overflow-x: auto; margin-top: 8px; }
+.dst-rail .dst-panel p { font-size: 13px; color: #3c434a; }
+.dst-rail .dst-panel > p { margin: 0; padding: 10px 16px; }
+.dst-rail .dst-panel > p + p { padding-top: 0; }
+.dst-rail .dst-panel > .button { margin: 0 16px 14px; }
+.dst-rail details.dst-panel > summary { padding: 12px 16px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.dst-rail ol { margin: 10px 16px 14px 32px; font-size: 13px; color: #3c434a; }
+
+/* Phones: the toolbar rows scroll sideways instead of stacking three deep, switches get a 44px touch area,
+   and the panel sits under the settings. */
+@media (max-width: 782px) {
+    .dst-header { padding: 16px 18px; }
+    .dst-header-status { margin-left: 0; order: 3; }
+    .dst-toolbar-row { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+    .dst-chips,
+    .dst-jumps { flex-wrap: nowrap; }
+    .dst-chipbtn { min-height: 36px; white-space: nowrap; }
+    .dst-jump { white-space: nowrap; }
+    .dst-rail { max-width: none; flex-basis: 100%; }
+    .dst-toggle input[type="checkbox"] { inset: -11px -4px; width: 48px; height: 44px; }
+    .dst-module-grid { grid-template-columns: minmax(0, 1fr); }
+    .dst-wrap .dst-site-head .dst-site-remove { margin-left: 0; }
 }

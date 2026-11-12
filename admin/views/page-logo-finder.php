@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 <div id="dst-lf-grid"></div>
 
 <div id="dst-lf-load-more-wrap">
-    <button type="button" class="button" id="dst-lf-load-more" style="display:none;">Load More</button>
+    <button type="button" class="button dst-is-hidden" id="dst-lf-load-more">Load More</button>
 </div>
 
 <!-- Floating import bar — animates up when logos are selected -->

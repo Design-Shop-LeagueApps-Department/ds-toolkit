@@ -8,6 +8,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
  * Swaps Beaver Builder's cached Global Styles in memory and compiles the skin in memory
  * (nothing is saved, no file is written):
  *   wp eval-file tests/theme-skin-color-test.php
+ *   @requires wordpress (tests/run.sh runs it only with --wp)
  * To test a working copy on a site that runs an older ds-toolkit, add --skip-plugins=ds-toolkit.
  * Exit code 1 on any failure.
  */

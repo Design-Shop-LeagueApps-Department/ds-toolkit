@@ -1,9 +1,9 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
 
 class DS_Hide_FL_Assistant {
 
-    const LEAGUEAPPS_DOMAIN = '@leagueapps.com';
 
     private $settings;
 
@@ -27,7 +27,7 @@ class DS_Hide_FL_Assistant {
         }
 
         // Do NOT hide for @leagueapps.com users
-        if ( preg_match( '/' . preg_quote( self::LEAGUEAPPS_DOMAIN, '/' ) . '$/i', $current_user->user_email ) ) {
+        if ( DS_Env::is_staff_email( $current_user->user_email ) ) {
             return;
         }
 

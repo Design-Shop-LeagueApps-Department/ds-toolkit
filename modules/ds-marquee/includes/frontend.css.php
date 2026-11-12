@@ -21,6 +21,7 @@ $mix = function( $c, $op ) {
 
 $g    = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 $acc  = 'var(--fl-global-accent)'; // brand-aware fallback for accent-ish fields
 
 /* ---- Bar background + height ---- */
@@ -29,6 +30,7 @@ echo "$node .ds-marquee { background: {$barbg}; }\n";
 
 $h = $u( $settings->height ?? '', 34 );
 echo "$node .ds-marquee { height: {$h}px; }\n";
+if ( '' !== ( $settings->height_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-marquee { height: " . (int) $settings->height_large . "px; } }\n"; }
 if ( '' !== ( $settings->height_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-marquee { height: " . (int) $settings->height_medium . "px; } }\n"; }
 if ( '' !== ( $settings->height_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-marquee { height: " . (int) $settings->height_responsive . "px; } }\n"; }
 
@@ -66,6 +68,7 @@ echo "$node .ds-marquee-sep { color: " . $colf( $settings->sep_color ?? '', $acc
 /* ---- Item images ---- */
 $imh = $u( $settings->img_h ?? '', 24 );
 echo "$node .ds-marquee-img { height: {$imh}px; }\n";
+if ( '' !== ( $settings->img_h_large ?? '' ) )     { echo "@media (max-width:{$bpl}px){ $node .ds-marquee-img { height: " . (int) $settings->img_h_large . "px; } }\n"; }
 if ( '' !== ( $settings->img_h_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-marquee-img { height: " . (int) $settings->img_h_medium . "px; } }\n"; }
 if ( '' !== ( $settings->img_h_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-marquee-img { height: " . (int) $settings->img_h_responsive . "px; } }\n"; }
 if ( ( $settings->img_grayscale ?? 'no' ) === 'yes' ) {

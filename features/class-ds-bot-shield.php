@@ -36,7 +36,19 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * Kill switches: the settings toggle, the DS_BOT_SHIELD_DISABLE constant,
  * and the ds_bot_shield_enabled filter.
  */
+require_once __DIR__ . '/bot-shield/trait-crawlers.php';
+require_once __DIR__ . '/bot-shield/trait-store.php';
+require_once __DIR__ . '/bot-shield/trait-stats.php';
+require_once __DIR__ . '/bot-shield/trait-widget.php';
+
 class DS_Bot_Shield {
+
+    // The supporting jobs live in features/bot-shield/, one trait each. This file keeps the request path: the
+    // hooks, the decision, the reply, the visitor's address and the allow list.
+    use DS_Bot_Shield_Crawlers,
+        DS_Bot_Shield_Store,
+        DS_Bot_Shield_Stats,
+        DS_Bot_Shield_Widget;
 
     const COOKIE       = 'ds_bs_ok';
     const CACHE_GROUP  = 'ds_bot_shield';
@@ -67,6 +79,14 @@ class DS_Bot_Shield {
         'baiduspider'          => array( '.baidu.com', '.baidu.jp' ),
         'applebot'             => array( '.applebot.apple.com', '.apple.com' ),
     );
+
+    /**
+     * How many NEW addresses claiming to be a search engine get the DNS check per 10 seconds without being
+     * about to be refused. A crawler verified once is remembered for a day, so real crawlers stay far under
+     * this; a flood of spoofed crawler requests on rotating addresses used to cost two blocking DNS lookups
+     * per request, and is now capped here. Before any refusal the check always runs, whatever the count.
+     */
+    const SE_VERIFY_BURST = 5;
 
     /** Paths that must stay reachable and are never challenged or limited. */
     const EXEMPT_PATHS = 'robots.txt,favicon.ico,sitemap,.well-known/,wp-cron.php';
@@ -281,19 +301,32 @@ class DS_Bot_Shield {
         // (zeros with a live "evaluated" number = genuinely quiet day).
         $this->bump_stat( 'seen' );
 
-        // Verified search engines are never refused, by anything. Checked
-        // here so indexing can't be harmed; spoofers fail verification and
-        // fall through to the rules below.
+        // Verified search engines are never refused, by anything: every refusal
+        // below asks is_verified_se() first, so indexing can't be harmed and
+        // spoofers (who fail verification) are policed like anyone else.
         //
-        // Without a memory backend the only verdict this method can still reach
-        // is a UA block, and nothing caches the DNS answer, so verifying here
-        // cost two blocking DNS lookups on EVERY request with a crawler UA (a
-        // flood with rotating IPs became a worker-exhaustion amplifier). There
-        // the check runs only when the request would actually be blocked;
-        // confirm_page_trap() verifies on its own. Same verdicts either way.
+        // The DNS check itself is two blocking lookups, so it is rationed:
+        //  - an address verified (or failed) earlier today is answered from the
+        //    cache, no lookup;
+        //  - a new address is checked right away only while fewer than
+        //    SE_VERIFY_BURST new ones arrived in this 10 s window, so a real
+        //    crawler passes on its first request and stays out of the counters,
+        //    while a spoofed-crawler flood on rotating addresses cannot make
+        //    every request pay for DNS (it was a worker-exhaustion amplifier);
+        //  - without a memory backend nothing caches the answer and the only
+        //    verdict left is a UA block, so the check waits for that.
+        // confirm_page_trap() verifies on its own.
         $has_backend = ( null !== $this->resolve_backend() );
-        if ( $has_backend && $this->is_verified_se( $ua, $ip ) ) {
-            return 'pass';
+        if ( $has_backend && null !== $this->se_domains( $ua ) ) {
+            $known = $this->cache_get( 'se_' . md5( $ip ) );
+            if ( false !== $known ) {
+                $this->se_checked = (bool) $known;
+            } elseif ( $this->cache_incr( 'sev_' . (int) floor( time() / 10 ), 30 ) <= self::SE_VERIFY_BURST ) {
+                $this->is_verified_se( $ua, $ip );
+            }
+            if ( true === $this->se_checked ) {
+                return 'pass';
+            }
         }
 
         // Pagination URL trap (Site Stability Push cause #1): WordPress
@@ -312,7 +345,7 @@ class DS_Bot_Shield {
 
         // UA blocklist, cheapest check that can block.
         if ( '' !== $ua && $this->ua_matches( $ua, $this->ua_blocklist() ) ) {
-            if ( ! $has_backend && $this->is_verified_se( $ua, $ip ) ) {
+            if ( $this->is_verified_se( $ua, $ip ) ) {
                 return 'pass';
             }
             return 'ua-block';
@@ -327,13 +360,16 @@ class DS_Bot_Shield {
 
         // Penalty box first: already-flagged IPs answer instantly.
         if ( $this->cache_get( 'pen_' . $ip_key ) ) {
-            return 'rate-limit';
+            return $this->is_verified_se( $ua, $ip ) ? 'pass' : 'rate-limit';
         }
 
         // 1) Per-IP fixed window (per minute).
         $limit = max( 30, (int) $this->opt( 'bot_shield_ip_limit', 180 ) );
         $count = $this->cache_incr( 'ip_' . $ip_key . '_' . (int) floor( time() / 60 ), 120 );
         if ( $count > $limit ) {
+            if ( $this->is_verified_se( $ua, $ip ) ) {
+                return 'pass'; // a real crawler that was not checked on arrival (over the burst): never penalised
+            }
             $this->cache_set( 'pen_' . $ip_key, 1, max( 1, (int) $this->opt( 'bot_shield_penalty_mins', 10 ) ) * 60 );
             $this->log_event( 'ip-penalty', $ip );
             return 'rate-limit';
@@ -372,6 +408,9 @@ class DS_Bot_Shield {
                 return 'pass';
             }
             if ( $this->cache_get( 'nochallenge' ) ) {
+                return 'pass';
+            }
+            if ( $this->is_verified_se( $ua, $ip ) ) {
                 return 'pass';
             }
             return 'challenge';
@@ -600,539 +639,6 @@ class DS_Bot_Shield {
         // Accept today's and yesterday's token so midnight rollover never
         // challenges an active visitor mid-session.
         return hash_equals( $this->cookie_token(), $sent ) || hash_equals( $this->cookie_token( 1 ), $sent );
-    }
-
-    /**
-     * Is this request a genuine search-engine crawler?
-     *
-     * Reverse-DNS then forward-confirm, the method Google and Bing document.
-     * A spoofed user agent fails because the requesting IP's PTR record will
-     * not resolve into the search engine's own domain. Results are cached per
-     * IP for a day, and the lookup only runs for a request that both claims to
-     * be a crawler and is otherwise about to be refused, so it is rare.
-     */
-    private function is_verified_se( $ua, $ip ) {
-        if ( null === $this->se_checked ) {
-            $this->se_checked = $this->verify_crawler( $ua, $ip );
-        }
-        return $this->se_checked;
-    }
-
-    private function verify_crawler( $ua, $ip ) {
-        if ( '' === $ua || '' === $ip ) {
-            return false;
-        }
-        $ua_l  = strtolower( $ua );
-        $hosts = null;
-        foreach ( self::SE_VERIFY as $needle => $domains ) {
-            if ( false !== strpos( $ua_l, $needle ) ) {
-                $hosts = $domains;
-                break;
-            }
-        }
-        if ( null === $hosts ) {
-            return false; // does not even claim to be one
-        }
-
-        $key    = 'se_' . md5( $ip );
-        $cached = $this->cache_get( $key );
-        if ( false !== $cached ) {
-            return (bool) $cached;
-        }
-
-        $ok   = false;
-        $host = @gethostbyaddr( $ip );
-        if ( $host && $host !== $ip ) {
-            $host_l = strtolower( rtrim( $host, '.' ) );
-            foreach ( $hosts as $suffix ) {
-                if ( substr( $host_l, -strlen( $suffix ) ) === $suffix ) {
-                    // Forward-confirm so a hostile PTR record cannot fake it.
-                    $forward = @gethostbynamel( $host_l );
-                    if ( is_array( $forward ) && in_array( $ip, $forward, true ) ) {
-                        $ok = true;
-                    }
-                    break;
-                }
-            }
-        }
-        $this->cache_set( $key, $ok ? 1 : 0, DAY_IN_SECONDS );
-        return $ok;
-    }
-
-    // ------------------------------------------------------------------- ua
-
-    private function ua_blocklist() {
-        $raw = (string) $this->opt( 'bot_shield_ua_blocklist', '' );
-        return preg_split( '/[\r\n,]+/', strtolower( $raw ), -1, PREG_SPLIT_NO_EMPTY );
-    }
-
-    private function ua_matches( $ua, $needles ) {
-        $ua = strtolower( $ua );
-        foreach ( (array) $needles as $needle ) {
-            $needle = trim( (string) $needle );
-            if ( '' !== $needle && false !== strpos( $ua, $needle ) ) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // -------------------------------------------------------------- counters
-
-    /**
-     * Backend: persistent object cache (memcached on WPE) or APCu. Null when
-     * neither exists; callers then skip counting entirely. Overridable in
-     * tests via the ds_bot_shield_backend filter.
-     */
-    private function resolve_backend() {
-        if ( null !== $this->backend ) {
-            return $this->backend ?: null;
-        }
-        $backend = null;
-        if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() ) {
-            $backend = 'object-cache';
-        } elseif ( function_exists( 'apcu_inc' ) && filter_var( ini_get( 'apc.enabled' ), FILTER_VALIDATE_BOOLEAN ) ) {
-            $backend = 'apcu';
-        }
-        $backend       = apply_filters( 'ds_bot_shield_backend', $backend );
-        $this->backend = $backend ?: false; // false caches the "none" answer
-        return $backend;
-    }
-
-    private function cache_key( $key ) {
-        return 'ds_bs_' . $key;
-    }
-
-    private function cache_incr( $key, $ttl ) {
-        $backend = $this->resolve_backend();
-        if ( 'object-cache' === $backend ) {
-            wp_cache_add( $this->cache_key( $key ), 0, self::CACHE_GROUP, $ttl );
-            $n = wp_cache_incr( $this->cache_key( $key ), 1, self::CACHE_GROUP );
-            return false === $n ? 0 : (int) $n;
-        }
-        if ( 'apcu' === $backend ) {
-            apcu_add( $this->cache_key( $key ), 0, $ttl );
-            $n = apcu_inc( $this->cache_key( $key ) );
-            return false === $n ? 0 : (int) $n;
-        }
-        if ( 'array' === $backend ) { // test harness backend
-            $n = (int) apply_filters( 'ds_bot_shield_test_incr', 0, $this->cache_key( $key ), $ttl );
-            return $n;
-        }
-        return 0;
-    }
-
-    private function cache_get( $key ) {
-        $backend = $this->resolve_backend();
-        if ( 'object-cache' === $backend ) {
-            return wp_cache_get( $this->cache_key( $key ), self::CACHE_GROUP );
-        }
-        if ( 'apcu' === $backend ) {
-            $ok = false;
-            $v  = apcu_fetch( $this->cache_key( $key ), $ok );
-            return $ok ? $v : false;
-        }
-        if ( 'array' === $backend ) {
-            return apply_filters( 'ds_bot_shield_test_get', false, $this->cache_key( $key ) );
-        }
-        return false;
-    }
-
-    private function cache_set( $key, $value, $ttl ) {
-        $backend = $this->resolve_backend();
-        if ( 'object-cache' === $backend ) {
-            wp_cache_set( $this->cache_key( $key ), $value, self::CACHE_GROUP, $ttl );
-        } elseif ( 'apcu' === $backend ) {
-            apcu_store( $this->cache_key( $key ), $value, $ttl );
-        } elseif ( 'array' === $backend ) {
-            apply_filters( 'ds_bot_shield_test_set', null, $this->cache_key( $key ), $value, $ttl );
-        }
-    }
-
-    // ----------------------------------------------------------- ip logging
-
-    /**
-     * Per-IP offender log, flood-safe by construction: hit counts and one
-     * sample (UA + path + verdict) per IP live in the object cache; an
-     * aggregated top-200 table is persisted to the DB at most once every
-     * 2 minutes and kept for today + yesterday. Memcached cannot enumerate
-     * keys, so a capped per-day index array makes the entries findable.
-     */
-    private function log_ip( $verdict, $ip, $ua, $path ) {
-        if ( '' === $ip || null === $this->resolve_backend() ) {
-            return;
-        }
-        $day = gmdate( 'Ymd' );
-        $k   = substr( md5( $ip ), 0, 12 );
-
-        $this->cache_incr( 'ipn_' . $k . '_' . $day, 2 * DAY_IN_SECONDS );
-
-        if ( false === $this->cache_get( 'ipi_' . $k . '_' . $day ) ) {
-            $this->cache_set( 'ipi_' . $k . '_' . $day, array(
-                'ip'      => $ip,
-                'verdict' => $verdict,
-                'ua'      => substr( (string) $ua, 0, 120 ),
-                'path'    => substr( (string) $path, 0, 120 ),
-            ), 2 * DAY_IN_SECONDS );
-
-            $idx = $this->cache_get( 'ipidx_' . $day );
-            $idx = is_array( $idx ) ? $idx : array();
-            if ( count( $idx ) < 500 && ! in_array( $k, $idx, true ) ) {
-                $idx[] = $k;
-                $this->cache_set( 'ipidx_' . $day, $idx, 2 * DAY_IN_SECONDS );
-            }
-        }
-
-        if ( ! $this->cache_get( 'ipflush' ) ) {
-            $this->cache_set( 'ipflush', 1, 60 );
-            $this->flush_ip_log( $day );
-            $this->roll_up_stats( $day );
-        }
-    }
-
-    /** Merge the cache aggregate into the persisted option. */
-    public function flush_ip_log( $day = null ) {
-        $day = $day ?: gmdate( 'Ymd' );
-        $idx = $this->cache_get( 'ipidx_' . $day );
-        if ( ! is_array( $idx ) || ! $idx ) {
-            return;
-        }
-        $rows = array();
-        foreach ( $idx as $k ) {
-            $info = $this->cache_get( 'ipi_' . $k . '_' . $day );
-            $n    = (int) $this->cache_get( 'ipn_' . $k . '_' . $day );
-            if ( is_array( $info ) && $n > 0 ) {
-                $rows[ $info['ip'] ] = array_merge( $info, array( 'n' => $n ) );
-            }
-        }
-        if ( ! $rows ) {
-            return;
-        }
-        uasort( $rows, function ( $a, $b ) { return $b['n'] - $a['n']; } );
-        $rows = array_slice( $rows, 0, 200, true );
-
-        $log = get_option( self::IPLOG_OPT, array() );
-        $log = is_array( $log ) ? $log : array();
-
-        // Migrate the older shape (day keys at the top level) into 'days'.
-        if ( ! isset( $log['days'] ) ) {
-            $days = array();
-            foreach ( $log as $dk => $dv ) {
-                if ( is_array( $dv ) ) {
-                    $days[ (string) $dk ] = $dv;
-                }
-            }
-            $all = array();
-            foreach ( $days as $bucket ) {
-                foreach ( (array) $bucket as $ip => $row ) {
-                    if ( ! is_array( $row ) || ! isset( $row['n'] ) ) {
-                        continue;
-                    }
-                    $cur = isset( $all[ $ip ]['n'] ) ? (int) $all[ $ip ]['n'] : 0;
-                    $all[ $ip ] = array_merge( $row, array( 'n' => $cur + (int) $row['n'] ) );
-                }
-            }
-            $log = array( 'days' => $days, 'all' => $all, 'seen' => array() );
-        }
-        foreach ( array( 'days', 'all', 'seen' ) as $bucket ) {
-            if ( ! isset( $log[ $bucket ] ) || ! is_array( $log[ $bucket ] ) ) {
-                $log[ $bucket ] = array();
-            }
-        }
-
-        // Fold today's snapshot into a running per-IP total. The cache counter
-        // is daily and can be wiped, so track what was last folded and add the
-        // delta — same reset-aware rule the stat counters use. Without this the
-        // crawler table would restart every midnight.
-        if ( ! isset( $log['days'][ $day ] ) || ! is_array( $log['days'][ $day ] ) ) {
-            $log['days'][ $day ] = array();
-        }
-        foreach ( $rows as $ip => $row ) {
-            $n     = (int) $row['n'];
-            $last  = isset( $log['seen'][ $day ][ $ip ] ) ? (int) $log['seen'][ $day ][ $ip ] : 0;
-            $delta = ( $n >= $last ) ? ( $n - $last ) : $n;
-
-            $day_cur = isset( $log['days'][ $day ][ $ip ]['n'] ) ? (int) $log['days'][ $day ][ $ip ]['n'] : 0;
-            $all_cur = isset( $log['all'][ $ip ]['n'] )          ? (int) $log['all'][ $ip ]['n']          : 0;
-
-            $base = array(
-                'ip'      => $row['ip'],
-                'verdict' => $row['verdict'],
-                'ua'      => $row['ua'],
-                'path'    => $row['path'],
-            );
-            // Accumulate — never overwrite. The cache counter is daily AND can
-            // be wiped mid-day (a purge, an eviction, a deploy), so replacing
-            // the stored row with the post-wipe snapshot silently discarded
-            // everything counted before it.
-            $log['days'][ $day ][ $ip ] = array_merge( $base, array( 'n' => $day_cur + $delta ) );
-            $log['all'][ $ip ]          = array_merge( $base, array( 'n' => $all_cur + $delta ) );
-            $log['seen'][ $day ][ $ip ] = $n;
-        }
-
-        // Daily snapshots and their fold-markers are kept for 30 days; the
-        // running 'all' totals are never pruned by date, only capped by size.
-        $cutoff = gmdate( 'Ymd', time() - ( 30 * DAY_IN_SECONDS ) );
-        foreach ( array( 'days', 'seen' ) as $bucket ) {
-            foreach ( array_keys( $log[ $bucket ] ) as $d ) {
-                // PHP casts numeric-string keys to int — compare as strings.
-                if ( (string) $d < (string) $cutoff ) {
-                    unset( $log[ $bucket ][ $d ] );
-                }
-            }
-        }
-        if ( count( $log['all'] ) > 300 ) {
-            uasort( $log['all'], function ( $a, $b ) { return $b['n'] - $a['n']; } );
-            $log['all'] = array_slice( $log['all'], 0, 300, true );
-        }
-
-        update_option( self::IPLOG_OPT, $log, false );
-    }
-
-    /** Running per-IP offender totals since logging began. */
-    public function ip_log_total() {
-        $log = get_option( self::IPLOG_OPT, array() );
-        if ( ! is_array( $log ) || ! isset( $log['all'] ) || ! is_array( $log['all'] ) ) {
-            return array();
-        }
-        $all = $log['all'];
-        uasort( $all, function ( $a, $b ) { return $b['n'] - $a['n']; } );
-        return $all;
-    }
-
-    /** Persisted offender rows for a day, sorted by hit count. */
-    public function ip_log( $day = null ) {
-        $day = $day ?: gmdate( 'Ymd' );
-        $log = get_option( self::IPLOG_OPT, array() );
-        if ( ! is_array( $log ) ) {
-            return array();
-        }
-        if ( isset( $log['days'] ) ) {
-            return isset( $log['days'][ $day ] ) ? $log['days'][ $day ] : array();
-        }
-        return isset( $log[ $day ] ) ? $log[ $day ] : array(); // pre-migration
-    }
-
-    // ------------------------------------------------------- stats & logging
-
-    /** Counters are incremented in the object cache — cheap enough for a flood. */
-    private function bump_stat( $which ) {
-        $this->cache_incr( 'stat_' . $which . '_' . gmdate( 'Ymd' ), 2 * DAY_IN_SECONDS );
-    }
-
-    /**
-     * A day's total for a counter.
-     *
-     * The live counter lives in the object cache, which is VOLATILE: a WP Engine
-     * purge, a plugin update, a pod restart, or memcached evicting the key under
-     * memory pressure all reset it to zero. Reporting the raw cache value made
-     * the dashboard appear to count DOWN (observed on icelinerinks: 287 -> 189).
-     *
-     * So the cache is treated as a fast tick counter that may reset at any time,
-     * and the durable total lives in an option updated by roll_up_stats() on the
-     * same throttled 2-minute flush as the IP log. The answer is the persisted
-     * total plus whatever has ticked since the last roll-up.
-     */
-    public function stat( $which ) {
-        $day = gmdate( 'Ymd' );
-
-        // Fold anything pending into the durable total before reporting, once
-        // per request. Without this a cache wipe between two reads would drop
-        // the figure. Only admin/REST read stats, never front-end traffic, so
-        // this costs at most one option write per dashboard poll.
-        if ( ! $this->rolled ) {
-            $this->rolled = true;
-            $this->roll_up_stats( $day );
-        }
-
-        $totals = $this->read_totals();
-
-        $stored = isset( $totals['days'][ $day ]['totals'][ $which ] ) ? (int) $totals['days'][ $day ]['totals'][ $which ] : 0;
-        $last   = isset( $totals['days'][ $day ]['last'][ $which ] )   ? (int) $totals['days'][ $day ]['last'][ $which ]   : 0;
-        $hw     = isset( $totals['days'][ $day ]['hw'][ $which ] )     ? (int) $totals['days'][ $day ]['hw'][ $which ]     : 0;
-        $live   = (int) $this->cache_get( 'stat_' . $which . '_' . $day );
-
-        // $live < $last means the cache was wiped and has restarted from zero;
-        // everything currently in it is new since the roll-up.
-        $pending = ( $live >= $last ) ? ( $live - $last ) : $live;
-
-        // A wipe loses whatever had ticked since the last roll-up, so the
-        // computed figure can dip. The high-water mark keeps the reported
-        // number monotonic — it may under-count, but it never counts DOWN.
-        return max( $stored + $pending, $hw );
-    }
-
-    /**
-     * Fold the live cache counters into the durable per-day totals.
-     * Called from the same throttled flush as the IP log, so at most one extra
-     * option write every 2 minutes no matter how much traffic arrives.
-     */
-    private function roll_up_stats( $day ) {
-        $totals = $this->read_totals();
-        if ( ! isset( $totals['days'][ $day ] ) || ! is_array( $totals['days'][ $day ] ) ) {
-            $totals['days'][ $day ] = array( 'totals' => array(), 'last' => array(), 'hw' => array() );
-        }
-
-        $changed = false;
-        foreach ( array( 'seen', 'rate-limit', 'ua-block', 'challenge', 'page-trap' ) as $k ) {
-            $live = (int) $this->cache_get( 'stat_' . $k . '_' . $day );
-            $last = isset( $totals['days'][ $day ]['last'][ $k ] ) ? (int) $totals['days'][ $day ]['last'][ $k ] : 0;
-            if ( 0 === $live && 0 === $last ) {
-                continue;
-            }
-            $delta = ( $live >= $last ) ? ( $live - $last ) : $live; // reset-aware
-            if ( $delta > 0 || $live !== $last ) {
-                $cur   = isset( $totals['days'][ $day ]['totals'][ $k ] ) ? (int) $totals['days'][ $day ]['totals'][ $k ] : 0;
-                $hw    = isset( $totals['days'][ $day ]['hw'][ $k ] )     ? (int) $totals['days'][ $day ]['hw'][ $k ]     : 0;
-                $total = $cur + $delta;
-                $totals['days'][ $day ]['totals'][ $k ] = $total;
-                $totals['days'][ $day ]['last'][ $k ]   = $live;
-                $totals['days'][ $day ]['hw'][ $k ]     = max( $hw, $total );
-                // The running total never rolls over at midnight — this is what
-                // the report shows, so "Checked" is cumulative, not today-only.
-                $all = isset( $totals['all'][ $k ] ) ? (int) $totals['all'][ $k ] : 0;
-                $totals['all'][ $k ] = $all + $delta;
-                $changed = true;
-            }
-        }
-
-        // Daily buckets are only kept for the trend chart; 30 days of five
-        // small ints is a trivial option. The all-time figures are never pruned.
-        $cutoff = gmdate( 'Ymd', time() - ( 30 * DAY_IN_SECONDS ) );
-        foreach ( array_keys( $totals['days'] ) as $d ) {
-            // PHP casts numeric string keys to int, so compare as strings.
-            if ( (string) $d < (string) $cutoff ) {
-                unset( $totals['days'][ $d ] );
-                $changed = true;
-            }
-        }
-
-        if ( $changed ) {
-            update_option( self::TOTALS_OPT, $totals, false );
-        }
-    }
-
-    /**
-     * Load the totals option, migrating the older shape (day keys at the top
-     * level, no running total) so existing installs keep the numbers they
-     * already collected instead of restarting from zero.
-     */
-    private function read_totals() {
-        $totals = get_option( self::TOTALS_OPT, array() );
-        $totals = is_array( $totals ) ? $totals : array();
-
-        if ( ! isset( $totals['days'] ) ) {
-            $days = array();
-            foreach ( $totals as $k => $v ) {
-                if ( is_array( $v ) && isset( $v['totals'] ) ) {
-                    $days[ (string) $k ] = $v;
-                }
-            }
-            $all = array();
-            foreach ( $days as $bucket ) {
-                foreach ( (array) $bucket['totals'] as $key => $n ) {
-                    $all[ $key ] = ( isset( $all[ $key ] ) ? $all[ $key ] : 0 ) + (int) $n;
-                }
-            }
-            $totals = array(
-                'days'  => $days,
-                'all'   => $all,
-                'since' => gmdate( 'Y-m-d' ),
-            );
-        }
-        if ( ! isset( $totals['all'] ) || ! is_array( $totals['all'] ) ) {
-            $totals['all'] = array();
-        }
-        if ( empty( $totals['since'] ) ) {
-            $totals['since'] = gmdate( 'Y-m-d' );
-        }
-        return $totals;
-    }
-
-    /** Running total since logging began — does not reset at midnight. */
-    public function stat_total( $which ) {
-        $totals = $this->read_totals();
-        $all    = isset( $totals['all'][ $which ] ) ? (int) $totals['all'][ $which ] : 0;
-        // Add whatever today's cache holds but has not been rolled up yet.
-        $day     = gmdate( 'Ymd' );
-        $last    = isset( $totals['days'][ $day ]['last'][ $which ] ) ? (int) $totals['days'][ $day ]['last'][ $which ] : 0;
-        $live    = (int) $this->cache_get( 'stat_' . $which . '_' . $day );
-        $pending = ( $live >= $last ) ? ( $live - $last ) : $live;
-        return $all + $pending;
-    }
-
-    /** Date logging started, for the "since" label on the report. */
-    public function stat_since() {
-        $t = $this->read_totals();
-        return $t['since'];
-    }
-
-    /**
-     * Persist notable transitions (penalty, under-attack) to an option so
-     * there's evidence after cache expiry. Writes are rare by construction:
-     * penalties once per IP per box, attack mode once per activation.
-     */
-    private function log_event( $kind, $detail ) {
-        // At most one DB write per 60s: under a distributed flood thousands
-        // of penalties can fire and option writes must not become the load.
-        if ( $this->cache_get( 'evlock' ) ) {
-            return;
-        }
-        $this->cache_set( 'evlock', 1, 60 );
-        $events   = get_option( self::EVENTS_OPT, array() );
-        $events   = is_array( $events ) ? $events : array();
-        $events[] = array( 't' => time(), 'kind' => $kind, 'detail' => $detail );
-        update_option( self::EVENTS_OPT, array_slice( $events, -30 ), false );
-    }
-
-    // ----------------------------------------------------- dashboard widget
-
-    /**
-     * The rollout confirmation box from the Site Stability Push brief: the
-     * dashboard shows the mode and today's numbers, so "the box is there"
-     * doubles as proof the shield is active on a site.
-     */
-    public function register_dashboard_widget() {
-        wp_add_dashboard_widget( 'ds_bot_shield_status', 'Bot Shield', array( $this, 'render_dashboard_widget' ) );
-    }
-
-    public function render_dashboard_widget() {
-        $monitor = $this->is_monitor_mode();
-        $rows    = array(
-            'rate-limit' => 'Rate-limited (429)',
-            'ua-block'   => 'Blocked crawlers (403)',
-            'challenge'  => 'Browser checks (503)',
-            'page-trap'  => 'Pagination traps (410)',
-        );
-        echo '<p><strong>' . ( $monitor
-            ? 'Monitor mode — nothing is being blocked yet.'
-            : 'Blocking mode — abusive traffic is being rejected.' ) . '</strong></p>';
-        echo '<p>Requests evaluated today: <strong>' . (int) $this->stat( 'seen' ) . '</strong></p>';
-        echo '<p>' . ( $monitor ? 'Would have been blocked today:' : 'Blocked today:' ) . '</p><ul style="margin-left:1em;list-style:disc;">';
-        foreach ( $rows as $key => $label ) {
-            echo '<li>' . esc_html( $label ) . ': <strong>' . (int) $this->stat( $key ) . '</strong></li>';
-        }
-        echo '</ul>';
-        $events = get_option( self::EVENTS_OPT, array() );
-        if ( is_array( $events ) && $events ) {
-            echo '<p style="margin-top:8px;"><strong>Recent events</strong></p><ul style="margin-left:1em;list-style:disc;">';
-            foreach ( array_slice( array_reverse( $events ), 0, 5 ) as $e ) {
-                echo '<li>' . esc_html( gmdate( 'M j H:i', (int) $e['t'] ) . ' UTC — ' . $e['kind'] . ' (' . $e['detail'] . ')' ) . '</li>';
-            }
-            echo '</ul>';
-        }
-        $this->flush_ip_log();
-        $offenders = $this->ip_log();
-        if ( $offenders ) {
-            echo '<p style="margin-top:8px;"><strong>Top offending IPs today</strong></p><ul style="margin-left:1em;list-style:disc;">';
-            foreach ( array_slice( $offenders, 0, 10, true ) as $row ) {
-                echo '<li><code>' . esc_html( $row['ip'] ) . '</code> — ' . (int) $row['n'] . '× '
-                    . esc_html( $row['verdict'] ) . ', <span title="' . esc_attr( $row['ua'] ) . '">'
-                    . esc_html( substr( $row['ua'], 0, 40 ) ) . '…</span> on <code>'
-                    . esc_html( substr( $row['path'], 0, 40 ) ) . '</code></li>';
-            }
-            echo '</ul>';
-        }
     }
 
     // --------------------------------------------------------------- helpers

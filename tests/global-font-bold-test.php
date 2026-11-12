@@ -5,6 +5,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
  * Google Fonts request, only when the family has one, and nothing else changes.
  * Swaps Beaver Builder's cached Global Styles in memory (nothing is saved):
  *   wp eval-file tests/global-font-bold-test.php
+ *   @requires wordpress (tests/run.sh runs it only with --wp)
  * Exit code 1 on any failure.
  */
 if ( ! class_exists( 'FLBuilderFonts' ) || ! class_exists( 'FLBuilderGlobalStyles' ) ) { echo "Beaver Builder is not active.\n"; exit( 1 ); }

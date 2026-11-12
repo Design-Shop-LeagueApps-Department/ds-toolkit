@@ -507,12 +507,9 @@ add_action( 'ds_table_sync', function () {
  * Settings form
  * ------------------------------------------------------------------ */
 
-$ds_tbl_colour = function ( $label, $extra = array() ) {
-	return array_merge( array( 'type' => 'color', 'label' => $label, 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ) ), $extra );
-};
-$ds_tbl_unit = function ( $label, $min, $max, $extra = array() ) {
-	return array_merge( array( 'type' => 'unit', 'label' => $label, 'default' => '', 'description' => 'px', 'slider' => array( 'min' => $min, 'max' => $max, 'step' => 1 ) ), $extra );
-};
+// The shared builders (DS_Module_UI, docs/BUILDER-FORMS.md): the same fields this file used to shape itself.
+$ds_tbl_colour = array( 'DS_Module_UI', 'color_field' );
+$ds_tbl_unit   = array( 'DS_Module_UI', 'unit_field' );
 $ds_tbl_yes = function ( $label, $default = 'yes', $extra = array() ) {
 	return array_merge( array( 'type' => 'select', 'label' => $label, 'default' => $default, 'options' => array( 'yes' => __( 'Yes', 'ds-toolkit' ), 'no' => __( 'No', 'ds-toolkit' ) ) ), $extra );
 };

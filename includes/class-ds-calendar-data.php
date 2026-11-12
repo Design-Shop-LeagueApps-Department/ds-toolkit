@@ -1,5 +1,7 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once __DIR__ . '/class-ds-lock.php';
+require_once __DIR__ . '/class-ds-data-client.php';
 
 /**
  * LeagueApps team schedules for the LeagueApps Calendar module.
@@ -155,27 +157,13 @@ class DS_Calendar_Data {
 		}
 	}
 
-	/**
-	 * Atomic lock: INSERT IGNORE on the options table either creates the row (we own the
-	 * lock) or does nothing. A lock older than LOCK_TTL (a request that died) is taken over
-	 * with a compare-and-swap UPDATE, so two takers cannot both win.
-	 */
+	/** One refresh at a time per site set, across requests and containers (DS_Lock). */
 	private static function lock( $name ) {
-		global $wpdb;
-		$now = time();
-		if ( $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'no')", $name, (string) $now ) ) ) {
-			return true;
-		}
-		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
-		if ( $now - $held > self::LOCK_TTL ) {
-			return 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", (string) $now, $name, (string) $held ) );
-		}
-		return false;
+		return DS_Lock::acquire( $name, self::LOCK_TTL );
 	}
 
 	private static function unlock( $name ) {
-		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+		DS_Lock::release( $name );
 	}
 
 	/** Fetch what is due, under the lock, and rebuild the merged calendar. */
@@ -196,7 +184,7 @@ class DS_Calendar_Data {
 		$flushed  = false !== get_transient( 'ds_calendar_flushed' );
 		$why      = $flushed ? 'calendar flush' : ( is_array( get_transient( $stale_key ) ) ? 'calendar expired' : 'calendar first' );
 
-		$feed   = DS_Programs_Data::raw( $sites );
+		$feed   = DS_Programs_Data::raw( $sites, true ); // this IS a refresh: the current list, not the last copy
 		$listed = array(); // site id => program ids LeagueApps listed
 		foreach ( (array) $feed['rows'] as $p ) {
 			$sid = (string) ( $p['_site'] ?? '' );
@@ -457,12 +445,14 @@ class DS_Calendar_Data {
 			if ( $left < 2 ) {
 				break;
 			}
-			$r = wp_remote_get( $u, array( 'timeout' => min( self::TIMEOUT, $left ), 'user-agent' => $ua, 'headers' => array( 'Accept' => 'application/json' ) ) );
-			if ( is_wp_error( $r ) ) {
+			// One request, no retry here: the batch has its own deadline and its own back-off. The shared client
+			// only carries the request and reads the code, the body and Retry-After.
+			$r = DS_Data_Client::get_json( $u, array( 'timeout' => min( self::TIMEOUT, $left ), 'attempts' => 1, 'user_agent' => $ua ) );
+			if ( 0 === $r['code'] ) {
 				$out[ $k ] = array( 'code' => 0, 'body' => '' );
 				continue;
 			}
-			$out[ $k ] = array( 'code' => (int) wp_remote_retrieve_response_code( $r ), 'body' => wp_remote_retrieve_body( $r ), 'retry_after' => (int) wp_remote_retrieve_header( $r, 'retry-after' ) );
+			$out[ $k ] = array( 'code' => (int) $r['code'], 'body' => (string) $r['body'], 'retry_after' => (int) $r['retry_after'] );
 			if ( 429 === $out[ $k ]['code'] ) {
 				break;
 			}

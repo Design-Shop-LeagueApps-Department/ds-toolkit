@@ -12,6 +12,7 @@ $u = array( 'DS_Module_UI', 'u' );
 
 $g   = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 /* ---- Section background (shared) ---- */
 $sbg = $col( $settings->section_bg ?? '' );
@@ -20,10 +21,13 @@ if ( '' !== $sbg ) { echo "$node .ds-carousel { background: {$sbg}; }\n"; }
 if ( 'style3' === $style ) {
 	/* ============================ Style 3: reels strip ============================ */
 	$cols  = $u( $settings->reel_cols ?? '', 5 );
-	$colsM = $u( $settings->reel_cols_medium ?? '', min( $cols, 3 ) );
+	// Large: only when the editor typed a value there; a blank tablet value then counts its fallback from it.
+	$colsB = ( '' !== ( $settings->reel_cols_large ?? '' ) ) ? max( 1, (int) $settings->reel_cols_large ) : $cols;
+	$colsM = $u( $settings->reel_cols_medium ?? '', min( $colsB, 3 ) );
 	$colsR = $u( $settings->reel_cols_responsive ?? '', 2 );
 	$gap   = $u( $settings->reel_gap ?? '', 24 );
 	echo "$node .ds-reels-track { --ds-reel-cols: {$cols}; --ds-reel-gap: {$gap}px; }\n";
+	if ( '' !== ( $settings->reel_cols_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-reels-track { --ds-reel-cols: {$colsB}; } }\n"; }
 	echo "@media (max-width:{$bpm}px){ $node .ds-reels-track { --ds-reel-cols: {$colsM}; } }\n";
 	echo "@media (max-width:{$bpr}px){ $node .ds-reels-track { --ds-reel-cols: {$colsR}; } }\n";
 
@@ -45,15 +49,22 @@ if ( 'style3' === $style ) {
 	echo "$node .ds-carousel--style2 { --ds-cols: {$cols}; --ds-gap: {$gap}px; --ds-logo-h: {$lh}px; --ds-tile-pad: {$tp}px; }\n";
 
 	// Responsive column/gap/height/padding (defaults step down: tablet cols=min(cols,3), mobile=min(cols,2)).
-	$colsM = $u( $settings->columns_medium ?? '', min( $cols, 3 ) );
-	$gapM  = $u( $settings->gap_medium ?? '', $gap );
-	$lhM   = $u( $settings->logo_height_medium ?? '', $lh );
-	$tpM   = $u( $settings->tile_padding_medium ?? '', $tp );
+	// Large: only the values the editor typed there; a blank tablet or phone value then counts its fallback from them.
+	$colsB = $cols; $gapB = $gap; $lhB = $lh; $tpB = $tp; $lg = array();
+	if ( '' !== ( $settings->columns_large ?? '' ) )      { $colsB = max( 1, (int) $settings->columns_large ); $lg[] = "--ds-cols: {$colsB};"; }
+	if ( '' !== ( $settings->gap_large ?? '' ) )          { $gapB = (int) $settings->gap_large; $lg[] = "--ds-gap: {$gapB}px;"; }
+	if ( '' !== ( $settings->logo_height_large ?? '' ) )  { $lhB = (int) $settings->logo_height_large; $lg[] = "--ds-logo-h: {$lhB}px;"; }
+	if ( '' !== ( $settings->tile_padding_large ?? '' ) ) { $tpB = (int) $settings->tile_padding_large; $lg[] = "--ds-tile-pad: {$tpB}px;"; }
+	if ( $lg ) { echo "@media (max-width:{$bpl}px){ $node .ds-carousel--style2 { " . implode( ' ', $lg ) . " } }\n"; }
+	$colsM = $u( $settings->columns_medium ?? '', min( $colsB, 3 ) );
+	$gapM  = $u( $settings->gap_medium ?? '', $gapB );
+	$lhM   = $u( $settings->logo_height_medium ?? '', $lhB );
+	$tpM   = $u( $settings->tile_padding_medium ?? '', $tpB );
 	echo "@media (max-width:{$bpm}px){ $node .ds-carousel--style2 { --ds-cols: {$colsM}; --ds-gap: {$gapM}px; --ds-logo-h: {$lhM}px; --ds-tile-pad: {$tpM}px; } }\n";
-	$colsR = $u( $settings->columns_responsive ?? '', min( $cols, 2 ) );
-	$gapR  = $u( $settings->gap_responsive ?? '', $gap );
-	$lhR   = $u( $settings->logo_height_responsive ?? '', $lh );
-	$tpR   = $u( $settings->tile_padding_responsive ?? '', $tp );
+	$colsR = $u( $settings->columns_responsive ?? '', min( $colsB, 2 ) );
+	$gapR  = $u( $settings->gap_responsive ?? '', $gapB );
+	$lhR   = $u( $settings->logo_height_responsive ?? '', $lhB );
+	$tpR   = $u( $settings->tile_padding_responsive ?? '', $tpB );
 	echo "@media (max-width:{$bpr}px){ $node .ds-carousel--style2 { --ds-cols: {$colsR}; --ds-gap: {$gapR}px; --ds-logo-h: {$lhR}px; --ds-tile-pad: {$tpR}px; } }\n";
 
 	// Tile background / border / radius.
@@ -75,6 +86,7 @@ if ( 'style3' === $style ) {
 	// Logo max-height (keeps mixed sizes balanced; aspect ratio always preserved).
 	$lmh = $u( $settings->logo_max_height ?? '', 64 );
 	echo "$node .ds-logos-logo { max-height: {$lmh}px; }\n";
+	if ( '' !== ( $settings->logo_max_height_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-logos-logo { max-height: " . (int) $settings->logo_max_height_large . "px; } }\n"; }
 	if ( '' !== ( $settings->logo_max_height_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-logos-logo { max-height: " . (int) $settings->logo_max_height_medium . "px; } }\n"; }
 	if ( '' !== ( $settings->logo_max_height_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-logos-logo { max-height: " . (int) $settings->logo_max_height_responsive . "px; } }\n"; }
 
@@ -127,6 +139,7 @@ if ( 'custom' === $dh_preset ) { $dh = $u( $settings->deck_height_custom ?? '', 
 if ( $dh > 0 ) {
 	echo "$node .ds-carousel-framewrap { height: {$dh}px; aspect-ratio: auto; }\n";
 	if ( 'custom' === $dh_preset ) {
+		if ( '' !== ( $settings->deck_height_custom_large ?? '' ) )      { echo "@media (max-width:{$bpl}px){ $node .ds-carousel-framewrap { height: " . (int) $settings->deck_height_custom_large . "px; } }\n"; }
 		if ( '' !== ( $settings->deck_height_custom_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-carousel-framewrap { height: " . (int) $settings->deck_height_custom_medium . "px; } }\n"; }
 		if ( '' !== ( $settings->deck_height_custom_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-carousel-framewrap { height: " . (int) $settings->deck_height_custom_responsive . "px; } }\n"; }
 	}
@@ -169,7 +182,7 @@ $cimw = $u( $settings->caption_image_max_width ?? '', 90 );
 echo "$node .ds-carousel-caption { --ds-cap-img-maxw: {$cimw}px; }\n";
 foreach ( array( 'caption_image_height' => array( '--ds-cap-img-h', 22 ), 'caption_image_max_width' => array( '--ds-cap-img-maxw', 90 ) ) as $key => $meta ) {
 	list( $prop, $def ) = $meta;
-	foreach ( array( 'medium' => $bpm, 'responsive' => $bpr ) as $sfx => $bp ) {
+	foreach ( array( 'large' => $bpl, 'medium' => $bpm, 'responsive' => $bpr ) as $sfx => $bp ) {
 		$v = $settings->{$key . '_' . $sfx} ?? '';
 		if ( '' !== $v && null !== $v ) {
 			echo "@media (max-width: {$bp}px) { $node .ds-carousel-caption { {$prop}: " . $u( $v, $def ) . "px; } }\n";

@@ -21,6 +21,7 @@ class DS_LA_Calendar {
 
 	public function init() {
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
+		DS_Programs_Data::hooks(); // the feed's background refresh needs its handler in the cron request
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-calendar-data.php';
 		require_once DS_TOOLKIT_PATH . 'includes/class-ds-calendar-ics.php';
 		add_action( 'init', array( $this, 'register_module' ), 20 );

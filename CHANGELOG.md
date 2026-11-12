@@ -4,6 +4,50 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.18.0] - 2026-11-12
+MINOR: a redesigned settings screen (four tabs, a toolbar, a status panel, LeagueApps site cards) and the 2026-11 architecture audit: one feature schema, server-side validation, a clean deactivate and uninstall, quieter HQ check-ins, Programs that keep showing during a LeagueApps outage, Large breakpoint values that apply, and the big files split. Pages render the same: on four live test sites (WP Engine DSPS 4, 5, 7 and one Flywheel site) 86 pages matched their status, visible text and DS modules before and after.
+
+### Settings screen
+- **Four tabs: Features, LeagueApps, Custom Code, MCP.** General is gone (its copyright text is now a field on the `[ds_copyright] Shortcode` card under Developer), Global CSS and Global JS are one Custom Code tab with two sub-tabs, and the Logo Finder lives under Media only. Old bookmarks (`tab=general`, `tab=global-css`, `tab=global-js`, `tab=logos`) land on the new place.
+- **Features tab:** a toolbar (search, All / On / Off / Changed chips with counts, jump links per group), a sticky save bar with a live count of unsaved changes, a Discard button and a leave warning, a "Changed, not saved" tag on each edited card, and a right-hand Status panel (Tripwire daily run, hourly scan, remote lists, last alert mail, last update check, Bot Shield cache, HQ link) with what changed and facts about the site. Modules are a grid of tiles with one All modules switch.
+- **Every switch is a real checkbox** (role switch, a name, a focus ring) and works from the keyboard. Grey card text is darker (7.6:1).
+- **Every card is a name, a scope chip and one sentence**, with detail behind More. The nine settings that had no control now have one (Tripwire and its alert email, Bot Shield stats endpoint and origin, Social Sharing Card, Page Banner Sync, Builder Defaults, Admin Bar Links, Global Heading Font Loader).
+- **LeagueApps tab: one card per site** (label, site ID, private key masked with a Show button, Programs feed state and Roster key state), Add site and Remove, and the fetch activity of the last 24 hours as bars.
+- Admin notices ("Settings saved.") sit under the DS Toolkit header instead of inside it. The accent follows the WordPress admin colour scheme. No inline styles left in any settings view.
+- Saving validates every setting on the server by type and range; a value that cannot be used keeps the saved one.
+
+### Changed (visible to partners or the team)
+- **LeagueApps Programs keeps showing during an outage.** An expired list is shown at once and refreshed in the background (WP-Cron); a copy older than an hour is never shown unchecked; a manual refresh or a settings save still fetches at once. With LeagueApps down and no copy at all, the block says "Programs are temporarily unavailable. Please check back shortly." (editable: Message when LeagueApps cannot be reached) instead of "No programs are open right now", and that page is not cached.
+- **Large breakpoint values now apply.** Every responsive setting of every module reads the value typed at each breakpoint, Large included. A Large value typed in the past starts to show. Page Banner heights (Large and phone), Table image size (Large and tablet) and Team Detail section gap (Large and tablet) also read the breakpoints they skipped. With no new value typed, the CSS of every module is byte-identical to 1.17.4.
+- **Tripwire pre-launch addresses** now include `*.wpengine.com` and `*.flywheelstaging.com`: alerts there are recorded for HQ and not mailed. The updater no longer treats `*.dev` as a developer machine. Hide FL Assistant honours a `DS_TOOLKIT_ADMIN_DOMAIN` override.
+- **HQ reporting is its own feature.** A site with Tripwire off but HQ reporting on starts checking in. The daily run is spread over 90 minutes per site, check-ins carry a little jitter, and a failed check-in backs off (5, 10, 20 minutes, up to 6 hours).
+- CTA styles 5, 6 and 7 get a Header Colours section. Builder labels say "Colour". The Post Loop empty-state hints point to the right tab.
+
+### Fixed
+- The LeagueApps Roster team picker was always empty in the builder.
+- MCP: the two bulk post tools were offered with every tool group off.
+- On phones the MCP config fields sit under their labels, and the generated Claude config is readable again.
+- The Nested Pages toggle shows on blueprint 5 sites. A settings card no longer prints outside its group.
+
+### Faster and safer
+- Bot Shield starts first, and checks a search-engine crawler's reverse DNS in small rations before refusing anything.
+- Builder pickers only query the database while the builder is open (home page of the demo site: 202 to 163 queries).
+- Beaver Builder's cached module CSS is cleared on a toolkit update only when the module code changed.
+- Tripwire runs inside a lock and a time budget, saves its scan cursor straight away, and records what each run cost.
+- Deactivating stops every scheduled job and removes the Origin Guard file (reactivating restores them); uninstalling removes the toolkit's options, jobs and caches and keeps the Partner role and Theme Setting design values.
+- MCP keeps a log of the last 100 write calls (who, tool, target, done or refused; never the values), shown on the MCP tab.
+
+### Removed
+- The deprecated LeagueApps Schedule block (deprecated in 1.10.44). Its old refresh job is still cleared.
+
+### Internal
+- One feature schema (`includes/class-ds-features.php`) drives loading, defaults, validation and the settings cards; same 51 features, load order and defaults as 1.17.4. A generic module loader replaces 14 empty feature classes.
+- New shared pieces: `DS_Env` (one place for HQ, repository and host rules), `DS_Lock`, `DS_Data_Client`, `DS_Status`, `DS_Toolkit_Lifecycle`, `DS_MCP_Tools`, builder field helpers and a responsive CSS emitter in `DS_Module_UI`.
+- Large files split into traits with every method proven unchanged: MCP server, Post Loop, Hero, CTA, Theme Setting, Bot Shield, Tripwire.
+- `tests/` and `docs/` are no longer shipped in the release zip. `tests/run.sh` runs lint and the whole suite.
+
+---
+
 ## [1.17.4] - 2026-11-10
 PATCH: unticking "This league will be visible to the public" on a grouped program in LeagueApps now hides its divisions too (#340), and the form submit button follows the Global Styles button colours (#339).
 

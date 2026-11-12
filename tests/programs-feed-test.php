@@ -84,7 +84,8 @@ chk('two programs returned', count($r['programs']), 2);
 chk('not stale', $r['stale'], false);
 chk('request timeout is 8s', $GLOBALS['last_args']['timeout'] ?? null, 8);
 chk('fresh cache written with 10-minute TTL', ttl_of($key), 600);
-chk('stale copy written with 7-day TTL', ttl_of($key.'_stale'), 7*86400);
+$goodname = 'ds_programs_good_'.substr($key, 12);
+chk('last good copy kept in an option that is not autoloaded (a 7-day transient before the 2026-11 audit)', array(isset($GLOBALS['opts'][$goodname]['rows']), $GLOBALS['autoload'][$goodname] ?? null, get_transient($key.'_stale')), array(true, false, false));
 chk('refetch lock released', get_transient($key.'_lock'), false);
 chk('key registered for flush()', in_array($key, get_transient('ds_programs_keys') ?: array(), true), true);
 
@@ -197,7 +198,9 @@ chk('the fallback drops includePrivate', array(strpos(end($GLOBALS['urls']),'inc
 echo "refetch lock held AND a stale copy exists (no sleep, no HTTP)\n";
 $GLOBALS['tr']=array(); $GLOBALS['calls']=0;
 $k='ds_programs_'.md5(json_encode(array('46287')));
-set_transient($k.'_stale', array('rows'=>array(array('programId'=>1,'name'=>'X','type'=>'LEAGUE','visibility'=>'Public','startTime'=>1700000000000,'endTime'=>1700000000000)),'fetched'=>1), 999);
+// The copy is the pre-audit 7-day transient here on purpose: a site that just updated still holds only that.
+unset($GLOBALS['opts']['ds_programs_good_'.substr($k, 12)]);
+set_transient($k.'_stale', array('rows'=>array(array('programId'=>1,'name'=>'X','type'=>'LEAGUE','visibility'=>'Public','startTime'=>1700000000000,'endTime'=>1700000000000)),'fetched'=>time()-3600), 999);
 set_transient($k.'_lock', time(), 30);
 $t0=microtime(true); $r=DS_Programs_Data::get(array($site));
 chk('zero HTTP calls', $GLOBALS['calls'], 0);
@@ -218,7 +221,7 @@ $GLOBALS['cache_flushed']=0;
 DS_Programs_Data::flush();
 chk('fresh copy gone', get_transient($key), false);
 chk('refetch lock gone', get_transient($key.'_lock'), false);
-chk('stale copy KEPT so a flush during an outage cannot blank the page', get_transient($key.'_stale') !== false, true);
+chk('last good copy KEPT so a flush during an outage cannot blank the page', isset($GLOBALS['opts'][$goodname]['rows']), true);
 chk('does NOT empty the whole object cache', $GLOBALS['cache_flushed'], 0);
 chk('still runs the legacy row delete', count($wpdb->queries), 1);
 $GLOBALS['http']=array($ok200); DS_Programs_Data::get(array($site));
@@ -355,7 +358,7 @@ chk('children mode: private league\'s divisions gone, the rest kept', $ids($r), 
 chk('master mode: private league is no row of its own either', $ids(DS_Programs_Data::get(array($site), array(), array(), 'master')), array(200,400,501,800));
 chk('both mode: same, the public league keeps only its public division', $ids(DS_Programs_Data::get(array($site), array(), array(), 'both')), array(200,201,400,501,800));
 chk('raw() (Calendar, Schedule) never sees a private row or a hidden division', array_map(function($p){ return $p['programId']; }, DS_Programs_Data::raw(array($site))['rows']), array(200,201,400,501,800));
-chk('nothing private is cached', strpos(json_encode(get_transient($key)), 'Private')===false && strpos(json_encode(get_transient($key.'_stale')), 'Thursday')===false, true);
+chk('nothing private is cached', strpos(json_encode(get_transient($key)), 'Private')===false && strpos(json_encode($GLOBALS['opts'][$goodname] ?? null), 'Thursday')===false && isset($GLOBALS['opts'][$goodname]['rows']), true);
 chk('one request for all of it', $GLOBALS['calls'], 1);
 chk('public_rows: a feed with no private rows is unchanged', count(DS_Programs_Data::public_rows(array($pv(1,'a','Public'),$pv(2,'b','Public',array('masterProgramId'=>1))))), 2);
 chk('public_rows: non-array rows are skipped, not fatal', DS_Programs_Data::public_rows(array('x',null,$pv(3,'c','Public')))[0]['programId'], 3);

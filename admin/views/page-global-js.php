@@ -1,32 +1,40 @@
 <?php
 /**
- * Global JS tab — feature reference + read-only source.
+ * Global JS tab: the on/off switch, then the reference and the read-only source behind a fold.
  * The JS is managed directly in includes/defaults/global-js.js (plugin file).
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 ?>
 
 <!-- Info card + toggle -->
-<div class="dst-card" style="margin-bottom:20px;">
+<div class="dst-card dst-card--lead">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-editor-code"></span></div>
         <div class="dst-card-info">
-            <strong>Global JavaScript — Plugin Managed</strong>
+            <strong id="dst-t-global_js_enabled">Global JavaScript — Plugin Managed</strong>
             <span>Site utilities injected before <code>&lt;/body&gt;</code> on every page. Managed in <code>includes/defaults/global-js.js</code> — updates automatically with the plugin. Toggle off to disable output entirely.</span>
         </div>
         <div class="dst-toggle">
-            <form method="post" action="options.php" style="display:contents;">
+            <form method="post" action="options.php" class="dst-form-inline">
                 <?php settings_fields( 'ds_toolkit_options' ); ?>
                 <input type="hidden" name="ds_toolkit_settings[global_js_enabled]" value="0">
-                <input type="checkbox" id="global_js_enabled" name="ds_toolkit_settings[global_js_enabled]" value="1" <?php checked( $global_js_enabled ); ?> onchange="this.form.submit()">
-                <label for="global_js_enabled"></label>
+                <input type="checkbox" role="switch" aria-labelledby="dst-t-global_js_enabled" id="global_js_enabled" name="ds_toolkit_settings[global_js_enabled]" value="1" <?php checked( $global_js_enabled ); ?> onchange="this.form.submit()">
+                <label for="global_js_enabled" aria-hidden="true"></label>
             </form>
         </div>
     </div>
 </div>
 
+<details class="dst-group dst-ref">
+    <summary class="dst-group-head">
+        <span class="dst-group-title"><span class="dashicons dashicons-book" aria-hidden="true"></span> Reference: what the script does</span>
+        <span class="dst-group-count">Four helpers and the full source</span>
+    </summary>
+    <div class="dst-group-body">
+        <p class="dst-ref-pointer">Guides for the modules and the builder are on <a href="<?php echo esc_url( DS_Toolkit_Admin::HQ_DOCS_URL ); ?>" target="_blank" rel="noopener">Design Shop HQ</a>. This list is the reference for what the plugin itself ships.</p>
+
 <!-- Sticky Header -->
-<p class="dst-section-title" style="margin-top:20px;">Sticky Header</p>
+<p class="dst-section-title dst-mt-20">Sticky Header</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-admin-appearance"></span></div>
@@ -38,7 +46,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Clickable Columns -->
-<p class="dst-section-title" style="margin-top:20px;">Clickable Columns</p>
+<p class="dst-section-title dst-mt-20">Clickable Columns</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-layout"></span></div>
@@ -50,7 +58,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Equal Heights -->
-<p class="dst-section-title" style="margin-top:20px;">Equal Heights</p>
+<p class="dst-section-title dst-mt-20">Equal Heights</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-align-center"></span></div>
@@ -83,7 +91,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Button Normaliser -->
-<p class="dst-section-title" style="margin-top:20px;">Button Normaliser</p>
+<p class="dst-section-title dst-mt-20">Button Normaliser</p>
 <div class="dst-card">
     <div class="dst-card-row">
         <div class="dst-card-icon"><span class="dashicons dashicons-button"></span></div>
@@ -95,7 +103,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 </div>
 
 <!-- Full JS source -->
-<p class="dst-section-title" style="margin-top:28px;">Full JS Source <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#8c9aaa;font-size:11px;">— read only · edit in <code>includes/defaults/global-js.js</code></span></p>
+<p class="dst-section-title dst-mt-28">Full JS Source <span class="dst-title-note">— read only · edit in <code>includes/defaults/global-js.js</code></span></p>
 <div class="dst-code-editor-wrap">
-    <textarea readonly rows="40" style="cursor:default;"><?php echo esc_textarea( file_get_contents( DS_TOOLKIT_PATH . 'includes/defaults/global-js.js' ) ); ?></textarea>
+    <textarea readonly rows="40" class="dst-readonly-code"><?php echo esc_textarea( file_get_contents( DS_TOOLKIT_PATH . 'includes/defaults/global-js.js' ) ); ?></textarea>
 </div>
+
+    </div>
+</details>
+

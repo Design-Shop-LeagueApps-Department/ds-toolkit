@@ -6,6 +6,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
  * grids that are unchanged. Renders modules in memory with Beaver Builder (nothing is saved). Needs at
  * least one published Staff entry and one published team with coaches:
  *   wp eval-file tests/staff-avatar-test.php
+ *   @requires wordpress (tests/run.sh runs it only with --wp)
  * Exit code 1 on any failure.
  */
 if ( ! class_exists( 'FLBuilder' ) || ! class_exists( 'DS_Post_Loop_Module' ) ) { echo "Beaver Builder or the Post Loop module is not active.\n"; exit( 1 ); }

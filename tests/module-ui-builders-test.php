@@ -1,0 +1,149 @@
+<?php
+if ( 'cli' !== PHP_SAPI ) { exit; } // a php script: does nothing over HTTP
+/**
+ * DS_Module_UI: shared field builders and one responsive CSS emitter. Stub-style:
+ *
+ *   php tests/module-ui-builders-test.php
+ *
+ * Why (2026-11 audit, items 28 and 29): the colour-field literal was typed 275 times with five private
+ * factories of it, and of 82 responsive fields only 2 used the Large value an editor can type, while the
+ * modules carried their own breakpoint widths (1024, 768, 767, 600, 480, 1199).
+ */
+define( 'ABSPATH', '/tmp/fake-wp/' );
+function __( $s, $d = '' ) { return $s; }
+class FLBuilderModel {
+	public static $g = null;
+	public static function get_global_settings() { return self::$g; }
+}
+require dirname( __DIR__ ) . '/includes/class-ds-module-ui.php';
+
+$fails = 0;
+function chk( $l, $g, $w ) { global $fails; $ok = ( $g === $w ); if ( ! $ok ) { $fails++; } printf( "  %-80s %s\n", $l, $ok ? 'ok' : 'FAIL got=' . var_export( $g, true ) ); }
+$root = dirname( __DIR__ ) . '/';
+
+echo "field builders\n";
+chk( 'colour: blank default, reset, global colours (the literal Programs and Table used)', DS_Module_UI::color_field( 'Text' ),
+	array( 'type' => 'color', 'label' => 'Text', 'default' => '', 'show_reset' => true, 'connections' => array( 'color' ) ) );
+chk( 'colour: extras are merged and win', DS_Module_UI::color_field( 'Line', array( 'show_alpha' => true, 'default' => 'ff0000' ) )['default'] . '|' . var_export( DS_Module_UI::color_field( 'Line', array( 'show_alpha' => true ) )['show_alpha'], true ), 'ff0000|true' );
+chk( 'unit: px with a slider (the literal Programs and Table used)', DS_Module_UI::unit_field( 'Gap', 0, 60 ),
+	array( 'type' => 'unit', 'label' => 'Gap', 'default' => '', 'description' => 'px', 'slider' => array( 'min' => 0, 'max' => 60, 'step' => 1 ) ) );
+$yn = DS_Module_UI::yes_no_field( 'Show count' );
+chk( 'yes/no: a select storing no / yes, No first, off by default', array( $yn['type'], array_keys( $yn['options'] ), $yn['default'] ), array( 'select', array( 'no', 'yes' ), 'no' ) );
+chk( 'yes/no: can start on; anything else reads as off', array( DS_Module_UI::yes_no_field( 'x', 'yes' )['default'], DS_Module_UI::yes_no_field( 'x', 'maybe' )['default'] ), array( 'yes', 'no' ) );
+$sh = DS_Module_UI::show_hide_field( 'Arrows' );
+chk( 'show/hide: a select storing show / hide', array( $sh['type'], array_keys( $sh['options'] ), $sh['default'] ), array( 'select', array( 'show', 'hide' ), 'show' ) );
+$w = DS_Module_UI::width_field( 'Width' );
+chk( 'width: px, % and vw, different per screen size', array( $w['units'], $w['responsive'] ), array( array( 'px', '%', 'vw' ), true ) );
+foreach ( array( 'ds-programs/ds-programs.php' => 'ds_prg', 'ds-table/ds-table.php' => 'ds_tbl' ) as $file => $pre ) {
+	$src = file_get_contents( $root . 'modules/' . $file );
+	chk( $file . ' uses the shared colour and unit builders', array( (bool) preg_match( '/\$' . $pre . "_colour\s*=\s*array\( 'DS_Module_UI', 'color_field' \);/", $src ), (bool) preg_match( '/\$' . $pre . "_unit\s*=\s*array\( 'DS_Module_UI', 'unit_field' \);/", $src ), (bool) preg_match( '/\$' . $pre . '_colour\s*=\s*function/', $src ) ), array( true, true, false ) );
+}
+
+echo "this site's breakpoints\n";
+chk( 'Beaver Builder defaults when nothing is set', DS_Module_UI::breakpoint_map(), array( '_large' => 1200, '_medium' => 992, '_responsive' => 768 ) );
+FLBuilderModel::$g = (object) array( 'large_breakpoint' => '1366', 'medium_breakpoint' => '1024', 'responsive_breakpoint' => '600' );
+chk( 'the site\'s own values, Large included, widest first', DS_Module_UI::breakpoint_map(), array( '_large' => 1366, '_medium' => 1024, '_responsive' => 600 ) );
+chk( 'the two-value helper older code uses still answers the same', DS_Module_UI::breakpoints(), array( 1024, 600 ) );
+
+echo "one responsive emitter\n";
+$s = (object) array( 'gap' => '24', 'gap_large' => '20', 'gap_medium' => '', 'gap_responsive' => '12' );
+chk( 'base rule, then only the breakpoints the editor filled in (blank Medium cascades)', DS_Module_UI::responsive_css( '.n .g', 'gap', $s, 'gap' ),
+	".n .g{gap:24px;}\n@media(max-width:1366px){.n .g{gap:20px;}}\n@media(max-width:600px){.n .g{gap:12px;}}\n" );
+chk( 'nothing set: no CSS at all', DS_Module_UI::responsive_css( '.n .g', 'gap', (object) array(), 'gap' ), '' );
+chk( 'a default fills the base only', DS_Module_UI::responsive_css( '.n .g', '--cols', (object) array( 'cols_responsive' => '1' ), 'cols', 'int', '3' ), ".n .g{--cols:3;}\n@media(max-width:600px){.n .g{--cols:1;}}\n" );
+chk( 'several properties take the same value', DS_Module_UI::responsive_css( '.n', array( 'padding-left', 'padding-right' ), (object) array( 'pad' => '10' ), 'pad' ), ".n{padding-left:10px;padding-right:10px;}\n" );
+chk( 'zero is a value, not "blank"', DS_Module_UI::responsive_css( '.n', 'gap', (object) array( 'gap' => '0', 'gap_responsive' => 0 ), 'gap' ), ".n{gap:0px;}\n@media(max-width:600px){.n{gap:0px;}}\n" );
+chk( 'decimals are kept', DS_Module_UI::responsive_css( '.n', 'gap', (object) array( 'gap' => '1.5' ), 'gap' ), ".n{gap:1.5px;}\n" );
+chk( 'the unit the editor picked, per breakpoint', DS_Module_UI::responsive_css( '.n', 'max-width', (object) array( 'w' => '900', 'w_unit' => 'px', 'w_responsive' => '90', 'w_responsive_unit' => '%' ), 'w', 'unit' ), ".n{max-width:900px;}\n@media(max-width:600px){.n{max-width:90%;}}\n" );
+chk( 'an unknown unit falls back to px', DS_Module_UI::responsive_css( '.n', 'max-width', (object) array( 'w' => '5', 'w_unit' => 'px;}body{display:none' ), 'w', 'unit' ), ".n{max-width:5px;}\n" );
+chk( 'a word in a number field is skipped', DS_Module_UI::responsive_css( '.n', 'gap', (object) array( 'gap' => 'wide', 'gap_medium' => '8' ), 'gap' ), "@media(max-width:1024px){.n{gap:8px;}}\n" );
+chk( 'raw: a clean length or keyword passes', DS_Module_UI::responsive_css( '.n', 'width', (object) array( 'w' => 'calc(100% - 20px)', 'w_responsive' => 'auto' ), 'w', 'raw' ), ".n{width:calc(100% - 20px);}\n@media(max-width:600px){.n{width:auto;}}\n" );
+chk( 'raw: a value that tries to close the rule is dropped', DS_Module_UI::responsive_css( '.n', 'width', (object) array( 'w' => '10px;}body{display:none' ), 'w', 'raw' ), '' );
+chk( 'a callable decides the value', DS_Module_UI::responsive_css( '.n', 'grid-template-columns', (object) array( 'c' => '3', 'c_responsive' => '1' ), 'c', function ( $v ) { return 'repeat(' . (int) $v . ',1fr)'; } ), ".n{grid-template-columns:repeat(3,1fr);}\n@media(max-width:600px){.n{grid-template-columns:repeat(1,1fr);}}\n" );
+chk( 'an array or object where a value should be is ignored', DS_Module_UI::responsive_css( '.n', 'gap', (object) array( 'gap' => array( 1 ) ), 'gap' ), '' );
+
+echo "first adopter: the Programs card grid\n";
+$css = file_get_contents( $root . 'modules/ds-programs/includes/frontend.css.php' );
+chk( 'it reads Cards per row and Gap under Large, at the site\'s Large breakpoint', array( false !== strpos( $css, 'card_cols_large' ), false !== strpos( $css, 'card_gap_large' ), false !== strpos( $css, "DS_Module_UI::breakpoint_map()['_large']" ) ), array( true, true, true ) );
+chk( 'and prints nothing new when Large was left blank', (bool) preg_match( "/if \( '' !== \\\$cols_lg \|\| '' !== \\\$gap_lg \) \{/", $css ), true );
+
+echo "more adopters: the loops that print a setting per breakpoint include Large\n";
+foreach ( array( 'ds-heading' => 2, 'ds-hero' => 4, 'ds-carousel' => 1, 'ds-programs' => 3, 'ds-table' => 1 ) as $mod => $loops ) {
+	$c       = file_get_contents( $root . 'modules/' . $mod . '/includes/frontend.css.php' );
+	$with    = substr_count( $c, "'_large' => \$bpl, '_medium' => \$bpm, '_responsive' => \$bpr )" ) + substr_count( $c, "'large' => \$bpl, 'medium' => \$bpm, 'responsive' => \$bpr )" ) + substr_count( $c, "'large' => \$bp_lg, 'medium' => \$bp_md, 'responsive' => \$bp_sm )" );
+	$without = substr_count( $c, "array( '' => '', '_medium' => \$bpm," ) + substr_count( $c, "array( 'medium' => \$bpm," ) + substr_count( $c, "array( 'medium' => \$bp_md," );
+	chk( $mod . ': ' . $loops . ' loop(s) read Large, widest first, none left without it', array( $with, $without, false !== strpos( $c, "DS_Module_UI::breakpoint_map()['_large']" ) ), array( $loops, 0, true ) );
+}
+
+echo "and the modules that write one line or one block per breakpoint\n";
+foreach ( array( 'ds-marquee' => array( 'height_large', 'img_h_large' ), 'ds-team-detail' => array( 'coach_gap_large', 'coach_icon_size_large' ), 'ds-pathway' => array( 'gap_large' ), 'ds-orgstats' => array( 'columns_large', 'item_pad_v_large', 'item_pad_h_large', 'card_min_height_large' ), 'ds-social' => array( 'icon_size_large', 'icon_gap_large', 'bg_padding_large', 'alignment_large' ), 'ds-cta' => array( 'min_height_large', 'hero_min_height_large', 'social_icon_size_large', 'social_gap_large', 'columns_large', 'gap_large', 'row_height_large', 'mc_cols_large', 'pp_cols_large', 'pp_gap_large', 'pp_num_size_large' ), 'ds-post-loop' => array( 'card_min_h_large', 'card2_min_large', 'gap_large', 'feature_min_h_large', 'cols2_large', 'gap2_large', 'loop_cols_large', 'staff_cols_large', 'staff_avatar_layout_large', 'cr_cols_large', 'commit_cols_large', 'car_per_view_large' ) ) as $mod => $keys ) {
+	$c    = file_get_contents( $root . 'modules/' . $mod . '/includes/frontend.css.php' );
+	$miss = array_values( array_filter( $keys, function ( $k ) use ( $c ) { return false === strpos( $c, $k ); } ) );
+	// Large must be PRINTED before Medium, or the narrower value would lose to it: compare where the two
+	// media rules are echoed (a module may read its Medium value earlier than it prints it).
+	// A file can hold many settings, so the comparison is per setting: the line of the first setting's
+	// Large rule against the line of its Medium rule. Where the rule names a worked-out variable instead
+	// of the setting, the first Large rule in the file against the first Medium rule.
+	$lines = preg_split( '/\R/', $c );
+	$line  = function ( $needle ) use ( $lines ) {
+		foreach ( $lines as $i => $l ) { if ( false !== strpos( $l, 'max-width' ) && false !== strpos( $l, $needle ) ) { return $i; } }
+		return null;
+	};
+	$a = $line( $keys[0] );
+	$b = $line( str_replace( '_large', '_medium', $keys[0] ) );
+	if ( null === $a || null === $b ) {
+		$a = $line( '{$bpl}px' ) ?? $line( '{$bp_lg}px' );
+		$b = $line( '{$bpm}px' ) ?? $line( '{$bp_md}px' );
+	}
+	$order = null !== $a && null !== $b && $a < $b;
+	chk( $mod . ': reads ' . count( $keys ) . ' setting(s) under Large, before Medium', array( $miss, $order ), array( array(), true ) );
+}
+
+echo "the grids whose Medium and Responsive rules always print (CTA, Post Loop)\n";
+$cta = file_get_contents( $root . 'modules/ds-cta/includes/frontend.css.php' );
+$pl  = file_get_contents( $root . 'modules/ds-post-loop/includes/frontend.css.php' );
+// A Large rule must sit behind "the editor typed a value": a module with no Large value prints what it printed before.
+$unchecked = array();
+foreach ( array( 'ds-cta' => array( $cta, array( 'columns', 'gap', 'row_height', 'pp_cols', 'pp_gap', 'pp_num_size' ) ), 'ds-post-loop' => array( $pl, array( 'gap', 'feature_min_h', 'cols2', 'gap2', 'loop_cols', 'staff_cols', 'cr_cols', 'commit_cols', 'car_per_view' ) ) ) as $mod => $set ) {
+	foreach ( $set[1] as $k ) {
+		$q = preg_quote( $k . '_large', '/' );
+		if ( ! preg_match( "/'' !== \( \\\$settings->{$q} \?\? '' \)|\( \\\$settings->{$q} \?\? '' \) !== ''/", $set[0] ) ) { $unchecked[] = $mod . ':' . $k; }
+	}
+}
+chk( 'every Large grid value is used only when the editor typed one', $unchecked, array() );
+chk( 'the circle layout prints a Large rule only when it differs from the desktop layout', (bool) preg_match( '/if \( \$layL !== \$lay \)\s+\{ echo "@media \(max-width:\{\$bpl\}px\)/', $pl ), true );
+chk( 'a blank Medium counts its fallback from the Large value', array( substr_count( $cta, 'min( $colsB, 2 )' ), substr_count( $cta, 'min( $cb, 2 )' ), substr_count( $pl, 'min( $cols2B, 2 )' ), substr_count( $pl, 'min( $lcolsB, 2 )' ), substr_count( $pl, 'min( $scolsB, 2 )' ), substr_count( $pl, 'min( $rcolsB, 2 )' ), substr_count( $pl, 'min( $ccolsB, 2 )' ), substr_count( $pl, 'min( $pvB, 2 )' ), substr_count( $pl, 'min( $fhB, 340 )' ) ), array( 1, 1, 1, 1, 1, 1, 1, 1, 1 ) );
+chk( 'a bento card wider than the Large column count is cut to it, above Medium only', false !== strpos( $cta, 'echo "@media (min-width:" . ( $bpm + 1 ) . "px) and (max-width:{$bpl}px){ " . implode( \', \', $wide ) . " { grid-column: span {$cols3l} !important; } }\n";' ), true );
+chk( 'Motion Cards read the Large breakpoint from the one map', false === strpos( $cta, 'large_breakpoint' ), true );
+
+echo "the last settings that skipped a breakpoint\n";
+$src  = function ( $mod ) use ( $root ) { return file_get_contents( $root . 'modules/' . $mod . '/includes/frontend.css.php' ); };
+$miss = array();
+foreach ( array(
+	'ds-carousel' => array( 'reel_cols_large', 'columns_large', 'gap_large', 'logo_height_large', 'tile_padding_large', 'logo_max_height_large', 'deck_height_custom_large' ),
+	'ds-heading'  => array( 'alignment_large', 'gap_large', 'max_width_large', 'subheading_typography_large' ),
+	'ds-hero'     => array( 'min_height_large', 'align_large', 'btn_align_large' ),
+	'ds-la-roster' => array( 'columns_large' ),
+) as $mod => $keys ) {
+	foreach ( $keys as $k ) { if ( false === strpos( $src( $mod ), '$settings->' . $k ) ) { $miss[] = $mod . ':' . $k; } }
+}
+chk( 'Carousel, Heading, Hero and Roster read their Large values', $miss, array() );
+chk( 'the Page Banner heights are read at all three breakpoints (only the tablet one was)', (bool) preg_match( "/foreach \( array\( '_large' => \\\$bpl, '_medium' => \\\$bpm, '_responsive' => \\\$bpr \) as \\\$sfx => \\\$bp \) \{\s+if \( '' !== \( \\\$settings->\{ 'banner_h_bg' \. \\\$sfx \}/", $src( 'ds-hero' ) ), true );
+chk( 'the Table image size is read at Large and tablet too (only the phone one was)', false !== strpos( $src( 'ds-table' ), "foreach ( array( 'large' => \$bp_lg, 'medium' => \$bp_md ) as \$sfx => \$bp ) {\n\t\t\$isz_x = (int) ( \$settings->{ 'img_size_' . \$sfx } ?? 0 );" ), true );
+chk( 'the Team Detail section gap is read at Large and tablet too (only the phone one was)', false !== strpos( $src( 'ds-team-detail' ), "foreach ( array( '_large' => \$bpl, '_medium' => \$bpm ) as \$sfx => \$bp ) {\n\tif ( '' !== ( \$settings->{ 'section_gap' . \$sfx } ?? '' ) ) {" ), true );
+// A rule that was there before must print the same bytes: the three "{ gap: ", "{ max-width: ", "{ min-height: " openings keep their space.
+chk( 'no declaration lost its space when a Large line was added above it', preg_match_all( '/\{ (?:gap|max-width|min-height):" \. \(int\)/', $src( 'ds-heading' ) . $src( 'ds-hero' ) ), 0 );
+
+echo "house spelling\n";
+$left = array();
+foreach ( array_merge( glob( $root . 'modules/*/*.php' ), glob( $root . 'modules/*/includes/*.php' ) ) as $f ) { // a split module keeps its form in includes/
+	if ( preg_match_all( "/__\( '((?:[^'\\\\\\\\]|\\\\\\\\.)*)'/", file_get_contents( $f ), $m ) ) {
+		foreach ( $m[1] as $t ) {
+			if ( preg_match( '/\bColors?\b/', $t ) && ! preg_match( '/Dodge|Burn|duotone|Multiply|global Line Color/', $t ) ) { $left[] = basename( $f ) . ': ' . $t; }
+		}
+	}
+}
+chk( 'no label says "Color" (blend-mode names and Beaver Builder\'s Line Color keep theirs)', $left, array() );
+
+echo "\n" . ( $fails ? "$fails FAILED" : "all passed" ) . "\n";
+exit( $fails ? 1 : 0 );

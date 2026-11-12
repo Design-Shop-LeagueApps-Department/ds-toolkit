@@ -19,7 +19,7 @@ $PASS = 0; $FAIL = 0;
 $O = '<' . '?php';
 
 function tier($engine, $path) {
-    $out = shell_exec('printf %s ' . escapeshellarg($path) . ' | php ' . escapeshellarg($engine) . ' --min=1 2>/dev/null');
+    $out = shell_exec('printf %s ' . escapeshellarg($path) . ' | ' . escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($engine) . ' --min=1 2>/dev/null');
     foreach (explode("\n", (string) $out) as $line) {
         $p = explode('|', $line);
         if (isset($p[1]) && $p[1] !== '') { return trim($p[1]); }

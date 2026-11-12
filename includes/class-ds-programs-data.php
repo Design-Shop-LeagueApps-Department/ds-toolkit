@@ -31,6 +31,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once __DIR__ . '/class-ds-data-client.php';
 
 class DS_Programs_Data {
 
@@ -58,6 +59,28 @@ class DS_Programs_Data {
 
 	/** Per-request HTTP timeout. */
 	const TIMEOUT = 8;
+
+	/**
+	 * Serve-then-refresh (2026-11 audit). When the 10-minute copy runs out, a visitor is shown the last
+	 * good copy at once and ONE background job (WP-Cron, REFRESH_HOOK) asks LeagueApps, the way the Calendar
+	 * and Table blocks already work. Before this the visitor who arrived at that moment waited for the
+	 * fetch: up to about 25 s per LeagueApps site in the worst case.
+	 *
+	 * Two limits keep that from ever meaning "old data forever":
+	 *   SERVE_MAX_AGE  a copy older than this is not shown unchecked: that visitor waits for a fetch, as before.
+	 *   QUEUE_GRACE    a queued refresh that has not run after this long means WP-Cron is not delivering on
+	 *                  this site, so the next visitor's request fetches, as before.
+	 */
+	const REFRESH_HOOK  = 'ds_programs_refresh';
+	const SERVE_MAX_AGE = 60 * MINUTE_IN_SECONDS;
+	const QUEUE_GRACE   = 2 * MINUTE_IN_SECONDS;
+
+	/**
+	 * The last good copy: option ds_programs_good_<md5>, not autoloaded. It was a 7-day transient
+	 * (<key>_stale), which an object cache may drop whenever it needs room: the copy that exists for the day
+	 * LeagueApps is down has to be the one thing that is not evictable. Still ignored once older than STALE_TTL.
+	 */
+	const GOOD_PREFIX = 'ds_programs_good_';
 
 	/**
 	 * Fetch ledger. A meter, not a throttle: the cache above is what bounds
@@ -220,7 +243,7 @@ class DS_Programs_Data {
 			self::remember_values( $raw['rows'] ); // a copy cached before 1.10.40 teaches the builder pickers at once
 		}
 		$programs = self::build_rows( $raw['rows'], $overrides, $format, $grouping );
-		return array( 'programs' => $programs, 'stale' => $raw['stale'], 'errors' => $raw['errors'], 'fetched' => $raw['fetched'] );
+		return array( 'programs' => $programs, 'stale' => $raw['stale'], 'errors' => $raw['errors'], 'fetched' => $raw['fetched'], 'unavailable' => ! empty( $raw['unavailable'] ) );
 	}
 
 	/**
@@ -228,14 +251,17 @@ class DS_Programs_Data {
 	 * ledger as the table. The LeagueApps Calendar module reads its program list
 	 * here, so a page with both modules costs LeagueApps one listing call, not two.
 	 *
+	 * $current = true is for a caller that is itself a refresh (the Calendar rebuilding its merged copy): it
+	 * gets the current list, fetched now if the 10-minute copy ran out, never "the last copy while a job runs".
+	 *
 	 * @return array( 'rows' => raw program arrays with _site/_label, 'stale', 'errors', 'fetched' )
 	 */
-	public static function raw( array $sites ) {
+	public static function raw( array $sites, $current = false ) {
 		$sites = self::clean_sites( $sites );
 		if ( empty( $sites ) ) {
 			return array( 'rows' => array(), 'stale' => false, 'errors' => array(), 'fetched' => 0 );
 		}
-		return self::raw_feed( $sites );
+		return self::raw_feed( $sites, (bool) $current );
 	}
 
 	/** Add another LeagueApps request batch (the Calendar's schedules) to the shared fetch ledger. */
@@ -247,10 +273,9 @@ class DS_Programs_Data {
 	 * The raw merged feed, cached. Kept raw (not normalised) so a change to the
 	 * module's field mapping or date format never needs a refetch.
 	 */
-	private static function raw_feed( array $sites ) {
-		$key       = 'ds_programs_' . md5( wp_json_encode( wp_list_pluck( $sites, 'site_id' ) ) );
-		$stale_key = $key . '_stale';
-		$lock_key  = $key . '_lock';
+	private static function raw_feed( array $sites, $current = false ) {
+		$key      = self::cache_key( $sites );
+		$lock_key = $key . '_lock';
 
 		$hit = get_transient( $key );
 		if ( is_array( $hit ) && isset( $hit['rows'] ) ) {
@@ -259,7 +284,14 @@ class DS_Programs_Data {
 			}
 			// The last fetch failed outright and its back-off has not expired.
 			// Serve the stale copy and do not touch the API.
-			return self::serve_stale( $stale_key, (array) ( $hit['errors'] ?? array() ) );
+			return self::serve_stale( $key, (array) ( $hit['errors'] ?? array() ) );
+		}
+
+		// The fresh copy ran out. Show the last good one now and let one background job refresh it. Not after
+		// a manual refresh or a settings save (the person asked to see new data), and not when there is no copy.
+		$good = self::good( $key );
+		if ( ! $current && $good && false === get_transient( 'ds_programs_flushed' ) && self::refresh_in_background( $key, $sites, (int) ( $good['fetched'] ?? 0 ) ) ) {
+			return array( 'rows' => $good['rows'], 'stale' => false, 'errors' => array(), 'fetched' => (int) ( $good['fetched'] ?? 0 ), 'refreshing' => true );
 		}
 
 		// Cache miss. Exactly one request refetches; every other request that
@@ -272,9 +304,8 @@ class DS_Programs_Data {
 			// request that sleeps here holds a PHP worker, and a burst at the moment
 			// the cache expires would exhaust the worker pool while LeagueApps was
 			// being protected. Only a first-ever load with nothing cached waits.
-			$stale = get_transient( $stale_key );
-			if ( is_array( $stale ) && ! empty( $stale['rows'] ) ) {
-				return self::serve_stale( $stale_key, array() );
+			if ( $good ) {
+				return self::serve_stale( $key, array() );
 			}
 			for ( $i = 0; $i < 6; $i++ ) {
 				usleep( 250000 );
@@ -283,13 +314,101 @@ class DS_Programs_Data {
 					return array( 'rows' => $hit['rows'], 'stale' => false, 'errors' => array(), 'fetched' => (int) ( $hit['fetched'] ?? 0 ) );
 				}
 			}
-			return self::serve_stale( $stale_key, array( __( 'feed refresh in progress', 'ds-toolkit' ) ) );
+			return self::serve_stale( $key, array( __( 'feed refresh in progress', 'ds-toolkit' ) ) );
 		}
 
+		return self::refetch( $sites, $key, self::fetch_reason( $key ) );
+	}
+
+	/** The cache key of a site set: the same sites in the same order always share one copy. */
+	private static function cache_key( array $sites ) {
+		return 'ds_programs_' . md5( wp_json_encode( wp_list_pluck( $sites, 'site_id' ) ) );
+	}
+
+	/** The last good copy of a site set, or null when there is none or it is older than STALE_TTL. */
+	private static function good( $key ) {
+		$g = DS_Data_Client::kept( self::GOOD_PREFIX . substr( $key, 12 ) );
+		if ( ! is_array( $g ) || empty( $g['rows'] ) ) {
+			$g = get_transient( $key . '_stale' ); // a copy written before the 2026-11 audit
+		}
+		if ( ! is_array( $g ) || empty( $g['rows'] ) || ! is_array( $g['rows'] ) ) {
+			return null;
+		}
+		return ( time() - (int) ( $g['fetched'] ?? 0 ) > self::STALE_TTL ) ? null : $g;
+	}
+
+	/**
+	 * Queue the one background refresh of this site set. False when the copy must not be shown unchecked
+	 * (too old), when WP-Cron cannot be used, or when an earlier queued refresh never ran: the caller then
+	 * fetches inside the request, which is what every expiry did before.
+	 */
+	private static function refresh_in_background( $key, array $sites, $fetched ) {
+		if ( ! function_exists( 'wp_schedule_single_event' ) || ! function_exists( 'wp_next_scheduled' ) ) {
+			return false;
+		}
+		$now = time();
+		if ( $now - $fetched > self::SERVE_MAX_AGE ) {
+			return false;
+		}
+		$queued = (int) get_transient( $key . '_queued' );
+		if ( $queued && $now - $queued > self::QUEUE_GRACE ) {
+			return false;
+		}
+		$ids = array_values( array_map( 'strval', wp_list_pluck( $sites, 'site_id' ) ) );
+		if ( ! wp_next_scheduled( self::REFRESH_HOOK, array( $ids ) ) ) {
+			wp_schedule_single_event( $now, self::REFRESH_HOOK, array( $ids ) );
+		}
+		if ( ! $queued ) {
+			set_transient( $key . '_queued', $now, 60 * MINUTE_IN_SECONDS );
+		}
+		return true;
+	}
+
+	/** Features that read the feed call this once, so the background refresh has a handler in the cron request. */
+	public static function hooks() {
+		if ( ! has_action( self::REFRESH_HOOK, array( __CLASS__, 'refresh' ) ) ) {
+			add_action( self::REFRESH_HOOK, array( __CLASS__, 'refresh' ) );
+		}
+	}
+
+	/**
+	 * WP-Cron handler: refresh one site set, named by its site ids only (a key never sits in the cron table).
+	 * Does nothing when a fresh copy already exists, when the last fetch failed and is backing off, when
+	 * another request is fetching, or when a site was removed from the settings since it was queued.
+	 */
+	public static function refresh( $ids ) {
+		$by = array();
+		foreach ( self::configured_sites() as $s ) {
+			$by[ (string) $s['site_id'] ] = $s;
+		}
+		$sites = array();
+		foreach ( (array) $ids as $id ) {
+			if ( isset( $by[ (string) $id ] ) ) {
+				$sites[] = $by[ (string) $id ];
+			}
+		}
+		$sites = self::clean_sites( $sites );
+		if ( ! $sites || count( $sites ) !== count( (array) $ids ) ) {
+			return;
+		}
+		$key = self::cache_key( $sites );
+		$hit = get_transient( $key );
+		if ( is_array( $hit ) && isset( $hit['rows'] ) ) {
+			delete_transient( $key . '_queued' );
+			return;
+		}
+		if ( ! self::lock( $key . '_lock' ) ) {
+			return;
+		}
+		self::refetch( $sites, $key, 'refresh' );
+	}
+
+	/** Ask LeagueApps for every site of the set and store the answer. The caller holds the refetch lock. */
+	private static function refetch( array $sites, $key, $why ) {
+		$lock_key    = $key . '_lock';
 		$rows        = array();
 		$errors      = array();
 		$retry_after = 0;
-		$why         = self::fetch_reason( $stale_key );
 
 		foreach ( $sites as $site ) {
 			// Re-arm per site: one site's worst case (3 attempts x TIMEOUT + back-off)
@@ -329,14 +448,17 @@ class DS_Programs_Data {
 			set_transient( $key, array( 'rows' => array(), 'fetched' => 0, 'failed' => true, 'errors' => $errors ), $backoff );
 			self::remember_key( $key );
 			delete_transient( $lock_key );
-			return self::serve_stale( $stale_key, $errors );
+			delete_transient( $key . '_queued' );
+			return self::serve_stale( $key, $errors );
 		}
 
 		$pack = array( 'rows' => $rows, 'fetched' => time() );
 		// A partial result is served but not cached as the good copy for long,
 		// so the next request retries the site that failed.
 		set_transient( $key, $pack, $errors ? MINUTE_IN_SECONDS : self::TTL );
-		set_transient( $stale_key, $pack, self::STALE_TTL );
+		DS_Data_Client::keep( self::GOOD_PREFIX . substr( $key, 12 ), $pack );
+		delete_transient( $key . '_stale' ); // the pre-audit home of the last good copy
+		delete_transient( $key . '_queued' );
 		self::remember_key( $key );
 		self::remember_sports( $rows );
 		self::remember_values( $rows );
@@ -345,13 +467,17 @@ class DS_Programs_Data {
 		return array( 'rows' => $rows, 'stale' => false, 'errors' => $errors, 'fetched' => $pack['fetched'] );
 	}
 
-	/** The 7-day fallback, or an empty result carrying the errors. */
-	private static function serve_stale( $stale_key, array $errors ) {
-		$stale = get_transient( $stale_key );
-		if ( is_array( $stale ) && ! empty( $stale['rows'] ) ) {
+	/**
+	 * The last good copy (up to 7 days old), or an empty result carrying the errors. With errors and no
+	 * copy the result says `unavailable`: LeagueApps could not be reached and there is nothing to show, which
+	 * is not the same as a club with no open programs, and a block must not tell visitors that it is.
+	 */
+	private static function serve_stale( $key, array $errors ) {
+		$stale = self::good( $key );
+		if ( $stale ) {
 			return array( 'rows' => $stale['rows'], 'stale' => true, 'errors' => $errors, 'fetched' => (int) ( $stale['fetched'] ?? 0 ) );
 		}
-		return array( 'rows' => array(), 'stale' => false, 'errors' => $errors, 'fetched' => 0 );
+		return array( 'rows' => array(), 'stale' => false, 'errors' => $errors, 'fetched' => 0, 'unavailable' => ! empty( $errors ) );
 	}
 
 	/**
@@ -422,44 +548,28 @@ class DS_Programs_Data {
 	 * client must not do.
 	 */
 	private static function fetch_url( $url ) {
-		$last = null;
-		self::$last_tries = 0;
-		self::$last_code  = 0;
-
-		for ( $attempt = 1; $attempt <= 3; $attempt++ ) {
-			self::$last_tries = $attempt;
-			$res = wp_remote_get( $url, array(
-				'timeout'    => self::TIMEOUT,
-				'user-agent' => 'ds-toolkit-programs/' . ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '0' ) . ' (+' . home_url( '/' ) . ')',
-				'headers'    => array( 'Accept' => 'application/json' ),
-			) );
-
-			if ( is_wp_error( $res ) ) {
-				// DNS, TLS, timeout: a blip on our side, worth one more try.
-				$last = $res;
-			} else {
-				$code = (int) wp_remote_retrieve_response_code( $res );
-				$body = wp_remote_retrieve_body( $res );
-				self::$last_code = $code;
-				if ( 200 === $code ) {
-					$json = json_decode( $body, true );
-					if ( is_array( $json ) ) { return $json; }
-					$last = new WP_Error( 'ds_programs_json', 'malformed JSON' );
-				} elseif ( 403 === $code ) {
-					return new WP_Error( 'ds_programs_key', __( 'LeagueApps rejected the API key (403)', 'ds-toolkit' ) );
-				} elseif ( 404 === $code ) {
-					return new WP_Error( 'ds_programs_site', __( 'site not found for this key (404)', 'ds-toolkit' ) );
-				} elseif ( 429 === $code ) {
-					// Throttled. Stop now and pass Retry-After up so the back-off honours it.
-					$ra = (int) wp_remote_retrieve_header( $res, 'retry-after' );
-					return new WP_Error( 'ds_programs_throttled', __( 'LeagueApps is rate limiting requests (429)', 'ds-toolkit' ), array( 'retry_after' => $ra ) );
-				} else {
-					return new WP_Error( 'ds_programs_http', 'HTTP ' . $code );
-				}
-			}
-			if ( $attempt < 3 ) { usleep( 300000 * $attempt ); }
+		// The shared client decides what is worth retrying (a failure on our side of the wire only) and reads
+		// Retry-After; this class keeps its own wording for what went wrong.
+		$r = DS_Data_Client::get_json( $url, array( 'timeout' => self::TIMEOUT, 'attempts' => 3, 'agent' => 'programs' ) );
+		self::$last_tries = (int) $r['tries'];
+		self::$last_code  = (int) $r['code'];
+		if ( $r['ok'] ) {
+			return $r['json'];
 		}
-		return $last ?: new WP_Error( 'ds_programs_unknown', 'unknown error' );
+		switch ( $r['kind'] ) {
+			case 'key':
+				return new WP_Error( 'ds_programs_key', __( 'LeagueApps rejected the API key (403)', 'ds-toolkit' ) );
+			case 'missing':
+				return new WP_Error( 'ds_programs_site', __( 'site not found for this key (404)', 'ds-toolkit' ) );
+			case 'throttled':
+				// Throttled: Retry-After goes up so the back-off honours it.
+				return new WP_Error( 'ds_programs_throttled', __( 'LeagueApps is rate limiting requests (429)', 'ds-toolkit' ), array( 'retry_after' => (int) $r['retry_after'] ) );
+			case 'http':
+				return new WP_Error( 'ds_programs_http', 'HTTP ' . $r['code'] );
+			case 'json':
+				return new WP_Error( 'ds_programs_json', 'malformed JSON' );
+		}
+		return ( $r['wp_error'] instanceof WP_Error ) ? $r['wp_error'] : new WP_Error( 'ds_programs_unknown', 'unknown error' );
 	}
 
 	/* ------------------------------------------------------------------
@@ -849,6 +959,7 @@ class DS_Programs_Data {
 		foreach ( self::known_keys() as $k ) {
 			delete_transient( $k );
 			delete_transient( $k . '_lock' );
+			delete_transient( $k . '_queued' );
 		}
 		// The Calendar module keeps its own schedule cache; one refresh clears both.
 		do_action( 'ds_programs_flushed' );
@@ -866,14 +977,16 @@ class DS_Programs_Data {
 	 * Fetch ledger
 	 * ---------------------------------------------------------------- */
 
-	/** Why this refetch is happening: first load, cache expiry, or a manual refresh / settings save. */
-	private static function fetch_reason( $stale_key ) {
+	/**
+	 * Why this refetch is happening inside a request: first load, cache expiry, or a manual refresh / settings
+	 * save. A background refresh is logged as `refresh` by its own handler.
+	 */
+	private static function fetch_reason( $key ) {
 		if ( false !== get_transient( 'ds_programs_flushed' ) ) {
 			delete_transient( 'ds_programs_flushed' );
 			return 'flush';
 		}
-		$stale = get_transient( $stale_key );
-		return ( is_array( $stale ) && ! empty( $stale['rows'] ) ) ? 'expired' : 'first';
+		return self::good( $key ) ? 'expired' : 'first';
 	}
 
 	/**
@@ -881,7 +994,7 @@ class DS_Programs_Data {
 	 * `ds_programs_fetch` with the entry, for a site that wants its own log.
 	 *
 	 * Entry: t, site, ok, code, tries (HTTP requests this fetch made,
-	 * retries included), ms, rows, err, why (first | expired | flush).
+	 * retries included), ms, rows, err, why (first | expired | flush | refresh).
 	 */
 	private static function record( array $e ) {
 		$e['t'] = time();
@@ -917,6 +1030,24 @@ class DS_Programs_Data {
 	public static function ledger() {
 		$book = get_option( self::LEDGER_OPTION, array() );
 		return ( is_array( $book ) && isset( $book['recent'] ) && is_array( $book['recent'] ) ) ? $book['recent'] : array();
+	}
+
+	/**
+	 * Fetches and failures in each of the last 24 hours, oldest first, from the same per-hour counters as
+	 * ledger_summary(): the bars of the LeagueApps tab's activity chart.
+	 *
+	 * @return array[] 24 rows of array( 'fetches' => int, 'failures' => int )
+	 */
+	public static function ledger_hours() {
+		$book  = get_option( self::LEDGER_OPTION, array() );
+		$hours = ( is_array( $book ) && isset( $book['hours'] ) && is_array( $book['hours'] ) ) ? $book['hours'] : array();
+		$out   = array();
+		for ( $i = 23; $i >= 0; $i-- ) {
+			$c     = $hours[ gmdate( 'YmdH', time() - $i * 3600 ) ] ?? array();
+			$c     = is_array( $c ) ? array_values( $c ) : array();
+			$out[] = array( 'fetches' => (int) ( $c[0] ?? 0 ), 'failures' => (int) ( $c[2] ?? 0 ) );
+		}
+		return $out;
 	}
 
 	/**
@@ -958,8 +1089,7 @@ class DS_Programs_Data {
 	public static function cached_rows() {
 		$out = array();
 		foreach ( self::known_keys() as $key ) {
-			foreach ( array( $key, $key . '_stale' ) as $k ) {
-				$c = get_transient( $k );
+			foreach ( array( get_transient( $key ), self::good( $key ) ) as $c ) {
 				foreach ( ( is_array( $c ) && isset( $c['rows'] ) && is_array( $c['rows'] ) ) ? $c['rows'] : array() as $r ) {
 					if ( is_array( $r ) && isset( $r['programId'], $r['_site'] ) ) {
 						$out[ $r['_site'] . ':' . $r['programId'] ] = $r;

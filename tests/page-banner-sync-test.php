@@ -6,6 +6,7 @@ if ( 'cli' !== PHP_SAPI ) { exit; } // a WP-CLI / php script: does nothing over 
  *
  * Needs a real WordPress with ds-toolkit and ACF active and at least 3 images:
  *   wp eval-file tests/page-banner-sync-test.php
+ *   @requires wordpress (tests/run.sh runs it only with --wp)
  * Drives the classic-editor save path (edit_post with the ACF nonce) on a
  * throwaway draft page, then deletes it. Exit code 1 on any failure.
  */

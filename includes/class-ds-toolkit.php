@@ -1,302 +1,17 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once __DIR__ . '/class-ds-env.php';
 
 class DS_Toolkit {
 
     /**
-     * Feature registry.
-     * Key = settings option that enables the feature.
-     * Value = file path (relative to DS_TOOLKIT_PATH) and class name to instantiate.
-     *
-     * To add a new feature: drop a class file in features/ and add one entry here.
+     * The features the toolkit can load: key (the setting that switches it on) => file, class and, for a
+     * blueprint-gated one, min_blueprint. Declared once, with every default, label and settings card, in
+     * includes/class-ds-features.php. To add a feature: drop its class file in features/ and add ONE entry there.
      */
-    private $features = array(
-        'enable_login_branding' => array(
-            'file'  => 'features/class-ds-login-branding.php',
-            'class' => 'DS_Login_Branding',
-        ),
-        'hide_fl_assistant' => array(
-            'file'  => 'features/class-ds-hide-fl-assistant.php',
-            'class' => 'DS_Hide_FL_Assistant',
-        ),
-        'acf_css_vars_enabled' => array(
-            'file'  => 'features/class-ds-acf-css-vars.php',
-            'class' => 'DS_ACF_CSS_Vars',
-        ),
-        'getsubmenu_enabled' => array(
-            'file'  => 'features/class-ds-getsubmenu.php',
-            'class' => 'DS_Getsubmenu',
-        ),
-        'current_year_enabled' => array(
-            'file'  => 'features/class-ds-current-year.php',
-            'class' => 'DS_Current_Year',
-        ),
-        'forminator_email_partner_enabled' => array(
-            'file'  => 'features/class-ds-forminator-email-partner.php',
-            'class' => 'DS_Forminator_Email_Partner',
-        ),
-        'global_css_enabled' => array(
-            'file'  => 'features/class-ds-global-css.php',
-            'class' => 'DS_Global_CSS',
-        ),
-        'global_js_enabled' => array(
-            'file'  => 'features/class-ds-global-js.php',
-            'class' => 'DS_Global_JS',
-        ),
-        'child_pages_enabled' => array(
-            'file'  => 'features/class-ds-child-pages.php',
-            'class' => 'DS_Child_Pages',
-        ),
-        'uabb_post_loop_fix_enabled' => array(
-            'file'  => 'features/class-ds-uabb-post-loop-fix.php',
-            'class' => 'DS_UABB_Post_Loop_Fix',
-        ),
-        // Flywheel + Defender Mask Login: re-append Defender's wd-ml-token to the
-        // password-reset link that WordPress 7 formats in an order Defender misses.
-        'defender_flywheel_reset_fix_enabled' => array(
-            'file'  => 'features/class-ds-defender-flywheel-reset-fix.php',
-            'class' => 'DS_Defender_Flywheel_Reset_Fix',
-        ),
-        // Hummingbird Critical CSS: drop a page's saved CSS snapshot when its layout is
-        // published, so a newly added module is never served without its CSS.
-        'hummingbird_critical_fix_enabled' => array(
-            'file'  => 'features/class-ds-hummingbird-critical-fix.php',
-            'class' => 'DS_Hummingbird_Critical_Fix',
-        ),
-        'overlay_nav_enabled' => array(
-            'file'  => 'features/class-ds-overlay-nav.php',
-            'class' => 'DS_Overlay_Nav',
-        ),
-        // Front-end archives follow the WP Nested Pages drag order. Nested Pages
-        // writes menu_order but hooks no front-end query, so archives keep
-        // WordPress's default date DESC and ignore the order an editor set.
-        //
-        // OFF by default. Turning this on changes the visible order of live
-        // archives, which is a partner's call, not ours: an existing site keeps
-        // rendering exactly as it does today until someone opts in. New builds
-        // get it on by inheritance instead, because a clone of the blueprint
-        // copies wp_options and maybe_set_defaults() only fills keys that are
-        // MISSING, so the blueprint's 1 survives the clone.
-        'nested_order_enabled' => array(
-            'file'  => 'features/class-ds-nested-order.php',
-            'class' => 'DS_Nested_Order',
-        ),
-        // --- Blueprint generation 6+ features --------------------------------
-        // 'min_blueprint' gates a feature to a blueprint generation: it only
-        // loads, defaults on, and shows a toggle on sites stamped at that
-        // generation or higher (see blueprint_version()). Older / unstamped
-        // DSLP installs never see these — no toggle, no auto-enable, the class
-        // is never even instantiated.
-        'disable_comments_enabled' => array(
-            'file'          => 'features/class-ds-disable-comments.php',
-            'class'         => 'DS_Disable_Comments',
-            'min_blueprint' => 6,
-        ),
-        'copyright_shortcode_enabled' => array(
-            'file'          => 'features/class-ds-copyright.php',
-            'class'         => 'DS_Copyright',
-            'min_blueprint' => 6,
-        ),
-        'theme_setting_enabled' => array(
-            'file'          => 'features/class-ds-theme-setting.php',
-            'class'         => 'DS_Theme_Setting',
-            'min_blueprint' => 6,
-        ),
-        // Theme Setting > Home page: pick the home layout of a new build from the
-        // blueprint's "Home" BB templates. Blueprint 7+ only; the picker itself only
-        // runs on a development address until the site is marked launched.
-        'home_templates_enabled' => array(
-            'file'          => 'features/class-ds-home-templates.php',
-            'class'         => 'DS_Home_Templates',
-            'min_blueprint' => 7,
-        ),
-        // Loads the Google font picked on Theme Setting -> Heading -> "All".
-        // Beaver Builder renders that rule but never enqueues its font.
-        'ds_global_heading_font_enabled' => array(
-            'file'          => 'features/class-ds-global-heading-font.php',
-            'class'         => 'DS_Global_Heading_Font',
-            'min_blueprint' => 6,
-        ),
-        'admin_menu_tidy_enabled' => array(
-            'file'          => 'features/class-ds-admin-menu.php',
-            'class'         => 'DS_Admin_Menu',
-            'min_blueprint' => 6,
-        ),
-        'ds_menu_module_enabled' => array(
-            'file'          => 'features/class-ds-menu.php',
-            'class'         => 'DS_Menu',
-            'min_blueprint' => 6,
-        ),
-        'ds_social_module_enabled' => array(
-            'file'          => 'features/class-ds-social.php',
-            'class'         => 'DS_Social',
-            'min_blueprint' => 6,
-        ),
-        'ds_social_card_enabled' => array(
-            'file'          => 'features/class-ds-social-card.php',
-            'class'         => 'DS_Social_Card',
-            'min_blueprint' => 6,
-        ),
-        'ds_hero_module_enabled' => array(
-            'file'          => 'features/class-ds-hero.php',
-            'class'         => 'DS_Hero',
-            'min_blueprint' => 6,
-        ),
-        'ds_cta_module_enabled' => array(
-            'file'          => 'features/class-ds-cta.php',
-            'class'         => 'DS_CTA',
-            'min_blueprint' => 6,
-        ),
-        'ds_marquee_module_enabled' => array(
-            'file'          => 'features/class-ds-marquee.php',
-            'class'         => 'DS_Marquee',
-            'min_blueprint' => 6,
-        ),
-        'ds_pathway_module_enabled' => array(
-            'file'          => 'features/class-ds-pathway.php',
-            'class'         => 'DS_Pathway',
-            'min_blueprint' => 6,
-        ),
-        'ds_post_loop_module_enabled' => array(
-            'file'          => 'features/class-ds-post-loop.php',
-            'class'         => 'DS_Post_Loop',
-            'min_blueprint' => 6,
-        ),
-        'ds_orgstats_module_enabled' => array(
-            'file'          => 'features/class-ds-orgstats.php',
-            'class'         => 'DS_OrgStats',
-            'min_blueprint' => 6,
-        ),
-        'ds_carousel_module_enabled' => array(
-            'file'          => 'features/class-ds-carousel.php',
-            'class'         => 'DS_Carousel',
-            'min_blueprint' => 6,
-        ),
-        'ds_heading_module_enabled' => array(
-            'file'          => 'features/class-ds-heading.php',
-            'class'         => 'DS_Heading',
-            'min_blueprint' => 6,
-        ),
-        'ds_divider_module_enabled' => array(
-            'file'          => 'features/class-ds-divider.php',
-            'class'         => 'DS_Divider',
-            'min_blueprint' => 6,
-        ),
-        'ds_device_module_enabled' => array(
-            'file'          => 'features/class-ds-device.php',
-            'class'         => 'DS_Device',
-            'min_blueprint' => 6,
-        ),
-        'image_optimization_enabled' => array(
-            'file'          => 'features/class-ds-image-optimization.php',
-            'class'         => 'DS_Image_Optimization',
-            'min_blueprint' => 6,
-        ),
-        'page_banner_sync_enabled' => array(
-            'file'          => 'features/class-ds-page-banner.php',
-            'class'         => 'DS_Page_Banner',
-            'min_blueprint' => 6,
-        ),
-        // Theme Setting "Browse patterns": 330 tileable SVG patterns (pattern.monster, MIT) previewed in the site
-        // palette; a pick is written to uploads/ds-patterns/ and its URL goes in the field an uploaded image uses.
-        'ds_pattern_library_enabled' => array(
-            'file'          => 'features/class-ds-pattern-library.php',
-            'class'         => 'DS_Pattern_Library',
-            'min_blueprint' => 6,
-        ),
-        'ds_content_router_module_enabled' => array(
-            'file'          => 'features/class-ds-content-router.php',
-            'class'         => 'DS_Content_Router',
-            'min_blueprint' => 6,
-        ),
-        // Live LeagueApps listings table. Opt-in on every blueprint (a data
-        // integration, not a design block); credentials live on the LeagueApps
-        // settings tab, never in a page layout.
-        'ds_programs_module_enabled' => array(
-            'file'          => 'features/class-ds-programs.php',
-            'class'         => 'DS_Programs',
-            'min_blueprint' => 6,
-        ),
-        // LeagueApps team schedules as a calendar. Opt-in like Programs; reads the
-        // same saved site and the same cached program list.
-        'ds_la_calendar_module_enabled' => array(
-            'file'          => 'features/class-ds-la-calendar.php',
-            'class'         => 'DS_LA_Calendar',
-            'min_blueprint' => 6,
-        ),
-        // One LeagueApps team's roster. Opt-in; needs the club's PRIVATE key (rosters are not in
-        // the public API), saved per site on the LeagueApps tab by an administrator.
-        'ds_la_roster_module_enabled' => array(
-            'file'          => 'features/class-ds-la-roster.php',
-            'class'         => 'DS_LA_Roster',
-            'min_blueprint' => 6,
-        ),
-        // LeagueApps Schedule (ds_la_schedule_module_enabled) is DEPRECATED since 1.10.44 and no
-        // longer loads anywhere, whatever its saved switch says (Alipio, 2026-10-22: "we dont need
-        // that module for now"). Its code stays in features/class-ds-la-schedule.php and
-        // modules/ds-la-schedule/ so it can come back by restoring this entry and its row in
-        // module_features(). Team pages use the Table module for a game schedule.
-        'ds_table_module_enabled' => array(
-            'file'          => 'features/class-ds-table.php',
-            'class'         => 'DS_Table',
-            'min_blueprint' => 6,
-        ),
-        'ds_info_list_module_enabled' => array(
-            'file'          => 'features/class-ds-info-list.php',
-            'class'         => 'DS_Info_List',
-            'min_blueprint' => 6,
-        ),
-        'ds_page_cards_module_enabled' => array(
-            'file'          => 'features/class-ds-page-cards.php',
-            'class'         => 'DS_Page_Cards',
-            'min_blueprint' => 6,
-        ),
-        'ds_team_detail_module_enabled' => array(
-            'file'          => 'features/class-ds-team-detail.php',
-            'class'         => 'DS_Team_Detail',
-            'min_blueprint' => 6,
-        ),
-        'ds_builder_defaults_enabled' => array(
-            'file'          => 'features/class-ds-builder-defaults.php',
-            'class'         => 'DS_Builder_Defaults',
-            'min_blueprint' => 6,
-        ),
-        'ds_admin_bar_links_enabled' => array(
-            'file'          => 'features/class-ds-admin-bar-links.php',
-            'class'         => 'DS_Admin_Bar_Links',
-            'min_blueprint' => 6,
-        ),
-        // Fleet-wide (no blueprint gate): partner-safe access control and the
-        // Design Academy dashboard panel apply to every install, not just DSLP6.
-        'user_roles_enabled' => array(
-            'file'  => 'features/class-ds-user-roles.php',
-            'class' => 'DS_User_Roles',
-        ),
-        // Fleet-wide origin protection against bot floods (see the class
-        // docblock for the sportsatthebeach incident that motivated it).
-        'bot_shield_enabled' => array(
-            'file'  => 'features/class-ds-bot-shield.php',
-            'class' => 'DS_Bot_Shield',
-        ),
-        // Daily IOC tripwire + instant new-admin alerts (Aug/Sep 2026 WDG
-        // campaign; see the class docblock). Cheap by design: tails of four
-        // files and two directory listings, once a day. Since 1.9.132 also an
-        // hourly, time-boxed behaviour scan (includes/ds-scan-engine.php).
-        'tripwire_enabled' => array(
-            'file'  => 'features/class-ds-tripwire.php',
-            'class' => 'DS_Tripwire',
-        ),
-        'design_academy_enabled' => array(
-            'file'  => 'features/class-ds-design-academy.php',
-            'class' => 'DS_Design_Academy',
-        ),
-        // College athletic logos from the Design Shop HQ School Emblems library, picked on the
-        // athlete's School Name field (every Launchpad generation has it). Fleet-wide.
-        'school_emblems_enabled' => array(
-            'file'  => 'features/class-ds-school-emblems.php',
-            'class' => 'DS_School_Emblems',
-        ),
-    );
+    public static function feature_registry() {
+        return DS_Features::registry();
+    }
 
     /**
      * True only for users whose email matches DS_TOOLKIT_ADMIN_DOMAIN.
@@ -316,7 +31,7 @@ class DS_Toolkit {
         if ( ! ( $user instanceof WP_User ) || ! $user->exists() || empty( $user->user_email ) ) {
             return false;
         }
-        if ( ! preg_match( '/' . preg_quote( DS_TOOLKIT_ADMIN_DOMAIN, '/' ) . '$/i', $user->user_email ) ) {
+        if ( ! DS_Env::is_staff_email( $user->user_email ) ) {
             return false;
         }
         return self::is_administrator( $user );
@@ -395,28 +110,7 @@ class DS_Toolkit {
      * blueprint-5 sites see them OFF until an admin turns one on.
      */
     public static function module_features() {
-        return array(
-            'ds_hero_module_enabled'           => array( 'label' => 'Hero Banner',     'desc' => 'Full-width hero (image, video, or slideshow) with overlay, eyebrow, headline, and call-to-action buttons.' ),
-            'ds_menu_module_enabled'           => array( 'label' => 'Menu',            'desc' => 'Responsive navigation bar with dropdowns, mega-menus, and a full-screen mobile overlay.' ),
-            'ds_post_loop_module_enabled'      => array( 'label' => 'Post Loop',       'desc' => 'Lists of news, staff, teams, programs, sponsors, or tournaments in a range of card layouts.' ),
-            'ds_page_cards_module_enabled'     => array( 'label' => 'Page Cards',      'desc' => 'A grid of linked cards built from child pages, from your own manually added cards, or both together.' ),
-            'ds_carousel_module_enabled'       => array( 'label' => 'Images/Videos Carousel', 'desc' => 'A stacked-deck slider or a multi-column reels strip of images and videos.' ),
-            'ds_orgstats_module_enabled'       => array( 'label' => 'Org Stats',       'desc' => 'Headline stat figures (the record) as plain figures or photo cards.' ),
-            'ds_marquee_module_enabled'        => array( 'label' => 'Marquee',         'desc' => 'A scrolling announcement ticker with a pinned label.' ),
-            'ds_pathway_module_enabled'        => array( 'label' => 'Pathway',         'desc' => 'Stage cards connected by a progress line: per-stage markers, a fading end, and a vertical timeline on small screens.' ),
-            'ds_info_list_module_enabled'      => array( 'label' => 'Post Details',    'desc' => 'Icon-and-text rows from the current post\'s ACF fields, for Themer single templates (staff, events); empty rows hide.' ),
-            'ds_cta_module_enabled'            => array( 'label' => 'CTA',             'desc' => 'A call-to-action band with a heading, text, and buttons.' ),
-            'ds_heading_module_enabled'        => array( 'label' => 'Heading',         'desc' => 'A styled section heading with an eyebrow line and accent options.' ),
-            'ds_divider_module_enabled'        => array( 'label' => 'Divider',         'desc' => 'A horizontal or vertical divider with gradient-fade, running-light, glow, and dashed effects.' ),
-            'ds_device_module_enabled'         => array( 'label' => 'Device',          'desc' => 'Images and videos inside a phone, tablet or desktop frame: one image, a slideshow, a video, or a mix.' ),
-            'ds_team_detail_module_enabled'    => array( 'label' => 'Team Detail',     'desc' => 'A single-team layout: roster, schedule, and coaches.' ),
-            'ds_content_router_module_enabled' => array( 'label' => 'Content Router',  'desc' => 'Renders the right body layout for each page type (single vs. archive) from one Themer template.' ),
-            'ds_social_module_enabled'         => array( 'label' => 'Partner Social',  'desc' => "A row of the partner's social-media links." ),
-            'ds_table_module_enabled'          => array( 'label' => 'Table',           'desc' => 'A sortable, searchable table typed in the builder, uploaded as a CSV, or kept in sync with a CSV file or a Google Sheet.' ),
-            'ds_programs_module_enabled'       => array( 'label' => 'LeagueApps Programs', 'desc' => 'Live tournament, league, camp and clinic listings from LeagueApps as a filterable table. Needs a site ID and API key on the LeagueApps tab.' ),
-            'ds_la_calendar_module_enabled'    => array( 'label' => 'LeagueApps Calendar', 'desc' => 'Team schedules from LeagueApps (tournaments, games, practices) as a month calendar and an upcoming list. Uses the site ID and API key on the LeagueApps tab.' ),
-            'ds_la_roster_module_enabled'      => array( 'label' => 'LeagueApps Roster', 'desc' => 'A team\'s players and coaches from LeagueApps as a designed roster (name, position, grad year, height). Needs the club\'s private LeagueApps key, uploaded on the LeagueApps tab by an administrator.' ),
-        );
+        return DS_Features::modules();
     }
 
     /**
@@ -448,10 +142,52 @@ class DS_Toolkit {
         if ( ! update_option( 'ds_toolkit_assets_version', DS_TOOLKIT_VERSION, true ) ) {
             return;
         }
+        // A release that changed nothing a cached layout is built from (a Tripwire list, a settings card, the
+        // updater) used to clear every page's assets and purge the host's page cache all the same: 80 releases
+        // in 46 days, each a fleet-wide cold cache. The fingerprint is taken once per version change, never
+        // on an ordinary request. No fingerprint (unreadable folder) = clear, as before.
+        $print = self::assets_fingerprint();
+        if ( '' !== $print && get_option( 'ds_toolkit_assets_print' ) === $print ) {
+            return;
+        }
         if ( class_exists( 'FLBuilderModel' ) && method_exists( 'FLBuilderModel', 'delete_asset_cache_for_all_posts' ) ) {
             FLBuilderModel::delete_asset_cache_for_all_posts();
             do_action( 'fl_builder_cache_cleared' );
+            // Saved only once a clear has run: with Beaver Builder switched off nothing was cleared, so the
+            // next version change still clears whatever cache it finds.
+            update_option( 'ds_toolkit_assets_print', $print, false );
         }
+    }
+
+    /**
+     * One hash over every PHP, CSS and JS file in modules/ and includes/: the module templates, styles and
+     * scripts, and the shared classes their frontend.css.php / frontend.js.php files call (DS_Module_UI,
+     * DS_LA_Colors, the data classes). Deliberately wide: a release that touches any of them clears the cache.
+     */
+    public static function assets_fingerprint() {
+        $rows = array();
+        foreach ( array( 'modules', 'includes' ) as $dir ) {
+            $root = DS_TOOLKIT_PATH . $dir;
+            if ( ! is_dir( $root ) ) {
+                return '';
+            }
+            try {
+                $it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ) );
+                foreach ( $it as $file ) {
+                    if ( $file->isFile() && in_array( strtolower( $file->getExtension() ), array( 'php', 'css', 'js' ), true ) ) {
+                        $hash = md5_file( $file->getPathname() );
+                        if ( false === $hash ) {
+                            return '';
+                        }
+                        $rows[] = str_replace( '\\', '/', substr( $file->getPathname(), strlen( DS_TOOLKIT_PATH ) ) ) . ':' . $hash;
+                    }
+                }
+            } catch ( Exception $e ) {
+                return '';
+            }
+        }
+        sort( $rows, SORT_STRING );
+        return $rows ? md5( implode( "\n", $rows ) ) : '';
     }
 
     public static function activate() {
@@ -466,159 +202,13 @@ class DS_Toolkit {
         update_option( 'ds_toolkit_settings', $settings );
     }
 
+    /**
+     * The default of every setting on this site's blueprint generation (see DS_Features::defaults()). On a fresh
+     * install only the core LeagueApps-branding and protection features are on; everything else is opt-in, so a
+     * new site does not get unexpected CSS, JS, shortcodes or MCP tools the moment the plugin is activated.
+     */
     private static function get_defaults() {
-        // On fresh install only the core LeagueApps-branding features are on.
-        // Everything else is opt-in so a new site doesn't get unexpected CSS/JS,
-        // shortcodes, or MCP tools the moment the plugin is activated.
-        $defaults = array(
-            'enable_login_branding' => 1,
-            'hide_fl_assistant'     => 1,
-            'acf_css_vars_enabled'  => 0,
-            'acf_css_vars_mappings' => array(
-                array(
-                    'acf_field' => 'header_scrolled_bar_color',
-                    'css_var'   => '--header-scrolled-bar-color',
-                    'fallback'  => 'var(--fl-global-accent)',
-                ),
-            ),
-            'getsubmenu_enabled'                  => 0,
-            'current_year_enabled'               => 0,
-            'overlay_nav_enabled'                => 0,
-            'nested_order_enabled'               => 0,
-            'forminator_email_partner_enabled'   => 0,
-            'forminator_email_partner_fallback'  => 'designshop' . DS_TOOLKIT_ADMIN_DOMAIN,
-            'global_css_enabled'                 => 0,
-            'global_css_overrides'               => '',
-            'global_js_enabled'                  => 0,
-            'child_pages_enabled'                => 0,
-            'child_pages_template_id'            => '56369',
-            'child_pages_columns'                => 3,
-            'child_pages_columns_tablet'         => 2,
-            'child_pages_columns_mobile'         => 1,
-            // Compat patch — only does anything when UABB Advanced Posts fires its
-            // hooks, so it's safe to default on. Sites without UABB are unaffected.
-            'uabb_post_loop_fix_enabled'         => 1,
-            // Compat patch — inert unless Defender Mask Login is on AND the host is
-            // Flywheel, so it's safe to default on across the fleet.
-            'defender_flywheel_reset_fix_enabled' => 1,
-            // Compat patch: inert unless Hummingbird's Critical CSS module is active.
-            'hummingbird_critical_fix_enabled'   => 1,
-            // Partner-safe access control + the Design Academy dashboard panel:
-            // on for the whole fleet regardless of blueprint generation.
-            'user_roles_enabled'                 => 1,
-            // Bot Shield: on fleet-wide with conservative thresholds. A legit
-            // human browsing a cached site rarely produces more than ~20 PHP
-            // hits/min; 180/min per IP only catches scrapers and floods.
-            'bot_shield_enabled'                 => 1,
-            // Tripwire: on fleet-wide. First run seeds baselines silently
-            // (clone-safe); it only ever emails on later drift or hard IOCs.
-            'tripwire_enabled'                   => 1,
-            'tripwire_alert_email'               => 'design@leagueapps.com',
-            // Copy alerts + a daily check-in to Design Shop HQ (features/class-ds-hq-link.php).
-            'tripwire_hq_report'                 => 1,
-            // Ships in monitor mode: staged rollout. Every rule is safe on
-            // its own — the pagination rule only refuses pages WordPress
-            // confirms are empty, and reverse-DNS-verified search engines are
-            // exempt from all of them — but there is no fast fleet-wide kill
-            // switch, so blocking is enabled per site after its numbers are
-            // read. Set 'block' on a site to enforce.
-            'bot_shield_mode'                    => 'monitor',
-            'bot_shield_page_cap'                => 20,
-            // Read-only stats endpoint for the ops dashboard. Off by default;
-            // turn on per site that should be pollable.
-            'bot_shield_stats_api'               => 0,
-            'bot_shield_stats_origin'            => 'https://dscommand.wpenginepowered.com',
-            'bot_shield_ip_limit'                => 180,
-            'bot_shield_penalty_mins'            => 10,
-            'bot_shield_global_limit'            => 150,
-            'bot_shield_attack_mins'             => 10,
-            // OFF by default: WP Engine strips non-allowlisted cookies before
-            // PHP sees them, so a cookie-based challenge cannot complete there.
-            // The loop-breaker makes it fail open if enabled anyway, but there
-            // is no point paying for a check the platform cannot support.
-            'bot_shield_challenge_enabled'       => 0,
-            // msie / trident: IE is dead since 2022; in 2026 those UA strings
-            // are the "older browser" bot signature WPE support identified in
-            // the sportsatthebeach flood. Real IE visitors no longer exist.
-            'bot_shield_ua_blocklist'            => "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
-            'bot_shield_ip_allowlist'            => '',
-            // Origin Guard: an mu-plugin (installed/maintained by the toolkit)
-            // that refuses the flood's exact request shapes BEFORE plugins load,
-            // so each attack request costs ~20ms instead of a full render. This
-            // is the pre-plugin layer Bot Shield cannot reach. ON fleet-wide by
-            // default — the rules only refuse traffic no real visitor produces.
-            'origin_guard_enabled'               => 1,
-            // Sub-rules, each independently disableable. Login-POST guard drops
-            // credential-stuffing POSTs that never rendered the login form.
-            // xmlrpc guard is auto-skipped on sites running Jetpack / the WP
-            // mobile app (detected at install time).
-            'origin_guard_block_login'           => 1,
-            'origin_guard_block_xmlrpc'          => 1,
-            'partner_plugin_access'              => 0,
-            'theme_setting_all_users'            => 0,
-            'design_academy_enabled'             => 1,
-            'school_emblems_enabled'             => 1,
-            'academy_pinned_url'                 => 'https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/',
-            'academy_pinned_label'               => 'How to Edit Your Website: A Beginner\'s Guide to WordPress & Beaver Builder',
-            // MCP tool group access controls — off by default
-            'mcp_posts_pages_enabled'            => 0,
-            'mcp_cpt_enabled'                    => 0,
-            'mcp_taxonomies_enabled'             => 0,
-            'mcp_acf_enabled'                    => 0,
-            'mcp_toolkit_settings_enabled'       => 0,
-            'mcp_bb_enabled'                     => 0,
-            'mcp_acf_schema_enabled'             => 0,
-            'mcp_menus_enabled'                  => 0,
-            'mcp_maintenance_enabled'            => 0,
-            'mcp_options_enabled'                => 0,
-            'mcp_users_enabled'                  => 0,
-        );
-
-        // Blueprint-gated defaults. These keys are added ONLY on sites stamped
-        // at the required generation, so older / unstamped installs never gain
-        // the option keys (and therefore never show the toggles). On qualifying
-        // sites they default ON — that's the "auto-enable on DSLP6+" behavior.
-        $bp = self::blueprint_version();
-        if ( $bp >= 7 ) {
-            $defaults['home_templates_enabled'] = 1;
-        }
-        if ( $bp >= 6 ) {
-            $defaults['disable_comments_enabled']    = 1;
-            $defaults['copyright_shortcode_enabled'] = 1;
-            $defaults['footer_copyright_text']       = '&copy; {year} LeagueApps Design Shop';
-            $defaults['theme_setting_enabled']        = 1;
-            $defaults['ds_global_heading_font_enabled'] = 1;
-            $defaults['admin_menu_tidy_enabled']      = 1;
-            $defaults['ds_menu_module_enabled']       = 1;
-            $defaults['ds_social_module_enabled']     = 1;
-            $defaults['ds_social_card_enabled']       = 1;
-            $defaults['ds_hero_module_enabled']       = 1;
-            $defaults['ds_cta_module_enabled']        = 1;
-            $defaults['ds_marquee_module_enabled']    = 1;
-            $defaults['ds_pathway_module_enabled']    = 1;
-            $defaults['ds_post_loop_module_enabled']  = 1;
-            $defaults['ds_orgstats_module_enabled']   = 1;
-            $defaults['ds_carousel_module_enabled']   = 1;
-            $defaults['ds_heading_module_enabled']    = 1;
-            $defaults['ds_divider_module_enabled']    = 1;
-            $defaults['ds_device_module_enabled']     = 1;
-            $defaults['image_optimization_enabled']   = 1;
-            $defaults['page_banner_sync_enabled']     = 1;
-            $defaults['ds_pattern_library_enabled']   = 1;
-            $defaults['ds_content_router_module_enabled'] = 1;
-            $defaults['ds_info_list_module_enabled']  = 1;
-            $defaults['ds_page_cards_module_enabled'] = 1;
-            $defaults['ds_team_detail_module_enabled'] = 1;
-            $defaults['ds_builder_defaults_enabled']   = 1;
-            $defaults['ds_admin_bar_links_enabled']    = 1;
-        }
-        // New modules default ON for new builds only (Launchpad 7+); older sites opt in on the Features tab, so a release
-        // adds nothing to a live site's builder, AJAX or cron (pre-release audit 2026-09-27).
-        if ( $bp >= 7 ) {
-            $defaults['ds_table_module_enabled'] = 1;
-        }
-
-        return $defaults;
+        return DS_Features::defaults( self::blueprint_version() );
     }
 
     /**
@@ -670,6 +260,15 @@ class DS_Toolkit {
     public function run() {
         $settings = $this->maybe_set_defaults();
 
+        // Bot Shield goes first: a request it refuses ends inside init(), so nothing below (the admin and
+        // updater classes, 50 other feature files) is read or hooked for a request that gets a 403 or 429.
+        $features = self::feature_registry();
+        $shield   = 'bot_shield_enabled';
+        if ( ! empty( $settings[ $shield ] ) && isset( $features[ $shield ] ) ) {
+            require_once DS_TOOLKIT_PATH . $features[ $shield ]['file'];
+            ( new $features[ $shield ]['class']( $settings ) )->init();
+        }
+
         add_action( 'init', array( __CLASS__, 'maybe_clear_builder_cache' ), 99 );
         add_filter( 'fl_builder_render_css', array( __CLASS__, 'css_cannot_close_style' ), 99999 );
         add_filter( 'editable_roles', array( __CLASS__, 'editable_roles' ) );
@@ -714,8 +313,9 @@ class DS_Toolkit {
 
             // The Table module's 5-minute sync job stops with the module (its handler only loads while it is on).
             if ( empty( $settings['ds_table_module_enabled'] ) && wp_next_scheduled( 'ds_table_sync' ) ) { wp_clear_scheduled_hook( 'ds_table_sync' ); }
-            // Tripwire -> HQ reporting off (or Tripwire off): leave no HQ cron events behind.
-            if ( ( empty( $settings['tripwire_enabled'] ) || ( isset( $settings['tripwire_hq_report'] ) && ! $settings['tripwire_hq_report'] ) )
+            // Reporting to Design Shop HQ switched off: leave no HQ cron events behind. (Tripwire being off no
+            // longer stops it: HQ Link is its own feature.)
+            if ( isset( $settings['tripwire_hq_report'] ) && ! $settings['tripwire_hq_report']
                 && ( wp_next_scheduled( 'ds_hq_link_checkin' ) || wp_next_scheduled( 'ds_hq_link_flush' ) || wp_next_scheduled( 'ds_hq_link_enroll' ) || wp_next_scheduled( 'ds_hq_update_run' ) ) ) {
                 require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-link.php';
                 DS_HQ_Link::unschedule();
@@ -725,18 +325,26 @@ class DS_Toolkit {
         $blueprint    = self::blueprint_version();
         $module_keys  = self::module_features();
 
-        foreach ( $this->features as $key => $feature ) {
+        foreach ( $features as $key => $feature ) {
             // Blueprint-gated features never load below their required generation,
             // EXCEPT the LeagueApps modules: those are additive builder blocks that
             // are opt-in on any blueprint (off by default below their generation),
             // so an existing site can enable individual blocks without a blueprint bump.
+            if ( $shield === $key ) {
+                continue; // started at the top of run()
+            }
             $is_module = isset( $module_keys[ $key ] );
             if ( ! empty( $feature['min_blueprint'] ) && ! $is_module && $blueprint < (int) $feature['min_blueprint'] ) {
                 continue;
             }
+            if ( ! empty( $feature['admin_only'] ) && ! is_admin() ) {
+                continue; // a wp-admin-only feature: nothing for it to do in a front-end, REST or cron request
+            }
             if ( ! empty( $settings[ $key ] ) ) {
                 require_once DS_TOOLKIT_PATH . $feature['file'];
-                $instance = new $feature['class']( $settings );
+                // A block with nothing to do but register itself goes through the shared loader, which
+                // takes the block's folder name; every other feature takes the settings.
+                $instance = isset( $feature['block'] ) ? new $feature['class']( $feature['block'] ) : new $feature['class']( $settings );
                 $instance->init();
             }
         }

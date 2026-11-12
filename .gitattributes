@@ -1,0 +1,8 @@
+# Left out of `git archive`: sites never need them. /tests stays IN for now: the release workflow on main still zips
+# the whole checkout (tests included), and includes/release-hashes.txt must list every PHP file the zip ships, or each
+# site reports the test files as planted. Add "/tests export-ignore" back in the same change that makes the workflow
+# exclude tests/ (branch chore/ci-gate, needs `gh auth refresh -s workflow` to push).
+/docs export-ignore
+/CONTRIBUTING.md export-ignore
+/.github export-ignore
+/.gitattributes export-ignore

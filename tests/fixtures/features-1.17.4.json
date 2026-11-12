@@ -1,0 +1,609 @@
+{
+ "_note": "The feature registry (in load order), the module list (in display order) and the defaults per blueprint generation, as ds-toolkit 1.17.4 shipped them, plus the deliberate changes listed in _changes. tests/features-schema-test.php compares DS_Features with this. Change it only together with a deliberate change to a feature, a module or a default.",
+ "features": {
+  "enable_login_branding": {
+   "file": "features/class-ds-login-branding.php",
+   "class": "DS_Login_Branding"
+  },
+  "hide_fl_assistant": {
+   "file": "features/class-ds-hide-fl-assistant.php",
+   "class": "DS_Hide_FL_Assistant"
+  },
+  "acf_css_vars_enabled": {
+   "file": "features/class-ds-acf-css-vars.php",
+   "class": "DS_ACF_CSS_Vars"
+  },
+  "getsubmenu_enabled": {
+   "file": "features/class-ds-getsubmenu.php",
+   "class": "DS_Getsubmenu"
+  },
+  "current_year_enabled": {
+   "file": "features/class-ds-current-year.php",
+   "class": "DS_Current_Year"
+  },
+  "forminator_email_partner_enabled": {
+   "file": "features/class-ds-forminator-email-partner.php",
+   "class": "DS_Forminator_Email_Partner"
+  },
+  "global_css_enabled": {
+   "file": "features/class-ds-global-css.php",
+   "class": "DS_Global_CSS"
+  },
+  "global_js_enabled": {
+   "file": "features/class-ds-global-js.php",
+   "class": "DS_Global_JS"
+  },
+  "child_pages_enabled": {
+   "file": "features/class-ds-child-pages.php",
+   "class": "DS_Child_Pages"
+  },
+  "uabb_post_loop_fix_enabled": {
+   "file": "features/class-ds-uabb-post-loop-fix.php",
+   "class": "DS_UABB_Post_Loop_Fix"
+  },
+  "defender_flywheel_reset_fix_enabled": {
+   "file": "features/class-ds-defender-flywheel-reset-fix.php",
+   "class": "DS_Defender_Flywheel_Reset_Fix"
+  },
+  "hummingbird_critical_fix_enabled": {
+   "file": "features/class-ds-hummingbird-critical-fix.php",
+   "class": "DS_Hummingbird_Critical_Fix"
+  },
+  "overlay_nav_enabled": {
+   "file": "features/class-ds-overlay-nav.php",
+   "class": "DS_Overlay_Nav"
+  },
+  "nested_order_enabled": {
+   "file": "features/class-ds-nested-order.php",
+   "class": "DS_Nested_Order"
+  },
+  "disable_comments_enabled": {
+   "file": "features/class-ds-disable-comments.php",
+   "class": "DS_Disable_Comments",
+   "min_blueprint": 6
+  },
+  "copyright_shortcode_enabled": {
+   "file": "features/class-ds-copyright.php",
+   "class": "DS_Copyright",
+   "min_blueprint": 6
+  },
+  "theme_setting_enabled": {
+   "file": "features/class-ds-theme-setting.php",
+   "class": "DS_Theme_Setting",
+   "min_blueprint": 6
+  },
+  "home_templates_enabled": {
+   "file": "features/class-ds-home-templates.php",
+   "class": "DS_Home_Templates",
+   "min_blueprint": 7
+  },
+  "ds_global_heading_font_enabled": {
+   "file": "features/class-ds-global-heading-font.php",
+   "class": "DS_Global_Heading_Font",
+   "min_blueprint": 6
+  },
+  "admin_menu_tidy_enabled": {
+   "file": "features/class-ds-admin-menu.php",
+   "class": "DS_Admin_Menu",
+   "admin_only": true,
+   "min_blueprint": 6
+  },
+  "ds_menu_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-menu",
+   "min_blueprint": 6
+  },
+  "ds_social_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-social",
+   "min_blueprint": 6
+  },
+  "ds_social_card_enabled": {
+   "file": "features/class-ds-social-card.php",
+   "class": "DS_Social_Card",
+   "min_blueprint": 6
+  },
+  "ds_hero_module_enabled": {
+   "file": "features/class-ds-hero.php",
+   "class": "DS_Hero",
+   "min_blueprint": 6
+  },
+  "ds_cta_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-cta",
+   "min_blueprint": 6
+  },
+  "ds_marquee_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-marquee",
+   "min_blueprint": 6
+  },
+  "ds_pathway_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-pathway",
+   "min_blueprint": 6
+  },
+  "ds_post_loop_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-post-loop",
+   "min_blueprint": 6
+  },
+  "ds_orgstats_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-orgstats",
+   "min_blueprint": 6
+  },
+  "ds_carousel_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-carousel",
+   "min_blueprint": 6
+  },
+  "ds_heading_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-heading",
+   "min_blueprint": 6
+  },
+  "ds_divider_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-divider",
+   "min_blueprint": 6
+  },
+  "ds_device_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-device",
+   "min_blueprint": 6
+  },
+  "image_optimization_enabled": {
+   "file": "features/class-ds-image-optimization.php",
+   "class": "DS_Image_Optimization",
+   "min_blueprint": 6
+  },
+  "page_banner_sync_enabled": {
+   "file": "features/class-ds-page-banner.php",
+   "class": "DS_Page_Banner",
+   "min_blueprint": 6
+  },
+  "ds_pattern_library_enabled": {
+   "file": "features/class-ds-pattern-library.php",
+   "class": "DS_Pattern_Library",
+   "admin_only": true,
+   "min_blueprint": 6
+  },
+  "ds_content_router_module_enabled": {
+   "file": "features/class-ds-content-router.php",
+   "class": "DS_Content_Router",
+   "min_blueprint": 6
+  },
+  "ds_programs_module_enabled": {
+   "file": "features/class-ds-programs.php",
+   "class": "DS_Programs",
+   "min_blueprint": 6
+  },
+  "ds_la_calendar_module_enabled": {
+   "file": "features/class-ds-la-calendar.php",
+   "class": "DS_LA_Calendar",
+   "min_blueprint": 6
+  },
+  "ds_la_roster_module_enabled": {
+   "file": "features/class-ds-la-roster.php",
+   "class": "DS_LA_Roster",
+   "min_blueprint": 6
+  },
+  "ds_table_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-table",
+   "min_blueprint": 6
+  },
+  "ds_info_list_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-info-list",
+   "min_blueprint": 6
+  },
+  "ds_page_cards_module_enabled": {
+   "file": "features/class-ds-page-cards.php",
+   "class": "DS_Page_Cards",
+   "min_blueprint": 6
+  },
+  "ds_team_detail_module_enabled": {
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-team-detail",
+   "min_blueprint": 6
+  },
+  "ds_builder_defaults_enabled": {
+   "file": "features/class-ds-builder-defaults.php",
+   "class": "DS_Builder_Defaults",
+   "min_blueprint": 6
+  },
+  "ds_admin_bar_links_enabled": {
+   "file": "features/class-ds-admin-bar-links.php",
+   "class": "DS_Admin_Bar_Links",
+   "min_blueprint": 6
+  },
+  "user_roles_enabled": {
+   "file": "features/class-ds-user-roles.php",
+   "class": "DS_User_Roles"
+  },
+  "bot_shield_enabled": {
+   "file": "features/class-ds-bot-shield.php",
+   "class": "DS_Bot_Shield"
+  },
+  "tripwire_enabled": {
+   "file": "features/class-ds-tripwire.php",
+   "class": "DS_Tripwire"
+  },
+  "design_academy_enabled": {
+   "file": "features/class-ds-design-academy.php",
+   "class": "DS_Design_Academy",
+   "admin_only": true
+  },
+  "school_emblems_enabled": {
+   "file": "features/class-ds-school-emblems.php",
+   "class": "DS_School_Emblems"
+  },
+  "tripwire_hq_report": {
+   "file": "features/class-ds-hq-link.php",
+   "class": "DS_HQ_Link"
+  }
+ },
+ "modules": [
+  "ds_hero_module_enabled",
+  "ds_menu_module_enabled",
+  "ds_post_loop_module_enabled",
+  "ds_page_cards_module_enabled",
+  "ds_carousel_module_enabled",
+  "ds_orgstats_module_enabled",
+  "ds_marquee_module_enabled",
+  "ds_pathway_module_enabled",
+  "ds_info_list_module_enabled",
+  "ds_cta_module_enabled",
+  "ds_heading_module_enabled",
+  "ds_divider_module_enabled",
+  "ds_device_module_enabled",
+  "ds_team_detail_module_enabled",
+  "ds_content_router_module_enabled",
+  "ds_social_module_enabled",
+  "ds_table_module_enabled",
+  "ds_programs_module_enabled",
+  "ds_la_calendar_module_enabled",
+  "ds_la_roster_module_enabled"
+ ],
+ "defaults": {
+  "bp0": {
+   "enable_login_branding": 1,
+   "hide_fl_assistant": 1,
+   "acf_css_vars_enabled": 0,
+   "acf_css_vars_mappings": [
+    {
+     "acf_field": "header_scrolled_bar_color",
+     "css_var": "--header-scrolled-bar-color",
+     "fallback": "var(--fl-global-accent)"
+    }
+   ],
+   "getsubmenu_enabled": 0,
+   "current_year_enabled": 0,
+   "overlay_nav_enabled": 0,
+   "nested_order_enabled": 0,
+   "forminator_email_partner_enabled": 0,
+   "forminator_email_partner_fallback": "designshop@leagueapps.com",
+   "global_css_enabled": 0,
+   "global_css_overrides": "",
+   "global_js_enabled": 0,
+   "child_pages_enabled": 0,
+   "child_pages_template_id": "56369",
+   "child_pages_columns": 3,
+   "child_pages_columns_tablet": 2,
+   "child_pages_columns_mobile": 1,
+   "uabb_post_loop_fix_enabled": 1,
+   "defender_flywheel_reset_fix_enabled": 1,
+   "hummingbird_critical_fix_enabled": 1,
+   "user_roles_enabled": 1,
+   "bot_shield_enabled": 1,
+   "tripwire_enabled": 1,
+   "tripwire_alert_email": "design@leagueapps.com",
+   "tripwire_hq_report": 1,
+   "bot_shield_mode": "monitor",
+   "bot_shield_page_cap": 20,
+   "bot_shield_stats_api": 0,
+   "bot_shield_stats_origin": "https://dscommand.wpenginepowered.com",
+   "bot_shield_ip_limit": 180,
+   "bot_shield_penalty_mins": 10,
+   "bot_shield_global_limit": 150,
+   "bot_shield_attack_mins": 10,
+   "bot_shield_challenge_enabled": 0,
+   "bot_shield_ua_blocklist": "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
+   "bot_shield_ip_allowlist": "",
+   "origin_guard_enabled": 1,
+   "origin_guard_block_login": 1,
+   "origin_guard_block_xmlrpc": 1,
+   "partner_plugin_access": 0,
+   "theme_setting_all_users": 0,
+   "design_academy_enabled": 1,
+   "school_emblems_enabled": 1,
+   "academy_pinned_url": "https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/",
+   "academy_pinned_label": "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder",
+   "mcp_posts_pages_enabled": 0,
+   "mcp_cpt_enabled": 0,
+   "mcp_taxonomies_enabled": 0,
+   "mcp_acf_enabled": 0,
+   "mcp_toolkit_settings_enabled": 0,
+   "mcp_bb_enabled": 0,
+   "mcp_acf_schema_enabled": 0,
+   "mcp_menus_enabled": 0,
+   "mcp_maintenance_enabled": 0,
+   "mcp_options_enabled": 0,
+   "mcp_users_enabled": 0
+  },
+  "bp5": {
+   "enable_login_branding": 1,
+   "hide_fl_assistant": 1,
+   "acf_css_vars_enabled": 0,
+   "acf_css_vars_mappings": [
+    {
+     "acf_field": "header_scrolled_bar_color",
+     "css_var": "--header-scrolled-bar-color",
+     "fallback": "var(--fl-global-accent)"
+    }
+   ],
+   "getsubmenu_enabled": 0,
+   "current_year_enabled": 0,
+   "overlay_nav_enabled": 0,
+   "nested_order_enabled": 0,
+   "forminator_email_partner_enabled": 0,
+   "forminator_email_partner_fallback": "designshop@leagueapps.com",
+   "global_css_enabled": 0,
+   "global_css_overrides": "",
+   "global_js_enabled": 0,
+   "child_pages_enabled": 0,
+   "child_pages_template_id": "56369",
+   "child_pages_columns": 3,
+   "child_pages_columns_tablet": 2,
+   "child_pages_columns_mobile": 1,
+   "uabb_post_loop_fix_enabled": 1,
+   "defender_flywheel_reset_fix_enabled": 1,
+   "hummingbird_critical_fix_enabled": 1,
+   "user_roles_enabled": 1,
+   "bot_shield_enabled": 1,
+   "tripwire_enabled": 1,
+   "tripwire_alert_email": "design@leagueapps.com",
+   "tripwire_hq_report": 1,
+   "bot_shield_mode": "monitor",
+   "bot_shield_page_cap": 20,
+   "bot_shield_stats_api": 0,
+   "bot_shield_stats_origin": "https://dscommand.wpenginepowered.com",
+   "bot_shield_ip_limit": 180,
+   "bot_shield_penalty_mins": 10,
+   "bot_shield_global_limit": 150,
+   "bot_shield_attack_mins": 10,
+   "bot_shield_challenge_enabled": 0,
+   "bot_shield_ua_blocklist": "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
+   "bot_shield_ip_allowlist": "",
+   "origin_guard_enabled": 1,
+   "origin_guard_block_login": 1,
+   "origin_guard_block_xmlrpc": 1,
+   "partner_plugin_access": 0,
+   "theme_setting_all_users": 0,
+   "design_academy_enabled": 1,
+   "school_emblems_enabled": 1,
+   "academy_pinned_url": "https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/",
+   "academy_pinned_label": "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder",
+   "mcp_posts_pages_enabled": 0,
+   "mcp_cpt_enabled": 0,
+   "mcp_taxonomies_enabled": 0,
+   "mcp_acf_enabled": 0,
+   "mcp_toolkit_settings_enabled": 0,
+   "mcp_bb_enabled": 0,
+   "mcp_acf_schema_enabled": 0,
+   "mcp_menus_enabled": 0,
+   "mcp_maintenance_enabled": 0,
+   "mcp_options_enabled": 0,
+   "mcp_users_enabled": 0
+  },
+  "bp6": {
+   "enable_login_branding": 1,
+   "hide_fl_assistant": 1,
+   "acf_css_vars_enabled": 0,
+   "acf_css_vars_mappings": [
+    {
+     "acf_field": "header_scrolled_bar_color",
+     "css_var": "--header-scrolled-bar-color",
+     "fallback": "var(--fl-global-accent)"
+    }
+   ],
+   "getsubmenu_enabled": 0,
+   "current_year_enabled": 0,
+   "overlay_nav_enabled": 0,
+   "nested_order_enabled": 0,
+   "forminator_email_partner_enabled": 0,
+   "forminator_email_partner_fallback": "designshop@leagueapps.com",
+   "global_css_enabled": 0,
+   "global_css_overrides": "",
+   "global_js_enabled": 0,
+   "child_pages_enabled": 0,
+   "child_pages_template_id": "56369",
+   "child_pages_columns": 3,
+   "child_pages_columns_tablet": 2,
+   "child_pages_columns_mobile": 1,
+   "uabb_post_loop_fix_enabled": 1,
+   "defender_flywheel_reset_fix_enabled": 1,
+   "hummingbird_critical_fix_enabled": 1,
+   "user_roles_enabled": 1,
+   "bot_shield_enabled": 1,
+   "tripwire_enabled": 1,
+   "tripwire_alert_email": "design@leagueapps.com",
+   "tripwire_hq_report": 1,
+   "bot_shield_mode": "monitor",
+   "bot_shield_page_cap": 20,
+   "bot_shield_stats_api": 0,
+   "bot_shield_stats_origin": "https://dscommand.wpenginepowered.com",
+   "bot_shield_ip_limit": 180,
+   "bot_shield_penalty_mins": 10,
+   "bot_shield_global_limit": 150,
+   "bot_shield_attack_mins": 10,
+   "bot_shield_challenge_enabled": 0,
+   "bot_shield_ua_blocklist": "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
+   "bot_shield_ip_allowlist": "",
+   "origin_guard_enabled": 1,
+   "origin_guard_block_login": 1,
+   "origin_guard_block_xmlrpc": 1,
+   "partner_plugin_access": 0,
+   "theme_setting_all_users": 0,
+   "design_academy_enabled": 1,
+   "school_emblems_enabled": 1,
+   "academy_pinned_url": "https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/",
+   "academy_pinned_label": "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder",
+   "mcp_posts_pages_enabled": 0,
+   "mcp_cpt_enabled": 0,
+   "mcp_taxonomies_enabled": 0,
+   "mcp_acf_enabled": 0,
+   "mcp_toolkit_settings_enabled": 0,
+   "mcp_bb_enabled": 0,
+   "mcp_acf_schema_enabled": 0,
+   "mcp_menus_enabled": 0,
+   "mcp_maintenance_enabled": 0,
+   "mcp_options_enabled": 0,
+   "mcp_users_enabled": 0,
+   "disable_comments_enabled": 1,
+   "copyright_shortcode_enabled": 1,
+   "footer_copyright_text": "&copy; {year} LeagueApps Design Shop",
+   "theme_setting_enabled": 1,
+   "ds_global_heading_font_enabled": 1,
+   "admin_menu_tidy_enabled": 1,
+   "ds_menu_module_enabled": 1,
+   "ds_social_module_enabled": 1,
+   "ds_social_card_enabled": 1,
+   "ds_hero_module_enabled": 1,
+   "ds_cta_module_enabled": 1,
+   "ds_marquee_module_enabled": 1,
+   "ds_pathway_module_enabled": 1,
+   "ds_post_loop_module_enabled": 1,
+   "ds_orgstats_module_enabled": 1,
+   "ds_carousel_module_enabled": 1,
+   "ds_heading_module_enabled": 1,
+   "ds_divider_module_enabled": 1,
+   "ds_device_module_enabled": 1,
+   "image_optimization_enabled": 1,
+   "page_banner_sync_enabled": 1,
+   "ds_pattern_library_enabled": 1,
+   "ds_content_router_module_enabled": 1,
+   "ds_info_list_module_enabled": 1,
+   "ds_page_cards_module_enabled": 1,
+   "ds_team_detail_module_enabled": 1,
+   "ds_builder_defaults_enabled": 1,
+   "ds_admin_bar_links_enabled": 1
+  },
+  "bp7": {
+   "enable_login_branding": 1,
+   "hide_fl_assistant": 1,
+   "acf_css_vars_enabled": 0,
+   "acf_css_vars_mappings": [
+    {
+     "acf_field": "header_scrolled_bar_color",
+     "css_var": "--header-scrolled-bar-color",
+     "fallback": "var(--fl-global-accent)"
+    }
+   ],
+   "getsubmenu_enabled": 0,
+   "current_year_enabled": 0,
+   "overlay_nav_enabled": 0,
+   "nested_order_enabled": 0,
+   "forminator_email_partner_enabled": 0,
+   "forminator_email_partner_fallback": "designshop@leagueapps.com",
+   "global_css_enabled": 0,
+   "global_css_overrides": "",
+   "global_js_enabled": 0,
+   "child_pages_enabled": 0,
+   "child_pages_template_id": "56369",
+   "child_pages_columns": 3,
+   "child_pages_columns_tablet": 2,
+   "child_pages_columns_mobile": 1,
+   "uabb_post_loop_fix_enabled": 1,
+   "defender_flywheel_reset_fix_enabled": 1,
+   "hummingbird_critical_fix_enabled": 1,
+   "user_roles_enabled": 1,
+   "bot_shield_enabled": 1,
+   "tripwire_enabled": 1,
+   "tripwire_alert_email": "design@leagueapps.com",
+   "tripwire_hq_report": 1,
+   "bot_shield_mode": "monitor",
+   "bot_shield_page_cap": 20,
+   "bot_shield_stats_api": 0,
+   "bot_shield_stats_origin": "https://dscommand.wpenginepowered.com",
+   "bot_shield_ip_limit": 180,
+   "bot_shield_penalty_mins": 10,
+   "bot_shield_global_limit": 150,
+   "bot_shield_attack_mins": 10,
+   "bot_shield_challenge_enabled": 0,
+   "bot_shield_ua_blocklist": "mj12bot\ndotbot\nbytespider\npetalbot\nseekportbot\nbarkrowler\nblexbot\nmsie\ntrident/",
+   "bot_shield_ip_allowlist": "",
+   "origin_guard_enabled": 1,
+   "origin_guard_block_login": 1,
+   "origin_guard_block_xmlrpc": 1,
+   "partner_plugin_access": 0,
+   "theme_setting_all_users": 0,
+   "design_academy_enabled": 1,
+   "school_emblems_enabled": 1,
+   "academy_pinned_url": "https://designacademy.leagueapps.com/course/how-to-edit-your-website-a-beginners-guide-to-wordpress-beaverbuilder/",
+   "academy_pinned_label": "How to Edit Your Website: A Beginner's Guide to WordPress & Beaver Builder",
+   "mcp_posts_pages_enabled": 0,
+   "mcp_cpt_enabled": 0,
+   "mcp_taxonomies_enabled": 0,
+   "mcp_acf_enabled": 0,
+   "mcp_toolkit_settings_enabled": 0,
+   "mcp_bb_enabled": 0,
+   "mcp_acf_schema_enabled": 0,
+   "mcp_menus_enabled": 0,
+   "mcp_maintenance_enabled": 0,
+   "mcp_options_enabled": 0,
+   "mcp_users_enabled": 0,
+   "home_templates_enabled": 1,
+   "disable_comments_enabled": 1,
+   "copyright_shortcode_enabled": 1,
+   "footer_copyright_text": "&copy; {year} LeagueApps Design Shop",
+   "theme_setting_enabled": 1,
+   "ds_global_heading_font_enabled": 1,
+   "admin_menu_tidy_enabled": 1,
+   "ds_menu_module_enabled": 1,
+   "ds_social_module_enabled": 1,
+   "ds_social_card_enabled": 1,
+   "ds_hero_module_enabled": 1,
+   "ds_cta_module_enabled": 1,
+   "ds_marquee_module_enabled": 1,
+   "ds_pathway_module_enabled": 1,
+   "ds_post_loop_module_enabled": 1,
+   "ds_orgstats_module_enabled": 1,
+   "ds_carousel_module_enabled": 1,
+   "ds_heading_module_enabled": 1,
+   "ds_divider_module_enabled": 1,
+   "ds_device_module_enabled": 1,
+   "image_optimization_enabled": 1,
+   "page_banner_sync_enabled": 1,
+   "ds_pattern_library_enabled": 1,
+   "ds_content_router_module_enabled": 1,
+   "ds_info_list_module_enabled": 1,
+   "ds_page_cards_module_enabled": 1,
+   "ds_team_detail_module_enabled": 1,
+   "ds_builder_defaults_enabled": 1,
+   "ds_admin_bar_links_enabled": 1,
+   "ds_table_module_enabled": 1
+  }
+ },
+ "_changes": [
+  "audit 2026-11 item 25: tripwire_hq_report became a feature of its own (features/class-ds-hq-link.php, DS_HQ_Link), loaded last. Its default (1) is unchanged.",
+  "audit 2026-11 item 32: the 14 blocks whose feature class only registered the block (carousel, cta, device, divider, heading, info-list, marquee, menu, orgstats, pathway, post-loop, social, table, team-detail) load through includes/class-ds-module-loader.php (DS_Module_Loader) with a \"block\" folder name. Same keys, same order, same defaults; min_blueprint unchanged.",
+  "audit 2026-11 item 32: admin_menu_tidy_enabled, ds_pattern_library_enabled and design_academy_enabled carry admin_only (every hook they add is a wp-admin one), so the loader skips them outside wp-admin. Keys, order and defaults unchanged."
+ ]
+}

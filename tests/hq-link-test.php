@@ -48,6 +48,8 @@ function wp_remote_retrieve_response_code( $r ) { return $r['code']; }
 function wp_remote_retrieve_body( $r ) { return $r['body']; }
 function wp_date( $f, $t ) { return gmdate( $f, $t ); }
 define( 'MINUTE_IN_SECONDS', 60 );
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+function wp_rand( $min = 0, $max = 0 ) { return (int) $min; } // no jitter in the test: times stay exact
 function get_transient( $k ) { return $GLOBALS['tr'][ $k ] ?? false; }
 function set_transient( $k, $v, $e = 0 ) { $GLOBALS['tr'][ $k ] = $v; return true; }
 function human_time_diff( $a, $b = 0 ) { return 'moments'; }
