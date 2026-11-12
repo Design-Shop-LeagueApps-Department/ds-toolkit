@@ -684,7 +684,7 @@ class DS_Tripwire {
      * access to main, not read access to the file. A hash committed here is live on every site
      * within one cron cycle, with no release and no fleet push.
      */
-    const REMOTE_LIST_BASE = 'https://raw.githubusercontent.com/Design-Shop-LeagueApps-Department/ds-toolkit/main/lists/';
+    const REMOTE_LIST_BASE = 'https://raw.githubusercontent.com/' . DS_Env::REPO . '/main/lists/';
     const REMOTE_TTL       = 3600;   // one cron cycle
     const REMOTE_JITTER    = 900;    // per-site spread, so 1,100 sites do not hit GitHub in the same second
     const REMOTE_MAX_BYTES = 524288; // 512 KB; the remote lists are deltas, the ~530 KB bundle stays bundled

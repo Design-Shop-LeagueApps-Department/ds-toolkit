@@ -73,6 +73,19 @@ foreach ( $it as $f ) {
 	}
 }
 chk( 'hosts, repository and alert inbox are typed once', $copies, array() );
+// The repository also hides inside links (a raw.githubusercontent.com address, a footer link): none of those either.
+$links = array();
+$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ) );
+foreach ( $it as $f ) {
+	$p = str_replace( '\\', '/', substr( (string) $f, strlen( $root ) ) );
+	if ( 'php' !== pathinfo( $p, PATHINFO_EXTENSION ) || 0 === strpos( $p, 'tests/' ) || 0 === strpos( $p, '.git/' ) || 'includes/class-ds-env.php' === $p ) { continue; }
+	$code = '';
+	foreach ( token_get_all( file_get_contents( (string) $f ) ) as $t ) {
+		if ( is_array( $t ) ) { if ( T_COMMENT === $t[0] || T_DOC_COMMENT === $t[0] ) { continue; } $code .= $t[1]; } else { $code .= $t; }
+	}
+	if ( false !== strpos( $code, 'Design-Shop-LeagueApps-Department/ds-toolkit' ) ) { $links[] = $p; }
+}
+chk( 'and not inside a link either (the plugin header is a comment, read by WordPress)', $links, array() );
 $tw = file_get_contents( $root . 'features/class-ds-tripwire.php' );
 chk( 'Tripwire\'s pre-launch rule is the shared one', (bool) preg_match( '/function prelaunch\(\)\s*\{(?:(?!\n    \}).)*return DS_Env::is_dev_host\(\);/s', $tw ), true );
 chk( 'the Home Templates picker uses it and keeps its filter', (bool) preg_match( "/apply_filters\( 'ds_home_templates_dev_host', DS_Env::is_dev_host\( \\\$host \), \\\$host \)/", file_get_contents( $root . 'features/class-ds-home-templates.php' ) ), true );

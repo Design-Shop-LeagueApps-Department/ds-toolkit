@@ -114,7 +114,7 @@ $dst_extras['acf_css_vars_enabled']['after'] = function ( $opts ) {
 	<div class="dst-savebar" id="dst-savebar">
 		<span class="dst-savebar-state" id="dst-savebar-state" role="status" aria-live="polite">No unsaved changes</span>
 		<span class="dst-savebar-meta">
-			<a href="https://github.com/Design-Shop-LeagueApps-Department/ds-toolkit" target="_blank" rel="noopener">GitHub</a>
+			<a href="<?php echo esc_url( DS_Env::REPO_URL ); ?>" target="_blank" rel="noopener">GitHub</a>
 			&nbsp;&middot;&nbsp; By LeagueApps Design Shop
 		</span>
 		<?php submit_button( 'Save Changes', 'primary', 'submit', false ); ?>
