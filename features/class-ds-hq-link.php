@@ -323,7 +323,9 @@ class DS_HQ_Link {
 			'platform'  => self::platform(),
 			'toolkit'   => class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::installed() : ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '' ),
 			'update'    => class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::report() : array(),
-			'tripwire'  => array(
+			// The health values of the Status card ride along as extra flat values (DS_Status::hq_fields()). The
+			// keys below win on a clash, so nothing HQ already reads can change meaning.
+			'tripwire'  => ( class_exists( 'DS_Status' ) ? DS_Status::hq_fields( $set ) : array() ) + array(
 				'enabled'          => isset( $set['tripwire_enabled'] ) ? (int) $set['tripwire_enabled'] : 1,
 				'content_enabled'  => isset( $set['tripwire_content_enabled'] ) ? (int) $set['tripwire_content_enabled'] : 1,
 				'last_run'         => (int) ( $st['last_run'] ?? 0 ),

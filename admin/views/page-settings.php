@@ -10,6 +10,7 @@
  *
  * @var array $opts       the saved settings
  * @var array $dst_status status lines computed by DS_Toolkit_Admin: key => html
+ * @var array $dst_health  rows of the staff-only Status card (DS_Status::rows()): label, state, text. Empty = no card
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -84,6 +85,29 @@ $dst_extras['acf_css_vars_enabled']['after'] = function ( $opts ) {
 		<input type="search" id="dst-filter" placeholder="Filter features… (e.g. bot, shortcode, hero)" autocomplete="off">
 	</div>
 	<p class="dst-filter-empty" id="dst-filter-empty" hidden>No feature matches that.</p>
+
+	<?php
+	if ( ! empty( $dst_health ) ) :
+		$dst_words  = array( 'ok' => 'OK', 'warn' => 'Check', 'bad' => 'Problem', 'off' => 'Off' );
+		$dst_counts = array_count_values( array_column( $dst_health, 1 ) );
+		$dst_worst  = ! empty( $dst_counts['bad'] ) ? 'bad' : ( ! empty( $dst_counts['warn'] ) ? 'warn' : 'ok' );
+		$dst_sum    = 'bad' === $dst_worst ? $dst_counts['bad'] . ' to fix' : ( 'warn' === $dst_worst ? $dst_counts['warn'] . ' to check' : 'All good' );
+		?>
+	<details class="dst-health" id="dst-health"<?php echo 'ok' === $dst_worst ? '' : ' open'; ?>>
+		<summary class="dst-health-head">
+			<span class="dst-health-title"><span class="dashicons dashicons-heart" aria-hidden="true"></span> Status <span class="dst-chip dst-chip--staff">Staff only</span></span>
+			<span class="dst-health-sum dst-state--<?php echo esc_attr( $dst_worst ); ?>"><?php echo esc_html( $dst_sum ); ?></span>
+		</summary>
+		<dl class="dst-health-list">
+			<?php foreach ( $dst_health as $dst_row ) : ?>
+			<div class="dst-health-row">
+				<dt><?php echo esc_html( $dst_row[0] ); ?></dt>
+				<dd><span class="dst-health-state dst-health-state--<?php echo esc_attr( $dst_row[1] ); ?>"><?php echo esc_html( $dst_words[ $dst_row[1] ] ?? '' ); ?></span><span class="dst-health-text"><?php echo esc_html( $dst_row[2] ); ?></span></dd>
+			</div>
+			<?php endforeach; ?>
+		</dl>
+	</details>
+	<?php endif; ?>
 
 	<?php ( new DS_Settings_Cards( $opts, $dst_extras ) )->render(); ?>
 

@@ -1007,3 +1007,103 @@ details.dst-group > summary.dst-group-head:focus-visible {
         white-space: nowrap;
     }
 }
+
+/* Status card (staff only): is the background work healthy? Rows are label, a state word, then one sentence. */
+details.dst-health {
+    margin: 0 0 14px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+}
+details.dst-health > summary.dst-health-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    border-radius: 8px;
+}
+details.dst-health > summary.dst-health-head::-webkit-details-marker { display: none; }
+details.dst-health > summary.dst-health-head:focus-visible {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+.dst-health-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #3c434a;
+}
+.dst-health-title .dashicons {
+    color: #8c9aaa;
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+.dst-health-title .dst-chip {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #f0f0f1;
+    color: #50575e;
+}
+.dst-health-sum {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.dst-health-list {
+    margin: 0;
+    padding: 0 16px 6px;
+    border-top: 1px solid #f0f0f1;
+}
+.dst-health-row {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 4px 16px;
+    padding: 9px 0;
+    border-bottom: 1px solid #f0f0f1;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.dst-health-row:last-child { border-bottom: 0; }
+.dst-health-row dt {
+    margin: 0;
+    font-weight: 600;
+    color: #1d2327;
+}
+.dst-health-row dd {
+    margin: 0;
+    color: #3c434a;
+    /* the state word in its own column, so a sentence that wraps stays lined up beside it */
+    display: grid;
+    grid-template-columns: 62px minmax(0, 1fr);
+    gap: 0 12px;
+    align-items: start;
+}
+.dst-health-text { overflow-wrap: anywhere; }
+.dst-health-state {
+    margin-top: 1px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    background: #f0f0f1;
+    color: #50575e;
+}
+.dst-health-state--ok   { background: #e7f5ea; color: #0a5a22; }
+.dst-health-state--warn { background: #fcf3e0; color: #7a4b00; }
+.dst-health-state--bad  { background: #fbeaea; color: #8a1f1f; }
+@media (max-width: 782px) {
+    .dst-health-row { grid-template-columns: minmax(0, 1fr); }
+}

@@ -743,6 +743,14 @@ class DS_Bot_Shield {
         return $backend;
     }
 
+    /**
+     * 'object-cache', 'apcu', or '' when the host has neither. Without one nothing is counted and no rate
+     * limit can run, which the settings page must say instead of showing an empty day (DS_Status).
+     */
+    public function backend_name() {
+        return (string) $this->resolve_backend();
+    }
+
     private function cache_key( $key ) {
         return 'ds_bs_' . $key;
     }
@@ -1151,6 +1159,11 @@ class DS_Bot_Shield {
         echo '<p><strong>' . ( $monitor
             ? 'Monitor mode — nothing is being blocked yet.'
             : 'Blocking mode — abusive traffic is being rejected.' ) . '</strong></p>';
+        if ( '' === $this->backend_name() ) {
+            // Zeros here would read as a quiet day. They are not: nothing can be counted on this host.
+            echo '<p><strong>Not counting:</strong> this host has no cache backend (no persistent object cache, no APCu), so rate limits cannot run. Only the crawler block list works.</p>';
+            return;
+        }
         echo '<p>Requests evaluated today: <strong>' . (int) $this->stat( 'seen' ) . '</strong></p>';
         echo '<p>' . ( $monitor ? 'Would have been blocked today:' : 'Blocked today:' ) . '</p><ul style="margin-left:1em;list-style:disc;">';
         foreach ( $rows as $key => $label ) {

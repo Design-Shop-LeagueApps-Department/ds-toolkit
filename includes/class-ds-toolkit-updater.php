@@ -370,13 +370,21 @@ class DS_Toolkit_Updater {
         } elseif ( ! is_array( $data ) || empty( $data['tag_name'] ) ) {
             $data = null;
         }
+        // Recorded only when GitHub was really asked (twice a day at most), so the Status card and HQ can tell a
+        // site whose update checks keep failing from one that is simply up to date.
         if ( null === $data ) {
             set_transient( $cache_key . '_fail', 1, 15 * MINUTE_IN_SECONDS );
+            if ( class_exists( 'DS_Status' ) ) {
+                DS_Status::note_update_check( false );
+            }
             return $this->memo[ $cache_key ] = false;
         }
 
         // Cache for 12 hours. "Check for Updates" clears this and fetches fresh immediately.
         set_transient( $cache_key, $data, 12 * HOUR_IN_SECONDS );
+        if ( class_exists( 'DS_Status' ) ) {
+            DS_Status::note_update_check( true, (string) $data['tag_name'] );
+        }
 
         return $this->memo[ $cache_key ] = $data;
     }

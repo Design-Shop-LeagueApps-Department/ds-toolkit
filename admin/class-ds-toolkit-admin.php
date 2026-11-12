@@ -304,7 +304,10 @@ class DS_Toolkit_Admin {
                     if ( $seen ) {
                         $line = $seen . ' requests evaluated' . ( $line ? ', ' . $line : ', nothing to block' );
                     }
-                    if ( $line ) {
+                    if ( '' === $shield->backend_name() ) {
+                        // Nothing can be counted here, so an empty day would read the same as a quiet one.
+                        $dst_status['bot_shield_enabled'] = '<strong class="dst-state dst-state--warn">Not counting:</strong> this host has no cache backend (no persistent object cache, no APCu), so rate limits cannot run. Only the crawler block list works.';
+                    } elseif ( $line ) {
                         $dst_status['bot_shield_enabled'] = '<strong>Today:</strong> ' . esc_html( $line );
                     }
                 }
@@ -333,6 +336,14 @@ class DS_Toolkit_Admin {
                 $dst_status['tripwire_hq_report'] = '<strong class="dst-state dst-state--' . $hq_class . '">' . esc_html( $hq[1] ) . '</strong>';
                 if ( $hq_on ) {
                     $dst_status['tripwire_hq_report'] .= ' <a class="button button-small" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ds_hq_link_reconnect' ), 'ds_hq_link_reconnect' ) ) . '">Reconnect</a>';
+                }
+
+                // The Status card: is the background work healthy? Staff only (this page already is; the check
+                // stays so the card never shows if the page is ever opened to partners).
+                $dst_health = array();
+                if ( $this->is_leagueapps_user() ) {
+                    $dst_health   = DS_Status::rows( $opts );
+                    $dst_health[] = array( 'Design Shop HQ', $hq_class, $hq[1] );
                 }
 
                 require_once DS_TOOLKIT_PATH . 'admin/class-ds-settings-cards.php';

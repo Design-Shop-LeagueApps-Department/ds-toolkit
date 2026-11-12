@@ -54,6 +54,7 @@ if ( ( defined( 'WP_CLI' ) && WP_CLI ) || is_admin() ) {
 }
 
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-features.php';
+require_once DS_TOOLKIT_PATH . 'includes/class-ds-status.php';
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-toolkit.php';
 
 register_activation_hook( __FILE__, array( 'DS_Toolkit', 'activate' ) );
