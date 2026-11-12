@@ -26,6 +26,7 @@ $mix = function( $color, $op ) use ( $col ) {
 };
 
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 // ---- Hover & animation (unified across every card layout) ----
 $he      = preg_replace( '/[^a-z]/', '', (string) ( $settings->hover_effect ?? 'lift' ) );
@@ -93,6 +94,7 @@ echo "@media (max-width:{$bpr}px){ $node .ds-news-feature { min-height: {$fhR}px
 
 $ch = $u( $settings->card_min_h ?? '', 195 );
 echo "$node .ds-news-card { min-height: {$ch}px; }\n";
+if ( '' !== ( $settings->card_min_h_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-news-card { min-height: " . (int) $settings->card_min_h_large . "px; } }\n"; }
 if ( '' !== ( $settings->card_min_h_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-news-card { min-height: " . (int) $settings->card_min_h_medium . "px; } }\n"; }
 if ( '' !== ( $settings->card_min_h_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-news-card { min-height: " . (int) $settings->card_min_h_responsive . "px; } }\n"; }
 
@@ -326,6 +328,7 @@ $lcolsM = $u( $settings->loop_cols_medium ?? '', min( $lcols, 2 ) );
 echo "@media (max-width:{$bpm}px){ $node .ds-news-loopgrid { grid-template-columns: repeat({$lcolsM},1fr); } }\n";
 $lcolsR = $u( $settings->loop_cols_responsive ?? '', 1 );
 echo "@media (max-width:{$bpr}px){ $node .ds-news-loopgrid { grid-template-columns: repeat({$lcolsR},1fr); } }\n";
+if ( '' !== ( $settings->card2_min_large ?? '' ) )     { echo "@media (max-width:{$bpl}px){ $node .ds-news-card2-img { height: " . (int) $settings->card2_min_large . "px; } }\n"; }
 if ( '' !== ( $settings->card2_min_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-news-card2-img { height: " . (int) $settings->card2_min_medium . "px; } }\n"; }
 if ( '' !== ( $settings->card2_min_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-news-card2-img { height: " . (int) $settings->card2_min_responsive . "px; } }\n"; }
 

@@ -76,14 +76,26 @@ foreach ( array( 'ds-heading' => 2, 'ds-hero' => 3, 'ds-carousel' => 1, 'ds-prog
 }
 
 echo "and the modules that write one line or one block per breakpoint\n";
-foreach ( array( 'ds-marquee' => array( 'height_large', 'img_h_large' ), 'ds-team-detail' => array( 'coach_gap_large', 'coach_icon_size_large' ), 'ds-pathway' => array( 'gap_large' ), 'ds-orgstats' => array( 'columns_large', 'item_pad_v_large', 'item_pad_h_large', 'card_min_height_large' ), 'ds-social' => array( 'icon_size_large', 'icon_gap_large', 'bg_padding_large', 'alignment_large' ) ) as $mod => $keys ) {
+foreach ( array( 'ds-marquee' => array( 'height_large', 'img_h_large' ), 'ds-team-detail' => array( 'coach_gap_large', 'coach_icon_size_large' ), 'ds-pathway' => array( 'gap_large' ), 'ds-orgstats' => array( 'columns_large', 'item_pad_v_large', 'item_pad_h_large', 'card_min_height_large' ), 'ds-social' => array( 'icon_size_large', 'icon_gap_large', 'bg_padding_large', 'alignment_large' ), 'ds-cta' => array( 'min_height_large', 'hero_min_height_large', 'social_icon_size_large', 'social_gap_large' ), 'ds-post-loop' => array( 'card_min_h_large', 'card2_min_large' ) ) as $mod => $keys ) {
 	$c    = file_get_contents( $root . 'modules/' . $mod . '/includes/frontend.css.php' );
 	$miss = array_values( array_filter( $keys, function ( $k ) use ( $c ) { return false === strpos( $c, $k ); } ) );
 	// Large must be PRINTED before Medium, or the narrower value would lose to it: compare where the two
 	// media rules are echoed (a module may read its Medium value earlier than it prints it).
-	$first_large  = min( array_filter( array( strpos( $c, '{$bpl}px' ), strpos( $c, '{$bp_lg}px' ) ), 'is_int' ) );
-	$first_medium = min( array_filter( array( strpos( $c, '{$bpm}px' ), strpos( $c, '{$bp_md}px' ) ), 'is_int' ) );
-	$order        = $first_large < $first_medium;
+	// A file can hold many settings, so the comparison is per setting: the line of the first setting's
+	// Large rule against the line of its Medium rule. Where the rule names a worked-out variable instead
+	// of the setting, the first Large rule in the file against the first Medium rule.
+	$lines = preg_split( '/\R/', $c );
+	$line  = function ( $needle ) use ( $lines ) {
+		foreach ( $lines as $i => $l ) { if ( false !== strpos( $l, 'max-width' ) && false !== strpos( $l, $needle ) ) { return $i; } }
+		return null;
+	};
+	$a = $line( $keys[0] );
+	$b = $line( str_replace( '_large', '_medium', $keys[0] ) );
+	if ( null === $a || null === $b ) {
+		$a = $line( '{$bpl}px' ) ?? $line( '{$bp_lg}px' );
+		$b = $line( '{$bpm}px' ) ?? $line( '{$bp_md}px' );
+	}
+	$order = null !== $a && null !== $b && $a < $b;
 	chk( $mod . ': reads ' . count( $keys ) . ' setting(s) under Large, before Medium', array( $miss, $order ), array( array(), true ) );
 }
 

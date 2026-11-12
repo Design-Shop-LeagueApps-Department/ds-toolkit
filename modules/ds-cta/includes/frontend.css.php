@@ -18,6 +18,7 @@ $mix = function( $color, $op ) use ( $col ) {
 
 $g   = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 // ---- Section background ----
 $sbg = $col( $settings->section_bg ?? '' );
@@ -142,6 +143,7 @@ if ( 'style3' === $style ) {
 	// ---- Style 2: bordered tiles ----
 	$mh  = $u( $settings->min_height ?? '', 430 );
 	echo "$node .ds-cta-tile { min-height: {$mh}px; }\n";
+	if ( '' !== ( $settings->min_height_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-cta-tile { min-height: " . (int) $settings->min_height_large . "px; } }\n"; }
 	if ( '' !== ( $settings->min_height_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-cta-tile { min-height: " . (int) $settings->min_height_medium . "px; } }\n"; }
 	if ( '' !== ( $settings->min_height_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-cta-tile { min-height: " . (int) $settings->min_height_responsive . "px; } }\n"; }
 
@@ -186,6 +188,7 @@ if ( 'style3' === $style ) {
 	// Min height (responsive). Scope to the section element itself.
 	$mh = $u( $settings->hero_min_height ?? '', 520 );
 	echo "$node.ds-cta--style4 { min-height: {$mh}px; }\n";
+	if ( '' !== ( $settings->hero_min_height_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node.ds-cta--style4 { min-height: " . (int) $settings->hero_min_height_large . "px; } }\n"; }
 	if ( '' !== ( $settings->hero_min_height_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node.ds-cta--style4 { min-height: " . (int) $settings->hero_min_height_medium . "px; } }\n"; }
 	if ( '' !== ( $settings->hero_min_height_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node.ds-cta--style4 { min-height: " . (int) $settings->hero_min_height_responsive . "px; } }\n"; }
 
@@ -272,7 +275,9 @@ if ( 'style3' === $style ) {
 	$sgap = $u( $settings->social_gap ?? '', 14 );
 	echo "$node .ds-cta-hero-social { gap: {$sgap}px; }\n";
 	echo "$node .ds-cta-hero-social-link svg { width: {$ssz}px; height: {$ssz}px; }\n";
+	if ( '' !== ( $settings->social_icon_size_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-cta-hero-social-link svg { width: " . (int) $settings->social_icon_size_large . "px; height: " . (int) $settings->social_icon_size_large . "px; } }\n"; }
 	if ( '' !== ( $settings->social_icon_size_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-cta-hero-social-link svg { width: " . (int) $settings->social_icon_size_medium . "px; height: " . (int) $settings->social_icon_size_medium . "px; } }\n"; }
+	if ( '' !== ( $settings->social_gap_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-cta-hero-social { gap: " . (int) $settings->social_gap_large . "px; } }\n"; }
 	if ( '' !== ( $settings->social_gap_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-cta-hero-social { gap: " . (int) $settings->social_gap_medium . "px; } }\n"; }
 	$sclr  = $col( $settings->social_color ?? '' );
 	$sclrh = $col( $settings->social_hover_color ?? '' );
