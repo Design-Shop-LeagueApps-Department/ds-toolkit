@@ -73,7 +73,23 @@ class DS_HQ_Link {
 
 	private static $booted = false;
 
-	/** Called from DS_Tripwire::init(). */
+	private $settings;
+
+	/**
+	 * Started by the feature loader under its own setting (tripwire_hq_report), whether or not Tripwire is on.
+	 * Until the 2026-11 audit only Tripwire started it, so switching Tripwire off also stopped the check-ins
+	 * (the site showed as Silent on HQ) and the toolkit updates HQ rolls out. Tripwire now only sends it events
+	 * (ds_tripwire_checked, ds_tripwire_alert); a check-in says whether Tripwire is on.
+	 */
+	public function __construct( $settings = array() ) {
+		$this->settings = is_array( $settings ) ? $settings : array();
+	}
+
+	public function init() {
+		self::boot( $this->settings );
+	}
+
+	/** Hooks and timers. Safe to call twice. */
 	public static function boot( $settings ) {
 		if ( self::$booted || ( isset( $settings['tripwire_hq_report'] ) && ! $settings['tripwire_hq_report'] ) ) {
 			return;

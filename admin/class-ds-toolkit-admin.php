@@ -321,16 +321,17 @@ class DS_Toolkit_Admin {
                 // Report to Design Shop HQ: how HQ sees this site (asked at most every 5 minutes), and Reconnect.
                 $tw_on = ! isset( $opts['tripwire_enabled'] ) || ! empty( $opts['tripwire_enabled'] );
                 $hq_on = ! isset( $opts['tripwire_hq_report'] ) || ! empty( $opts['tripwire_hq_report'] );
-                $hq    = array( 'warn', 'Tripwire is off, so nothing is reported.' );
-                if ( $tw_on && $hq_on ) {
+                $hq    = array( 'warn', 'Reporting to Design Shop HQ is off.' . ( $tw_on ? ' Alerts still go by email.' : '' ) );
+                if ( $hq_on ) {
                     require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-link.php';
                     $hq = DS_HQ_Link::status_line();
-                } elseif ( $tw_on ) {
-                    $hq = array( 'warn', 'Reporting to Design Shop HQ is off. Alerts still go by email.' );
+                    if ( ! $tw_on ) {
+                        $hq[1] .= ' Tripwire is off, so only check-ins are sent.';
+                    }
                 }
                 $hq_class = in_array( $hq[0], array( 'ok', 'warn', 'bad' ), true ) ? $hq[0] : 'warn';
                 $dst_status['tripwire_hq_report'] = '<strong class="dst-state dst-state--' . $hq_class . '">' . esc_html( $hq[1] ) . '</strong>';
-                if ( $tw_on && $hq_on ) {
+                if ( $hq_on ) {
                     $dst_status['tripwire_hq_report'] .= ' <a class="button button-small" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ds_hq_link_reconnect' ), 'ds_hq_link_reconnect' ) ) . '">Reconnect</a>';
                 }
 

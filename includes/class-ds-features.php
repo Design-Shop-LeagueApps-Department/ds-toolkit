@@ -96,7 +96,7 @@ class DS_Features {
 
 	/**
 	 * The schema. ORDER MATTERS: it is the order features are loaded in (it was the order of the old registry).
-	 * Settings-only entries (no 'file') go at the end.
+	 * Settings-only entries (no 'file') and the HQ link go at the end.
 	 */
 	public static function all() {
 		if ( null !== self::$all ) {
@@ -357,7 +357,7 @@ class DS_Features {
 			'tripwire_enabled' => self::feature( 'tripwire', 'DS_Tripwire', array(
 				'default' => 1, 'label' => 'Tripwire', 'icon' => 'warning', 'scope' => 'fleet',
 				'summary' => 'Checks the site every day for signs of compromise and emails the team when something changes or a new administrator appears.',
-				'more'    => '<p>Looks at must-use plugins, executable files in the web root, known malware markers, the toolkit\'s own files and the administrator list, and scans plugin and theme code by behaviour every hour. Switching it off also stops the site reporting to Design Shop HQ.</p>',
+				'more'    => '<p>Looks at must-use plugins, executable files in the web root, known malware markers, the toolkit\'s own files and the administrator list, and scans plugin and theme code by behaviour every hour. With it off the site still checks in with Design Shop HQ (see Report to Design Shop HQ), which then shows Tripwire as off.</p>',
 				'fields'  => array( 'tripwire_alert_email' => array( 'type' => 'email', 'default' => 'design@leagueapps.com', 'label' => 'Alert email', 'help' => 'Where alerts are sent.', 'advanced' => true ) ),
 			) ),
 
@@ -379,12 +379,14 @@ class DS_Features {
 
 			// ---- settings without a feature class of their own ----
 
-			// Copies alerts and a daily check-in to Design Shop HQ (features/class-ds-hq-link.php, started by Tripwire).
-			'tripwire_hq_report' => array(
+			// The link to Design Shop HQ: a check-in on HQ's interval, a copy of every Tripwire alert, and the toolkit
+			// updates HQ rolls out. Its own feature since the 2026-11 audit (Tripwire used to start it, so a site with
+			// Tripwire off went Silent on HQ and stopped taking updates). Loaded after Tripwire, as before.
+			'tripwire_hq_report' => self::feature( 'hq-link', 'DS_HQ_Link', array(
 				'default' => 1, 'label' => 'Report to Design Shop HQ', 'icon' => 'cloud-upload', 'scope' => 'fleet',
-				'summary' => 'Sends every Tripwire alert and a daily check-in to the Design Shop HQ dashboard, so the team sees the whole fleet in one place.',
-				'more'    => '<p>The check-in carries the toolkit version, the last scan and the current findings; a site that stops reporting shows as Silent on HQ. The email alert is unchanged. This site signs everything with its own key, which is kept on this site and never shown.</p>',
-			),
+				'summary' => 'Sends a regular check-in and every Tripwire alert to the Design Shop HQ dashboard, so the team sees the whole fleet in one place.',
+				'more'    => '<p>The check-in carries the toolkit version, the last scan and the current findings; a site that stops reporting shows as Silent on HQ. It keeps working with Tripwire switched off (HQ then shows Tripwire as off), and it is how HQ rolls a signed toolkit update out to this site. The email alert is unchanged. This site signs everything with its own key, which is kept on this site and never shown.</p>',
+			) ),
 
 			// An mu-plugin the toolkit installs and maintains (includes/class-ds-origin-guard-installer.php): it refuses the
 			// flood's exact request shapes BEFORE plugins load, the layer Bot Shield cannot reach. The rules only refuse

@@ -1,5 +1,5 @@
 {
- "_note": "What ds-toolkit 1.17.4 shipped: the feature registry (in load order), the module list (in display order) and the defaults per blueprint generation. tests/features-schema-test.php compares DS_Features with this. Change it only together with a deliberate change to a feature, a module or a default.",
+ "_note": "The feature registry (in load order), the module list (in display order) and the defaults per blueprint generation, as ds-toolkit 1.17.4 shipped them, plus the deliberate changes listed in _changes. tests/features-schema-test.php compares DS_Features with this. Change it only together with a deliberate change to a feature, a module or a default.",
  "features": {
   "enable_login_branding": {
    "file": "features/class-ds-login-branding.php",
@@ -236,6 +236,10 @@
   "school_emblems_enabled": {
    "file": "features/class-ds-school-emblems.php",
    "class": "DS_School_Emblems"
+  },
+  "tripwire_hq_report": {
+   "file": "features/class-ds-hq-link.php",
+   "class": "DS_HQ_Link"
   }
  },
  "modules": [
@@ -579,5 +583,8 @@
    "ds_admin_bar_links_enabled": 1,
    "ds_table_module_enabled": 1
   }
- }
+ },
+ "_changes": [
+  "audit 2026-11 item 25: tripwire_hq_report became a feature of its own (features/class-ds-hq-link.php, DS_HQ_Link), loaded last. Its default (1) is unchanged."
+ ]
 }

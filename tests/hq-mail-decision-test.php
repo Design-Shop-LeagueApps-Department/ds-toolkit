@@ -74,6 +74,9 @@ $GLOBALS['hq_sk'] = sodium_crypto_sign_secretkey( $hqkp );
 require dirname( __DIR__ ) . '/features/class-ds-tripwire.php';
 $tw = new DS_Tripwire( array( 'tripwire_alert_email' => 'design@example.com' ) );
 $tw->init();
+// HQ Link is its own feature since the 2026-11 audit: the loader starts it after Tripwire, as here.
+require dirname( __DIR__ ) . '/features/class-ds-hq-link.php';
+( new DS_HQ_Link( array( 'tripwire_hq_report' => 1 ) ) )->init();
 $alert = new ReflectionMethod( 'DS_Tripwire', 'alert' );
 $alert->setAccessible( true );
 

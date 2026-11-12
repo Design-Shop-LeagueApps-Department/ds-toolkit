@@ -206,9 +206,8 @@ class DS_Tripwire {
         // /usr/sbin/sendmail at all; Flywheel's is a setuid shim whose config is unreadable
         // outside a web request), so a CLI test reports a false negative on every site.
         add_action( self::MAILCHECK_HOOK, array( $this, 'run_mailcheck' ) );
-        // Copy every alert and a daily check-in to Design Shop HQ (features/class-ds-hq-link.php).
-        require_once __DIR__ . '/class-ds-hq-link.php';
-        DS_HQ_Link::boot( $this->settings );
+        // Alerts and the daily result reach Design Shop HQ through the ds_tripwire_alert and ds_tripwire_checked
+        // actions: HQ Link (features/class-ds-hq-link.php) is its own feature and listens for them.
 
         // Instant alert when an administrator appears. Registration and role
         // grants only ever happen in admin/AJAX/CLI flows, so these hooks are
