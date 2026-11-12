@@ -103,6 +103,10 @@ class DS_Toolkit_Admin {
         if ( ! is_array( $new ) ) {
             return $existing;
         }
+        // Every setting the schema knows is cleaned by its type and range (a number box holding a word, a broken
+        // email, a mode that does not exist keep the saved value). Until the 2026-11 audit only the LeagueApps
+        // site rows below were cleaned and everything else was saved as posted.
+        $new = DS_Features::sanitize( $new, $existing );
         if ( array_key_exists( 'leagueapps_sites', $new ) ) {
             // Site rows from the LeagueApps tab: digits for the id, the public
             // widget key as-is minus anything that is not a key character, a
