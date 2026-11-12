@@ -67,7 +67,8 @@ function get_template_directory() { return WP_CONTENT_DIR . '/themes/parent'; }
 function get_stylesheet() { return 'child'; }
 function get_template() { return 'parent'; }
 // scan_root() reads published page slugs to tell a real page from a doorway directory.
-class TW_FakeDB { public $prefix = 'wp_'; public $posts = 'wp_posts'; public function get_col() { return array(); } public function prepare( $q ) { return $q; } }
+// query() / get_var(): the run lock (DS_Lock) is one INSERT IGNORE and one DELETE; here it is always free.
+class TW_FakeDB { public $prefix = 'wp_'; public $posts = 'wp_posts'; public $options = 'wp_options'; public function get_col() { return array(); } public function prepare( $q ) { return $q; } public function query( $q ) { return 1; } public function get_var( $q ) { return null; } }
 $GLOBALS['wpdb'] = new TW_FakeDB();
 
 require DS_TOOLKIT_PATH . 'features/class-ds-tripwire.php';

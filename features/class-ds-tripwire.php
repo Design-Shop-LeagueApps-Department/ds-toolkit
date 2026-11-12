@@ -65,6 +65,19 @@ class DS_Tripwire {
 
     const CRON_HOOK = 'ds_tripwire_daily';
     const STATE_OPT = 'ds_tripwire_state';
+    /**
+     * One Tripwire run at a time (the daily checks and the hourly content scan both rewrite STATE_OPT; before the
+     * 2026-11 audit neither took a lock, so two overlapping runs, or a run and the check that landed in the middle
+     * of it, could each save an older copy over the other's result). A run that died frees the lock after LOCK_TTL.
+     */
+    const LOCK_OPT  = 'ds_tripwire_lock';
+    const LOCK_TTL  = 180;
+    /**
+     * The whole hourly run (file walk, list fetches, scan, integrity check, save) must end inside this many seconds,
+     * and inside the host's own time limit. CONTENT_BUDGET_S only ever covered the scan loop, so slow pre-work could
+     * push a run past the limit: the request was killed, nothing was saved, and the run counted as "incomplete".
+     */
+    const RUN_CEILING_S = 25;
 
     /**
      * Hard blocklist: mu-plugins basenames that are malware camouflage in this
@@ -304,11 +317,62 @@ class DS_Tripwire {
         return false;
     }
 
-    public function run_checks() {
-        $state  = get_option( self::STATE_OPT, array() );
-        if ( ! is_array( $state ) ) {
-            $state = array();
+    private static function lock() {
+        require_once __DIR__ . '/../includes/class-ds-lock.php';
+        return DS_Lock::acquire( self::LOCK_OPT, self::LOCK_TTL );
+    }
+
+    private static function unlock() {
+        if ( class_exists( 'DS_Lock' ) ) {
+            DS_Lock::release( self::LOCK_OPT );
         }
+    }
+
+    /** The saved state as the DATABASE has it now (not a cached copy another container may have outdated). */
+    private static function fresh_state() {
+        require_once __DIR__ . '/../includes/class-ds-lock.php';
+        $state = DS_Lock::fresh_option( self::STATE_OPT, array() );
+        return is_array( $state ) ? $state : array();
+    }
+
+    /**
+     * Save the hourly scan's own part of the state ('content') and nothing else: the rest is re-read at the moment
+     * of saving, so a daily check or a new-administrator note written while the scan ran is never overwritten.
+     */
+    private static function save_content( array $content ) {
+        $state            = self::fresh_state();
+        $state['content'] = $content;
+        update_option( self::STATE_OPT, $state, false );
+    }
+
+    /** Seconds this request may still spend, by RUN_CEILING_S and by the host's limit (5 s kept in hand). */
+    private static function run_ceiling() {
+        $ceiling = self::RUN_CEILING_S;
+        $limit   = (int) ini_get( 'max_execution_time' );
+        if ( $limit > 0 ) {
+            $used    = isset( $_SERVER['REQUEST_TIME_FLOAT'] ) ? max( 0, microtime( true ) - (float) $_SERVER['REQUEST_TIME_FLOAT'] ) : 0;
+            $ceiling = min( $ceiling, (int) floor( $limit - $used - 5 ) );
+        }
+        return max( 6, $ceiling );
+    }
+
+    public function run_checks() {
+        // The hourly scan is running: come back in five minutes instead of saving over it (or being saved over).
+        if ( ! self::lock() ) {
+            if ( function_exists( 'wp_schedule_single_event' ) ) {
+                wp_schedule_single_event( time() + 5 * MINUTE_IN_SECONDS, self::CRON_HOOK );
+            }
+            return array();
+        }
+        try {
+            return $this->run_checks_locked();
+        } finally {
+            self::unlock();
+        }
+    }
+
+    private function run_checks_locked() {
+        $state  = self::fresh_state();
         $seeded = ! empty( $state['seeded'] );
 
         // Every finding is [ tier, text ]. CRITICAL = a shell or re-infection
@@ -338,6 +402,15 @@ class DS_Tripwire {
         $state['seeded']        = 1;
         $state['last_run']      = time();
         $state['last_findings'] = array_map( function ( $p ) { return $p[0] . ': ' . $p[1]; }, $f );
+        // The checks above took a while. Two parts of the state belong to other writers and may have changed since
+        // it was read: the hourly scan's results, and the note of who added which administrator (written the moment
+        // it happens). Take both as the database has them now.
+        $now_saved = self::fresh_state();
+        foreach ( array( 'content', 'admin_log' ) as $theirs ) {
+            if ( array_key_exists( $theirs, $now_saved ) ) {
+                $state[ $theirs ] = $now_saved[ $theirs ];
+            }
+        }
         update_option( self::STATE_OPT, $state, false );
 
         /* Pre-launch: the build-shaped findings are RECORDED but not mailed. Demoting to REVIEW is
@@ -1343,10 +1416,7 @@ class DS_Tripwire {
      * The label format must match check_admins() exactly or the diff misses.
      */
     private function remember_admin( $user, $actor ) {
-        $state = get_option( self::STATE_OPT, array() );
-        if ( ! is_array( $state ) ) {
-            $state = array();
-        }
+        $state = self::fresh_state();
 
         $baseline                          = isset( $state['admin_baseline'] ) ? (array) $state['admin_baseline'] : array();
         $baseline[ (int) $user->ID ]       = $user->user_login . ' <' . $user->user_email . '>';
@@ -1392,9 +1462,21 @@ class DS_Tripwire {
         if ( isset( $this->settings['tripwire_content_enabled'] ) && ! $this->settings['tripwire_content_enabled'] ) { return array(); }
         if ( ! apply_filters( 'ds_tripwire_content_enabled', true ) ) { return array(); }
 
-        $budget = $budget ? (int) $budget : self::CONTENT_BUDGET_S;
-        $state  = get_option( self::STATE_OPT, array() );
-        if ( ! is_array( $state ) ) { $state = array(); }
+        // One run at a time. A run already in flight (a second cron runner, a manual run, the daily checks) will do
+        // the work; this one leaves without touching the state.
+        if ( ! self::lock() ) { return array(); }
+        try {
+            return $this->run_content_scan_locked( $budget );
+        } finally {
+            self::unlock();
+        }
+    }
+
+    private function run_content_scan_locked( $budget ) {
+        $started = microtime( true );
+        $ceiling = self::run_ceiling();
+        $budget  = $budget ? (int) $budget : self::CONTENT_BUDGET_S;
+        $state   = self::fresh_state();
         $c = ( isset( $state['content'] ) && is_array( $state['content'] ) ) ? $state['content'] : array();
         $c['last_run'] = time();
         $c['error']    = '';
@@ -1402,22 +1484,19 @@ class DS_Tripwire {
         $engine = DS_TOOLKIT_PATH . 'includes/ds-scan-engine.php';
         if ( PHP_VERSION_ID < 70400 || ! function_exists( 'token_get_all' ) || ! is_readable( $engine ) ) {
             $c['error'] = 'engine unavailable: php ' . PHP_VERSION . ', tokenizer ' . ( function_exists( 'token_get_all' ) ? 'present' : 'missing' ) . ', file ' . ( is_readable( $engine ) ? 'present' : 'missing' );
-            $state['content'] = $c;
-            update_option( self::STATE_OPT, $state, false );
+            self::save_content( $c );
             return array();
         }
         try {
             require_once $engine;
         } catch ( \Throwable $e ) {
             $c['error'] = 'engine failed to load: ' . get_class( $e ) . ': ' . substr( $e->getMessage(), 0, 120 );
-            $state['content'] = $c;
-            update_option( self::STATE_OPT, $state, false );
+            self::save_content( $c );
             return array();
         }
         if ( ! function_exists( 'dsscan_scan_list' ) || ! defined( 'DSSCAN_HIGH_SCORE' ) ) {
             $c['error'] = 'engine loaded but its API is missing';
-            $state['content'] = $c;
-            update_option( self::STATE_OPT, $state, false );
+            self::save_content( $c );
             return array();
         }
         $c['engine'] = defined( 'DSSCAN_VERSION' ) ? DSSCAN_VERSION : '?';
@@ -1428,8 +1507,7 @@ class DS_Tripwire {
         if ( $poison ) { $inc++; }
         $c['incomplete']  = $inc;
         $c['in_progress'] = 1;
-        $state['content'] = $c;
-        update_option( self::STATE_OPT, $state, false );
+        self::save_content( $c );
 
         list( $recent, $rest ) = self::content_candidates( self::web_root() );
         $cursor = isset( $c['cursor'] ) ? (int) $c['cursor'] : 0;
@@ -1453,10 +1531,15 @@ class DS_Tripwire {
         try { $known = self::known_good_md5(); } catch ( \Throwable $e ) { $known = array(); }
         try { $bad   = self::known_bad_md5();  } catch ( \Throwable $e ) { $bad   = self::KNOWN_BAD_MD5; }
         try { $own   = self::own_marker_md5(); } catch ( \Throwable $e ) { $own   = array(); }
+        // The scan gets its full budget unless the walk and the list fetches above already used so much of the
+        // run's ceiling that it would not finish in time; 3 s are kept for the integrity check and the save, and
+        // the scan always gets at least 3 s so the cursor moves on every run.
+        $spent    = microtime( true ) - $started;
+        $scan_for = (int) max( 3, min( $budget, floor( $ceiling - $spent - 3 ) ) );
         $opts    = array(
             'min'          => DSSCAN_HIGH_SCORE,
             'tokenize_cap' => $tokcap,
-            'deadline'     => time() + $budget,
+            'deadline'     => time() + $scan_for,
             'self_paths'   => $self,
         );
         try {
@@ -1496,8 +1579,14 @@ class DS_Tripwire {
             $stopped     = (int) $stats['stopped_at'];
             $c['cursor'] = ( $stopped > $n_recent ) ? $cursor + ( $stopped - $n_recent ) : $cursor;
         }
+        // The scan loop is over: save where it got to NOW. It used to be saved only at the very end, so a request
+        // killed during the integrity check or the mail lost the whole run's progress and scanned the same files
+        // again. "in_progress" stays set until the end: it is what marks a run that never finished.
+        self::save_content( $c );
 
-        $integrity = self::check_toolkit_integrity();
+        $t_integrity = microtime( true );
+        $integrity   = self::check_toolkit_integrity();
+        $t_integrity = microtime( true ) - $t_integrity;
 
         // record everything at HIGH and above; email CRITICAL only, once per file per day
         $alerted = isset( $c['alerted'] ) ? (array) $c['alerted'] : array();
@@ -1559,11 +1648,18 @@ class DS_Tripwire {
             'recent'  => $n_recent,
             'total'   => $n_recent + count( $rest ),
             'budget'  => $budget,
+            // What the run really cost, so "is the hourly scan too heavy for this host?" can be read, not guessed:
+            // seconds before the scan started (file walk + list fetches), the scan's own allowance this run, the
+            // integrity check, and the whole run against its ceiling.
+            'prep_s'      => round( $spent, 2 ),
+            'scan_for'    => $scan_for,
+            'integrity_s' => round( $t_integrity, 2 ),
+            'run_s'       => round( microtime( true ) - $started, 2 ),
+            'ceiling'     => $ceiling,
         );
         $c['in_progress'] = 0;
         $c['incomplete']  = ( '' === $c['error'] ) ? 0 : $inc + 1;
-        $state['content'] = $c;
-        update_option( self::STATE_OPT, $state, false );
+        self::save_content( $c );
 
         if ( $mail ) {
             $this->alert( 'CRITICAL', array_map( function ( $l ) { return '[CRITICAL] ' . $l; }, $mail ), $files, $repeat );

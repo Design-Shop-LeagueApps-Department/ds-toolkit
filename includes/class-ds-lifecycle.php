@@ -38,7 +38,7 @@ class DS_Toolkit_Lifecycle {
 	const OPTIONS = array(
 		'ds_toolkit_settings', 'ds_toolkit_assets_version', 'ds_toolkit_assets_print',
 		'ds_hq_link', 'ds_hq_link_lock', 'ds_hq_update', 'ds_hq_update_lock',
-		'ds_tripwire_state', 'ds_tripwire_last_notify', 'ds_tripwire_last_skip', 'ds_tripwire_prelaunch_quiet',
+		'ds_tripwire_state', 'ds_tripwire_lock', 'ds_tripwire_last_notify', 'ds_tripwire_last_skip', 'ds_tripwire_prelaunch_quiet',
 		'ds_mailcheck_result', 'ds_mailcheck_to', 'ds_mailcheck_token',
 		'ds_bot_shield_events', 'ds_bot_shield_iplog', 'ds_bot_shield_totals',
 		'ds_origin_guard_state', 'ds_partner_role_state',
