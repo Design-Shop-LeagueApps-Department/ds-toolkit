@@ -21,6 +21,9 @@ require_once __DIR__ . '/class-ds-env.php';
  *       'file' / 'class'   the feature class the loader starts when the key is on. Left out for a setting that
  *                          switches part of another feature (tripwire_hq_report, origin_guard_enabled, mcp_*).
  *       'min_blueprint'    the feature never loads below this generation (modules are exempt: opt-in anywhere).
+ *       'admin_only'       true = every hook of the feature is a wp-admin one (admin_menu, the dashboard, an
+ *                          admin-ajax action), so the loader skips it outside wp-admin. Never set it for a
+ *                          feature that also acts on the front end, in REST, in cron or in WP-CLI.
  *       'default'          the saved value on a new install. Left out = no default (the key is absent until
  *                          someone switches it on). 'default_bp' = the default applies from that generation only.
  *       'label', 'summary' the card: a name and ONE sentence. 'more' = the detail, shown behind "More".
@@ -255,6 +258,7 @@ class DS_Features {
 			) ),
 
 			'admin_menu_tidy_enabled' => self::feature( 'admin-menu', 'DS_Admin_Menu', array(
+				'admin_only' => true,
 				'min_blueprint' => 6, 'default' => 1, 'default_bp' => 6, 'label' => 'Admin Menu Tidy', 'icon' => 'menu', 'scope' => 'lp6',
 				'summary' => 'Declutters the admin menu: moves Defender, Yoast and Media Library Organizer under Tools, and hides ACF and Beaver Builder from non-LeagueApps users.',
 				'more'    => '<p>Appearance stays visible to everyone so partners can manage menus. Capabilities are untouched: it only relocates or hides what a user can already open.</p>',
@@ -293,6 +297,7 @@ class DS_Features {
 			) ),
 
 			'ds_pattern_library_enabled' => self::feature( 'pattern-library', 'DS_Pattern_Library', array(
+				'admin_only' => true,
 				'min_blueprint' => 6, 'default' => 1, 'default_bp' => 6, 'label' => 'Pattern Library', 'icon' => 'screenoptions', 'scope' => 'lp6',
 				'summary' => 'Adds "Browse patterns" beside every background image button in Theme Setting: 330 tileable SVG patterns in the site\'s palette.',
 				'more'    => '<p>Patterns are from pattern.monster (MIT), with colour, opacity, size and line weight. A pick is saved as a small file in <code>uploads/ds-patterns/</code>, never the Media Library, and goes in the same field an uploaded image does, so turning this off leaves every chosen pattern in place.</p>',
@@ -374,6 +379,7 @@ class DS_Features {
 			) ),
 
 			'design_academy_enabled' => self::feature( 'design-academy', 'DS_Design_Academy', array(
+				'admin_only' => true,
 				'default' => 1, 'label' => 'Design Academy Dashboard', 'icon' => 'welcome-learn-more', 'scope' => 'fleet',
 				'summary' => 'A Design Academy panel at the top of the WordPress dashboard: a pinned getting-started course and the five newest tutorials.',
 				'more'    => '<p>Tutorials come from <a href="https://designacademy.leagueapps.com/" target="_blank" rel="noopener">designacademy.leagueapps.com</a>, cached for 6 hours; if the academy cannot be reached the last good list is shown.</p>',
@@ -433,6 +439,9 @@ class DS_Features {
 			$out[ $key ] = array( 'file' => $def['file'], 'class' => $def['class'] );
 			if ( ! empty( $def['block'] ) ) {
 				$out[ $key ]['block'] = (string) $def['block']; // DS_Module_Loader is told which block to register
+			}
+			if ( ! empty( $def['admin_only'] ) ) {
+				$out[ $key ]['admin_only'] = true; // hooks into wp-admin screens only: not loaded for a front-end view
 			}
 			if ( ! empty( $def['min_blueprint'] ) ) {
 				$out[ $key ]['min_blueprint'] = (int) $def['min_blueprint'];

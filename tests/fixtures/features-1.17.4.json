@@ -85,6 +85,7 @@
   "admin_menu_tidy_enabled": {
    "file": "features/class-ds-admin-menu.php",
    "class": "DS_Admin_Menu",
+   "admin_only": true,
    "min_blueprint": 6
   },
   "ds_menu_module_enabled": {
@@ -176,6 +177,7 @@
   "ds_pattern_library_enabled": {
    "file": "features/class-ds-pattern-library.php",
    "class": "DS_Pattern_Library",
+   "admin_only": true,
    "min_blueprint": 6
   },
   "ds_content_router_module_enabled": {
@@ -245,7 +247,8 @@
   },
   "design_academy_enabled": {
    "file": "features/class-ds-design-academy.php",
-   "class": "DS_Design_Academy"
+   "class": "DS_Design_Academy",
+   "admin_only": true
   },
   "school_emblems_enabled": {
    "file": "features/class-ds-school-emblems.php",
@@ -600,6 +603,7 @@
  },
  "_changes": [
   "audit 2026-11 item 25: tripwire_hq_report became a feature of its own (features/class-ds-hq-link.php, DS_HQ_Link), loaded last. Its default (1) is unchanged.",
-  "audit 2026-11 item 32: the 14 blocks whose feature class only registered the block (carousel, cta, device, divider, heading, info-list, marquee, menu, orgstats, pathway, post-loop, social, table, team-detail) load through includes/class-ds-module-loader.php (DS_Module_Loader) with a \"block\" folder name. Same keys, same order, same defaults; min_blueprint unchanged."
+  "audit 2026-11 item 32: the 14 blocks whose feature class only registered the block (carousel, cta, device, divider, heading, info-list, marquee, menu, orgstats, pathway, post-loop, social, table, team-detail) load through includes/class-ds-module-loader.php (DS_Module_Loader) with a \"block\" folder name. Same keys, same order, same defaults; min_blueprint unchanged.",
+  "audit 2026-11 item 32: admin_menu_tidy_enabled, ds_pattern_library_enabled and design_academy_enabled carry admin_only (every hook they add is a wp-admin one), so the loader skips them outside wp-admin. Keys, order and defaults unchanged."
  ]
 }

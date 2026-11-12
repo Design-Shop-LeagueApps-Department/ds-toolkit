@@ -43,5 +43,22 @@ chk( 'a slug can never be a path', $p->getValue( $l ), 'wp-config' );
 $run = file_get_contents( $root . 'includes/class-ds-toolkit.php' );
 chk( 'the start loop hands the loader its block name', false !== strpos( $run, 'isset( $feature[\'block\'] ) ? new $feature[\'class\']( $feature[\'block\'] ) : new $feature[\'class\']( $settings )' ), true );
 
+echo "features that only act in wp-admin\n";
+$admin_only = array_keys( array_filter( $reg, function ( $f ) { return ! empty( $f['admin_only'] ); } ) );
+chk( 'three features are marked', $admin_only, array( 'admin_menu_tidy_enabled', 'ds_pattern_library_enabled', 'design_academy_enabled' ) );
+$leaks = array();
+foreach ( $admin_only as $key ) {
+	$src = file_get_contents( $root . $reg[ $key ]['file'] );
+	// Every hook the feature adds must be a wp-admin one, and it must not register a shortcode, a REST route,
+	// a cron job or a WP-CLI command: any of those would silently stop working outside wp-admin.
+	preg_match_all( "/add_(?:action|filter)\(\s*([^,]+),/", $src, $m );
+	foreach ( $m[1] as $h ) {
+		if ( ! preg_match( "/^'(admin_menu|admin_init|admin_enqueue_scripts|admin_notices|wp_dashboard_setup)'$|^'wp_ajax_' \. self::[A-Z_]+$/", trim( $h ) ) ) { $leaks[] = "$key hooks " . trim( $h ); }
+	}
+	if ( preg_match( '/add_shortcode|register_rest_route|wp_schedule_|WP_CLI::add_command|wp_ajax_nopriv/', $src ) ) { $leaks[] = "$key registers something that runs outside wp-admin"; }
+}
+chk( 'each of them hooks into wp-admin only', $leaks, array() );
+chk( 'the start loop skips them outside wp-admin', false !== strpos( $run, 'if ( ! empty( $feature[\'admin_only\'] ) && ! is_admin() ) {' ), true );
+
 echo "\n" . ( $fails ? "$fails FAILED" : "all passed" ) . "\n";
 exit( $fails ? 1 : 0 );

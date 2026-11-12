@@ -337,6 +337,9 @@ class DS_Toolkit {
             if ( ! empty( $feature['min_blueprint'] ) && ! $is_module && $blueprint < (int) $feature['min_blueprint'] ) {
                 continue;
             }
+            if ( ! empty( $feature['admin_only'] ) && ! is_admin() ) {
+                continue; // a wp-admin-only feature: nothing for it to do in a front-end, REST or cron request
+            }
             if ( ! empty( $settings[ $key ] ) ) {
                 require_once DS_TOOLKIT_PATH . $feature['file'];
                 // A block with nothing to do but register itself goes through the shared loader, which
