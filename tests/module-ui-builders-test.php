@@ -79,8 +79,11 @@ echo "and the modules that write one line or one block per breakpoint\n";
 foreach ( array( 'ds-marquee' => array( 'height_large', 'img_h_large' ), 'ds-team-detail' => array( 'coach_gap_large', 'coach_icon_size_large' ), 'ds-pathway' => array( 'gap_large' ), 'ds-orgstats' => array( 'columns_large', 'item_pad_v_large', 'item_pad_h_large', 'card_min_height_large' ), 'ds-social' => array( 'icon_size_large', 'icon_gap_large', 'bg_padding_large', 'alignment_large' ) ) as $mod => $keys ) {
 	$c    = file_get_contents( $root . 'modules/' . $mod . '/includes/frontend.css.php' );
 	$miss = array_values( array_filter( $keys, function ( $k ) use ( $c ) { return false === strpos( $c, $k ); } ) );
-	// Large must be printed before Medium, or the narrower value would lose to it.
-	$order = strpos( $c, $keys[0] ) < strpos( $c, str_replace( '_large', '_medium', $keys[0] ) );
+	// Large must be PRINTED before Medium, or the narrower value would lose to it: compare where the two
+	// media rules are echoed (a module may read its Medium value earlier than it prints it).
+	$first_large  = min( array_filter( array( strpos( $c, '{$bpl}px' ), strpos( $c, '{$bp_lg}px' ) ), 'is_int' ) );
+	$first_medium = min( array_filter( array( strpos( $c, '{$bpm}px' ), strpos( $c, '{$bp_md}px' ) ), 'is_int' ) );
+	$order        = $first_large < $first_medium;
 	chk( $mod . ': reads ' . count( $keys ) . ' setting(s) under Large, before Medium', array( $miss, $order ), array( array(), true ) );
 }
 
