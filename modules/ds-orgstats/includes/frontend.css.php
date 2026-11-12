@@ -22,6 +22,7 @@ $mix = function( $c, $op ) {
 
 $g   = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 $acc = 'var(--fl-global-accent)'; // brand-aware fallback for accent-ish fields
 
 /* ---- Section background ---- */
@@ -63,6 +64,11 @@ $cols  = max( 1, $u( $settings->columns ?? '', 4 ) );
 $colsM = max( 1, $u( $settings->columns_medium ?? '', min( $cols, 2 ) ) );
 $colsR = max( 1, $u( $settings->columns_responsive ?? '', min( $cols, 2 ) ) );
 echo "$node .ds-orgstats-grid { grid-template-columns: repeat({$cols},1fr); }\n";
+// Large: only when the editor typed a value there (Medium and Responsive always print, with their defaults).
+if ( '' !== ( $settings->columns_large ?? '' ) ) {
+	$colsL = max( 1, $u( $settings->columns_large, $cols ) );
+	echo "@media (max-width:{$bpl}px){ $node .ds-orgstats-grid { grid-template-columns: repeat({$colsL},1fr); } }\n";
+}
 echo "@media (max-width:{$bpm}px){ $node .ds-orgstats-grid { grid-template-columns: repeat({$colsM},1fr); } }\n";
 echo "@media (max-width:{$bpr}px){ $node .ds-orgstats-grid { grid-template-columns: repeat({$colsR},1fr); } }\n";
 
@@ -70,6 +76,11 @@ echo "@media (max-width:{$bpr}px){ $node .ds-orgstats-grid { grid-template-colum
 $pv = $u( $settings->item_pad_v ?? '', 40 );
 $ph = $u( $settings->item_pad_h ?? '', 14 );
 echo "$node .ds-orgstats-item { padding: {$pv}px {$ph}px; }\n";
+if ( '' !== ( $settings->item_pad_v_large ?? '' ) || '' !== ( $settings->item_pad_h_large ?? '' ) ) {
+	$pvL = $u( $settings->item_pad_v_large ?? '', $pv );
+	$phL = $u( $settings->item_pad_h_large ?? '', $ph );
+	echo "@media (max-width:{$bpl}px){ $node .ds-orgstats-item { padding: {$pvL}px {$phL}px; } }\n";
+}
 if ( '' !== ( $settings->item_pad_v_medium ?? '' ) || '' !== ( $settings->item_pad_h_medium ?? '' ) ) {
 	$pvM = $u( $settings->item_pad_v_medium ?? '', $pv );
 	$phM = $u( $settings->item_pad_h_medium ?? '', $ph );
@@ -103,6 +114,7 @@ if ( ( $settings->stat_layout ?? 'plain' ) === 'cards' ) {
 	echo "$node .ds-orgstats--cards .ds-orgstats-grid { gap: {$cgap}px; }\n";
 	echo "$node .ds-orgstats--cards .ds-orgstats-item { min-height: {$cmh}px; border-radius: {$crad}; }\n";
 	echo "$node .ds-orgstats--cards .ds-orgstats-item-inner { padding: {$cpad}px; }\n";
+	if ( '' !== ( $settings->card_min_height_large ?? '' ) ) { echo "@media (max-width:{$bpl}px){ $node .ds-orgstats--cards .ds-orgstats-item { min-height: " . (int) $settings->card_min_height_large . "px; } }\n"; }
 	if ( '' !== ( $settings->card_min_height_medium ?? '' ) ) { echo "@media (max-width:{$bpm}px){ $node .ds-orgstats--cards .ds-orgstats-item { min-height: " . (int) $settings->card_min_height_medium . "px; } }\n"; }
 	if ( '' !== ( $settings->card_min_height_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-orgstats--cards .ds-orgstats-item { min-height: " . (int) $settings->card_min_height_responsive . "px; } }\n"; }
 	// Per-card overlay gradient (color-mix opacity on hex AND global var).

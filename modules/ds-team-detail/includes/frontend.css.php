@@ -9,6 +9,7 @@ $u = array( 'DS_Module_UI', 'u' );
 
 $g   = FLBuilderModel::get_global_settings();
 list( $bpm, $bpr ) = DS_Module_UI::breakpoints();
+$bpl = DS_Module_UI::breakpoint_map()['_large']; // this site's Large breakpoint: a value typed under Large was saved and never used before the 2026-11 audit
 
 /* ---- Layout: image column width + gap ---- */
 $mw = $u( $settings->media_width ?? '', 38 );
@@ -58,6 +59,7 @@ $cgap = $u( $settings->coach_gap ?? '', 20 );
 $cap  = ( $cc * 260 ) + ( ( $cc - 1 ) * $cgap );
 echo "$node .ds-people-grid--coaches{grid-template-columns:repeat({$cc},1fr);max-width:{$cap}px;gap:{$cgap}px;}\n";
 echo "@media (max-width:480px){ $node .ds-people-grid--coaches{grid-template-columns:1fr;max-width:none;} }\n";
+if ( '' !== ( $settings->coach_gap_large ?? '' ) )     { echo "@media (max-width:{$bpl}px){ $node .ds-people-grid--coaches{gap:" . (int) $settings->coach_gap_large . "px;} }\n"; }
 if ( '' !== ( $settings->coach_gap_medium ?? '' ) )     { echo "@media (max-width:{$bpm}px){ $node .ds-people-grid--coaches{gap:" . (int) $settings->coach_gap_medium . "px;} }\n"; }
 if ( '' !== ( $settings->coach_gap_responsive ?? '' ) ) { echo "@media (max-width:{$bpr}px){ $node .ds-people-grid--coaches{gap:" . (int) $settings->coach_gap_responsive . "px;} }\n"; }
 
@@ -131,6 +133,7 @@ if ( $c = $col( $settings->coach_icon_bg_hover ?? '' ) )    { $hov .= "backgroun
 echo "$node a.ds-people-ico:hover,$node a.ds-people-ico:focus-visible{{$hov}}\n";
 
 // Responsive icon size (node rule outranks stylesheet @media, so re-emit here).
+if ( '' !== ( $settings->coach_icon_size_large ?? '' ) )     { $r = (int) $settings->coach_icon_size_large;     echo "@media (max-width:{$bpl}px){ $node .ds-people-ico{width:{$r}px;height:{$r}px;} }\n"; }
 if ( '' !== ( $settings->coach_icon_size_medium ?? '' ) )     { $r = (int) $settings->coach_icon_size_medium;     echo "@media (max-width:{$bpm}px){ $node .ds-people-ico{width:{$r}px;height:{$r}px;} }\n"; }
 if ( '' !== ( $settings->coach_icon_size_responsive ?? '' ) ) { $r = (int) $settings->coach_icon_size_responsive; echo "@media (max-width:{$bpr}px){ $node .ds-people-ico{width:{$r}px;height:{$r}px;} }\n"; }
 
