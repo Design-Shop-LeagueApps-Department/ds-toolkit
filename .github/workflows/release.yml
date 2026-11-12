@@ -12,10 +12,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, gd, sodium, openssl, curl, zip
+          coverage: none
+
+      # The gate: a release whose files do not parse or whose tests fail gets no zip, so no site is offered it.
+      - name: Lint and tests
+        run: bash tests/run.sh
+
+      # Same paths as the export-ignore lines in .gitattributes: the signing step compares this zip with
+      # `git archive` of the tag, file for file.
       - name: Build ds-toolkit.zip
         run: |
           mkdir -p ds-toolkit
-          rsync -av --exclude='.git' --exclude='.github' --exclude='ds-toolkit' . ds-toolkit/
+          rsync -av --exclude='.git' --exclude='.github' --exclude='.gitattributes' --exclude='/tests' --exclude='/docs' --exclude='/CONTRIBUTING.md' --exclude='ds-toolkit' . ds-toolkit/
           zip -r ds-toolkit.zip ds-toolkit/
 
       - name: Upload zip to release
