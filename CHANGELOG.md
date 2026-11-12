@@ -4,6 +4,19 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.18.2] - 2026-11-12
+PATCH: the Post Loop's Tournament layout can show an excerpt, and entries without an Event Date follow the Query tab's order.
+
+### Changed
+- **Tournament cards: Excerpt (Show / Hide, default Hide).** Under the details on Event Card, Classic and List: the
+  entry's Excerpt, or the start of its content, trimmed to Excerpt Length (18 words by default), in the body colour
+  with its own colour field. Asked for on lovellhockey.com, where the old Rockland grid showed one.
+- **Entries with no Event Date follow the Query tab's Order By / Order** (programs, clinics). They used to come out
+  newest first whatever the page said. Dated events still sort by Event Date and past ones stay hidden.
+- The Tournament Cards help now says Number of Posts blank shows 6 (a programs page with more needs a number).
+
+---
+
 ## [1.18.1] - 2026-11-12
 PATCH: Save Changes on the Features tab did nothing on sites whose Tripwire alert email lists two addresses.
 
