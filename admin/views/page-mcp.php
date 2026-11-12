@@ -187,6 +187,38 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 <details class="dst-group dst-ref">
     <summary class="dst-group-head">
+        <span class="dst-group-title"><span class="dashicons dashicons-backup" aria-hidden="true"></span> Changes made through MCP</span>
+        <span class="dst-group-count"><?php echo esc_html( $mcp_log ? count( $mcp_log ) . ' most recent' : 'None yet' ); ?></span>
+    </summary>
+    <div class="dst-group-body">
+        <?php if ( ! $mcp_log ) : ?>
+        <p class="dst-ref-pointer">No tool that changes the site has been called yet. Each call of one is listed here: who, which tool, on what, and whether it went through. Values are never kept.</p>
+        <?php else : ?>
+        <div class="dst-card dst-mcp-log">
+            <table class="widefat striped">
+                <thead><tr><th scope="col">When</th><th scope="col">User</th><th scope="col">Tool</th><th scope="col">On</th><th scope="col">Result</th></tr></thead>
+                <tbody>
+                <?php foreach ( $mcp_log as $mcp_e ) :
+                    $mcp_on = array();
+                    foreach ( (array) ( $mcp_e['target'] ?? array() ) as $mcp_k => $mcp_v ) { $mcp_on[] = $mcp_k . ' ' . $mcp_v; }
+                    ?>
+                    <tr>
+                        <td><?php echo esc_html( wp_date( 'Y-m-d H:i', (int) ( $mcp_e['t'] ?? 0 ) ) ); ?></td>
+                        <td><?php echo esc_html( (string) ( $mcp_e['user'] ?? '' ) ); ?></td>
+                        <td><code><?php echo esc_html( (string) ( $mcp_e['tool'] ?? '' ) ); ?></code></td>
+                        <td><?php echo esc_html( $mcp_on ? implode( ', ', $mcp_on ) : '-' ); ?></td>
+                        <td><?php if ( ! empty( $mcp_e['ok'] ) ) : ?><span class="dst-ok">Done</span><?php else : ?><span class="dst-bad"><?php echo esc_html( 'Refused: ' . (string) ( $mcp_e['error'] ?? '' ) ); ?></span><?php endif; ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+    </div>
+</details>
+
+<details class="dst-group dst-ref">
+    <summary class="dst-group-head">
         <span class="dst-group-title"><span class="dashicons dashicons-book" aria-hidden="true"></span> Setup guide</span>
         <span class="dst-group-count">What this is and the five setup steps</span>
     </summary>
@@ -337,337 +369,23 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     <div class="dst-group-body">
         <p class="dst-ref-pointer">Guides for the modules and the builder are on <a href="<?php echo esc_url( DS_Toolkit_Admin::HQ_DOCS_URL ); ?>" target="_blank" rel="noopener">Design Shop HQ</a>. This list is the reference for what the plugin itself ships.</p>
 
-<!-- Available tools -->
+<!-- Available tools: drawn from DS_MCP_Tools (group, capability, reads or writes) and the server's own descriptions -->
 <p class="dst-section-title dst-mt-24">Available Tools</p>
 
-<p class="dst-section-title dst-section-subtitle">Posts &amp; Pages</p>
-<div class="dst-card<?php echo $mcp_posts_pages_enabled ? '' : ' dst-is-dim'; ?>">
+<?php foreach ( DS_MCP_Tools::by_group() as $mcp_group => $mcp_names ) :
+    list( $mcp_title, $mcp_staff ) = DS_MCP_Tools::GROUPS[ $mcp_group ];
+    ?>
+<p class="dst-section-title dst-section-subtitle"><?php echo esc_html( $mcp_title ); ?><?php if ( $mcp_staff ) : ?> <span class="dst-staff-note">&#9888; <?php echo esc_html( DS_Env::staff_domain() ); ?> only</span><?php endif; ?></p>
+<div class="dst-card<?php echo ! empty( $opts[ $mcp_group ] ) ? '' : ' dst-is-dim'; ?>">
+    <?php foreach ( $mcp_names as $mcp_name ) : $mcp_row = DS_MCP_Tools::get( $mcp_name ); ?>
     <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
-        <div class="dst-card-info"><strong>list_posts</strong><span>List posts or pages. Filter by status or keyword.</span></div>
-        <span class="dst-mcp-cap">edit_posts</span>
+        <div class="dst-card-icon"><span class="dashicons dashicons-<?php echo $mcp_row['write'] ? 'edit' : 'visibility'; ?>" aria-hidden="true"></span></div>
+        <div class="dst-card-info"><strong><?php echo esc_html( $mcp_name ); ?></strong><span><?php echo esc_html( isset( $mcp_tool_text[ $mcp_name ] ) ? $mcp_tool_text[ $mcp_name ] : '' ); ?></span></div>
+        <span class="dst-mcp-cap"><?php echo $mcp_row['write'] ? 'writes' : 'reads'; ?><?php echo '' !== $mcp_row['cap'] ? ' &middot; ' . esc_html( $mcp_row['cap'] ) : ''; ?></span>
     </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-visibility"></span></div>
-        <div class="dst-card-info"><strong>get_post</strong><span>Get full content of a post by ID — title, content, excerpt, status, author.</span></div>
-        <span class="dst-mcp-cap">edit_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-plus-alt"></span></div>
-        <div class="dst-card-info"><strong>create_post</strong><span>Create a new post or page with title, content, status.</span></div>
-        <span class="dst-mcp-cap">publish_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-edit"></span></div>
-        <div class="dst-card-info"><strong>update_post</strong><span>Edit title, content, excerpt, or status of an existing post.</span></div>
-        <span class="dst-mcp-cap">edit_post</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-trash"></span></div>
-        <div class="dst-card-info"><strong>delete_post</strong><span>Trash or permanently delete a post.</span></div>
-        <span class="dst-mcp-cap">delete_post</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-upload"></span></div>
-        <div class="dst-card-info"><strong>bulk_create_posts</strong><span>Create multiple posts in one call — ideal for CSV imports. Pass an array of post objects; returns per-item results with IDs.</span></div>
-        <span class="dst-mcp-cap">publish_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-update"></span></div>
-        <div class="dst-card-info"><strong>bulk_update_posts</strong><span>Update multiple posts in one call. Each item needs an id plus the fields to change; returns per-item results.</span></div>
-        <span class="dst-mcp-cap">edit_post</span>
-    </div>
+    <?php endforeach; ?>
 </div>
-
-<p class="dst-section-title dst-section-subtitle">Custom Post Types</p>
-<div class="dst-card<?php echo $mcp_cpt_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-database"></span></div>
-        <div class="dst-card-info"><strong>list_post_types</strong><span>Discover all registered CPTs — Events, Athletes, Staff, Teams, and any future types.</span></div>
-        <span class="dst-mcp-cap">edit_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
-        <div class="dst-card-info"><strong>list_posts</strong><span>Same tool as above — pass <code>post_type: "athletes"</code> (or any CPT slug) to query CPT entries.</span></div>
-        <span class="dst-mcp-cap">edit_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-plus-alt"></span></div>
-        <div class="dst-card-info"><strong>create_post / update_post / delete_post</strong><span>Same tools as above — pass the CPT slug as <code>post_type</code> to create/edit/delete CPT entries.</span></div>
-        <span class="dst-mcp-cap">publish_posts</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">Taxonomies</p>
-<div class="dst-card<?php echo $mcp_taxonomies_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-tag"></span></div>
-        <div class="dst-card-info"><strong>list_taxonomies</strong><span>List all public taxonomies and which post types they belong to.</span></div>
-        <span class="dst-mcp-cap">edit_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
-        <div class="dst-card-info"><strong>list_terms</strong><span>List terms in a taxonomy (e.g. athlete-category). Supports search and pagination.</span></div>
-        <span class="dst-mcp-cap">edit_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-visibility"></span></div>
-        <div class="dst-card-info"><strong>get_term</strong><span>Get a single term by ID or slug.</span></div>
-        <span class="dst-mcp-cap">edit_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-plus-alt"></span></div>
-        <div class="dst-card-info"><strong>create_term</strong><span>Add a new term to a taxonomy with optional slug, description, and parent.</span></div>
-        <span class="dst-mcp-cap">manage_categories</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-edit"></span></div>
-        <div class="dst-card-info"><strong>update_term</strong><span>Edit a term's name, slug, or description.</span></div>
-        <span class="dst-mcp-cap">manage_categories</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-trash"></span></div>
-        <div class="dst-card-info"><strong>delete_term</strong><span>Remove a term from a taxonomy.</span></div>
-        <span class="dst-mcp-cap">manage_categories</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">ACF / Custom Fields</p>
-<div class="dst-card<?php echo $mcp_acf_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-forms"></span></div>
-        <div class="dst-card-info"><strong>get_post_fields</strong><span>Read all ACF fields on a post or CPT entry. Falls back to post meta if ACF is not active.</span></div>
-        <span class="dst-mcp-cap">edit_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-edit"></span></div>
-        <div class="dst-card-info"><strong>update_post_fields</strong><span>Update ACF field values by passing a <code>field_name → value</code> map. Uses <code>update_field()</code> if ACF active.</span></div>
-        <span class="dst-mcp-cap">edit_post</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">Partner Settings</p>
-<div class="dst-card<?php echo $mcp_acf_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-admin-site"></span></div>
-        <div class="dst-card-info"><strong>get_partner_settings</strong><span>Read all ACF Partner Settings — logo, email, phone, address, and social links (Facebook, Instagram, X, YouTube, LinkedIn, TikTok, LeagueApps).</span></div>
-        <span class="dst-mcp-cap">edit_posts</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-edit"></span></div>
-        <div class="dst-card-info"><strong>update_partner_settings</strong><span>Update any partner fields by name. URL fields expect full URLs. <code>partner_logo</code> expects a Media Library attachment ID.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">DS Toolkit Settings</p>
-<div class="dst-card<?php echo $mcp_toolkit_settings_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-admin-settings"></span></div>
-        <div class="dst-card-info"><strong>get_toolkit_settings</strong><span>Read all DS Toolkit settings — feature toggles, column counts, template IDs, etc.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-hammer"></span></div>
-        <div class="dst-card-info"><strong>update_toolkit_settings</strong><span>Update feature toggles, Global CSS/JS, column counts, and other settings.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">ACF Schema <span class="dst-staff-note">&#9888; @leagueapps.com only</span></p>
-<div class="dst-card<?php echo $mcp_acf_schema_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
-        <div class="dst-card-info"><strong>acf_list_post_types</strong><span>List all ACF-managed post types — returns key, slug, labels, and settings.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-plus-alt"></span></div>
-        <div class="dst-card-info"><strong>acf_create_post_type</strong><span>Create a new CPT via ACF — slug, labels, supports, taxonomies, visibility.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-edit"></span></div>
-        <div class="dst-card-info"><strong>acf_update_post_type</strong><span>Update an existing ACF post type by key. Only provided fields are changed.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-trash"></span></div>
-        <div class="dst-card-info"><strong>acf_delete_post_type</strong><span>Permanently delete an ACF post type by key. Irreversible.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
-        <div class="dst-card-info"><strong>acf_list_taxonomies</strong><span>List all ACF-managed taxonomies — returns key, slug, labels, and associated post types.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-plus-alt"></span></div>
-        <div class="dst-card-info"><strong>acf_create_taxonomy</strong><span>Create a new taxonomy via ACF — slug, labels, hierarchical, associated post types.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-edit"></span></div>
-        <div class="dst-card-info"><strong>acf_update_taxonomy</strong><span>Update an existing ACF taxonomy by key. Only provided fields are changed.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-trash"></span></div>
-        <div class="dst-card-info"><strong>acf_delete_taxonomy</strong><span>Permanently delete an ACF taxonomy by key. Irreversible.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">ACF Field Groups <span class="dst-staff-note">&#9888; @leagueapps.com only</span></p>
-<div class="dst-card<?php echo $mcp_acf_schema_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
-        <div class="dst-card-info"><strong>acf_list_field_groups</strong><span>List all ACF field groups — returns key, title, active status, and location rules.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-search"></span></div>
-        <div class="dst-card-info"><strong>acf_get_field_group</strong><span>Get a single field group by key, including all its fields (key, label, name, type).</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-plus-alt"></span></div>
-        <div class="dst-card-info"><strong>acf_create_field_group</strong><span>Create a new ACF field group with optional location rules and fields in a single call.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-edit"></span></div>
-        <div class="dst-card-info"><strong>acf_update_field_group</strong><span>Update an existing field group — title, location, position, label placement, or active state.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-trash"></span></div>
-        <div class="dst-card-info"><strong>acf_delete_field_group</strong><span>Permanently delete a field group and all its fields. Irreversible.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">ACF Options Pages <span class="dst-staff-note">&#9888; @leagueapps.com only &bull; ACF Pro 6.2+</span></p>
-<div class="dst-card<?php echo $mcp_acf_schema_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-list-view"></span></div>
-        <div class="dst-card-info"><strong>acf_list_options_pages</strong><span>List all ACF Pro options pages — returns key, title, menu_slug, and parent_slug.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-plus-alt"></span></div>
-        <div class="dst-card-info"><strong>acf_create_options_page</strong><span>Create a new ACF Pro options page with title, menu slug, parent, capability, and optional redirect.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-trash"></span></div>
-        <div class="dst-card-info"><strong>acf_delete_options_page</strong><span>Permanently delete an ACF Pro options page. Irreversible.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">Beaver Builder</p>
-<div class="dst-card<?php echo $mcp_bb_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-art"></span></div>
-        <div class="dst-card-info"><strong>get_bb_global_colors</strong><span>Read all BB Global Style colors — returns a label → hex map (e.g. Primary, Accent, Headings).</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-color-picker"></span></div>
-        <div class="dst-card-info"><strong>update_bb_global_colors</strong><span>Update named BB Global Style colors by label. Flushes BB CSS cache automatically so changes are live immediately.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-layout"></span></div>
-        <div class="dst-card-info"><strong>bb_list_layout_templates</strong><span>List available DS Launchpad layout templates — Header Style 1–5, Footer Style 1–3, Home Page Layout 1–6. Filter by type (header/footer/home).</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-image-rotate"></span></div>
-        <div class="dst-card-info"><strong>bb_apply_layout_template</strong><span>Replace "Header Main" or "Footer Main" (Themer layouts) or the site front page with a DS Launchpad template. Requires <code>confirm: true</code> — replaces current content.</span></div>
-        <span class="dst-mcp-cap">manage_options</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">Menus</p>
-<div class="dst-card<?php echo $mcp_menus_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
-        <div class="dst-card-info"><strong>list_menus</strong><span>List all nav menus with their IDs, slugs, item counts, and assigned theme locations.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
-        <div class="dst-card-info"><strong>get_menu</strong><span>Get the full item list for a menu — title, URL, parent, order, and object type for each item.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
-        <div class="dst-card-info"><strong>set_menu_items</strong><span>Replace all items in a menu with a new structure. Supports nested items via <code>parent_index</code>. Requires <code>confirm: true</code>.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-menu"></span></div>
-        <div class="dst-card-info"><strong>assign_menu_to_location</strong><span>Assign a menu to a registered theme location (e.g. primary-menu, header-menu).</span></div>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">Maintenance</p>
-<div class="dst-card<?php echo $mcp_maintenance_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-admin-tools"></span></div>
-        <div class="dst-card-info"><strong>flush_rewrite_rules</strong><span>Flush WordPress rewrite rules — fixes 404s after adding CPTs or changing permalink structure.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-admin-tools"></span></div>
-        <div class="dst-card-info"><strong>flush_cache</strong><span>Flush the WordPress object cache.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-admin-tools"></span></div>
-        <div class="dst-card-info"><strong>delete_transients</strong><span>Delete all transients from the options table.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-admin-tools"></span></div>
-        <div class="dst-card-info"><strong>search_replace</strong><span>Search and replace text in the database (posts, postmeta, options). Requires <code>confirm: true</code>.</span></div>
-        <span class="dst-mcp-cap"><?php echo esc_html( DS_TOOLKIT_ADMIN_DOMAIN ); ?> only</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">Options <span class="dst-staff-note">&#9888; @leagueapps.com only</span></p>
-<div class="dst-card<?php echo $mcp_options_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-database"></span></div>
-        <div class="dst-card-info"><strong>get_option</strong><span>Read any WordPress option by key (e.g. blogname, siteurl, blogdescription).</span></div>
-        <span class="dst-mcp-cap"><?php echo esc_html( DS_TOOLKIT_ADMIN_DOMAIN ); ?> only</span>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-database"></span></div>
-        <div class="dst-card-info"><strong>update_option</strong><span>Update any WordPress option by key and value.</span></div>
-        <span class="dst-mcp-cap"><?php echo esc_html( DS_TOOLKIT_ADMIN_DOMAIN ); ?> only</span>
-    </div>
-</div>
-
-<p class="dst-section-title dst-section-subtitle">Users &amp; Media</p>
-<div class="dst-card<?php echo $mcp_users_enabled ? '' : ' dst-is-dim'; ?>">
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-admin-users"></span></div>
-        <div class="dst-card-info"><strong>list_users</strong><span>List users filtered by role, search keyword, with pagination.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-admin-users"></span></div>
-        <div class="dst-card-info"><strong>get_user</strong><span>Get a user's profile by ID or email — name, roles, capabilities, registration date.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-search"></span></div>
-        <div class="dst-card-info"><strong>list_media</strong><span>Search and list Media Library files. Filter by keyword, MIME type (image, video, audio, application/pdf), or the post they're attached to.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-format-image"></span></div>
-        <div class="dst-card-info"><strong>get_media</strong><span>Get full details for a single attachment — URL, alt text, caption, dimensions, file size, and all registered image sizes.</span></div>
-    </div>
-    <div class="dst-card-row">
-        <div class="dst-card-icon"><span class="dashicons dashicons-image-rotate"></span></div>
-        <div class="dst-card-info"><strong>regenerate_thumbnails</strong><span>Regenerate image thumbnail sizes for Media Library images. Optionally pass specific attachment IDs.</span></div>
-    </div>
-</div>
+<?php endforeach; ?>
 
     </div>
 </details>

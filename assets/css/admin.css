@@ -1187,3 +1187,8 @@ textarea.dst-mcp-textarea[readonly] { background: #1d2327; color: #a8d8a8; }
     .dst-card-row:has(> .dst-field-inline--wide) { flex-wrap: wrap; }
     .dst-card-row > .dst-field-inline--wide { flex: 1 1 100%; }
 }
+
+/* MCP tab: the log of changes (item 23). A wide table inside a card: it scrolls sideways on a phone
+   instead of pushing the page wider. */
+.dst-mcp-log { overflow-x: auto; }
+.dst-mcp-log .widefat { border: 0; }

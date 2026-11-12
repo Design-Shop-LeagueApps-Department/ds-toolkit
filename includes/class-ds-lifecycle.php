@@ -42,7 +42,7 @@ class DS_Toolkit_Lifecycle {
 
 	/** Options removed on uninstall, by exact name. */
 	const OPTIONS = array(
-		'ds_toolkit_settings', 'ds_toolkit_assets_version', 'ds_toolkit_assets_print', 'ds_toolkit_update_check',
+		'ds_toolkit_settings', 'ds_toolkit_assets_version', 'ds_toolkit_assets_print', 'ds_toolkit_update_check', 'ds_mcp_log',
 		'ds_hq_link', 'ds_hq_link_lock', 'ds_hq_update', 'ds_hq_update_lock',
 		'ds_tripwire_state', 'ds_tripwire_lock', 'ds_tripwire_last_notify', 'ds_tripwire_last_skip', 'ds_tripwire_prelaunch_quiet',
 		'ds_mailcheck_result', 'ds_mailcheck_to', 'ds_mailcheck_token',

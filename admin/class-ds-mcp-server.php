@@ -1,5 +1,7 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
+require_once dirname( __DIR__ ) . '/includes/class-ds-env.php';
+require_once __DIR__ . '/class-ds-mcp-tools.php';
 
 /**
  * DS Toolkit MCP Server
@@ -97,7 +99,7 @@ class DS_MCP_Server {
             return $this->group_disabled_error( $id, $group_key );
         }
         if ( ! current_user_can( 'manage_options' ) || ! $this->is_leagueapps_user() ) {
-            return $this->rpc_error( $id, -32603, 'Insufficient permissions — manage_options + ' . DS_TOOLKIT_ADMIN_DOMAIN . ' account required' );
+            return $this->rpc_error( $id, -32603, 'Insufficient permissions — manage_options + ' . DS_Env::staff_domain() . ' account required' );
         }
         return null;
     }
@@ -166,68 +168,12 @@ class DS_MCP_Server {
     }
 
     /**
-     * Check if a tool should appear in tools/list based on group settings.
+     * Should a tool appear in tools/list? Yes when one of its switches is on (DS_MCP_Tools). A tool the table
+     * does not know is not offered: before the 2026-11 audit an unlisted name defaulted to "available", which
+     * is how the two bulk post tools were offered with every group switched off.
      */
     private function is_tool_available( $tool ) {
-        $name = $tool['name'];
-        // Post & Pages + CPT tools — show if either group is enabled
-        $post_tools = array( 'list_posts', 'get_post', 'create_post', 'update_post', 'delete_post' );
-        if ( in_array( $name, $post_tools, true ) ) {
-            return $this->is_group_enabled( 'mcp_posts_pages_enabled' )
-                || $this->is_group_enabled( 'mcp_cpt_enabled' );
-        }
-        $map = array(
-            'list_post_types'         => 'mcp_cpt_enabled',
-            'list_taxonomies'         => 'mcp_taxonomies_enabled',
-            'list_terms'              => 'mcp_taxonomies_enabled',
-            'get_term'                => 'mcp_taxonomies_enabled',
-            'create_term'             => 'mcp_taxonomies_enabled',
-            'update_term'             => 'mcp_taxonomies_enabled',
-            'delete_term'             => 'mcp_taxonomies_enabled',
-            'set_post_terms'          => 'mcp_taxonomies_enabled',
-            'get_post_fields'          => 'mcp_acf_enabled',
-            'update_post_fields'       => 'mcp_acf_enabled',
-            'get_partner_settings'     => 'mcp_acf_enabled',
-            'update_partner_settings'  => 'mcp_acf_enabled',
-            'get_toolkit_settings'    => 'mcp_toolkit_settings_enabled',
-            'update_toolkit_settings' => 'mcp_toolkit_settings_enabled',
-            'get_bb_global_colors'      => 'mcp_bb_enabled',
-            'update_bb_global_colors'   => 'mcp_bb_enabled',
-            'bb_list_layout_templates'  => 'mcp_bb_enabled',
-            'bb_apply_layout_template'  => 'mcp_bb_enabled',
-            'acf_list_post_types'     => 'mcp_acf_schema_enabled',
-            'acf_create_post_type'    => 'mcp_acf_schema_enabled',
-            'acf_update_post_type'    => 'mcp_acf_schema_enabled',
-            'acf_delete_post_type'    => 'mcp_acf_schema_enabled',
-            'acf_list_taxonomies'     => 'mcp_acf_schema_enabled',
-            'acf_create_taxonomy'     => 'mcp_acf_schema_enabled',
-            'acf_update_taxonomy'     => 'mcp_acf_schema_enabled',
-            'acf_delete_taxonomy'     => 'mcp_acf_schema_enabled',
-            'acf_list_field_groups'   => 'mcp_acf_schema_enabled',
-            'acf_get_field_group'     => 'mcp_acf_schema_enabled',
-            'acf_create_field_group'  => 'mcp_acf_schema_enabled',
-            'acf_update_field_group'  => 'mcp_acf_schema_enabled',
-            'acf_delete_field_group'  => 'mcp_acf_schema_enabled',
-            'acf_list_options_pages'  => 'mcp_acf_schema_enabled',
-            'acf_create_options_page' => 'mcp_acf_schema_enabled',
-            'acf_delete_options_page' => 'mcp_acf_schema_enabled',
-            'list_menus'              => 'mcp_menus_enabled',
-            'get_menu'                => 'mcp_menus_enabled',
-            'set_menu_items'          => 'mcp_menus_enabled',
-            'assign_menu_to_location' => 'mcp_menus_enabled',
-            'flush_rewrite_rules'     => 'mcp_maintenance_enabled',
-            'flush_cache'             => 'mcp_maintenance_enabled',
-            'delete_transients'       => 'mcp_maintenance_enabled',
-            'search_replace'          => 'mcp_maintenance_enabled',
-            'get_option'              => 'mcp_options_enabled',
-            'update_option'           => 'mcp_options_enabled',
-            'list_users'              => 'mcp_users_enabled',
-            'get_user'                => 'mcp_users_enabled',
-            'list_media'              => 'mcp_users_enabled',
-            'get_media'               => 'mcp_users_enabled',
-            'regenerate_thumbnails'   => 'mcp_users_enabled',
-        );
-        return isset( $map[ $name ] ) ? $this->is_group_enabled( $map[ $name ] ) : true;
+        return DS_MCP_Tools::enabled( isset( $tool['name'] ) ? $tool['name'] : '' );
     }
 
     private function handle_tools_call( $id, $params ) {
@@ -237,103 +183,35 @@ class DS_MCP_Server {
             return $this->rpc_error( $id, -32602, 'Invalid params: name (string) and arguments (object)' );
         }
 
+        // One table (DS_MCP_Tools) says which capability a tool needs and whether it changes the site; the
+        // handler is the method tool_<name>. A name outside the table is refused before anything runs.
+        $tool   = DS_MCP_Tools::get( $name );
+        $method = 'tool_' . $name;
+        if ( ! $tool || ! method_exists( $this, $method ) ) {
+            return $this->rpc_error( $id, -32602, 'Unknown tool: ' . $name );
+        }
+
         // The route only asks for edit_posts, so a tool that changes or reads site-wide things also needs the
         // capability WordPress itself asks for on the matching admin screen. Administrators have all of these,
         // so nothing changes for them; an Author or Editor no longer reaches users, menus or maintenance.
-        $needs = array(
-            'list_users'              => 'list_users',
-            'get_user'                => 'list_users',
-            'list_menus'              => 'edit_theme_options',
-            'get_menu'                => 'edit_theme_options',
-            'set_menu_items'          => 'edit_theme_options',
-            'assign_menu_to_location' => 'edit_theme_options',
-            'flush_rewrite_rules'     => 'manage_options',
-            'flush_cache'             => 'manage_options',
-            'delete_transients'       => 'manage_options',
-            'regenerate_thumbnails'   => 'manage_options',
-            'list_media'              => 'upload_files',
-            'get_media'               => 'upload_files',
-        );
-        if ( isset( $needs[ $name ] ) && ! current_user_can( $needs[ $name ] ) ) {
-            return $this->rpc_error( $id, -32603, 'Insufficient permissions: ' . $needs[ $name ] . ' required' );
+        if ( '' !== $tool['cap'] && ! current_user_can( $tool['cap'] ) ) {
+            if ( $tool['write'] ) {
+                DS_MCP_Tools::log( $name, $arguments, false, 'Insufficient permissions: ' . $tool['cap'] . ' required' );
+            }
+            return $this->rpc_error( $id, -32603, 'Insufficient permissions: ' . $tool['cap'] . ' required' );
         }
 
-        switch ( $name ) {
-            // Posts & Pages / CPT
-            case 'list_posts':          return $this->tool_list_posts( $id, $arguments );
-            case 'get_post':            return $this->tool_get_post( $id, $arguments );
-            case 'create_post':         return $this->tool_create_post( $id, $arguments );
-            case 'update_post':         return $this->tool_update_post( $id, $arguments );
-            case 'delete_post':         return $this->tool_delete_post( $id, $arguments );
-            case 'bulk_create_posts':   return $this->tool_bulk_create_posts( $id, $arguments );
-            case 'bulk_update_posts':   return $this->tool_bulk_update_posts( $id, $arguments );
-            // CPT discovery
-            case 'list_post_types':     return $this->tool_list_post_types( $id );
-            // Taxonomies
-            case 'list_taxonomies':     return $this->tool_list_taxonomies( $id );
-            case 'list_terms':          return $this->tool_list_terms( $id, $arguments );
-            case 'get_term':            return $this->tool_get_term( $id, $arguments );
-            case 'create_term':         return $this->tool_create_term( $id, $arguments );
-            case 'update_term':         return $this->tool_update_term( $id, $arguments );
-            case 'delete_term':         return $this->tool_delete_term( $id, $arguments );
-            case 'set_post_terms':      return $this->tool_set_post_terms( $id, $arguments );
-            // ACF / Custom Fields
-            case 'get_post_fields':          return $this->tool_get_post_fields( $id, $arguments );
-            case 'update_post_fields':       return $this->tool_update_post_fields( $id, $arguments );
-            // Partner Settings
-            case 'get_partner_settings':     return $this->tool_get_partner_settings( $id );
-            case 'update_partner_settings':  return $this->tool_update_partner_settings( $id, $arguments );
-            // Toolkit Settings
-            case 'get_toolkit_settings':    return $this->tool_get_toolkit_settings( $id );
-            case 'update_toolkit_settings': return $this->tool_update_toolkit_settings( $id, $arguments );
-            // Beaver Builder
-            case 'get_bb_global_colors':        return $this->tool_get_bb_global_colors( $id );
-            case 'update_bb_global_colors':     return $this->tool_update_bb_global_colors( $id, $arguments );
-            case 'bb_list_layout_templates':    return $this->tool_bb_list_layout_templates( $id, $arguments );
-            case 'bb_apply_layout_template':    return $this->tool_bb_apply_layout_template( $id, $arguments );
-            // ACF Schema — Post Types
-            case 'acf_list_post_types':   return $this->tool_acf_list_post_types( $id );
-            case 'acf_create_post_type':  return $this->tool_acf_create_post_type( $id, $arguments );
-            case 'acf_update_post_type':  return $this->tool_acf_update_post_type( $id, $arguments );
-            case 'acf_delete_post_type':  return $this->tool_acf_delete_post_type( $id, $arguments );
-            // ACF Schema — Taxonomies
-            case 'acf_list_taxonomies':   return $this->tool_acf_list_taxonomies( $id );
-            case 'acf_create_taxonomy':   return $this->tool_acf_create_taxonomy( $id, $arguments );
-            case 'acf_update_taxonomy':   return $this->tool_acf_update_taxonomy( $id, $arguments );
-            case 'acf_delete_taxonomy':   return $this->tool_acf_delete_taxonomy( $id, $arguments );
-            // ACF Schema — Field Groups
-            case 'acf_list_field_groups':   return $this->tool_acf_list_field_groups( $id );
-            case 'acf_get_field_group':     return $this->tool_acf_get_field_group( $id, $arguments );
-            case 'acf_create_field_group':  return $this->tool_acf_create_field_group( $id, $arguments );
-            case 'acf_update_field_group':  return $this->tool_acf_update_field_group( $id, $arguments );
-            case 'acf_delete_field_group':  return $this->tool_acf_delete_field_group( $id, $arguments );
-            // ACF Schema — Options Pages
-            case 'acf_list_options_pages':   return $this->tool_acf_list_options_pages( $id );
-            case 'acf_create_options_page':  return $this->tool_acf_create_options_page( $id, $arguments );
-            case 'acf_delete_options_page':  return $this->tool_acf_delete_options_page( $id, $arguments );
-            // Menus
-            case 'list_menus':             return $this->tool_list_menus( $id );
-            case 'get_menu':               return $this->tool_get_menu( $id, $arguments );
-            case 'set_menu_items':         return $this->tool_set_menu_items( $id, $arguments );
-            case 'assign_menu_to_location': return $this->tool_assign_menu_to_location( $id, $arguments );
-            // Maintenance
-            case 'flush_rewrite_rules':    return $this->tool_flush_rewrite_rules( $id );
-            case 'flush_cache':            return $this->tool_flush_cache( $id );
-            case 'delete_transients':      return $this->tool_delete_transients( $id );
-            case 'search_replace':         return $this->tool_search_replace( $id, $arguments );
-            // Options
-            case 'get_option':             return $this->tool_get_option( $id, $arguments );
-            case 'update_option':          return $this->tool_update_option( $id, $arguments );
-            // Users
-            case 'list_users':             return $this->tool_list_users( $id, $arguments );
-            case 'get_user':               return $this->tool_get_user( $id, $arguments );
-            // Media
-            case 'list_media':             return $this->tool_list_media( $id, $arguments );
-            case 'get_media':              return $this->tool_get_media( $id, $arguments );
-            case 'regenerate_thumbnails':  return $this->tool_regenerate_thumbnails( $id, $arguments );
-            default:
-                return $this->rpc_error( $id, -32602, 'Unknown tool: ' . $name );
+        // Each handler still checks its own group switch and its per-item rules (a post's own capabilities,
+        // the staff gate for schema and options tools).
+        $response = $this->$method( $id, $arguments );
+
+        if ( $tool['write'] ) {
+            // Who changed what through MCP: the last 100 calls of tools that write, successful or refused.
+            $data  = ( $response instanceof WP_REST_Response ) ? (array) $response->get_data() : array();
+            $error = isset( $data['error']['message'] ) ? (string) $data['error']['message'] : '';
+            DS_MCP_Tools::log( $name, $arguments, '' === $error, $error );
         }
+        return $response;
     }
 
     // -------------------------------------------------------------------------
@@ -1695,6 +1573,15 @@ class DS_MCP_Server {
     // Tool Schema
     // -------------------------------------------------------------------------
 
+    /** name => description, for the MCP tab's reference (the same text tools/list sends). */
+    public function tool_descriptions() {
+        $out = array();
+        foreach ( $this->get_tools_schema() as $tool ) {
+            $out[ $tool['name'] ] = isset( $tool['description'] ) ? (string) $tool['description'] : '';
+        }
+        return $out;
+    }
+
     private function get_tools_schema() {
         return array(
             // Posts & Pages
@@ -2316,7 +2203,7 @@ class DS_MCP_Server {
             ),
             array(
                 'name'        => 'search_replace',
-                'description' => 'Search and replace text in the WordPress database. Searches posts, postmeta, and options tables by default. WARNING: direct DB modification — requires confirm: true and manage_options + ' . DS_TOOLKIT_ADMIN_DOMAIN . '.',
+                'description' => 'Search and replace text in the WordPress database. Searches posts, postmeta, and options tables by default. WARNING: direct DB modification — requires confirm: true and manage_options + ' . DS_Env::staff_domain() . '.',
                 'inputSchema' => array(
                     'type'       => 'object',
                     'required'   => array( 'search', 'replace', 'confirm' ),
@@ -2331,7 +2218,7 @@ class DS_MCP_Server {
             // Options
             array(
                 'name'        => 'get_option',
-                'description' => 'Read a WordPress option by key (wp_options table). Requires manage_options + ' . DS_TOOLKIT_ADMIN_DOMAIN . '.',
+                'description' => 'Read a WordPress option by key (wp_options table). Requires manage_options + ' . DS_Env::staff_domain() . '.',
                 'inputSchema' => array(
                     'type'       => 'object',
                     'required'   => array( 'key' ),
@@ -2342,7 +2229,7 @@ class DS_MCP_Server {
             ),
             array(
                 'name'        => 'update_option',
-                'description' => 'Update a WordPress option by key. Requires manage_options + ' . DS_TOOLKIT_ADMIN_DOMAIN . '.',
+                'description' => 'Update a WordPress option by key. Requires manage_options + ' . DS_Env::staff_domain() . '.',
                 'inputSchema' => array(
                     'type'       => 'object',
                     'required'   => array( 'key', 'value' ),

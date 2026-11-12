@@ -283,6 +283,10 @@ class DS_Toolkit_Admin {
                 $mcp_maintenance_enabled      = ! empty( $opts['mcp_maintenance_enabled'] );
                 $mcp_options_enabled          = ! empty( $opts['mcp_options_enabled'] );
                 $mcp_users_enabled            = ! empty( $opts['mcp_users_enabled'] );
+                // The tool reference and the log of changes come from the server's own table (DS_MCP_Tools).
+                require_once DS_TOOLKIT_PATH . 'admin/class-ds-mcp-server.php';
+                $mcp_tool_text = ( new DS_MCP_Server() )->tool_descriptions();
+                $mcp_log       = DS_MCP_Tools::recent( 20 );
                 require DS_TOOLKIT_PATH . 'admin/views/page-mcp.php';
 
             } else {
