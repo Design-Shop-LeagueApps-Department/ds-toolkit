@@ -85,9 +85,20 @@ class DS_Features {
 		return array_merge( array( 'file' => 'features/class-ds-' . $slug . '.php', 'class' => $class ), $more );
 	}
 
+	/**
+	 * Blocks whose feature does nothing but register the block. They share one loader (DS_Module_Loader,
+	 * told which folder through 'block') instead of fourteen classes that differed only in a folder name.
+	 */
+	const GENERIC_BLOCKS = array( 'carousel', 'cta', 'device', 'divider', 'heading', 'info-list', 'marquee', 'menu', 'orgstats', 'pathway', 'post-loop', 'social', 'table', 'team-detail' );
+
 	/** A Beaver Builder block: a feature class, gen-6 gated for its DEFAULT only (the loader lets modules through). */
 	private static function module( $slug, $class, $label, $desc, $default_bp = 6 ) {
 		$m = array( 'file' => 'features/class-ds-' . $slug . '.php', 'class' => $class, 'min_blueprint' => 6, 'module' => true, 'label' => $label, 'summary' => $desc );
+		if ( in_array( $slug, self::GENERIC_BLOCKS, true ) ) {
+			$m['file']  = 'includes/class-ds-module-loader.php';
+			$m['class'] = 'DS_Module_Loader';
+			$m['block'] = 'ds-' . $slug;
+		}
 		if ( $default_bp ) {
 			$m['default']    = 1;
 			$m['default_bp'] = $default_bp;
@@ -420,6 +431,9 @@ class DS_Features {
 				continue;
 			}
 			$out[ $key ] = array( 'file' => $def['file'], 'class' => $def['class'] );
+			if ( ! empty( $def['block'] ) ) {
+				$out[ $key ]['block'] = (string) $def['block']; // DS_Module_Loader is told which block to register
+			}
 			if ( ! empty( $def['min_blueprint'] ) ) {
 				$out[ $key ]['min_blueprint'] = (int) $def['min_blueprint'];
 			}

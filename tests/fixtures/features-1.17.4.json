@@ -88,13 +88,15 @@
    "min_blueprint": 6
   },
   "ds_menu_module_enabled": {
-   "file": "features/class-ds-menu.php",
-   "class": "DS_Menu",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-menu",
    "min_blueprint": 6
   },
   "ds_social_module_enabled": {
-   "file": "features/class-ds-social.php",
-   "class": "DS_Social",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-social",
    "min_blueprint": 6
   },
   "ds_social_card_enabled": {
@@ -108,48 +110,57 @@
    "min_blueprint": 6
   },
   "ds_cta_module_enabled": {
-   "file": "features/class-ds-cta.php",
-   "class": "DS_CTA",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-cta",
    "min_blueprint": 6
   },
   "ds_marquee_module_enabled": {
-   "file": "features/class-ds-marquee.php",
-   "class": "DS_Marquee",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-marquee",
    "min_blueprint": 6
   },
   "ds_pathway_module_enabled": {
-   "file": "features/class-ds-pathway.php",
-   "class": "DS_Pathway",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-pathway",
    "min_blueprint": 6
   },
   "ds_post_loop_module_enabled": {
-   "file": "features/class-ds-post-loop.php",
-   "class": "DS_Post_Loop",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-post-loop",
    "min_blueprint": 6
   },
   "ds_orgstats_module_enabled": {
-   "file": "features/class-ds-orgstats.php",
-   "class": "DS_OrgStats",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-orgstats",
    "min_blueprint": 6
   },
   "ds_carousel_module_enabled": {
-   "file": "features/class-ds-carousel.php",
-   "class": "DS_Carousel",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-carousel",
    "min_blueprint": 6
   },
   "ds_heading_module_enabled": {
-   "file": "features/class-ds-heading.php",
-   "class": "DS_Heading",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-heading",
    "min_blueprint": 6
   },
   "ds_divider_module_enabled": {
-   "file": "features/class-ds-divider.php",
-   "class": "DS_Divider",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-divider",
    "min_blueprint": 6
   },
   "ds_device_module_enabled": {
-   "file": "features/class-ds-device.php",
-   "class": "DS_Device",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-device",
    "min_blueprint": 6
   },
   "image_optimization_enabled": {
@@ -188,13 +199,15 @@
    "min_blueprint": 6
   },
   "ds_table_module_enabled": {
-   "file": "features/class-ds-table.php",
-   "class": "DS_Table",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-table",
    "min_blueprint": 6
   },
   "ds_info_list_module_enabled": {
-   "file": "features/class-ds-info-list.php",
-   "class": "DS_Info_List",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-info-list",
    "min_blueprint": 6
   },
   "ds_page_cards_module_enabled": {
@@ -203,8 +216,9 @@
    "min_blueprint": 6
   },
   "ds_team_detail_module_enabled": {
-   "file": "features/class-ds-team-detail.php",
-   "class": "DS_Team_Detail",
+   "file": "includes/class-ds-module-loader.php",
+   "class": "DS_Module_Loader",
+   "block": "ds-team-detail",
    "min_blueprint": 6
   },
   "ds_builder_defaults_enabled": {
@@ -585,6 +599,7 @@
   }
  },
  "_changes": [
-  "audit 2026-11 item 25: tripwire_hq_report became a feature of its own (features/class-ds-hq-link.php, DS_HQ_Link), loaded last. Its default (1) is unchanged."
+  "audit 2026-11 item 25: tripwire_hq_report became a feature of its own (features/class-ds-hq-link.php, DS_HQ_Link), loaded last. Its default (1) is unchanged.",
+  "audit 2026-11 item 32: the 14 blocks whose feature class only registered the block (carousel, cta, device, divider, heading, info-list, marquee, menu, orgstats, pathway, post-loop, social, table, team-detail) load through includes/class-ds-module-loader.php (DS_Module_Loader) with a \"block\" folder name. Same keys, same order, same defaults; min_blueprint unchanged."
  ]
 }

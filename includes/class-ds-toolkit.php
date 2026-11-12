@@ -339,7 +339,9 @@ class DS_Toolkit {
             }
             if ( ! empty( $settings[ $key ] ) ) {
                 require_once DS_TOOLKIT_PATH . $feature['file'];
-                $instance = new $feature['class']( $settings );
+                // A block with nothing to do but register itself goes through the shared loader, which
+                // takes the block's folder name; every other feature takes the settings.
+                $instance = isset( $feature['block'] ) ? new $feature['class']( $feature['block'] ) : new $feature['class']( $settings );
                 $instance->init();
             }
         }
