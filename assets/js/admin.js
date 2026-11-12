@@ -1,9 +1,11 @@
 /* global dstAdmin, wp, jQuery */
 /**
  * Settings > DS Toolkit. Everything here is progressive: the page saves and reads correctly without it.
- *  - Features tab: a card's own settings fold away while its feature is off, the group counts follow the
- *    switches, groups remember open/closed, the filter box searches every card, the "all modules" switch,
- *    and the save bar counts unsaved changes and warns before leaving with any.
+ *  - Features tab: a card's own settings fold away while its feature is off; the group counts, the "jump to"
+ *    counts and the Show chips (All / On / Off / Changed) follow the switches; every card that differs from
+ *    what is saved gets a "Changed, not saved" tag and a line in the "Changed since the last save" panel;
+ *    groups remember open / closed; the find box and the chips filter the cards; the "all modules" switch;
+ *    the save bar counts unsaved changes, offers Discard, and warns before leaving with any.
  *  - The login logo picker and the ACF mapping rows.
  */
 ( function ( $ ) {
@@ -63,24 +65,53 @@
 	}
 
 	var groups = [].slice.call( form.querySelectorAll( 'details.dst-group' ) );
-	var cards  = [].slice.call( form.querySelectorAll( '.dst-group .dst-card' ) );
+	var cards  = [].slice.call( form.querySelectorAll( '.dst-group .dst-card[data-dst-card]' ) );
+	function each( list, fn ) { [].slice.call( list ).forEach( fn ); }
+	function switchOf( card ) { return document.getElementById( card.getAttribute( 'data-dst-card' ) ); }
+	function titleOf( card ) { var t = card.querySelector( '.dst-card-title strong' ); return t ? t.textContent.trim() : ''; }
 
-	// ---------------------------------------------------------------- card on/off + group counts
-	function refreshCounts() {
-		cards.forEach( function ( card ) {
-			var key = card.getAttribute( 'data-dst-card' );
-			var sw  = 'modules' === key ? null : document.getElementById( key );
-			if ( sw ) {
-				card.classList.toggle( 'is-off', ! sw.checked );
-			}
+	// ---------------------------------------------------------------- saved values
+	// A setting's value as the form would post it. The "0" twin of a checkbox is skipped (the checkbox speaks
+	// for both), except the login logo id, which is a real hidden setting.
+	function counts( el ) {
+		return el.name && 0 === el.name.indexOf( 'ds_toolkit_settings[' ) && ! ( 'hidden' === el.type && 'dst-logo-id' !== el.id );
+	}
+	function valueOf( el ) {
+		if ( 'checkbox' === el.type ) { return el.checked ? '1' : '0'; }
+		return el.value;
+	}
+	function snapshot() {
+		var out = {};
+		each( form.elements, function ( el ) {
+			if ( ! counts( el ) ) { return; }
+			if ( 'radio' === el.type ) { if ( el.checked ) { out[ el.name ] = el.value; } return; }
+			out[ el.name ] = valueOf( el );
 		} );
-		groups.forEach( function ( g ) {
-			var switches = [].slice.call( g.querySelectorAll( '.dst-toggle input[type="checkbox"][name]' ) );
-			var count    = g.querySelector( '[data-dst-count]' );
-			if ( count && switches.length ) {
-				count.textContent = switches.filter( function ( c ) { return c.checked; } ).length + ' of ' + switches.length + ' on';
+		return out;
+	}
+	var saved = snapshot();
+	function fieldChanged( el ) {
+		if ( ! counts( el ) ) { return false; }
+		if ( 'radio' === el.type ) { return el.checked && saved[ el.name ] !== el.value; }
+		return saved[ el.name ] !== valueOf( el );
+	}
+	function cardChanged( card ) {
+		var hit = false;
+		each( card.querySelectorAll( 'input, select, textarea' ), function ( el ) { if ( fieldChanged( el ) ) { hit = true; } } );
+		if ( ! hit ) { // a mapping row removed leaves a saved name with no field
+			var names = {};
+			each( card.querySelectorAll( '[name]' ), function ( el ) { names[ el.name ] = 1; } );
+			if ( 'acf_css_vars_enabled' === card.getAttribute( 'data-dst-card' ) ) {
+				Object.keys( saved ).forEach( function ( k ) { if ( 0 === k.indexOf( 'ds_toolkit_settings[acf_css_vars_mappings]' ) && ! names[ k ] ) { hit = true; } } );
 			}
-		} );
+		}
+		return hit;
+	}
+	function changes() {
+		var now = snapshot(), n = 0, k;
+		for ( k in now ) { if ( now[ k ] !== saved[ k ] ) { n++; } }
+		for ( k in saved ) { if ( ! ( k in now ) ) { n++; } }
+		return n;
 	}
 
 	// ---------------------------------------------------------------- all modules
@@ -101,41 +132,127 @@
 		} );
 	}
 
-	// ---------------------------------------------------------------- unsaved changes
-	function snapshot() {
-		var out = {};
-		[].slice.call( form.elements ).forEach( function ( el ) {
-			if ( ! el.name || 0 !== el.name.indexOf( 'ds_toolkit_settings[' ) ) { return; }
-			if ( 'hidden' === el.type && 'dst-logo-id' !== el.id ) { return; } // the "0" twin of a checkbox
-			if ( 'checkbox' === el.type ) { out[ el.name ] = el.checked ? '1' : '0'; return; }
-			if ( 'radio' === el.type ) { if ( el.checked ) { out[ el.name ] = el.value; } return; }
-			out[ el.name ] = el.value;
+	// ---------------------------------------------------------------- the find box and the Show chips
+	var input = document.getElementById( 'dst-filter' );
+	var empty = document.getElementById( 'dst-filter-empty' );
+	var chips = [].slice.call( form.querySelectorAll( '[data-dst-show]' ) );
+	var mode  = 'all';
+	var filtering = false;
+	function applyFilter() {
+		var q = input ? input.value.trim().toLowerCase() : '', any = false, narrowed = !! q || 'all' !== mode;
+		filtering = true;
+		cards.forEach( function ( card ) {
+			var sw   = switchOf( card );
+			var on   = sw ? sw.checked : true;
+			var pass = 'all' === mode || ( 'on' === mode && on ) || ( 'off' === mode && ! on ) || ( 'changed' === mode && card.classList.contains( 'is-changed' ) );
+			card.hidden = ! pass || ( !! q && -1 === card.textContent.toLowerCase().indexOf( q ) );
 		} );
-		return out;
+		groups.forEach( function ( g ) {
+			var visible = [].slice.call( g.querySelectorAll( '.dst-card[data-dst-card]' ) ).some( function ( c ) { return ! c.hidden; } );
+			g.hidden = ! visible;
+			var allRow = g.querySelector( '.dst-modules-all' );
+			if ( allRow ) { allRow.hidden = narrowed; } // "all modules" switches every block, so it shows only when every block does
+			if ( visible ) { any = true; }
+			g.open = narrowed ? visible : '1' === g.getAttribute( 'data-dst-open' );
+		} );
+		if ( empty ) { empty.hidden = any; }
+		window.setTimeout( function () { filtering = false; }, 50 ); // the toggle events fire after this handler
 	}
-	var saved      = snapshot();
-	var stateEl    = document.getElementById( 'dst-savebar-state' );
-	var bar        = document.getElementById( 'dst-savebar' );
-	var submitting = false;
-	function changes() {
-		var now = snapshot(), n = 0, k;
-		for ( k in now ) { if ( now[ k ] !== saved[ k ] ) { n++; } }
-		for ( k in saved ) { if ( ! ( k in now ) ) { n++; } }
-		return n;
+	if ( input ) { input.addEventListener( 'input', applyFilter ); }
+	function setMode( m ) {
+		mode = m;
+		chips.forEach( function ( c ) {
+			var active = c.getAttribute( 'data-dst-show' ) === m;
+			c.classList.toggle( 'is-active', active );
+			c.setAttribute( 'aria-pressed', active ? 'true' : 'false' );
+		} );
+		applyFilter();
 	}
-	function refreshBar() {
+	chips.forEach( function ( c ) { c.addEventListener( 'click', function () { setMode( c.getAttribute( 'data-dst-show' ) ); } ); } );
+	var reset = document.getElementById( 'dst-filter-reset' );
+	if ( reset ) {
+		reset.addEventListener( 'click', function () {
+			if ( input ) { input.value = ''; }
+			setMode( 'all' );
+		} );
+	}
+
+	// ---------------------------------------------------------------- counts, tags, the list of changes, the save bar
+	var stateEl  = document.getElementById( 'dst-savebar-state' );
+	var bar      = document.getElementById( 'dst-savebar' );
+	var discard  = document.getElementById( 'dst-discard' );
+	var list     = document.getElementById( 'dst-changed-list' );
+	var none     = document.getElementById( 'dst-changed-none' );
+	var onTotal  = document.getElementById( 'dst-on-total' );
+	function setText( sel, text ) { var el = form.querySelector( sel ); if ( el ) { el.textContent = text; } }
+	function refresh() {
+		syncAll();
+		var tally = { all: 0, on: 0, off: 0, changed: 0 }, changedCards = [];
+		cards.forEach( function ( card ) {
+			var sw      = switchOf( card );
+			var on      = sw ? sw.checked : true;
+			var changed = cardChanged( card );
+			card.classList.toggle( 'is-off', ! on );
+			card.classList.toggle( 'is-changed', changed );
+			var tag = card.querySelector( '[data-dst-changed]' );
+			if ( tag ) { tag.hidden = ! changed; }
+			tally.all++;
+			tally[ on ? 'on' : 'off' ]++;
+			if ( changed ) {
+				tally.changed++;
+				changedCards.push( { card: card, text: sw && sw.checked !== ( '1' === saved[ sw.name ] ) ? ( on ? 'On' : 'Off' ) : 'Edited' } );
+			}
+		} );
+		groups.forEach( function ( g ) {
+			var switches = [].slice.call( g.querySelectorAll( '.dst-card[data-dst-card] > .dst-card-row > .dst-toggle input[type="checkbox"][name]' ) );
+			var label    = switches.filter( function ( c ) { return c.checked; } ).length + ' of ' + switches.length + ' on';
+			var count    = g.querySelector( '[data-dst-count]' );
+			if ( count && switches.length ) { count.textContent = label; }
+			setText( '[data-dst-jump-count="' + g.getAttribute( 'data-dst-group' ) + '"]', switches.filter( function ( c ) { return c.checked; } ).length + '/' + switches.length );
+		} );
+		Object.keys( tally ).forEach( function ( k ) { setText( '[data-dst-n="' + k + '"]', String( tally[ k ] ) ); } );
+		if ( onTotal ) { onTotal.textContent = tally.on + ' of ' + tally.all; }
+
+		if ( list && none ) {
+			list.textContent = '';
+			changedCards.forEach( function ( c ) {
+				var li = document.createElement( 'li' );
+				var a  = document.createElement( 'a' );
+				var b  = document.createElement( 'strong' );
+				a.href = '#' + ( switchOf( c.card ) ? switchOf( c.card ).id : '' );
+				a.textContent = titleOf( c.card );
+				a.addEventListener( 'click', function ( e ) {
+					e.preventDefault();
+					var g = c.card.closest( 'details.dst-group' );
+					if ( g ) { g.open = true; }
+					c.card.scrollIntoView( { block: 'center' } );
+					var sw = switchOf( c.card );
+					if ( sw ) { sw.focus( { preventScroll: true } ); }
+				} );
+				b.textContent = c.text;
+				li.appendChild( a );
+				li.appendChild( b );
+				list.appendChild( li );
+			} );
+			list.hidden = ! changedCards.length;
+			none.hidden = !! changedCards.length;
+		}
+
 		var n = changes();
 		if ( stateEl ) { stateEl.textContent = n ? n + ( 1 === n ? ' unsaved change' : ' unsaved changes' ) : 'No unsaved changes'; }
 		if ( bar ) { bar.classList.toggle( 'is-dirty', n > 0 ); }
+		if ( discard ) { discard.hidden = ! n; }
+		if ( 'all' !== mode ) { applyFilter(); } // "Changed", "On" and "Off" follow the switches as they move
 		return n;
 	}
-	function refresh() {
-		syncAll();
-		refreshCounts();
-		refreshBar();
-	}
+	var submitting = false;
 	form.addEventListener( 'change', refresh );
-	form.addEventListener( 'input', refreshBar );
+	// Typing updates as it goes. A switch is left to its change event: its input event fires first, and a
+	// refresh there would set the "all modules" switch back from the blocks before its own handler ran.
+	form.addEventListener( 'input', function ( e ) {
+		if ( 'checkbox' === e.target.type || 'radio' === e.target.type ) { return; }
+		refresh();
+	} );
 	form.addEventListener( 'submit', function () { submitting = true; } );
 	window.addEventListener( 'beforeunload', function ( e ) {
 		if ( ! submitting && changes() > 0 ) {
@@ -143,12 +260,17 @@
 			e.returnValue = '';
 		}
 	} );
-	refresh();
+	if ( discard ) {
+		// Discard = load the saved page again (a mapping row added or removed cannot be undone field by field).
+		discard.addEventListener( 'click', function () {
+			submitting = true;
+			window.location.href = window.location.href.split( '#' )[ 0 ];
+		} );
+	}
 
 	// ---------------------------------------------------------------- groups remember open / closed
 	function storeGet( key ) { try { return window.localStorage.getItem( key ); } catch ( e ) { return null; } }
 	function storeSet( key, v ) { try { window.localStorage.setItem( key, v ); } catch ( e ) {} }
-	var filtering = false;
 	groups.forEach( function ( g ) {
 		var key  = 'dst-group-' + g.getAttribute( 'data-dst-group' );
 		var kept = storeGet( key );
@@ -162,35 +284,33 @@
 		} );
 	} );
 
-	// ---------------------------------------------------------------- filter
-	var input = document.getElementById( 'dst-filter' );
-	var empty = document.getElementById( 'dst-filter-empty' );
-	if ( input ) {
-		input.addEventListener( 'input', function () {
-			var q = input.value.trim().toLowerCase(), any = false;
-			filtering = true;
-			cards.forEach( function ( card ) {
-				// The blocks card filters row by row; every other card is one unit (its detail and settings count too).
-				if ( 'modules' === card.getAttribute( 'data-dst-card' ) ) {
-					var shown = 0;
-					[].slice.call( card.querySelectorAll( '.dst-card-row--module' ) ).forEach( function ( row ) {
-						var hit = ! q || -1 !== row.textContent.toLowerCase().indexOf( q );
-						row.hidden = ! hit;
-						if ( hit ) { shown++; }
-					} );
-					card.hidden = ! shown;
-					return;
-				}
-				card.hidden = !! q && -1 === card.textContent.toLowerCase().indexOf( q );
-			} );
-			groups.forEach( function ( g ) {
-				var visible = [].slice.call( g.querySelectorAll( '.dst-card' ) ).some( function ( c ) { return ! c.hidden; } );
-				g.hidden = ! visible;
-				if ( visible ) { any = true; }
-				g.open = q ? visible : '1' === g.getAttribute( 'data-dst-open' );
-			} );
-			if ( empty ) { empty.hidden = any; }
-			window.setTimeout( function () { filtering = false; }, 50 ); // the toggle events fire after this handler
-		} );
+	// ---------------------------------------------------------------- jump to a group
+	function openGroup( id ) {
+		var g = id ? document.getElementById( id ) : null;
+		if ( ! g || ! g.classList.contains( 'dst-group' ) ) { return false; }
+		if ( g.hidden ) { // filtered away: show everything again first
+			if ( input ) { input.value = ''; }
+			setMode( 'all' );
+		}
+		g.open = true;
+		return g;
 	}
+	each( form.querySelectorAll( '[data-dst-jump]' ), function ( a ) {
+		var g = document.getElementById( 'dst-g-' + a.getAttribute( 'data-dst-jump' ) );
+		if ( ! g ) { a.hidden = true; return; } // a group this site does not show
+		a.addEventListener( 'click', function ( e ) {
+			e.preventDefault();
+			var target = openGroup( g.id );
+			if ( target ) {
+				target.scrollIntoView( { block: 'start' } );
+				target.querySelector( 'summary' ).focus( { preventScroll: true } );
+			}
+		} );
+	} );
+	if ( window.location.hash && 0 === window.location.hash.indexOf( '#dst-g-' ) ) {
+		var landing = openGroup( window.location.hash.slice( 1 ) ); // e.g. an old "General" tab bookmark
+		if ( landing ) { landing.scrollIntoView( { block: 'start' } ); }
+	}
+
+	refresh();
 }( jQuery ) );

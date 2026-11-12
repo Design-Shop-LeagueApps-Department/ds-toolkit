@@ -65,12 +65,16 @@ class DS_Features {
 			'partner'  => array( 'enable_login_branding', 'design_academy_enabled', 'school_emblems_enabled', 'ds_builder_defaults_enabled' ),
 			'modules'  => array(),
 			'site'     => array( 'theme_setting_enabled', 'home_templates_enabled', 'ds_global_heading_font_enabled', 'ds_social_card_enabled', 'page_banner_sync_enabled', 'image_optimization_enabled', 'ds_pattern_library_enabled', 'nested_order_enabled' ),
-			'dev'      => array( 'ds_admin_bar_links_enabled', 'uabb_post_loop_fix_enabled', 'defender_flywheel_reset_fix_enabled', 'hummingbird_critical_fix_enabled', 'acf_css_vars_enabled', 'getsubmenu_enabled', 'current_year_enabled', 'overlay_nav_enabled', 'forminator_email_partner_enabled', 'child_pages_enabled' ),
+			'dev'      => array( 'copyright_shortcode_enabled', 'ds_admin_bar_links_enabled', 'uabb_post_loop_fix_enabled', 'defender_flywheel_reset_fix_enabled', 'hummingbird_critical_fix_enabled', 'acf_css_vars_enabled', 'getsubmenu_enabled', 'current_year_enabled', 'overlay_nav_enabled', 'forminator_email_partner_enabled', 'child_pages_enabled' ),
 		);
 	}
 
-	/** Feature keys that have their own tab instead of a card on the Features tab. */
-	const OWN_TAB = array( 'global_css_enabled', 'global_js_enabled', 'copyright_shortcode_enabled' );
+	/**
+	 * Feature keys that have their own tab instead of a card on the Features tab (the Custom Code tab). The
+	 * copyright shortcode had a General tab of its own until the settings redesign; it is a card under
+	 * Shortcodes & Dev Tools now.
+	 */
+	const OWN_TAB = array( 'global_css_enabled', 'global_js_enabled' );
 
 	/** The Beaver Builder blocks, in the order the Modules group lists them. */
 	const MODULE_ORDER = array(
@@ -231,7 +235,8 @@ class DS_Features {
 			) ),
 
 			'copyright_shortcode_enabled' => self::feature( 'copyright', 'DS_Copyright', array(
-				'min_blueprint' => 6, 'default' => 1, 'default_bp' => 6, 'label' => 'Footer copyright shortcode',
+				'min_blueprint' => 6, 'default' => 1, 'default_bp' => 6, 'label' => '[ds_copyright] Shortcode', 'icon' => 'editor-textcolor',
+				'summary' => 'Outputs the footer copyright line anywhere you place [ds_copyright]; {year} becomes the current year.',
 				'fields'  => array( 'footer_copyright_text' => array( 'type' => 'html', 'default' => '&copy; {year} LeagueApps Design Shop', 'default_bp' => 6, 'ui' => false ) ),
 			) ),
 

@@ -42,7 +42,22 @@ chk( 'none missing from admin.css', array_values( array_unique( $missing ) ), ar
 echo "one home for the Logo Finder\n";
 chk( 'no Logo Finder tab on the DS Toolkit page', (bool) preg_match( '/tab=logos\' \); \?>" class="dst-tab/', $admin ), false );
 chk( 'the Media page is still registered', (bool) preg_match( "/add_media_page\(\s*'University Logo Finder'/", $admin ), true );
-chk( 'an old bookmark of the tab is sent to the Media page', (bool) preg_match( "/'logos' === sanitize_key\(.*?wp_safe_redirect\( admin_url\( 'upload\.php\?page=ds-logo-finder' \) \);\s*exit;/s", $admin ), true );
+chk( 'an old bookmark of the tab is sent to the Media page', (bool) preg_match( "/'logos'\s+=> admin_url\( 'upload\.php\?page=ds-logo-finder' \),.*?wp_safe_redirect\( \\\$to\[ \\\$tab \] \);\s*exit;/s", $admin ), true );
+
+echo "four tabs (settings redesign)\n";
+chk( 'Features, LeagueApps, Custom Code, MCP, in that order', (bool) preg_match( "/const TABS = array\( 'features' => 'Features', 'leagueapps' => 'LeagueApps', 'custom-code' => 'Custom Code', 'mcp' => 'MCP' \);/", $admin ), true );
+chk( 'an old General bookmark lands on Shortcodes & Dev Tools', (bool) preg_match( "/'general'\s+=> \\\$base \. '#dst-g-dev'/", $admin ), true );
+chk( 'old Global CSS and Global JS bookmarks land on Custom Code', (bool) preg_match( "/'global-css' => \\\$base \. '&tab=custom-code&sub=css',\s+'global-js'\s+=> \\\$base \. '&tab=custom-code&sub=js'/", $admin ), true );
+chk( 'the General view is gone', file_exists( $root . 'admin/views/page-general.php' ), false );
+$settings_view = file_get_contents( $root . 'admin/views/page-settings.php' );
+chk( 'its copyright text is a field of the [ds_copyright] card', false !== strpos( $settings_view, "\$dst_extras['copyright_shortcode_enabled']['after']" ) && false !== strpos( $settings_view, 'name="ds_toolkit_settings[footer_copyright_text]"' ), true );
+$cards = file_get_contents( $root . 'admin/class-ds-settings-cards.php' );
+chk( 'every group has an anchor the jump links point at', false !== strpos( $cards, 'id="dst-g-<?php echo esc_attr( $group ); ?>"' ), true );
+chk( 'every card and tile carries the "Changed, not saved" tag', substr_count( $cards, '$this->changed_tag();' ), 2 );
+$la = file_get_contents( $root . 'admin/views/page-leagueapps.php' );
+chk( 'LeagueApps: the roster forms sit outside the settings form (forms cannot nest)', strpos( $la, '</form>' ) < strpos( $la, 'id="dst-<?php echo esc_attr( $la_f' ), true );
+chk( 'LeagueApps: every roster field and button names its form', preg_match_all( '/name="(?:key_file|client_id)"(?![^>]*form=)/', $la ) + preg_match_all( '/<button type="submit" class="button[^"]*"(?! form=)/', $la ), 0 );
+chk( 'LeagueApps: the public key is masked until Show', (bool) preg_match( '/type="password" id="dst-la-key-/', $la ), true );
 
 echo "reference text sits behind a fold, settings stay outside it\n";
 foreach ( array( 'page-global-css.php' => 'global_css_overrides', 'page-global-js.php' => 'global_js_enabled', 'page-mcp.php' => 'mcp_posts_pages_enabled' ) as $file => $field ) {

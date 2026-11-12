@@ -1033,6 +1033,24 @@ class DS_Programs_Data {
 	}
 
 	/**
+	 * Fetches and failures in each of the last 24 hours, oldest first, from the same per-hour counters as
+	 * ledger_summary(): the bars of the LeagueApps tab's activity chart.
+	 *
+	 * @return array[] 24 rows of array( 'fetches' => int, 'failures' => int )
+	 */
+	public static function ledger_hours() {
+		$book  = get_option( self::LEDGER_OPTION, array() );
+		$hours = ( is_array( $book ) && isset( $book['hours'] ) && is_array( $book['hours'] ) ) ? $book['hours'] : array();
+		$out   = array();
+		for ( $i = 23; $i >= 0; $i-- ) {
+			$c     = $hours[ gmdate( 'YmdH', time() - $i * 3600 ) ] ?? array();
+			$c     = is_array( $c ) ? array_values( $c ) : array();
+			$out[] = array( 'fetches' => (int) ( $c[0] ?? 0 ), 'failures' => (int) ( $c[2] ?? 0 ) );
+		}
+		return $out;
+	}
+
+	/**
 	 * Rolling 24-hour totals against what the cache should allow. `budget`
 	 * is one fetch per TTL per configured site (144 a day per site at ten
 	 * minutes), the most a site with constant traffic can send; a count well

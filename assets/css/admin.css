@@ -1,5 +1,7 @@
 .dst-wrap {
-    max-width: 800px;
+    max-width: 1240px; /* was 800px: the Features and LeagueApps tabs use the right side for a panel */
+    --dst-accent: var(--wp-admin-theme-color, #2271b1); /* follows the user's admin colour scheme */
+    --dst-accent-dark: var(--wp-admin-theme-color-darker-10, #135e96);
 }
 
 /* Header */
@@ -75,11 +77,11 @@
     transition: color 0.15s, background 0.15s;
 }
 .dst-tab:hover {
-    color: #2271b1;
+    color: var(--dst-accent-dark);
     background: #f0f6ff;
 }
 .dst-tab.is-active {
-    color: #2271b1;
+    color: var(--dst-accent-dark);
     background: #fff;
     border-color: #e2e8f0;
     border-bottom-color: #fff;
@@ -267,7 +269,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .dst-toggle input:checked + label {
-    background: #2271b1;
+    background: var(--dst-accent);
 }
 .dst-toggle input:checked + label::after {
     left: 21px;
@@ -1192,3 +1194,262 @@ textarea.dst-mcp-textarea[readonly] { background: #1d2327; color: #a8d8a8; }
    instead of pushing the page wider. */
 .dst-mcp-log { overflow-x: auto; }
 .dst-mcp-log .widefat { border: 0; }
+
+/* ==== Settings redesign ====================================================================================
+   Same header, tabs, cards and switches as before. New: four tabs (General folded into Shortcodes & Dev Tools,
+   Global CSS and Global JS share Custom Code), a toolbar (find, Show chips, jump links), a two-column layout
+   with a right-hand panel (Status, what changed, this site), "Changed, not saved" tags, the blocks as a grid
+   of tiles, and one card per LeagueApps site. */
+
+/* Tabs that are mostly reading (Custom Code, MCP) keep the old measure. */
+.dst-narrow { max-width: 860px; }
+
+/* Header: the Status summary as a link to the panel. */
+.dst-header { flex-wrap: wrap; }
+.dst-header-text p { color: #c3c4c7; } /* was #8c9aaa: 5.6:1 on the dark header, now 10.4:1 */
+.dst-header-status {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    background: #e7f5ea;
+    color: #0a5a22;
+}
+.dst-header-status:hover,
+.dst-header-status:focus { color: #0a5a22; text-decoration: underline; }
+.dst-header-status--warn,
+.dst-header-status--warn:hover,
+.dst-header-status--warn:focus { background: #fcf3e0; color: #6b3d00; }
+.dst-header-status--bad,
+.dst-header-status--bad:hover,
+.dst-header-status--bad:focus { background: #fbeaea; color: #8a1f1f; }
+.dst-header-status:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.dst-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.dst-header-status + .dst-badge { margin-left: 0; }
+
+/* Custom Code: CSS / JavaScript. */
+.dst-subtabs { display: flex; gap: 6px; margin: 0 0 18px; }
+.dst-subtab {
+    padding: 6px 14px;
+    border: 1px solid #c3c4c7;
+    border-radius: 999px;
+    background: #fff;
+    color: #1d2327;
+    font-size: 13px;
+    text-decoration: none;
+}
+.dst-subtab:hover { color: var(--dst-accent-dark); border-color: var(--dst-accent); }
+.dst-subtab.is-active { background: #1d2327; border-color: #1d2327; color: #fff; font-weight: 600; }
+.dst-subtab:focus-visible { outline: 2px solid var(--dst-accent); outline-offset: 2px; }
+
+/* Toolbar: find, Show chips, jump links. */
+.dst-toolbar {
+    display: grid;
+    gap: 12px;
+    margin: 0 0 20px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+}
+.dst-toolbar .dst-filter-bar {
+    margin: 0;
+    padding: 0 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 6px;
+}
+.dst-toolbar .dst-filter-bar:focus-within { border-color: var(--dst-accent); box-shadow: 0 0 0 1px var(--dst-accent); }
+.dst-toolbar .dst-filter-bar .dashicons { color: #50575e; }
+.dst-toolbar .dst-filter-bar input[type="search"] { min-height: 36px; font-size: 14px; }
+.dst-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dst-toolbar-label { font-size: 12px; color: #50575e; }
+.dst-toolbar-sep { width: 1px; height: 20px; margin: 0 6px; background: #dcdcde; }
+.dst-chips { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.dst-chipbtn {
+    min-height: 28px;
+    padding: 0 12px;
+    border: 1px solid #8c8f94;
+    border-radius: 999px;
+    background: #fff;
+    color: #1d2327;
+    font-size: 12px;
+    cursor: pointer;
+}
+.dst-chipbtn:hover { border-color: #1d2327; }
+.dst-chipbtn.is-active { background: #1d2327; border-color: #1d2327; color: #fff; font-weight: 600; }
+.dst-chipbtn:focus-visible,
+.dst-jump:focus-visible { outline: 2px solid var(--dst-accent); outline-offset: 2px; }
+.dst-jumps { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.dst-jump {
+    padding: 3px 10px;
+    border: 1px solid #dcdcde;
+    border-radius: 999px;
+    background: #f6f7f7;
+    color: #1d2327;
+    font-size: 12px;
+    text-decoration: none;
+}
+.dst-jump:hover { border-color: #8c8f94; color: #1d2327; }
+.dst-jump-count { color: #50575e; }
+
+/* Two columns: the settings, then the panel. The panel drops under the settings on a narrow screen. */
+.dst-layout { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; }
+.dst-main { flex: 999 1 560px; min-width: 0; }
+.dst-rail { flex: 1 1 280px; max-width: 380px; min-width: 0; display: grid; gap: 16px; }
+.dst-panel {
+    margin: 0;
+    background: #fff;
+    border: 1px solid #dcdcde;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.dst-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f1;
+}
+.dst-panel-head h2 { margin: 0; font-size: 14px; font-weight: 600; color: #1d2327; }
+.dst-panel-head .dashicons { color: #b32d2e; font-size: 16px; width: 16px; height: 16px; }
+.dst-panel-head .dst-chip {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #f0f0f1;
+    color: #50575e;
+}
+.dst-panel-note { margin: 0; padding: 12px 16px; font-size: 12px; color: #50575e; }
+.dst-rail .dst-health-list { border-top: 0; padding: 0 16px 4px; }
+.dst-rail .dst-health-row { grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 9px 0; }
+.dst-rail .dst-health-row dt { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.dst-rail .dst-health-row dd { display: block; font-size: 12px; color: #50575e; overflow-wrap: anywhere; }
+.dst-rail .dst-health-state { min-width: 46px; box-sizing: border-box; }
+#dst-health { scroll-margin-top: 48px; }
+.dst-changed-list { margin: 0; padding: 8px 16px 12px; list-style: none; display: grid; gap: 4px; font-size: 13px; }
+.dst-changed-list li { display: flex; justify-content: space-between; gap: 12px; margin: 0; }
+.dst-changed-list a { color: var(--dst-accent-dark); }
+.dst-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; margin: 0; padding: 12px 16px 4px; font-size: 12px; }
+.dst-facts dt { color: #50575e; }
+.dst-facts dd { margin: 0; color: #1d2327; }
+.dst-panel-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 8px 16px 14px; font-size: 12px; }
+
+/* "Changed, not saved": on every card that differs from what is saved. */
+.dst-card-info .dst-chip--changed { background: #fcf3e0; color: #6b3d00; text-transform: none; letter-spacing: 0; }
+.dst-card.is-changed { border-color: #dba617; }
+.dst-group { scroll-margin-top: 48px; }
+
+/* The save bar: Discard, and the button keeps to the right. */
+.dst-savebar #dst-discard { height: 36px; line-height: 34px; border-radius: 6px; }
+.dst-savebar.is-dirty .dst-savebar-state { color: #6b3d00; }
+.dst-filter-empty .button-link { color: var(--dst-accent-dark); text-decoration: underline; }
+
+/* The blocks: the "all modules" switch, then a grid of tiles. */
+.dst-modules-all {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 0 0 10px;
+    padding: 12px 18px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+.dst-modules-all-text { flex: 1; min-width: 0; font-size: 12px; color: #50575e; }
+.dst-modules-all-text strong { display: block; font-size: 13px; color: #1d2327; }
+.dst-module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.dst-module-grid > .dst-card { margin: 0; }
+.dst-group .dst-card--tile > .dst-card-row { gap: 12px; padding: 12px 14px; }
+.dst-group .dst-card--tile > .dst-card-row > .dst-toggle { margin-top: 2px; }
+.dst-card--tile .dst-card-info .dst-summary {
+    font-size: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ---- LeagueApps tab: one card per site ---- */
+.dst-la-intro { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 0 0 14px; }
+.dst-la-intro-text { flex: 1 1 320px; }
+.dst-la-intro-text .dst-section-title { margin-bottom: 4px; }
+.dst-la-intro-text p { margin: 0; font-size: 13px; color: #50575e; }
+.dst-la-notice { margin: 0 0 14px; padding: 10px 14px; border: 1px solid #dba617; border-radius: 8px; background: #fcf9e8; font-size: 13px; }
+.dst-sites { display: grid; gap: 14px; }
+.dst-site { background: #fff; border: 1px solid #dcdcde; border-radius: 8px; overflow: hidden; }
+.dst-site--bad { border-color: #e65054; }
+.dst-site-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 18px; border-bottom: 1px solid #f0f0f1; }
+.dst-site-head h3 { margin: 0; font-size: 15px; }
+.dst-site-id { font-size: 12px; color: #50575e; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 999px; padding: 0 9px; }
+.dst-wrap .dst-site-head .dst-site-remove { margin-left: auto; color: #8a2424; border-color: #dcdcde; }
+.dst-site-dot { width: 10px; height: 10px; border-radius: 50%; background: #8c8f94; }
+.dst-site-dot--ok { background: #00a32a; }
+.dst-site-dot--warn { background: #dba617; }
+.dst-site-dot--bad { background: #d63638; }
+.dst-site-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 14px 18px; }
+.dst-site-field { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: #1d2327; }
+.dst-site-field input[type="text"],
+.dst-site-field input[type="password"] { width: 100%; min-height: 34px; margin: 0; font-weight: 400; }
+.dst-keybox { display: flex; gap: 6px; }
+.dst-keybox input { flex: 1 1 auto; min-width: 0; font-family: Consolas, Monaco, monospace; font-size: 12px; }
+.dst-wrap .dst-keybox .button { flex: 0 0 auto; min-height: 34px; }
+.dst-site-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; padding: 0 18px 16px; }
+.dst-statebox { padding: 12px 14px; border: 1px solid #dcdcde; border-radius: 6px; background: #f6f7f7; font-size: 13px; color: #3c434a; }
+.dst-statebox--warn { border-color: #dba617; background: #fcf9e8; }
+.dst-statebox--bad { border-color: #e65054; background: #fcf0f1; }
+.dst-statebox-head { display: flex; align-items: center; gap: 8px; color: #1d2327; }
+.dst-statebox p { margin: 4px 0 0; }
+.dst-statebox .dst-actions { margin-top: 10px; }
+.dst-statebox .dst-history { font-size: 12px; }
+
+/* Feed activity: fetches per hour for the last day. Heights are classes (the views carry no style attribute). */
+.dst-bars { display: flex; align-items: flex-end; gap: 3px; height: 64px; margin-top: 14px; border-bottom: 1px solid #dcdcde; }
+.dst-bar { flex: 1 1 0; min-width: 3px; border-radius: 3px 3px 0 0; background: var(--dst-accent); }
+.dst-bar--h0 { height: 3px; background: #dcdcde; }
+.dst-bar--h1 { height: 8px; }
+.dst-bar--h2 { height: 16px; }
+.dst-bar--h3 { height: 24px; }
+.dst-bar--h4 { height: 32px; }
+.dst-bar--h5 { height: 40px; }
+.dst-bar--h6 { height: 48px; }
+.dst-bar--h7 { height: 56px; }
+.dst-bar--h8 { height: 64px; }
+.dst-bar--fail { background: #d63638; }
+.dst-bars-axis { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: #50575e; }
+.dst-activity { padding: 16px 18px; }
+.dst-activity-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.dst-activity-head h2 { margin: 0; font-size: 14px; }
+.dst-activity-head span { margin-left: auto; font-size: 12px; color: #50575e; }
+.dst-activity details { margin-top: 10px; }
+.dst-activity summary { cursor: pointer; color: var(--dst-accent-dark); font-size: 13px; }
+.dst-activity .dst-mapping-container { overflow-x: auto; margin-top: 8px; }
+.dst-rail .dst-panel p { font-size: 13px; color: #3c434a; }
+.dst-rail .dst-panel > p { margin: 0; padding: 10px 16px; }
+.dst-rail .dst-panel > p + p { padding-top: 0; }
+.dst-rail .dst-panel > .button { margin: 0 16px 14px; }
+.dst-rail details.dst-panel > summary { padding: 12px 16px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.dst-rail ol { margin: 10px 16px 14px 32px; font-size: 13px; color: #3c434a; }
+
+/* Phones: the toolbar rows scroll sideways instead of stacking three deep, switches get a 44px touch area,
+   and the panel sits under the settings. */
+@media (max-width: 782px) {
+    .dst-header { padding: 16px 18px; }
+    .dst-header-status { margin-left: 0; order: 3; }
+    .dst-toolbar-row { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+    .dst-chips,
+    .dst-jumps { flex-wrap: nowrap; }
+    .dst-chipbtn { min-height: 36px; white-space: nowrap; }
+    .dst-jump { white-space: nowrap; }
+    .dst-rail { max-width: none; flex-basis: 100%; }
+    .dst-toggle input[type="checkbox"] { inset: -11px -4px; width: 48px; height: 44px; }
+    .dst-module-grid { grid-template-columns: minmax(0, 1fr); }
+    .dst-wrap .dst-site-head .dst-site-remove { margin-left: 0; }
+}

@@ -56,7 +56,7 @@ class DS_Settings_Cards {
 			}
 			$on = count( array_filter( $keys, array( $this, 'on' ) ) );
 			?>
-			<details class="dst-group" data-dst-group="<?php echo esc_attr( $group ); ?>"<?php echo $open ? ' open' : ''; ?>>
+			<details class="dst-group" id="dst-g-<?php echo esc_attr( $group ); ?>" data-dst-group="<?php echo esc_attr( $group ); ?>" data-dst-label="<?php echo esc_attr( $label ); ?>"<?php echo $open ? ' open' : ''; ?>>
 				<summary class="dst-group-head">
 					<span class="dst-group-title"><span class="dashicons dashicons-<?php echo esc_attr( $icon ); ?>" aria-hidden="true"></span> <?php echo esc_html( $label ); ?></span>
 					<span class="dst-group-count" data-dst-count><?php echo esc_html( $on . ' of ' . count( $keys ) . ' on' ); ?></span>
@@ -102,6 +102,7 @@ class DS_Settings_Cards {
 					<span class="dst-card-title">
 						<strong id="dst-t-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $def['label'] ); ?></strong>
 						<?php if ( isset( DS_Features::SCOPES[ $scope ] ) ) : ?><span class="dst-chip dst-chip--<?php echo esc_attr( $scope ); ?>"><?php echo esc_html( DS_Features::SCOPES[ $scope ] ); ?></span><?php endif; ?>
+						<?php $this->changed_tag(); ?>
 					</span>
 					<span class="dst-summary" id="dst-s-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $def['summary'] ); ?></span>
 					<?php if ( ! empty( $extra['status'] ) ) : ?><span class="dst-status"><?php echo wp_kses_post( $extra['status'] ); ?></span><?php endif; ?>
@@ -193,29 +194,41 @@ class DS_Settings_Cards {
 		<?php
 	}
 
-	/** The Beaver Builder blocks: one card, a switch for all of them, then one row per block. */
+	/** Shown by assets/js/admin.js when anything in the card differs from what is saved. */
+	private function changed_tag() {
+		echo '<span class="dst-chip dst-chip--changed" data-dst-changed hidden>Changed, not saved</span>';
+	}
+
+	/**
+	 * The Beaver Builder blocks: a switch for all of them, then a grid of tiles, one per block (name, one line,
+	 * switch). Each tile is a card of its own, so the filter, the counts and the "changed" tag treat it like any
+	 * other card. Until the settings redesign the blocks were twenty full-width rows inside one card.
+	 */
 	private function modules_card( array $modules ) {
 		?>
-		<div class="dst-card" data-dst-card="modules">
-			<div class="dst-card-row">
-				<div class="dst-card-icon"><span class="dashicons dashicons-grid-view" aria-hidden="true"></span></div>
-				<div class="dst-card-info">
-					<span class="dst-card-title"><strong id="dst-t-modules-all">Enable all modules</strong></span>
-					<span class="dst-summary" id="dst-s-modules-all">Switches every LeagueApps block on or off at once. Each block can still be switched below. Remember to save.</span>
-				</div>
-				<div class="dst-toggle">
-					<input type="checkbox" role="switch" id="dst-modules-all" aria-labelledby="dst-t-modules-all" aria-describedby="dst-s-modules-all">
-					<label for="dst-modules-all" aria-hidden="true"></label>
-				</div>
+		<div class="dst-modules-all">
+			<span class="dst-modules-all-text">
+				<strong id="dst-t-modules-all">All modules</strong>
+				<span id="dst-s-modules-all">Switches every LeagueApps block on or off at once. Remember to save.</span>
+			</span>
+			<div class="dst-toggle">
+				<input type="checkbox" role="switch" id="dst-modules-all" aria-labelledby="dst-t-modules-all" aria-describedby="dst-s-modules-all">
+				<label for="dst-modules-all" aria-hidden="true"></label>
 			</div>
+		</div>
+		<div class="dst-module-grid">
 			<?php foreach ( $modules as $key => $mod ) : ?>
-			<div class="dst-card-row dst-card-row--module">
-				<div class="dst-card-icon"><span class="dashicons dashicons-screenoptions" aria-hidden="true"></span></div>
-				<div class="dst-card-info">
-					<span class="dst-card-title"><strong id="dst-t-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $mod['label'] ); ?></strong></span>
-					<span class="dst-summary" id="dst-s-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $mod['desc'] ); ?></span>
+			<div class="dst-card dst-card--tile<?php echo $this->on( $key ) ? '' : ' is-off'; ?>" data-dst-card="<?php echo esc_attr( $key ); ?>">
+				<div class="dst-card-row">
+					<div class="dst-card-info">
+						<span class="dst-card-title">
+							<strong id="dst-t-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $mod['label'] ); ?></strong>
+							<?php $this->changed_tag(); ?>
+						</span>
+						<span class="dst-summary" id="dst-s-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $mod['desc'] ); ?></span>
+					</div>
+					<?php $this->toggle( $key, 'dst-t-' . $key, 'dst-s-' . $key, 'dst-module-toggle' ); ?>
 				</div>
-				<?php $this->toggle( $key, 'dst-t-' . $key, 'dst-s-' . $key, 'dst-module-toggle' ); ?>
 			</div>
 			<?php endforeach; ?>
 		</div>

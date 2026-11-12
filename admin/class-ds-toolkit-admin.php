@@ -23,15 +23,41 @@ class DS_Toolkit_Admin {
     /** Where the team's guides live. The reference folds of the Global CSS, Global JS and MCP tabs link here. */
     const HQ_DOCS_URL = DS_Env::HQ_URL . 'toolkit/';
 
+    /** The four tabs, in order: slug => label. */
+    const TABS = array( 'features' => 'Features', 'leagueapps' => 'LeagueApps', 'custom-code' => 'Custom Code', 'mcp' => 'MCP' );
+
     /**
-     * The University Logo Finder was listed twice: as a tab here and under Media. The Media page is the one
-     * partners can reach, so it is the one kept; an old bookmark of the tab lands there.
+     * Tabs that were retired, and where an old bookmark of each lands:
+     *  - logos: the University Logo Finder was listed twice (a tab here and under Media). The Media page is the
+     *    one partners can reach, so it is the one kept (2026-11 audit).
+     *  - general: it held only the [ds_copyright] shortcode, now a card under Shortcodes & Dev Tools.
+     *  - global-css, global-js: one Custom Code tab with a CSS and a JavaScript view (settings redesign).
      */
     public function redirect_retired_tabs() {
-        if ( isset( $_GET['tab'] ) && 'logos' === sanitize_key( wp_unslash( $_GET['tab'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing
-            wp_safe_redirect( admin_url( 'upload.php?page=ds-logo-finder' ) );
+        $tab  = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing
+        $base = admin_url( 'options-general.php?page=ds-toolkit' );
+        $to   = array(
+            'logos'      => admin_url( 'upload.php?page=ds-logo-finder' ),
+            'general'    => $base . '#dst-g-dev',
+            'global-css' => $base . '&tab=custom-code&sub=css',
+            'global-js'  => $base . '&tab=custom-code&sub=js',
+        );
+        if ( isset( $to[ $tab ] ) ) {
+            wp_safe_redirect( $to[ $tab ] );
             exit;
         }
+    }
+
+    /** The tab being shown: one of TABS, Features for anything else. */
+    private function active_tab() {
+        $tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'features'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing
+        return isset( self::TABS[ $tab ] ) ? $tab : 'features';
+    }
+
+    /** The Custom Code tab's view: css or js. */
+    private function active_sub() {
+        $sub = isset( $_GET['sub'] ) ? sanitize_key( wp_unslash( $_GET['sub'] ) ) : 'css'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only routing
+        return 'js' === $sub ? 'js' : 'css';
     }
 
     private function get_mcp_url() {
@@ -154,7 +180,7 @@ class DS_Toolkit_Admin {
             return;
         }
 
-        $active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'features';
+        $active_tab = $this->active_tab();
 
         // Shared admin styles (header, tabs, cards, toggles)
         wp_enqueue_style(
@@ -164,7 +190,7 @@ class DS_Toolkit_Admin {
             DS_TOOLKIT_VERSION
         );
 
-        if ( $active_tab === 'global-css' ) {
+        if ( 'custom-code' === $active_tab && 'css' === $this->active_sub() ) {
             $settings = wp_enqueue_code_editor( array( 'type' => 'text/css' ) );
             if ( $settings ) {
                 wp_add_inline_script(
@@ -176,11 +202,11 @@ class DS_Toolkit_Admin {
                 );
             }
 
-        } elseif ( $active_tab === 'global-js' ) {
-            // JS is plugin-managed and read-only — no editor needed.
+        } elseif ( 'custom-code' === $active_tab ) {
+            // JS is plugin-managed and read-only: no editor needed.
 
         } else {
-            // Features tab
+            // Features and LeagueApps tabs
             wp_enqueue_media();
             wp_enqueue_script(
                 'ds-toolkit-admin',
@@ -200,71 +226,75 @@ class DS_Toolkit_Admin {
             return;
         }
 
-        $active_tab    = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'features';
-        $base_url      = admin_url( 'options-general.php?page=ds-toolkit' );
+        $active_tab = $this->active_tab();
+        $base_url   = admin_url( 'options-general.php?page=ds-toolkit' );
+        $opts       = get_option( 'ds_toolkit_settings', array() );
+        $opts       = is_array( $opts ) ? $opts : array();
+
+        // The Features tab's live status lines and the Status panel are worked out first: the header shows
+        // the panel's summary ("2 to check") as a link to it.
+        $dst_status = array();
+        $dst_health = array();
+        if ( 'features' === $active_tab ) {
+            list( $dst_status, $dst_health ) = $this->feature_status( $opts );
+        }
+        $dst_states = array_count_values( array_column( $dst_health, 1 ) );
+        $dst_worst  = ! empty( $dst_states['bad'] ) ? 'bad' : ( ! empty( $dst_states['warn'] ) ? 'warn' : 'ok' );
+        $dst_sum    = 'bad' === $dst_worst ? $dst_states['bad'] . ' to fix' : ( 'warn' === $dst_worst ? $dst_states['warn'] . ' to check' : 'All good' );
         ?>
         <div class="wrap dst-wrap">
 
             <div class="dst-header">
-                <div class="dst-header-icon"><span class="dashicons dashicons-hammer"></span></div>
+                <div class="dst-header-icon"><span class="dashicons dashicons-hammer" aria-hidden="true"></span></div>
                 <div class="dst-header-text">
                     <h1>DS Toolkit</h1>
                     <p>Design Shop custom features and build toolkit</p>
                 </div>
+                <?php if ( $dst_health ) : ?>
+                <a class="dst-header-status dst-header-status--<?php echo esc_attr( $dst_worst ); ?>" href="#dst-health"><span class="dst-dot" aria-hidden="true"></span>Status: <?php echo esc_html( $dst_sum ); ?></a>
+                <?php endif; ?>
                 <span class="dst-badge">v<?php echo esc_html( DS_TOOLKIT_VERSION ); ?></span>
             </div>
 
-            <div class="dst-tabs">
-                <a href="<?php echo esc_url( $base_url ); ?>" class="dst-tab<?php echo $active_tab === 'features' ? ' is-active' : ''; ?>">
-                    Features
-                </a>
-                <?php if ( DS_Toolkit::blueprint_version() >= 6 ) : ?>
-                <a href="<?php echo esc_url( $base_url . '&tab=general' ); ?>" class="dst-tab<?php echo $active_tab === 'general' ? ' is-active' : ''; ?>">
-                    General
-                </a>
-                <?php endif; ?>
-                <a href="<?php echo esc_url( $base_url . '&tab=global-css' ); ?>" class="dst-tab<?php echo $active_tab === 'global-css' ? ' is-active' : ''; ?>">
-                    Global CSS
-                </a>
-                <a href="<?php echo esc_url( $base_url . '&tab=global-js' ); ?>" class="dst-tab<?php echo $active_tab === 'global-js' ? ' is-active' : ''; ?>">
-                    Global JS
-                </a>
-                <a href="<?php echo esc_url( $base_url . '&tab=mcp' ); ?>" class="dst-tab<?php echo $active_tab === 'mcp' ? ' is-active' : ''; ?>">
-                    MCP
-                </a>
-                <a href="<?php echo esc_url( $base_url . '&tab=leagueapps' ); ?>" class="dst-tab<?php echo $active_tab === 'leagueapps' ? ' is-active' : ''; ?>">
-                    LeagueApps
-                </a>
-            </div>
+            <nav class="dst-tabs" aria-label="DS Toolkit sections">
+                <?php foreach ( self::TABS as $slug => $label ) : $here = $slug === $active_tab; ?>
+                <a href="<?php echo esc_url( 'features' === $slug ? $base_url : $base_url . '&tab=' . $slug ); ?>" class="dst-tab<?php echo $here ? ' is-active' : ''; ?>"<?php echo $here ? ' aria-current="page"' : ''; ?>><?php echo esc_html( $label ); ?></a>
+                <?php endforeach; ?>
+            </nav>
 
             <?php
-            $opts = get_option( 'ds_toolkit_settings', array() );
-
-            if ( $active_tab === 'general' && DS_Toolkit::blueprint_version() >= 6 ) {
-                $footer_copyright_text     = isset( $opts['footer_copyright_text'] ) ? $opts['footer_copyright_text'] : '';
-                $copyright_shortcode_enabled = ! empty( $opts['copyright_shortcode_enabled'] );
-                require DS_TOOLKIT_PATH . 'admin/views/page-general.php';
-
-            } elseif ( $active_tab === 'leagueapps' ) {
+            if ( 'leagueapps' === $active_tab ) {
                 require_once DS_TOOLKIT_PATH . 'includes/class-ds-programs-data.php';
                 $leagueapps_sites   = DS_Programs_Data::configured_sites();
                 $programs_module_on = ! empty( $opts['ds_programs_module_enabled'] ) || ! empty( $opts['ds_la_calendar_module_enabled'] ) || ! empty( $opts['ds_la_roster_module_enabled'] );
                 $roster_module_on   = ! empty( $opts['ds_la_roster_module_enabled'] );
                 $la_sports          = DS_Programs_Data::known_sports();
                 $la_activity        = DS_Programs_Data::ledger_summary();
-                $la_ledger          = array_slice( DS_Programs_Data::ledger(), 0, 12 );
+                $la_ledger_all      = DS_Programs_Data::ledger();
+                $la_ledger          = array_slice( $la_ledger_all, 0, 12 );
+                $la_hours           = DS_Programs_Data::ledger_hours();
                 require DS_TOOLKIT_PATH . 'admin/views/page-leagueapps.php';
 
-            } elseif ( $active_tab === 'global-css' ) {
-                $global_css_enabled   = ! empty( $opts['global_css_enabled'] );
-                $global_css_overrides = isset( $opts['global_css_overrides'] ) ? $opts['global_css_overrides'] : '';
-                require DS_TOOLKIT_PATH . 'admin/views/page-global-css.php';
+            } elseif ( 'custom-code' === $active_tab ) {
+                $sub = $this->active_sub();
+                ?>
+                <div class="dst-narrow">
+                <nav class="dst-subtabs" aria-label="Custom code">
+                    <a href="<?php echo esc_url( $base_url . '&tab=custom-code&sub=css' ); ?>" class="dst-subtab<?php echo 'css' === $sub ? ' is-active' : ''; ?>"<?php echo 'css' === $sub ? ' aria-current="page"' : ''; ?>>CSS</a>
+                    <a href="<?php echo esc_url( $base_url . '&tab=custom-code&sub=js' ); ?>" class="dst-subtab<?php echo 'js' === $sub ? ' is-active' : ''; ?>"<?php echo 'js' === $sub ? ' aria-current="page"' : ''; ?>>JavaScript</a>
+                </nav>
+                <?php
+                if ( 'js' === $sub ) {
+                    $global_js_enabled = ! empty( $opts['global_js_enabled'] );
+                    require DS_TOOLKIT_PATH . 'admin/views/page-global-js.php';
+                } else {
+                    $global_css_enabled   = ! empty( $opts['global_css_enabled'] );
+                    $global_css_overrides = isset( $opts['global_css_overrides'] ) ? $opts['global_css_overrides'] : '';
+                    require DS_TOOLKIT_PATH . 'admin/views/page-global-css.php';
+                }
+                echo '</div>';
 
-            } elseif ( $active_tab === 'global-js' ) {
-                $global_js_enabled = ! empty( $opts['global_js_enabled'] );
-                require DS_TOOLKIT_PATH . 'admin/views/page-global-js.php';
-
-            } elseif ( $active_tab === 'mcp' ) {
+            } elseif ( 'mcp' === $active_tab ) {
                 $is_local         = ( 'local' === wp_get_environment_type() );
                 $mcp_url          = $is_local
                     ? preg_replace( '/^https:/i', 'http:', $this->get_mcp_url() )
@@ -287,75 +317,17 @@ class DS_Toolkit_Admin {
                 require_once DS_TOOLKIT_PATH . 'admin/class-ds-mcp-server.php';
                 $mcp_tool_text = ( new DS_MCP_Server() )->tool_descriptions();
                 $mcp_log       = DS_MCP_Tools::recent( 20 );
+                echo '<div class="dst-narrow">';
                 require DS_TOOLKIT_PATH . 'admin/views/page-mcp.php';
+                echo '</div>';
 
             } else {
                 // The Features tab draws itself from the schema (DS_Features, admin/class-ds-settings-cards.php).
-                // Only the live status lines are worked out here: key => html, shown under the card's summary.
-                $opts       = is_array( $opts ) ? $opts : array();
-                $dst_status = array();
-
-                // Bot Shield: today's counters (cache reads only).
-                if ( ! empty( $opts['bot_shield_enabled'] ) ) {
-                    require_once DS_TOOLKIT_PATH . 'features/class-ds-bot-shield.php';
-                    $shield  = new DS_Bot_Shield( $opts );
-                    $monitor = ! ( isset( $opts['bot_shield_mode'] ) && 'block' === $opts['bot_shield_mode'] );
-                    $parts   = array();
-                    foreach ( array( 'rate-limit' => 'rate-limited', 'ua-block' => 'crawlers blocked', 'challenge' => 'browser checks', 'page-trap' => 'pagination traps' ) as $sk => $sl ) {
-                        if ( $shield->stat( $sk ) ) {
-                            $parts[] = $shield->stat( $sk ) . ' ' . $sl;
-                        }
-                    }
-                    $line = implode( ', ', $parts );
-                    if ( $line && $monitor ) {
-                        $line = 'would have blocked: ' . $line;
-                    }
-                    $seen = $shield->stat( 'seen' );
-                    if ( $seen ) {
-                        $line = $seen . ' requests evaluated' . ( $line ? ', ' . $line : ', nothing to block' );
-                    }
-                    if ( '' === $shield->backend_name() ) {
-                        // Nothing can be counted here, so an empty day would read the same as a quiet one.
-                        $dst_status['bot_shield_enabled'] = '<strong class="dst-state dst-state--warn">Not counting:</strong> this host has no cache backend (no persistent object cache, no APCu), so rate limits cannot run. Only the crawler block list works.';
-                    } elseif ( $line ) {
-                        $dst_status['bot_shield_enabled'] = '<strong>Today:</strong> ' . esc_html( $line );
-                    }
-                }
-
-                // Origin Guard: is the mu-plugin on disk right now? (The installer may have failed to write it.)
-                $guard_on        = ! empty( $opts['origin_guard_enabled'] );
-                $guard_installed = file_exists( ( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ) . '/ds-origin-guard.php' );
-                if ( $guard_on && ! $guard_installed ) {
-                    $dst_status['origin_guard_enabled'] = '<strong class="dst-state dst-state--bad">Not installed:</strong> the mu-plugins directory could not be written. Check filesystem permissions.';
-                } elseif ( $guard_installed ) {
-                    $dst_status['origin_guard_enabled'] = '<strong class="dst-state dst-state--ok">Active</strong>, running as <code>mu-plugins/ds-origin-guard.php</code>.';
-                }
-
-                // Report to Design Shop HQ: how HQ sees this site (asked at most every 5 minutes), and Reconnect.
-                $tw_on = ! isset( $opts['tripwire_enabled'] ) || ! empty( $opts['tripwire_enabled'] );
-                $hq_on = ! isset( $opts['tripwire_hq_report'] ) || ! empty( $opts['tripwire_hq_report'] );
-                $hq    = array( 'warn', 'Reporting to Design Shop HQ is off.' . ( $tw_on ? ' Alerts still go by email.' : '' ) );
-                if ( $hq_on ) {
-                    require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-link.php';
-                    $hq = DS_HQ_Link::status_line();
-                    if ( ! $tw_on ) {
-                        $hq[1] .= ' Tripwire is off, so only check-ins are sent.';
-                    }
-                }
-                $hq_class = in_array( $hq[0], array( 'ok', 'warn', 'bad' ), true ) ? $hq[0] : 'warn';
-                $dst_status['tripwire_hq_report'] = '<strong class="dst-state dst-state--' . $hq_class . '">' . esc_html( $hq[1] ) . '</strong>';
-                if ( $hq_on ) {
-                    $dst_status['tripwire_hq_report'] .= ' <a class="button button-small" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ds_hq_link_reconnect' ), 'ds_hq_link_reconnect' ) ) . '">Reconnect</a>';
-                }
-
-                // The Status card: is the background work healthy? Staff only (this page already is; the check
-                // stays so the card never shows if the page is ever opened to partners).
-                $dst_health = array();
-                if ( $this->is_leagueapps_user() ) {
-                    $dst_health   = DS_Status::rows( $opts );
-                    $dst_health[] = array( 'Design Shop HQ', $hq_class, $hq[1] );
-                }
-
+                $dst_site = array(
+                    'blueprint' => DS_Toolkit::blueprint_version(),
+                    'channel'   => DS_Env::is_beta_channel() ? 'Beta' : 'Stable',
+                    'where'     => DS_Env::is_local() ? 'Local copy' : ( DS_Env::is_dev_host() ? 'Development address (not launched)' : 'Live domain' ),
+                );
                 require_once DS_TOOLKIT_PATH . 'admin/class-ds-settings-cards.php';
                 require DS_TOOLKIT_PATH . 'admin/views/page-settings.php';
             }
@@ -363,5 +335,77 @@ class DS_Toolkit_Admin {
 
         </div>
         <?php
+    }
+
+    /**
+     * The Features tab's live status lines (key => html, shown under a card's summary) and the rows of the
+     * staff-only Status panel.
+     *
+     * @return array array( $status_lines, $health_rows )
+     */
+    private function feature_status( array $opts ) {
+        $dst_status = array();
+
+        // Bot Shield: today's counters (cache reads only).
+        if ( ! empty( $opts['bot_shield_enabled'] ) ) {
+            require_once DS_TOOLKIT_PATH . 'features/class-ds-bot-shield.php';
+            $shield  = new DS_Bot_Shield( $opts );
+            $monitor = ! ( isset( $opts['bot_shield_mode'] ) && 'block' === $opts['bot_shield_mode'] );
+            $parts   = array();
+            foreach ( array( 'rate-limit' => 'rate-limited', 'ua-block' => 'crawlers blocked', 'challenge' => 'browser checks', 'page-trap' => 'pagination traps' ) as $sk => $sl ) {
+                if ( $shield->stat( $sk ) ) {
+                    $parts[] = $shield->stat( $sk ) . ' ' . $sl;
+                }
+            }
+            $line = implode( ', ', $parts );
+            if ( $line && $monitor ) {
+                $line = 'would have blocked: ' . $line;
+            }
+            $seen = $shield->stat( 'seen' );
+            if ( $seen ) {
+                $line = $seen . ' requests evaluated' . ( $line ? ', ' . $line : ', nothing to block' );
+            }
+            if ( '' === $shield->backend_name() ) {
+                // Nothing can be counted here, so an empty day would read the same as a quiet one.
+                $dst_status['bot_shield_enabled'] = '<strong class="dst-state dst-state--warn">Not counting:</strong> this host has no cache backend (no persistent object cache, no APCu), so rate limits cannot run. Only the crawler block list works.';
+            } elseif ( $line ) {
+                $dst_status['bot_shield_enabled'] = '<strong>Today:</strong> ' . esc_html( $line );
+            }
+        }
+
+        // Origin Guard: is the mu-plugin on disk right now? (The installer may have failed to write it.)
+        $guard_on        = ! empty( $opts['origin_guard_enabled'] );
+        $guard_installed = file_exists( ( defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : WP_CONTENT_DIR . '/mu-plugins' ) . '/ds-origin-guard.php' );
+        if ( $guard_on && ! $guard_installed ) {
+            $dst_status['origin_guard_enabled'] = '<strong class="dst-state dst-state--bad">Not installed:</strong> the mu-plugins directory could not be written. Check filesystem permissions.';
+        } elseif ( $guard_installed ) {
+            $dst_status['origin_guard_enabled'] = '<strong class="dst-state dst-state--ok">Active</strong>, running as <code>mu-plugins/ds-origin-guard.php</code>.';
+        }
+
+        // Report to Design Shop HQ: how HQ sees this site (asked at most every 5 minutes), and Reconnect.
+        $tw_on = ! isset( $opts['tripwire_enabled'] ) || ! empty( $opts['tripwire_enabled'] );
+        $hq_on = ! isset( $opts['tripwire_hq_report'] ) || ! empty( $opts['tripwire_hq_report'] );
+        $hq    = array( 'warn', 'Reporting to Design Shop HQ is off.' . ( $tw_on ? ' Alerts still go by email.' : '' ) );
+        if ( $hq_on ) {
+            require_once DS_TOOLKIT_PATH . 'features/class-ds-hq-link.php';
+            $hq = DS_HQ_Link::status_line();
+            if ( ! $tw_on ) {
+                $hq[1] .= ' Tripwire is off, so only check-ins are sent.';
+            }
+        }
+        $hq_class = in_array( $hq[0], array( 'ok', 'warn', 'bad' ), true ) ? $hq[0] : 'warn';
+        $dst_status['tripwire_hq_report'] = '<strong class="dst-state dst-state--' . $hq_class . '">' . esc_html( $hq[1] ) . '</strong>';
+        if ( $hq_on ) {
+            $dst_status['tripwire_hq_report'] .= ' <a class="button button-small" href="' . esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ds_hq_link_reconnect' ), 'ds_hq_link_reconnect' ) ) . '">Reconnect</a>';
+        }
+
+        // The Status panel: is the background work healthy? Staff only (this page already is; the check
+        // stays so the panel never shows if the page is ever opened to partners).
+        $dst_health = array();
+        if ( $this->is_leagueapps_user() ) {
+            $dst_health   = DS_Status::rows( $opts );
+            $dst_health[] = array( 'Design Shop HQ', $hq_class, $hq[1] );
+        }
+        return array( $dst_status, $dst_health );
     }
 }
