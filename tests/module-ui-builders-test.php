@@ -69,7 +69,7 @@ chk( 'and prints nothing new when Large was left blank', (bool) preg_match( "/if
 
 echo "house spelling\n";
 $left = array();
-foreach ( glob( $root . 'modules/*/*.php' ) as $f ) {
+foreach ( array_merge( glob( $root . 'modules/*/*.php' ), glob( $root . 'modules/*/includes/*.php' ) ) as $f ) { // a split module keeps its form in includes/
 	if ( preg_match_all( "/__\( '((?:[^'\\\\\\\\]|\\\\\\\\.)*)'/", file_get_contents( $f ), $m ) ) {
 		foreach ( $m[1] as $t ) {
 			if ( preg_match( '/\bColors?\b/', $t ) && ! preg_match( '/Dodge|Burn|duotone|Multiply|global Line Color/', $t ) ) { $left[] = basename( $f ) . ': ' . $t; }

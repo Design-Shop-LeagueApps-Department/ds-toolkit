@@ -50,7 +50,8 @@ $defaults = function ( $file ) {
 	return $out;
 };
 
-$files = glob( $root . 'modules/*/*.php' );
+// A module's form is in its main file, or, when that file was split, in includes/settings-form.php.
+$files = array_merge( glob( $root . 'modules/*/*.php' ), glob( $root . 'modules/*/includes/settings-form.php' ) );
 $is( 'module files found', count( $files ) > 10, true );
 $all = array();
 foreach ( $files as $f ) { $all = array_merge( $all, $defaults( $f ) ); }
@@ -66,7 +67,7 @@ $is( 'no module default is lorem copy (repeater rows included)', count( $hits ),
 
 // The labels that keep a real word, so a fresh module's button reads as a button.
 $find = function ( $module, $field ) use ( $all, $root ) {
-	foreach ( $all as $d ) { if ( $d[0] === $root . "modules/$module/$module.php" && $d[3] === $field ) { return $d[2]; } }
+	foreach ( $all as $d ) { if ( in_array( $d[0], array( $root . "modules/$module/$module.php", $root . "modules/$module/includes/settings-form.php" ), true ) && $d[3] === $field ) { return $d[2]; } }
 	return null;
 };
 $is( 'Hero Button 1 Text = Learn More', $find( 'ds-hero', 'btn1_text' ), 'Learn More' );
