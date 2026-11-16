@@ -4,6 +4,21 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.19.0] - 2026-11-17
+MINOR: on WP Engine, a failed login CAPTCHA shows its own message again instead of "There has been a critical error on this website".
+
+### Fixed
+- **No critical error when a login CAPTCHA fails on WP Engine.** WP Engine's platform plugin refreshes the user on every
+  login attempt (`wpe_refresh_user()` on `wp_authenticate_user`) and turns a refused login into `false`. When Defender's
+  CAPTCHA (Turnstile or reCAPTCHA) had already refused it, for example an expired check or Log In pressed before the check
+  finished, WordPress then crashed in `wp_check_password()` and the partner saw the critical error page
+  (thestjamescamps.com, 2026-11-17). Only a real username reached it, so partners hit it and bots did not. New
+  compatibility patch (Features tab, on by default, inert off WP Engine): when the login is already refused, WP Engine's
+  refresh is skipped for that request and the CAPTCHA message shows. Logins that pass are untouched.
+  `tests/wpe-login-error-fix-test.php` (6 checks, the first one proves the bug without the patch).
+
+---
+
 ## [1.18.2] - 2026-11-12
 PATCH: the Post Loop's Tournament layout can show an excerpt, and entries without an Event Date follow the Query tab's order.
 
