@@ -24,8 +24,10 @@
 .dsst .dsst-tabs .dsst-tab:hover { border-color: var(--dsst-head-bg); background: transparent; color: inherit; }
 .dsst .dsst-tabs .dsst-tab[aria-selected="true"] { background: var(--dsst-head-bg); border-color: var(--dsst-head-bg); color: var(--dsst-head-ink); }
 .dsst .dsst-tabs .dsst-tab:focus-visible, .dsst-select:focus-visible, .dsst-scroll:focus-visible, .dsst a:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; }
-.dsst-pick { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; margin: 0; }
-.dsst .dsst-select { font: inherit; font-size: 14px; padding: 8px 12px; border: 1px solid var(--dsst-line); border-radius: 8px; background: var(--dsst-card); color: inherit; min-height: 0; height: auto; width: auto; max-width: 100%; }
+/* The division dropdown matches the league dropdown: label over the select. */
+.dsst-pick { display: grid; gap: 6px; margin: 0; }
+.dsst-pick-label { font-size: 13px; font-weight: 700; color: var(--dsst-text); }
+.dsst .dsst-select { font: inherit; font-size: 15px; font-weight: 600; padding: 9px 36px 9px 12px; border: 1px solid var(--dsst-line); border-radius: 8px; background: var(--dsst-card); color: var(--dsst-text); min-height: 0; height: auto; width: auto; min-width: min(100%, 240px); max-width: 100%; }
 
 .dsst-mode-tabs .dsst-panel:not(.is-active), .dsst-mode-select .dsst-panel:not(.is-active) { display: none; }
 .dsst-mode-stacked .dsst-panel + .dsst-panel { margin-top: 10px; }

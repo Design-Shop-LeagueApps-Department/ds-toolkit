@@ -24,6 +24,9 @@ $layout  = in_array( ( $settings->layout ?? 'table' ), array( 'leaders', 'carous
 $cards   = in_array( $layout, array( 'leaders', 'carousel' ), true ); // the carousel is the leader cards in one sideways row
 $arrows  = 'carousel' === $layout && $shown( 'car_arrows' );
 $mode    = ( count( $divs ) > 1 && ! $cards ) ? (string) ( $settings->div_view ?? 'tabs' ) : 'single';
+if ( 'auto' === $mode ) { // tabs, or a dropdown past 6 divisions (decided per league, so it follows the league dropdown)
+	$mode = count( $divs ) > 6 ? 'select' : 'tabs';
+}
 $mode    = in_array( $mode, array( 'tabs', 'select', 'stacked', 'single' ), true ) ? $mode : 'tabs';
 $title   = trim( (string) ( $settings->title ?? __( 'Standings', 'ds-toolkit' ) ) );
 $hl      = $module->highlight();

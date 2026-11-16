@@ -426,13 +426,14 @@ FLBuilder::register_module( 'DS_Standings_Module', array(
 					'div_view' => array(
 						'type'    => 'select',
 						'label'   => __( 'Show Divisions As', 'ds-toolkit' ),
-						'default' => 'tabs',
+						'default' => 'auto',
 						'options' => array(
+							'auto'    => __( 'Tabs, or a dropdown for more than 6 divisions', 'ds-toolkit' ),
 							'tabs'    => __( 'Tabs', 'ds-toolkit' ),
 							'select'  => __( 'A dropdown', 'ds-toolkit' ),
 							'stacked' => __( 'One table under another', 'ds-toolkit' ),
 						),
-						'help'    => __( 'A dropdown suits a league with many divisions.', 'ds-toolkit' ),
+						'help'    => __( 'A league with many divisions reads better as a dropdown: 17 tabs stack one under another on a phone. The first choice picks per league, so it also suits the league dropdown.', 'ds-toolkit' ),
 					),
 				),
 			),
