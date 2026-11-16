@@ -85,7 +85,9 @@
 .dsst-carousel { --dsst-in: 3; --dsst-gap: 14px; }
 .dsst-car { padding: 0 20px 20px; }
 .dsst-noframe .dsst-car { padding: 0; }
-.dsst-carousel .dsst-cards { display: flex; gap: var(--dsst-gap); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory;
+/* position: relative keeps Beaver's absolutely placed "(opens in new tab)" notes inside the scroller: without it the
+   ones in off-screen cards widened the whole page by a card (386px at 1440). */
+.dsst-carousel .dsst-cards { position: relative; display: flex; gap: var(--dsst-gap); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory;
 	scroll-behavior: smooth; scrollbar-width: none; padding: 4px 2px 8px; margin: -4px -2px -8px; }
 .dsst-carousel .dsst-cards::-webkit-scrollbar { display: none; }
 .dsst-carousel .dsst-cards:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; border-radius: var(--dsst-radius); }
