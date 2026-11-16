@@ -1,6 +1,8 @@
-/* LeagueApps Standings (ds-toolkit). Colours and sizes arrive as custom properties from frontend.css.php. */
+/* LeagueApps Standings (ds-toolkit). Colours and sizes arrive as custom properties from frontend.css.php.
+   The text colour is a dark ink by default, not the site's body colour: the table sits on its own white card, and the
+   blueprint body grey (#757575) fails contrast on the alternate and highlighted rows (designshopdemo, 1.19.0-rc.1). */
 .dsst { --dsst-brand: #1f2937; --dsst-head-bg: var(--dsst-brand); --dsst-head-ink: #fff; --dsst-card: #fff; --dsst-zebra: #f7f8fa;
-	--dsst-hl: #eef2ff; --dsst-text: inherit; --dsst-muted: #5b6370; --dsst-line: #e3e6ea; --dsst-pos: #137a3a; --dsst-neg: #b3261e;
+	--dsst-hl: #eef2ff; --dsst-text: #1d2127; --dsst-muted: #5b6370; --dsst-line: #e3e6ea; --dsst-pos: #137a3a; --dsst-neg: #b3261e;
 	--dsst-radius: 10px; --dsst-rk: 44px;
 	background: var(--dsst-card); color: var(--dsst-text); border: 1px solid var(--dsst-line); border-radius: var(--dsst-radius);
 	overflow: hidden; font-size: 15px; line-height: 1.45; }
@@ -50,7 +52,7 @@
 .dsst .dsst-table .is-strong { font-weight: 700; }
 .dsst .dsst-table .is-pos { color: var(--dsst-pos); font-weight: 600; }
 .dsst .dsst-table .is-neg { color: var(--dsst-neg); font-weight: 600; }
-.dsst .dsst-table .is-zero, .dsst .dsst-table .dsst-c-dnp { color: var(--dsst-muted); }
+.dsst .dsst-table tbody .is-zero, .dsst .dsst-table tbody .dsst-c-dnp { color: var(--dsst-muted); }
 .dsst .dsst-table tbody tr.is-me > * { background: var(--dsst-hl); }
 .dsst .dsst-table tbody tr.is-me > .dsst-c-rk { box-shadow: inset 4px 0 0 var(--dsst-brand); color: inherit; }
 

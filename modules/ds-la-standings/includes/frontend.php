@@ -53,7 +53,7 @@ if ( ! $shown( 'frame' ) ) {
 				<span class="dsst-eyebrow"><?php echo esc_html( $league['name'] ); ?></span>
 			<?php endif; ?>
 			<?php if ( '' !== $title ) : ?>
-				<h2 class="dsst-title"><?php echo DS_Module_UI::inline( $title ); // phpcs:ignore WordPress.Security.EscapeOutput -- inline() allows a short list of inline tags ?><?php echo 'single' === $mode && 'table' === $layout && count( $league['divisions'] ) > 1 ? ' <span class="dsst-title-div">' . esc_html( $divs[0]['name'] ) . '</span>' : ''; ?></h2>
+				<h2 class="dsst-title"><?php echo DS_Module_UI::inline( $title ); // phpcs:ignore WordPress.Security.EscapeOutput -- inline() allows a short list of inline tags ?><?php echo 'single' === $mode && 'table' === $layout && count( $league['divisions'] ) > 1 ? ' <span class="dsst-title-div">· ' . esc_html( $divs[0]['name'] ) . '</span>' : ''; ?></h2>
 			<?php endif; ?>
 		</div>
 		<?php if ( 'tabs' === $mode ) : ?>
