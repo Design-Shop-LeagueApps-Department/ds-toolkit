@@ -20,14 +20,14 @@ if ( '' !== $view['notice'] ) {
 
 $league  = $view['league'];
 $divs    = $view['divisions'];
-$layout  = 'leaders' === ( $settings->layout ?? 'table' ) ? 'leaders' : 'table';
+$layout  = in_array( ( $settings->layout ?? 'table' ), array( 'leaders', 'ticker' ), true ) ? (string) $settings->layout : 'table';
 $mode    = ( count( $divs ) > 1 && 'leaders' !== $layout ) ? (string) ( $settings->div_view ?? 'tabs' ) : 'single';
 $mode    = in_array( $mode, array( 'tabs', 'select', 'stacked', 'single' ), true ) ? $mode : 'tabs';
 $title   = trim( (string) ( $settings->title ?? __( 'Standings', 'ds-toolkit' ) ) );
 $hl      = $module->highlight();
 $links   = 'no' !== ( $settings->team_links ?? 'yes' );
 list( $cols, $not_phone ) = $module->columns();
-$limit   = 'leaders' === $layout ? max( 1, (int) ( $settings->leaders_n ?? 3 ) ) : max( 0, (int) ( $settings->rows_n ?? 0 ) );
+$limit   = 'table' === $layout ? max( 0, (int) ( $settings->rows_n ?? 0 ) ) : max( 0, (int) ( $settings->leaders_n ?? 3 ) ); // 0 = every team
 $uid     = 'dsst-' . preg_replace( '/[^a-z0-9]/', '', (string) $id );
 
 if ( ! $divs ) {
@@ -37,6 +37,45 @@ if ( ! $divs ) {
 		echo '<p class="dsst-empty">' . esc_html( implode( ' ', $view['errors'] ) ) . '</p>';
 	}
 	echo '</div>';
+	return;
+}
+
+if ( 'ticker' === $layout ) {
+	// Like the Marquee block: a pinned label, then two identical groups scrolled by -50% for a seamless loop
+	// (js/frontend.js adds copies when one group is narrower than the bar and sets the speed).
+	$label = trim( (string) ( $settings->ticker_label ?? __( 'Standings', 'ds-toolkit' ) ) );
+	$link  = ! empty( $settings->leaders_link ) ? esc_url( (string) $settings->leaders_link ) : '';
+	$group = '';
+	foreach ( $divs as $d ) {
+		if ( ! $d['played'] ) {
+			continue;
+		}
+		$name = esc_html( $d['name'] );
+		$href = $link ? $link : ( '' !== $d['url'] ? esc_url( $d['url'] ) : '' );
+		$group .= '<span class="dsst-tk-div">';
+		$group .= $href ? '<a class="dsst-tk-name" href="' . $href . '"' . ( $link ? '' : ' target="_blank" rel="noopener"' ) . '>' . $name . '</a>' : '<span class="dsst-tk-name">' . $name . '</span>';
+		foreach ( ( $limit ? array_slice( $d['rows'], 0, $limit ) : $d['rows'] ) as $n => $r ) {
+			$me     = '' !== $hl && DS_Standings_Module::norm( $r['team'] ) === $hl;
+			$group .= '<span class="dsst-tk-team' . ( $me ? ' is-me' : '' ) . '"><span class="dsst-tk-rk">' . (int) ( $n + 1 ) . '</span> ' . esc_html( $r['team'] ) . ' <span class="dsst-tk-rec">' . esc_html( $r['w'] . '-' . $r['l'] . ( $r['t'] ? '-' . $r['t'] : '' ) ) . '</span></span>';
+		}
+		$group .= '</span><span class="dsst-tk-sep" aria-hidden="true">&#9670;</span>';
+	}
+	if ( '' === $group ) {
+		echo '<div class="dsst dsst-ticker"><p class="dsst-empty">' . esc_html( $txt( 'empty_text', __( 'No results yet. Standings appear after the first game.', 'ds-toolkit' ) ) ) . '</p></div>';
+		return;
+	}
+	?>
+<div class="dsst dsst-ticker" data-dsst data-dsst-ticker data-speed="<?php echo (int) max( 20, min( 160, DS_Module_UI::u( $settings->ticker_speed ?? '', 50 ) ) ); ?>" role="region" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: league name */ __( '%s standings', 'ds-toolkit' ), $league['name'] ) ); ?>">
+	<?php if ( '' !== $label ) : ?>
+		<div class="dsst-tk-label"><?php echo DS_Module_UI::inline( $label ); // phpcs:ignore WordPress.Security.EscapeOutput -- inline() allows a short list of inline tags ?></div>
+	<?php endif; ?>
+	<div class="dsst-tk-viewport"><div class="dsst-tk-track">
+		<div class="dsst-tk-group"><?php echo $group; // phpcs:ignore WordPress.Security.EscapeOutput -- every part escaped above ?></div>
+		<div class="dsst-tk-group" aria-hidden="true" inert><?php echo $group; // phpcs:ignore WordPress.Security.EscapeOutput -- every part escaped above ?></div>
+	</div></div>
+	<button type="button" class="fl-content-ui-button dsst-tk-pause" aria-pressed="false" aria-label="<?php esc_attr_e( 'Pause the standings ticker', 'ds-toolkit' ); ?>"><span aria-hidden="true"></span></button>
+</div>
+	<?php
 	return;
 }
 

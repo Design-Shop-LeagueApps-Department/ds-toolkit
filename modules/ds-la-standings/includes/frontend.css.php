@@ -49,6 +49,10 @@ if ( isset( $settings->radius ) && '' !== $settings->radius && is_numeric( $sett
 }
 echo $node . '{' . $decl . "}\n"; // phpcs:ignore WordPress.Security.EscapeOutput -- every value passed DS_Module_UI::color() or (int)
 
+if ( isset( $settings->ticker_height ) && is_numeric( $settings->ticker_height ) && $settings->ticker_height > 0 ) {
+	echo $node . '.dsst-ticker{--dsst-tk-h:' . max( 24, min( 120, (int) $settings->ticker_height ) ) . "px}\n"; // phpcs:ignore WordPress.Security.EscapeOutput -- an int
+}
+
 // Text size: blank = 15px, 13px on phones (the responsive breakpoint of this site).
 list( , $sm ) = DS_Module_UI::breakpoints();
 if ( ! isset( $settings->font_size_responsive ) || '' === $settings->font_size_responsive ) {

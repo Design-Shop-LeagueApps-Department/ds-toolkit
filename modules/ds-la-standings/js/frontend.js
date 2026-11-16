@@ -35,7 +35,48 @@
 			sel.addEventListener('change', function () { show(root, sel.value); });
 		}
 	}
-	function boot() { document.querySelectorAll('[data-dsst]').forEach(init); }
+	/* Ticker: like the Marquee block, two identical groups scroll by -50%. When one group is narrower than the bar a gap
+	   would scroll through, so both are topped up with copies; the loop time follows the group width at the chosen speed. */
+	function fill(root) {
+		var viewport = root.querySelector('.dsst-tk-viewport');
+		var track = root.querySelector('.dsst-tk-track');
+		if (!viewport || !track) { return; }
+		var groups = track.querySelectorAll('.dsst-tk-group');
+		if (groups.length < 2) { return; }
+		if (!track.dsstBase) { track.dsstBase = groups[0].innerHTML; }
+		var avail = viewport.clientWidth;
+		if (!avail) { return; }
+		groups.forEach(function (g) { g.innerHTML = track.dsstBase; });
+		var base = groups[0].scrollWidth;
+		if (!base) { return; }
+		var reps = Math.max(1, Math.ceil(avail / base));
+		if (reps > 1) {
+			var html = '';
+			for (var i = 0; i < reps; i++) { html += track.dsstBase; }
+			groups.forEach(function (g) { g.innerHTML = html; });
+		}
+		var speed = parseInt(root.getAttribute('data-speed'), 10) || 50;
+		root.style.setProperty('--dsst-tk-dur', Math.max(8, groups[0].scrollWidth / speed).toFixed(1) + 's');
+	}
+	function ticker(root) {
+		fill(root);
+		if (root.dsstTicker) { return; }
+		root.dsstTicker = true;
+		var btn = root.querySelector('.dsst-tk-pause');
+		if (btn) {
+			btn.addEventListener('click', function () {
+				var paused = root.classList.toggle('is-paused');
+				btn.setAttribute('aria-pressed', paused ? 'true' : 'false');
+				btn.setAttribute('aria-label', paused ? 'Play the standings ticker' : 'Pause the standings ticker');
+			});
+		}
+	}
+	function boot() {
+		document.querySelectorAll('[data-dsst]').forEach(init);
+		document.querySelectorAll('[data-dsst-ticker]').forEach(ticker);
+	}
+	var resizeT;
+	window.addEventListener('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(function () { document.querySelectorAll('[data-dsst-ticker]').forEach(fill); }, 200); });
 	if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
 	// The builder re-renders a block after a settings change.
 	if (window.jQuery) { window.jQuery(document).on('fl-builder.layout-rendered fl-builder.preview-rendered', boot); }

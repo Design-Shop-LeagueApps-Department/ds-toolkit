@@ -78,6 +78,38 @@
 .dsst-leaders .dsst-rec { color: var(--dsst-muted); }
 .dsst .dsst-more { font-size: 13px; font-weight: 600; color: var(--dsst-text); text-decoration: underline; }
 
+/* Ticker: the Marquee block's tape (pinned label, seamless -50% loop, pause on hover), drawn in the Standings colours. */
+@keyframes dsstScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.dsst.dsst-ticker { --dsst-tk-h: 44px; position: relative; display: flex; align-items: stretch; height: var(--dsst-tk-h); padding: 0;
+	background: var(--dsst-head-bg); color: var(--dsst-head-ink); border: 0; }
+.dsst-tk-label { flex: 0 0 auto; z-index: 2; display: flex; align-items: center; padding: 0 16px; background: var(--dsst-text); color: var(--dsst-card);
+	font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+.dsst-tk-viewport { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; overflow: hidden; }
+.dsst-tk-track { display: flex; flex: 0 0 auto; align-items: center; white-space: nowrap; will-change: transform; animation: dsstScroll var(--dsst-tk-dur, 60s) linear infinite; }
+.dsst-tk-group { display: inline-flex; align-items: center; gap: 28px; padding-left: 28px; }
+.dsst-tk-div { display: inline-flex; align-items: center; gap: 18px; font-size: 14px; }
+.dsst .dsst-tk-name { font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: 12px; color: inherit; text-decoration: none; }
+.dsst a.dsst-tk-name:hover { text-decoration: underline; color: inherit; }
+.dsst-tk-team { display: inline-flex; align-items: baseline; gap: 6px; font-weight: 600; }
+.dsst-tk-team.is-me { text-decoration: underline; text-underline-offset: 3px; }
+.dsst-tk-rk { font-weight: 800; }
+.dsst-tk-rec { font-variant-numeric: tabular-nums; opacity: .85; }
+.dsst-tk-sep { font-size: 10px; opacity: .7; }
+.dsst-ticker:hover .dsst-tk-track, .dsst-ticker:focus-within .dsst-tk-track, .dsst-ticker.is-paused .dsst-tk-track { animation-play-state: paused; }
+.dsst .dsst-tk-pause { appearance: none; flex: 0 0 auto; z-index: 2; width: var(--dsst-tk-h); margin: 0; padding: 0; border: 0; border-radius: 0;
+	background: var(--dsst-text); color: var(--dsst-card); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: none; }
+.dsst .dsst-tk-pause:hover { background: var(--dsst-text); color: var(--dsst-card); opacity: .9; }
+.dsst .dsst-tk-pause:focus-visible { outline: 3px solid var(--dsst-head-ink); outline-offset: -5px; }
+.dsst-tk-pause span { width: 10px; height: 12px; border-left: 3px solid currentColor; border-right: 3px solid currentColor; }
+.dsst-ticker.is-paused .dsst-tk-pause span { width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent currentColor; }
+.dsst-ticker .dsst-empty { color: inherit; align-self: center; }
+@media (prefers-reduced-motion: reduce) {
+	/* No motion: the tape stays still and scrolls by hand instead. */
+	.dsst-tk-track { animation: none; }
+	.dsst-tk-viewport { overflow-x: auto; }
+	.dsst-tk-group[aria-hidden="true"], .dsst-tk-pause { display: none; }
+}
+
 @media (prefers-reduced-motion: no-preference) {
 	.dsst .dsst-tabs .dsst-tab { transition: background-color .15s, color .15s, border-color .15s; }
 }
