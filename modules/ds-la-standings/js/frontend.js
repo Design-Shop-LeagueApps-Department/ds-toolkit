@@ -102,8 +102,52 @@
 		window.addEventListener('resize', update);
 		update();
 	}
+	/* League dropdown: the picked league's block comes from the REST route at data-dsst-src and replaces this one
+	   (same node, so its colours and settings carry over), the dropdown keeps focus, and the address gets
+	   ?dsst_league= so a reload or a shared link opens that league. Without this script the dropdown is a GET form. */
+	function league(root) {
+		var form = root.querySelector('[data-dsst-league]');
+		var src = root.getAttribute('data-dsst-src');
+		if (!form || !src || form.dsstReady || !window.fetch) { return; }
+		form.dsstReady = true;
+		var sel = form.querySelector('select');
+		var meta = form.querySelector('.dsst-league-meta');
+		var was = sel.value;
+		function load() {
+			var key = sel.value;
+			if (key === was || root.classList.contains('is-loading')) { return; }
+			root.classList.add('is-loading');
+			root.setAttribute('aria-busy', 'true');
+			fetch(src + (src.indexOf('?') > -1 ? '&' : '?') + 'league=' + encodeURIComponent(key), { headers: { Accept: 'application/json' } })
+				.then(function (r) { if (!r.ok) { throw new Error(String(r.status)); } return r.json(); })
+				.then(function (j) {
+					var box = document.createElement('div');
+					box.innerHTML = j && typeof j.html === 'string' ? j.html : '';
+					var fresh = box.querySelector('.dsst');
+					if (!fresh) { throw new Error('empty'); }
+					root.parentNode.replaceChild(fresh, root);
+					boot();
+					var next = fresh.querySelector('[data-dsst-league] select');
+					if (next) { next.focus({ preventScroll: true }); }
+					try {
+						var u = new URL(window.location.href);
+						u.searchParams.set('dsst_league', key);
+						window.history.replaceState(window.history.state, '', u.toString());
+					} catch (e) { /* an old browser keeps the address as it is */ }
+				})
+				.catch(function () {
+					root.classList.remove('is-loading');
+					root.removeAttribute('aria-busy');
+					sel.value = was;
+					if (meta) { meta.textContent = meta.getAttribute('data-failed') || 'That league could not load. Please try again.'; }
+				});
+		}
+		sel.addEventListener('change', load);
+		form.addEventListener('submit', function (e) { e.preventDefault(); load(); });
+	}
 	function boot() {
 		document.querySelectorAll('[data-dsst]').forEach(init);
+		document.querySelectorAll('[data-dsst]').forEach(league);
 		document.querySelectorAll('[data-dsst-ticker]').forEach(ticker);
 		document.querySelectorAll('.dsst-carousel').forEach(carousel);
 	}

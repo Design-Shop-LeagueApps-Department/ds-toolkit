@@ -61,7 +61,7 @@ class DS_Standings_Data {
 	 * sub-programs; a program without any is a league of one division (itself). Only programs LeagueApps
 	 * publishes a standings page for are listed.
 	 *
-	 * @return array "site:id" => array( site, id, name, season, url, divisions => array( pid => array( name, url ) ) )
+	 * @return array "site:id" => array( site, id, name, season, sport, start (unix), url, divisions => array( pid => array( name, url ) ) )
 	 */
 	public static function leagues( array $sites = array() ) {
 		if ( ! class_exists( 'DS_Programs_Data' ) ) {
@@ -118,6 +118,8 @@ class DS_Standings_Data {
 				'id'        => $pid,
 				'name'      => sanitize_text_field( (string) ( $p['name'] ?? '' ) ),
 				'season'    => sanitize_text_field( (string) ( $p['season'] ?? '' ) ),
+				'sport'     => sanitize_text_field( (string) ( $p['sport'] ?? '' ) ),
+				'start'     => (int) floor( (float) ( $p['startTime'] ?? 0 ) / 1000 ), // LeagueApps sends milliseconds
 				'url'       => self::link( (string) ( $p['standingsUrlHtml'] ?? '' ) ),
 				'divisions' => $list,
 			);

@@ -32,9 +32,32 @@ list( $cols, $not_phone ) = $module->columns();
 $limit   = 'table' === $layout ? max( 0, (int) ( $settings->rows_n ?? 0 ) ) : max( 0, (int) ( $settings->leaders_n ?? 3 ) ); // 0 = every team
 $uid     = 'dsst-' . preg_replace( '/[^a-z0-9]/', '', (string) $id );
 
+// League dropdown (Let Visitors Switch League). A plain GET form, so it works without the script; with it,
+// js/frontend.js asks the REST route at data-dsst-src for the picked league and swaps the block in place.
+$picker      = $view['picker'] ?? array();
+$src         = ( $picker && ! $builder ) ? $module->src() : '';
+$picker_html = '';
+if ( $picker && $view['league'] ) {
+	$plabel       = trim( (string) ( $settings->pick_label ?? __( 'League', 'ds-toolkit' ) ) );
+	$picker_html .= '<form class="dsst-league" method="get" data-dsst-league><label class="dsst-league-pick">';
+	$picker_html .= '<span class="dsst-league-label' . ( '' === $plabel ? ' dsst-sr' : '' ) . '">' . esc_html( '' !== $plabel ? $plabel : __( 'League', 'ds-toolkit' ) ) . '</span>';
+	$picker_html .= '<select class="dsst-league-select" name="dsst_league"' . ( $builder ? ' disabled' : '' ) . '>';
+	foreach ( $picker as $k => $l ) {
+		$picker_html .= '<option value="' . esc_attr( $k ) . '"' . selected( $k, $view['key'], false ) . '>' . esc_html( $l['name'] ) . '</option>';
+	}
+	$picker_html .= '</select></label>';
+	$picker_html .= '<noscript><button type="submit" class="fl-content-ui-button dsst-league-go">' . esc_html__( 'Show', 'ds-toolkit' ) . '</button></noscript>';
+	$meta         = DS_Standings_Module::league_meta( $view['league'] );
+	$picker_html .= '<span class="dsst-league-meta" data-failed="' . esc_attr__( 'That league could not load. Please try again.', 'ds-toolkit' ) . '">' . esc_html( $meta ) . '</span>';
+	$picker_html .= '</form>';
+}
+$root_attr = '' !== $src ? ' data-dsst-src="' . esc_url( $src ) . '"' : '';
+
 if ( ! $divs ) {
 	// LeagueApps could not be reached and nothing is kept yet.
-	echo '<div class="dsst dsst-' . esc_attr( $layout ) . '"><p class="dsst-empty">' . esc_html( $txt( 'down_text', __( 'Standings are temporarily unavailable. Please check back shortly.', 'ds-toolkit' ) ) ) . '</p>';
+	// The dropdown stays, so a visitor can still pick another league while this one cannot be read.
+	echo '<div class="dsst dsst-' . esc_attr( $layout ) . '" data-dsst' . $root_attr . '>' . ( '' !== $picker_html ? '<div class="dsst-top"><div class="dsst-titles">' . $picker_html . '</div></div>' : '' ) . '<p class="dsst-empty">'; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above
+	echo esc_html( $txt( 'down_text', __( 'Standings are temporarily unavailable. Please check back shortly.', 'ds-toolkit' ) ) ) . '</p>';
 	if ( $builder && $view['errors'] ) {
 		echo '<p class="dsst-empty">' . esc_html( implode( ' ', $view['errors'] ) ) . '</p>';
 	}
@@ -86,16 +109,17 @@ if ( ! $shown( 'frame' ) ) {
 	$classes[] = 'dsst-noframe';
 }
 ?>
-<div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" data-dsst>
-	<?php if ( ( $shown( 'eyebrow_show' ) && '' !== $league['name'] ) || '' !== $title || 'tabs' === $mode || 'select' === $mode || $arrows ) : ?>
+<div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" data-dsst<?php echo $root_attr; // phpcs:ignore WordPress.Security.EscapeOutput -- esc_url above ?>>
+	<?php if ( ( $shown( 'eyebrow_show' ) && '' !== $league['name'] ) || '' !== $title || 'tabs' === $mode || 'select' === $mode || $arrows || '' !== $picker_html ) : ?>
 	<div class="dsst-top">
 		<div class="dsst-titles">
-			<?php if ( $shown( 'eyebrow_show' ) && '' !== $league['name'] ) : ?>
+			<?php if ( '' === $picker_html && $shown( 'eyebrow_show' ) && '' !== $league['name'] ) : // the dropdown names the league instead ?>
 				<span class="dsst-eyebrow"><?php echo esc_html( $league['name'] ); ?></span>
 			<?php endif; ?>
 			<?php if ( '' !== $title ) : ?>
 				<h2 class="dsst-title"><?php echo DS_Module_UI::inline( $title ); // phpcs:ignore WordPress.Security.EscapeOutput -- inline() allows a short list of inline tags ?><?php echo 'single' === $mode && 'table' === $layout && count( $league['divisions'] ) > 1 ? ' <span class="dsst-title-div">· ' . esc_html( $divs[0]['name'] ) . '</span>' : ''; ?></h2>
 			<?php endif; ?>
+			<?php echo $picker_html; // phpcs:ignore WordPress.Security.EscapeOutput -- every part escaped above ?>
 		</div>
 		<?php if ( 'tabs' === $mode ) : ?>
 			<div class="dsst-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Divisions', 'ds-toolkit' ); ?>">

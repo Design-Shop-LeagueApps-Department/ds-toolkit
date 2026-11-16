@@ -128,15 +128,83 @@ class DS_Standings_Module extends FLBuilderModule {
 		);
 	}
 
+	/** Set by the league REST route while it re-renders a block: array( post, node, league ). */
+	public static $rest = null;
+
+	/** League dropdown choices for the builder (no "select" line). */
+	public static function league_list_options() {
+		$out = self::league_options();
+		unset( $out[''] );
+		return $out;
+	}
+
+	/**
+	 * The leagues a visitor can switch between (key => league), newest season first, or an empty list when the block
+	 * shows one league. "Every league" means every league of the LeagueApps site of the league chosen above, so a
+	 * page never lists another club's leagues. Off for the ticker and for a block set to one division (a team page).
+	 */
+	public function picker() {
+		$s    = $this->settings;
+		$pick = (string) ( $s->pick ?? 'no' );
+		if ( ! in_array( $pick, array( 'all', 'chosen' ), true ) || 'ticker' === ( $s->layout ?? 'table' ) || 'one' === ( $s->div_show ?? 'all' ) ) {
+			return array();
+		}
+		$all = DS_Standings_Data::leagues();
+		$key = (string) ( $s->league ?? '' );
+		if ( ! isset( $all[ $key ] ) ) {
+			return array();
+		}
+		if ( 'chosen' === $pick ) {
+			$keys = array_unique( array_merge( array( $key ), self::list_value( $s->league_list ?? '' ) ) );
+			$out  = array_intersect_key( $all, array_flip( $keys ) );
+		} else {
+			$site = $all[ $key ]['site'];
+			$out  = array_filter( $all, function ( $l ) use ( $site ) { return $l['site'] === $site; } );
+		}
+		uasort( $out, function ( $a, $b ) { return ( (int) ( $b['start'] ?? 0 ) <=> (int) ( $a['start'] ?? 0 ) ) ?: strcasecmp( $a['name'], $b['name'] ); } );
+		return count( $out ) > 1 ? $out : array();
+	}
+
+	/** The REST address that re-renders this block for another league, or '' where it cannot (unsaved, builder). */
+	public function src() {
+		if ( self::$rest ) {
+			return rest_url( 'ds-toolkit/v1/standings/' . (int) self::$rest['post'] . '/' . self::$rest['node'] );
+		}
+		$post = class_exists( 'FLBuilderModel' ) ? (int) FLBuilderModel::get_post_id() : 0;
+		$node = (string) ( $this->node ?? '' );
+		if ( ! $post || '' === $node || ! class_exists( 'DS_LA_Standings' ) || ! DS_LA_Standings::node_settings( $post, $node ) ) {
+			return '';
+		}
+		return rest_url( 'ds-toolkit/v1/standings/' . $post . '/' . $node );
+	}
+
+	/** "Winter 2026 · Basketball · 5 divisions" under the league dropdown. */
+	public static function league_meta( array $l ) {
+		$bits   = array();
+		$year   = ! empty( $l['start'] ) ? wp_date( 'Y', (int) $l['start'], new DateTimeZone( DS_Standings_Data::TZ ) ) : '';
+		$season = trim( (string) ( $l['season'] ?? '' ) . ' ' . $year );
+		if ( '' !== $season ) {
+			$bits[] = $season;
+		}
+		if ( '' !== (string) ( $l['sport'] ?? '' ) ) {
+			$bits[] = (string) $l['sport'];
+		}
+		$n = count( (array) ( $l['divisions'] ?? array() ) );
+		if ( $n > 1 ) {
+			$bits[] = sprintf( /* translators: %d: number of divisions */ _n( '%d division', '%d divisions', $n, 'ds-toolkit' ), $n );
+		}
+		return implode( ' · ', $bits );
+	}
+
 	/**
 	 * Everything the template prints.
 	 *
-	 * @return array( 'league' => array|null, 'divisions' => list of array( id, name, url, rows, played, left, next, last, missing ), 'errors' => list, 'notice' => string for editors )
+	 * @return array( 'league' => array|null, 'divisions' => list of array( id, name, url, rows, played, left, next, last, missing ), 'errors' => list, 'notice' => string for editors, 'picker' => key => league for the dropdown, 'key' => the league shown )
 	 */
 	public function view() {
 		$s   = $this->settings;
 		$key = (string) ( $s->league ?? '' );
-		$out = array( 'league' => null, 'divisions' => array(), 'errors' => array(), 'notice' => '' );
+		$out = array( 'league' => null, 'divisions' => array(), 'errors' => array(), 'notice' => '', 'picker' => array(), 'key' => $key );
 		if ( ! DS_Programs_Data::configured_sites() ) {
 			$out['notice'] = __( 'No LeagueApps site is saved yet. Add one under Settings > DS Toolkit > LeagueApps.', 'ds-toolkit' );
 			return $out;
@@ -150,6 +218,14 @@ class DS_Standings_Module extends FLBuilderModule {
 			$out['notice'] = __( 'This league is no longer live on LeagueApps (or its listing is still loading). Choose another on the Standings tab, under League.', 'ds-toolkit' );
 			return $out;
 		}
+		// The league dropdown: the REST route names the league; a page address may carry ?dsst_league= (a shared
+		// link, a reload, or the dropdown without its script). Either only ever picks a league the dropdown lists.
+		$out['picker'] = $this->picker();
+		$want          = self::$rest ? (string) self::$rest['league'] : ( isset( $_GET['dsst_league'] ) ? sanitize_text_field( wp_unslash( $_GET['dsst_league'] ) ) : '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only choice of what to show
+		if ( '' !== $want && isset( $out['picker'][ $want ] ) ) {
+			$key = $want;
+		}
+		$out['key']    = $key;
 		$league        = $leagues[ $key ];
 		$out['league'] = $league;
 		$divs          = $league['divisions'];
@@ -305,6 +381,34 @@ FLBuilder::register_module( 'DS_Standings_Module', array(
 						'default' => '',
 						'options' => DS_Standings_Module::league_options(),
 						'help'    => __( 'Live leagues on the LeagueApps site saved under Settings > DS Toolkit > LeagueApps. A league with divisions shows all of them.', 'ds-toolkit' ),
+					),
+					'pick'        => array(
+						'type'    => 'select',
+						'label'   => __( 'Let Visitors Switch League', 'ds-toolkit' ),
+						'default' => 'no',
+						'options' => array(
+							'no'     => __( 'No, this league only', 'ds-toolkit' ),
+							'all'    => __( 'Yes, every league of this LeagueApps site', 'ds-toolkit' ),
+							'chosen' => __( 'Yes, the leagues I choose', 'ds-toolkit' ),
+						),
+						'toggle'  => array(
+							'all'    => array( 'fields' => array( 'pick_label' ) ),
+							'chosen' => array( 'fields' => array( 'league_list', 'pick_label' ) ),
+						),
+						'help'    => __( 'A League dropdown at the top of the block, for a club with several leagues. The league above shows first; another loads when a visitor picks it, newest season first. It works on the published page (not while editing) and not on the ticker or with one division.', 'ds-toolkit' ),
+					),
+					'league_list' => array(
+						'type'         => 'select',
+						'label'        => __( 'Leagues in the Dropdown', 'ds-toolkit' ),
+						'options'      => DS_Standings_Module::league_list_options(),
+						'multi-select' => true,
+						'help'         => __( 'The league above is always in it.', 'ds-toolkit' ),
+					),
+					'pick_label'  => array(
+						'type'    => 'text',
+						'label'   => __( 'Dropdown Label', 'ds-toolkit' ),
+						'default' => __( 'League', 'ds-toolkit' ),
+						'help'    => __( 'Blank hides it (screen readers still hear "League").', 'ds-toolkit' ),
 					),
 					'div_show' => array(
 						'type'    => 'select',

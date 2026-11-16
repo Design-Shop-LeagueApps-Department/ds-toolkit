@@ -80,6 +80,22 @@
    a:not(.fl-builder-submenu-link)` (0,2,1): without it "Full standings" was primary green on white, 3.53:1. */
 .dsst .dsst-card a.dsst-more { font-size: 13px; font-weight: 600; color: var(--dsst-text); text-decoration: underline; }
 
+/* League dropdown: label over the select, the season line under it. The select reuses the division dropdown's look
+   but not its class (.dsst-select is the division dropdown the tabs script drives). */
+.dsst-league { display: grid; gap: 6px; justify-items: start; margin: 4px 0 0; }
+.dsst-league-pick { display: grid; gap: 6px; margin: 0; }
+.dsst-league-label { font-size: 13px; font-weight: 700; color: var(--dsst-text); }
+.dsst .dsst-league-select { font: inherit; font-size: 15px; font-weight: 600; padding: 9px 36px 9px 12px; border: 1px solid var(--dsst-line); border-radius: 8px;
+	background: var(--dsst-card); color: var(--dsst-text); min-height: 0; height: auto; width: auto; min-width: min(100%, 300px); max-width: 100%; }
+.dsst .dsst-league-select:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; }
+.dsst-league-meta { font-size: 13px; color: var(--dsst-muted); }
+.dsst .dsst-league-go { margin: 0; padding: 8px 14px; border-radius: 8px; font-size: 14px; }
+.dsst.is-loading .dsst-panel, .dsst.is-loading .dsst-cards, .dsst.is-loading .dsst-tabs, .dsst.is-loading .dsst-foot { opacity: .45; }
+.dsst.is-loading { cursor: progress; }
+@media (prefers-reduced-motion: no-preference) {
+	.dsst .dsst-panel, .dsst .dsst-cards { transition: opacity .15s; }
+}
+
 /* Leader cards carousel: the same cards in one row that scrolls sideways (swipe, keyboard, the header arrows),
    like the Roster block's carousel. --dsst-in = cards in view, set per screen size in frontend.css.php. */
 .dsst-carousel { --dsst-in: 3; --dsst-gap: 14px; }
