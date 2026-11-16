@@ -76,7 +76,29 @@
 .dsst-leaders .dsst-rk { font-weight: 700; color: var(--dsst-muted); }
 .dsst-leaders .dsst-nm { font-weight: 600; overflow-wrap: anywhere; line-height: 1.3; }
 .dsst-leaders .dsst-rec { color: var(--dsst-muted); }
-.dsst .dsst-more { font-size: 13px; font-weight: 600; color: var(--dsst-text); text-decoration: underline; }
+/* Links name the element (a.) so they outrank Beaver's Global Styles link colour, `.fl-builder-content
+   a:not(.fl-builder-submenu-link)` (0,2,1): without it "Full standings" was primary green on white, 3.53:1. */
+.dsst .dsst-card a.dsst-more { font-size: 13px; font-weight: 600; color: var(--dsst-text); text-decoration: underline; }
+
+/* Leader cards carousel: the same cards in one row that scrolls sideways (swipe, keyboard, the header arrows),
+   like the Roster block's carousel. --dsst-in = cards in view, set per screen size in frontend.css.php. */
+.dsst-carousel { --dsst-in: 3; --dsst-gap: 14px; }
+.dsst-car { padding: 0 20px 20px; }
+.dsst-noframe .dsst-car { padding: 0; }
+.dsst-carousel .dsst-cards { display: flex; gap: var(--dsst-gap); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory;
+	scroll-behavior: smooth; scrollbar-width: none; padding: 4px 2px 8px; margin: -4px -2px -8px; }
+.dsst-carousel .dsst-cards::-webkit-scrollbar { display: none; }
+.dsst-carousel .dsst-cards:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; border-radius: var(--dsst-radius); }
+.dsst-carousel .dsst-card { flex: 0 0 calc((100% - (var(--dsst-in) - 1) * var(--dsst-gap)) / var(--dsst-in)); scroll-snap-align: start; }
+.dsst-car-nav { display: flex; gap: 8px; }
+.dsst-car-nav[hidden] { display: none; }
+.dsst .dsst-nav { appearance: none; display: grid; place-items: center; width: 40px; height: 40px; min-height: 0; margin: 0; padding: 0;
+	border: 1px solid var(--dsst-line); border-radius: 50%; background: var(--dsst-card); color: var(--dsst-text); box-shadow: none; cursor: pointer; line-height: 1; }
+.dsst .dsst-nav:hover, .dsst .dsst-nav:focus-visible { background: var(--dsst-head-bg); border-color: var(--dsst-head-bg); color: var(--dsst-head-ink); }
+.dsst .dsst-nav:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; }
+.dsst .dsst-nav[disabled], .dsst .dsst-nav[disabled]:hover { opacity: .4; cursor: default; background: var(--dsst-card); border-color: var(--dsst-line); color: var(--dsst-text); }
+.dsst .dsst-nav svg { display: block; }
+[dir="rtl"] .dsst .dsst-nav svg { transform: scaleX(-1); }
 
 /* Ticker: the Marquee block's tape (pinned label, seamless -50% loop, pause on hover), drawn in the Standings colours. */
 @keyframes dsstScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
@@ -88,14 +110,17 @@
 .dsst-tk-track { display: flex; flex: 0 0 auto; align-items: center; white-space: nowrap; will-change: transform; animation: dsstScroll var(--dsst-tk-dur, 60s) linear infinite; }
 .dsst-tk-group { display: inline-flex; align-items: center; gap: 28px; padding-left: 28px; }
 .dsst-tk-div { display: inline-flex; align-items: center; gap: 18px; font-size: 14px; }
-.dsst .dsst-tk-name { font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: 12px; color: inherit; text-decoration: none; }
-.dsst a.dsst-tk-name:hover { text-decoration: underline; color: inherit; }
+/* (0,3,1): above Beaver's Global Styles link colour, which painted the division names primary green on the green tape. */
+.dsst.dsst-ticker .dsst-tk-name, .dsst.dsst-ticker a.dsst-tk-name { font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: 12px; color: inherit; text-decoration: none; }
+.dsst.dsst-ticker a.dsst-tk-name:hover { text-decoration: underline; color: inherit; }
 .dsst-tk-team { display: inline-flex; align-items: baseline; gap: 6px; font-weight: 600; }
 .dsst-tk-team.is-me { text-decoration: underline; text-underline-offset: 3px; }
 .dsst-tk-rk { font-weight: 800; }
 .dsst-tk-rec { font-variant-numeric: tabular-nums; opacity: .85; }
 .dsst-tk-sep { font-size: 10px; opacity: .7; }
-.dsst-ticker:hover .dsst-tk-track, .dsst-ticker:focus-within .dsst-tk-track, .dsst-ticker.is-paused .dsst-tk-track { animation-play-state: paused; }
+/* Focus pauses only inside the tape (a keyboard user on a division link). Focus on the pause button must not: a mouse
+   click on Play leaves the button focused, and the tape stayed still until the visitor clicked somewhere else. */
+.dsst-ticker:hover .dsst-tk-track, .dsst-tk-viewport:focus-within .dsst-tk-track, .dsst-ticker.is-paused .dsst-tk-track { animation-play-state: paused; }
 .dsst .dsst-tk-pause { appearance: none; flex: 0 0 auto; z-index: 2; width: var(--dsst-tk-h); margin: 0; padding: 0; border: 0; border-radius: 0;
 	background: var(--dsst-text); color: var(--dsst-card); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: none; }
 .dsst .dsst-tk-pause:hover { background: var(--dsst-text); color: var(--dsst-card); opacity: .9; }
@@ -107,7 +132,7 @@
 	/* No motion: the tape stays still and scrolls by hand instead. */
 	.dsst-tk-track { animation: none; }
 	.dsst-tk-viewport { overflow-x: auto; }
-	.dsst-tk-group[aria-hidden="true"], .dsst-tk-pause { display: none; }
+	.dsst-tk-group[aria-hidden="true"], .dsst .dsst-tk-pause { display: none; } /* .dsst prefix: the button's own rule is (0,2,0) */
 }
 
 @media (prefers-reduced-motion: no-preference) {

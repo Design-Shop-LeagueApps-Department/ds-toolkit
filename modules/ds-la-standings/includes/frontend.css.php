@@ -62,4 +62,17 @@ echo DS_Module_UI::responsive_css( $node, 'font-size', $settings, 'font_size' );
 echo DS_Module_UI::responsive_css( $node . ' .dsst-title', 'font-size', $settings, 'title_size' ); // phpcs:ignore WordPress.Security.EscapeOutput -- numbers only
 
 // Columns left out on phones, and a narrower team column there.
-echo "@media(max-width:{$sm}px){{$node} .dsst-np{display:none}{$node} .dsst-table .dsst-c-team{min-width:140px}{$node} .dsst-top{padding:16px 14px 12px}{$node} .dsst-foot{padding:12px 14px 16px}{$node} .dsst-cards{padding:0 14px 14px}}\n"; // phpcs:ignore WordPress.Security.EscapeOutput -- ints and fixed selectors
+echo "@media(max-width:{$sm}px){{$node} .dsst-np{display:none}{$node} .dsst-table .dsst-c-team{min-width:140px}{$node} .dsst-top{padding:16px 14px 12px}{$node} .dsst-foot{padding:12px 14px 16px}{$node}:not(.dsst-carousel) .dsst-cards{padding:0 14px 14px}{$node} .dsst-car{padding:0 14px 14px}}\n"; // phpcs:ignore WordPress.Security.EscapeOutput -- ints and fixed selectors
+
+// Carousel: cards in view per screen size (blank = 3 / 2 / 1). Phones add a slice of the next card as a swipe hint.
+if ( 'carousel' === ( $settings->layout ?? '' ) ) {
+	list( $md ) = DS_Module_UI::breakpoints();
+	$in   = function ( $k, $d ) use ( $settings ) {
+		$v = $settings->$k ?? '';
+		return ( '' !== $v && is_numeric( $v ) ) ? max( 1, min( 5, (int) $v ) ) : $d;
+	};
+	$in_l = $in( 'car_in', 3 );
+	$in_m = $in( 'car_in_medium', min( 2, $in_l ) );
+	$in_s = $in( 'car_in_responsive', 1 );
+	echo "{$node}{--dsst-in:{$in_l}}@media(max-width:{$md}px){{$node}{--dsst-in:{$in_m}}}@media(max-width:{$sm}px){{$node}{--dsst-in:calc({$in_s} + .15);--dsst-gap:12px}}\n"; // phpcs:ignore WordPress.Security.EscapeOutput -- ints only
+}

@@ -20,8 +20,10 @@ if ( '' !== $view['notice'] ) {
 
 $league  = $view['league'];
 $divs    = $view['divisions'];
-$layout  = in_array( ( $settings->layout ?? 'table' ), array( 'leaders', 'ticker' ), true ) ? (string) $settings->layout : 'table';
-$mode    = ( count( $divs ) > 1 && 'leaders' !== $layout ) ? (string) ( $settings->div_view ?? 'tabs' ) : 'single';
+$layout  = in_array( ( $settings->layout ?? 'table' ), array( 'leaders', 'carousel', 'ticker' ), true ) ? (string) $settings->layout : 'table';
+$cards   = in_array( $layout, array( 'leaders', 'carousel' ), true ); // the carousel is the leader cards in one sideways row
+$arrows  = 'carousel' === $layout && $shown( 'car_arrows' );
+$mode    = ( count( $divs ) > 1 && ! $cards ) ? (string) ( $settings->div_view ?? 'tabs' ) : 'single';
 $mode    = in_array( $mode, array( 'tabs', 'select', 'stacked', 'single' ), true ) ? $mode : 'tabs';
 $title   = trim( (string) ( $settings->title ?? __( 'Standings', 'ds-toolkit' ) ) );
 $hl      = $module->highlight();
@@ -85,7 +87,7 @@ if ( ! $shown( 'frame' ) ) {
 }
 ?>
 <div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" data-dsst>
-	<?php if ( ( $shown( 'eyebrow_show' ) && '' !== $league['name'] ) || '' !== $title || 'tabs' === $mode || 'select' === $mode ) : ?>
+	<?php if ( ( $shown( 'eyebrow_show' ) && '' !== $league['name'] ) || '' !== $title || 'tabs' === $mode || 'select' === $mode || $arrows ) : ?>
 	<div class="dsst-top">
 		<div class="dsst-titles">
 			<?php if ( $shown( 'eyebrow_show' ) && '' !== $league['name'] ) : ?>
@@ -110,12 +112,23 @@ if ( ! $shown( 'frame' ) ) {
 					<?php endforeach; ?>
 				</select>
 			</label>
+		<?php elseif ( $arrows ) : ?>
+			<?php // Arrows sit in the header: the framed block clips anything placed outside it. The script shows them when the cards overflow. ?>
+			<div class="dsst-car-nav" hidden>
+				<button type="button" class="fl-content-ui-button dsst-nav dsst-prev" aria-controls="<?php echo esc_attr( $uid . '-cards' ); ?>" aria-label="<?php esc_attr_e( 'Previous divisions', 'ds-toolkit' ); ?>"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7"/></svg></button>
+				<button type="button" class="fl-content-ui-button dsst-nav dsst-next" aria-controls="<?php echo esc_attr( $uid . '-cards' ); ?>" aria-label="<?php esc_attr_e( 'Next divisions', 'ds-toolkit' ); ?>"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+			</div>
 		<?php endif; ?>
 	</div>
 	<?php endif; ?>
 
-	<?php if ( 'leaders' === $layout ) : ?>
+	<?php if ( $cards ) : ?>
+	<?php if ( 'carousel' === $layout ) : ?>
+	<div class="dsst-car">
+	<div class="dsst-cards" id="<?php echo esc_attr( $uid . '-cards' ); ?>" data-dsst-car tabindex="0" role="region" aria-label="<?php esc_attr_e( 'Division leaders (scroll sideways for more)', 'ds-toolkit' ); ?>">
+	<?php else : ?>
 	<div class="dsst-cards">
+	<?php endif; ?>
 		<?php foreach ( $divs as $d ) :
 			$more = '';
 			if ( ! empty( $settings->leaders_link ) ) {
@@ -128,7 +141,7 @@ if ( ! $shown( 'frame' ) ) {
 				<h3 class="dsst-card-title"><?php echo esc_html( $d['name'] ); ?></h3>
 				<?php if ( $d['played'] ) : ?>
 					<ol class="dsst-leaders">
-						<?php foreach ( array_slice( $d['rows'], 0, $limit ) as $n => $r ) :
+						<?php foreach ( ( $limit ? array_slice( $d['rows'], 0, $limit ) : $d['rows'] ) as $n => $r ) : // 0 = All teams
 							$me = '' !== $hl && DS_Standings_Module::norm( $r['team'] ) === $hl;
 							?>
 							<li class="<?php echo $me ? 'is-me' : ''; ?>"<?php echo $me ? ' aria-current="true"' : ''; ?>>
@@ -147,6 +160,9 @@ if ( ! $shown( 'frame' ) ) {
 			</article>
 		<?php endforeach; ?>
 	</div>
+	<?php if ( 'carousel' === $layout ) : ?>
+	</div>
+	<?php endif; ?>
 	<?php else : ?>
 		<?php foreach ( $divs as $i => $d ) :
 			$active = ( 0 === $i || 'stacked' === $mode || 'single' === $mode );

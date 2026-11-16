@@ -71,9 +71,41 @@
 			});
 		}
 	}
+	/* Leader cards carousel: the header arrows step one view at a time, hide when every card fits, and a focused arrow
+	   that reaches its end hands focus to the other one so the keyboard never drops to the page (as the Roster block). */
+	function carousel(root) {
+		var track = root.querySelector('[data-dsst-car]');
+		var bar = root.querySelector('.dsst-car-nav');
+		if (!track || !bar || track.dsstCar) { return; }
+		track.dsstCar = true;
+		var prev = bar.querySelector('.dsst-prev');
+		var next = bar.querySelector('.dsst-next');
+		var rtl = getComputedStyle(track).direction === 'rtl'; // scrollLeft runs from 0 to negative there
+		function update() {
+			var over = track.scrollWidth > track.clientWidth + 2;
+			bar.hidden = !over;
+			var pos = Math.abs(track.scrollLeft);
+			var atStart = pos <= 2;
+			var atEnd = pos + track.clientWidth >= track.scrollWidth - 2;
+			if (atStart && document.activeElement === prev && !atEnd) { next.focus(); }
+			if (atEnd && document.activeElement === next && !atStart) { prev.focus(); }
+			prev.disabled = atStart;
+			next.disabled = atEnd;
+		}
+		function step(dir) {
+			var gap = parseFloat(getComputedStyle(track).columnGap) || 14;
+			track.scrollBy({ left: (rtl ? -dir : dir) * (track.clientWidth + gap), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+		}
+		prev.addEventListener('click', function () { step(-1); });
+		next.addEventListener('click', function () { step(1); });
+		track.addEventListener('scroll', update, { passive: true });
+		window.addEventListener('resize', update);
+		update();
+	}
 	function boot() {
 		document.querySelectorAll('[data-dsst]').forEach(init);
 		document.querySelectorAll('[data-dsst-ticker]').forEach(ticker);
+		document.querySelectorAll('.dsst-carousel').forEach(carousel);
 	}
 	var resizeT;
 	window.addEventListener('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(function () { document.querySelectorAll('[data-dsst-ticker]').forEach(fill); }, 200); });
