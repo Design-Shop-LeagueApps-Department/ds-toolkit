@@ -1011,9 +1011,10 @@ class DS_Programs_Data {
 		// above stays short. Keys sort as strings, so pruning is a compare.
 		$h = gmdate( 'YmdH', $e['t'] );
 		if ( ! isset( $hours[ $h ] ) || ! is_array( $hours[ $h ] ) ) { $hours[ $h ] = array( 0, 0, 0 ); }
-		// A Calendar schedule batch counts its requests and failures, but not as a listing
+		// A Calendar or Standings schedule batch counts its requests and failures, but not as a listing
 		// fetch, so it never pushes the Programs "fetches vs budget" check over.
-		if ( 0 !== strpos( (string) ( $e['why'] ?? '' ), 'calendar' ) ) { $hours[ $h ][0]++; }
+		$why = (string) ( $e['why'] ?? '' );
+		if ( 0 !== strpos( $why, 'calendar' ) && 0 !== strpos( $why, 'standings' ) ) { $hours[ $h ][0]++; }
 		$hours[ $h ][1] += max( 1, (int) $e['tries'] );
 		if ( empty( $e['ok'] ) ) { $hours[ $h ][2]++; }
 		$cut = gmdate( 'YmdH', $e['t'] - DAY_IN_SECONDS );

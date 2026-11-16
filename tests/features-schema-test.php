@@ -31,7 +31,7 @@ foreach ( $pin['defaults'] as $bp => $want ) {
 	ksort( $got ); ksort( $want );
 	$is( 'defaults on blueprint ' . substr( $bp, 2 ) . ' (' . count( $want ) . ' settings)', $got, $want );
 }
-$is( 'a LeagueApps data block has no default on any blueprint (opt-in everywhere)', array_intersect( array( 'ds_programs_module_enabled', 'ds_la_calendar_module_enabled', 'ds_la_roster_module_enabled' ), array_keys( DS_Features::defaults( 7 ) ) ), array() );
+$is( 'a LeagueApps data block has no default on any blueprint (opt-in everywhere)', array_intersect( array( 'ds_programs_module_enabled', 'ds_la_calendar_module_enabled', 'ds_la_roster_module_enabled', 'ds_la_standings_module_enabled' ), array_keys( DS_Features::defaults( 7 ) ) ), array() );
 
 echo "every card has one place\n";
 $all    = DS_Features::all();

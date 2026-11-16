@@ -83,6 +83,7 @@ class DS_Features {
 		'ds_info_list_module_enabled', 'ds_cta_module_enabled', 'ds_heading_module_enabled', 'ds_divider_module_enabled',
 		'ds_device_module_enabled', 'ds_team_detail_module_enabled', 'ds_content_router_module_enabled', 'ds_social_module_enabled',
 		'ds_table_module_enabled', 'ds_programs_module_enabled', 'ds_la_calendar_module_enabled', 'ds_la_roster_module_enabled',
+		'ds_la_standings_module_enabled',
 	);
 
 	private static $all = null;
@@ -315,6 +316,7 @@ class DS_Features {
 			'ds_programs_module_enabled'    => self::module( 'programs', 'DS_Programs', 'LeagueApps Programs', 'Live tournament, league, camp and clinic listings from LeagueApps as a filterable table. Needs a site ID and API key on the LeagueApps tab.', 0 ),
 			'ds_la_calendar_module_enabled' => self::module( 'la-calendar', 'DS_LA_Calendar', 'LeagueApps Calendar', 'Team schedules from LeagueApps (tournaments, games, practices) as a month calendar and an upcoming list. Uses the site ID and API key on the LeagueApps tab.', 0 ),
 			'ds_la_roster_module_enabled'   => self::module( 'la-roster', 'DS_LA_Roster', 'LeagueApps Roster', 'A team\'s players and coaches from LeagueApps as a designed roster (name, position, grad year, height). Needs the club\'s private LeagueApps key, uploaded on the LeagueApps tab by an administrator.', 0 ),
+			'ds_la_standings_module_enabled' => self::module( 'la-standings', 'DS_LA_Standings', 'LeagueApps Standings', 'A league\'s standings from LeagueApps, every division, worked out from the published results (the same columns as the LeagueApps standings page). Uses the site ID and API key on the LeagueApps tab.', 0 ),
 			// New modules default ON for new builds only (Launchpad 7+); older sites opt in, so a release adds nothing to a
 			// live site's builder, AJAX or cron (pre-release audit 2026-09-27).
 			'ds_table_module_enabled'       => self::module( 'table', 'DS_Table', 'Table', 'A sortable, searchable table typed in the builder, uploaded as a CSV, or kept in sync with a CSV file or a Google Sheet.', 7 ),
