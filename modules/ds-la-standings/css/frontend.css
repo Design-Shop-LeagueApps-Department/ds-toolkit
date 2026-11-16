@@ -90,7 +90,12 @@
 .dsst .dsst-league-select { font: inherit; font-size: 15px; font-weight: 600; padding: 9px 36px 9px 12px; border: 1px solid var(--dsst-line); border-radius: 8px;
 	background: var(--dsst-card); color: var(--dsst-text); min-height: 0; height: auto; width: auto; min-width: min(100%, 300px); max-width: 100%; }
 .dsst .dsst-league-select:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; }
-.dsst-league-meta { font-size: 13px; color: var(--dsst-muted); }
+.dsst-league-meta { font-size: 13px; line-height: 19px; color: var(--dsst-muted); }
+/* Beside the league dropdown, the division dropdown lines up with the league select, not with the season line under
+   it (19px line + 6px gap). Phones stack the two, so this stays on wider screens. */
+@media (min-width: 769px) {
+	.dsst-top:has(.dsst-league-meta) > .dsst-pick { margin-bottom: 25px; }
+}
 .dsst .dsst-league-go { margin: 0; padding: 8px 14px; border-radius: 8px; font-size: 14px; }
 .dsst.is-loading .dsst-panel, .dsst.is-loading .dsst-cards, .dsst.is-loading .dsst-tabs, .dsst.is-loading .dsst-foot { opacity: .45; }
 .dsst.is-loading { cursor: progress; }
