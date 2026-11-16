@@ -65,7 +65,7 @@ class DS_Features {
 			'partner'  => array( 'enable_login_branding', 'design_academy_enabled', 'school_emblems_enabled', 'ds_builder_defaults_enabled' ),
 			'modules'  => array(),
 			'site'     => array( 'theme_setting_enabled', 'home_templates_enabled', 'ds_global_heading_font_enabled', 'ds_social_card_enabled', 'page_banner_sync_enabled', 'image_optimization_enabled', 'ds_pattern_library_enabled', 'nested_order_enabled' ),
-			'dev'      => array( 'copyright_shortcode_enabled', 'ds_admin_bar_links_enabled', 'uabb_post_loop_fix_enabled', 'defender_flywheel_reset_fix_enabled', 'hummingbird_critical_fix_enabled', 'acf_css_vars_enabled', 'getsubmenu_enabled', 'current_year_enabled', 'overlay_nav_enabled', 'forminator_email_partner_enabled', 'child_pages_enabled' ),
+			'dev'      => array( 'copyright_shortcode_enabled', 'ds_admin_bar_links_enabled', 'uabb_post_loop_fix_enabled', 'defender_flywheel_reset_fix_enabled', 'hummingbird_critical_fix_enabled', 'wpe_login_error_fix_enabled', 'acf_css_vars_enabled', 'getsubmenu_enabled', 'current_year_enabled', 'overlay_nav_enabled', 'forminator_email_partner_enabled', 'child_pages_enabled' ),
 		);
 	}
 
@@ -209,6 +209,12 @@ class DS_Features {
 				'default' => 1, 'label' => 'Hummingbird Critical CSS: Refresh on Publish', 'icon' => 'performance', 'scope' => 'compat',
 				'summary' => 'Deletes a page\'s saved Critical CSS snapshot when its layout is published, so new modules are never shown unstyled.',
 				'more'    => '<p>Hummingbird\'s Critical CSS serves each page with a saved snapshot of its CSS and loads the real stylesheets only when the visitor moves the mouse or scrolls. It never rebuilds that snapshot when the page changes, so a module added later shows unstyled to logged-out visitors (a 4-column grid as one column, for example). This deletes the page\'s snapshot whenever its layout is published; Hummingbird serves the full CSS and builds a fresh one. Saving a Themer layout or saved template refreshes every page. It does nothing unless Hummingbird\'s Critical CSS is on.</p>',
+			) ),
+
+			'wpe_login_error_fix_enabled' => self::feature( 'wpe-login-error-fix', 'DS_WPE_Login_Error_Fix', array(
+				'default' => 1, 'label' => 'WP Engine Login: No Critical Error on a Failed CAPTCHA', 'icon' => 'shield-alt', 'scope' => 'compat',
+				'summary' => 'Shows the normal "verification failed" message instead of a critical error when a login CAPTCHA fails on WP Engine.',
+				'more'    => '<p>WP Engine\'s platform plugin refreshes the user on every login attempt and turns a refused login into <code>false</code>. When Defender\'s CAPTCHA (Turnstile or reCAPTCHA) has already refused it, for example an expired check, WordPress then crashes and the partner sees "There has been a critical error on this website". This lets the refusal through so they see the CAPTCHA message and can try again. Logins that pass are untouched. It does nothing off WP Engine.</p>',
 			) ),
 
 			'overlay_nav_enabled' => self::feature( 'overlay-nav', 'DS_Overlay_Nav', array(

@@ -49,6 +49,10 @@
    "file": "features/class-ds-hummingbird-critical-fix.php",
    "class": "DS_Hummingbird_Critical_Fix"
   },
+  "wpe_login_error_fix_enabled": {
+   "file": "features/class-ds-wpe-login-error-fix.php",
+   "class": "DS_WPE_Login_Error_Fix"
+  },
   "overlay_nav_enabled": {
    "file": "features/class-ds-overlay-nav.php",
    "class": "DS_Overlay_Nav"
@@ -310,6 +314,7 @@
    "uabb_post_loop_fix_enabled": 1,
    "defender_flywheel_reset_fix_enabled": 1,
    "hummingbird_critical_fix_enabled": 1,
+   "wpe_login_error_fix_enabled": 1,
    "user_roles_enabled": 1,
    "bot_shield_enabled": 1,
    "tripwire_enabled": 1,
@@ -375,6 +380,7 @@
    "uabb_post_loop_fix_enabled": 1,
    "defender_flywheel_reset_fix_enabled": 1,
    "hummingbird_critical_fix_enabled": 1,
+   "wpe_login_error_fix_enabled": 1,
    "user_roles_enabled": 1,
    "bot_shield_enabled": 1,
    "tripwire_enabled": 1,
@@ -440,6 +446,7 @@
    "uabb_post_loop_fix_enabled": 1,
    "defender_flywheel_reset_fix_enabled": 1,
    "hummingbird_critical_fix_enabled": 1,
+   "wpe_login_error_fix_enabled": 1,
    "user_roles_enabled": 1,
    "bot_shield_enabled": 1,
    "tripwire_enabled": 1,
@@ -533,6 +540,7 @@
    "uabb_post_loop_fix_enabled": 1,
    "defender_flywheel_reset_fix_enabled": 1,
    "hummingbird_critical_fix_enabled": 1,
+   "wpe_login_error_fix_enabled": 1,
    "user_roles_enabled": 1,
    "bot_shield_enabled": 1,
    "tripwire_enabled": 1,
@@ -604,6 +612,7 @@
  "_changes": [
   "audit 2026-11 item 25: tripwire_hq_report became a feature of its own (features/class-ds-hq-link.php, DS_HQ_Link), loaded last. Its default (1) is unchanged.",
   "audit 2026-11 item 32: the 14 blocks whose feature class only registered the block (carousel, cta, device, divider, heading, info-list, marquee, menu, orgstats, pathway, post-loop, social, table, team-detail) load through includes/class-ds-module-loader.php (DS_Module_Loader) with a \"block\" folder name. Same keys, same order, same defaults; min_blueprint unchanged.",
-  "audit 2026-11 item 32: admin_menu_tidy_enabled, ds_pattern_library_enabled and design_academy_enabled carry admin_only (every hook they add is a wp-admin one), so the loader skips them outside wp-admin. Keys, order and defaults unchanged."
+  "audit 2026-11 item 32: admin_menu_tidy_enabled, ds_pattern_library_enabled and design_academy_enabled carry admin_only (every hook they add is a wp-admin one), so the loader skips them outside wp-admin. Keys, order and defaults unchanged.",
+  "1.19.0: wpe_login_error_fix_enabled (features/class-ds-wpe-login-error-fix.php, DS_WPE_Login_Error_Fix), a WP Engine compatibility fix, default 1 on every generation: a failed login CAPTCHA for a real user was a critical error because wpe_refresh_user() turns the WP_Error into false (thestjamescamps.com, 2026-11-17)."
  ]
 }
