@@ -4,6 +4,20 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.19.2] - 2026-11-17
+PATCH: the Programs block says Men and Women on adult programs instead of Boys and Girls.
+
+### Fixed
+- **Adult programs read Men / Women.** LeagueApps' Gender (MALE / FEMALE) was always worded for youth, so an adult
+  league site showed Boys and Girls in the Gender column, filter and cards: 35 of 87 rows on districtsoccer.org, where
+  every program is adult. A program whose Youth / Adult is Adult (its own, or its main program's when blank) now reads
+  Men or Women; youth programs, and programs with no Youth / Adult set, still read Boys and Girls; Coed is unchanged.
+  The Programs tab Gender scope still matches on LeagueApps' codes, so saved pages list the same programs. A Gender code
+  LeagueApps adds later shows in words rather than blank, as Registration status does since 1.19.1.
+  `tests/programs-gender-labels-test.php` (15 checks, 6 fail on 1.19.1).
+
+---
+
 ## [1.19.1] - 2026-11-17
 PATCH: the Programs block's Registration status column shows every status LeagueApps sends, such as Limited Spots, instead of a blank cell.
 

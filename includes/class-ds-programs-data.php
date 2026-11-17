@@ -662,7 +662,15 @@ class DS_Programs_Data {
 		$start_s  = $start ? (int) floor( $start / 1000 ) : 0;
 		$end_s    = $end ? (int) floor( $end / 1000 ) : 0;
 
-		$gender_map = array( 'MALE' => __( 'Boys', 'ds-toolkit' ), 'FEMALE' => __( 'Girls', 'ds-toolkit' ), 'ANY' => __( 'Coed', 'ds-toolkit' ) );
+		// Adult programs are men's and women's: until 1.19.2 every MALE program read "Boys", so an adult
+		// league site showed Boys / Girls (districtsoccer.org: 35 of its 87 adult rows). The mode is the
+		// program's own, or its main program's when blank, like every other field.
+		$adult      = ( 'ADULT' === strtoupper( $inherit( 'mode' ) ) );
+		$gender_map = array(
+			'MALE'   => $adult ? __( 'Men', 'ds-toolkit' ) : __( 'Boys', 'ds-toolkit' ),
+			'FEMALE' => $adult ? __( 'Women', 'ds-toolkit' ) : __( 'Girls', 'ds-toolkit' ),
+			'ANY'    => __( 'Coed', 'ds-toolkit' ),
+		);
 		// The row's own Gender (a sub-program left blank takes its main program's, like every
 		// other field). For the Programs tab scope a row also carries every Gender it covers: a
 		// main program listed with its sub-programs covers each sub-program's, so a tournament
@@ -737,7 +745,8 @@ class DS_Programs_Data {
 			'endDate'    => self::date_one( $end_s, $format['date'] ?? 'numeric' ),
 			'month'      => $start_s ? date_i18n( 'F', $start_s ) : '',
 			'sport'      => $inherit( 'sport' ),
-			'gender'     => $gender_map[ $gender_raw ] ?? '',
+			// Same rule as status: a code LeagueApps adds later shows in words, never a blank cell.
+			'gender'     => $gender_map[ $gender_raw ] ?? ucfirst( strtolower( str_replace( '_', ' ', $gender_raw ) ) ),
 			'genders'    => array_values( array_unique( $genders ) ),
 			'type'       => $type_map[ $type_raw ] ?? ucfirst( strtolower( $type_raw ) ),
 			'typeRaw'    => $type_raw,
