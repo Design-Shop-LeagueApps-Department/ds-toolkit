@@ -14,9 +14,10 @@ PATCH: the Programs block's Registration status column shows every status League
   status showed an empty cell: 29 of 45 rows on districtsoccer.org/play/leagues/ the day its winter leagues opened
   (2026-11-17). The block now uses the full list LeagueApps' own listing widget labels, in its wording: Limited Spots,
   Accepting Free Agents Only (and the male / female versions), Accepting Team Captains Only, Accepting Team Players
-  Only, Accepting Team Players and Free Agents Only. `REGISTRATION_CLOSED` counts as Closed, and a status LeagueApps
-  adds later shows in words rather than blank. Register buttons are unchanged: only Sold Out and Cancelled turn them
-  off. `tests/programs-registration-status-test.php` (25 checks, 11 fail on 1.19.0).
+  Only, Accepting Team Players and Free Agents Only; Waitlist now reads Accepting Waitlist, as on LeagueApps.
+  `REGISTRATION_CLOSED` counts as Closed, and a status LeagueApps adds later shows in words rather than blank. Register
+  buttons are unchanged: only Sold Out and Cancelled turn them off. `tests/programs-registration-status-test.php`
+  (25 checks, 12 fail on 1.19.0).
 
 ---
 

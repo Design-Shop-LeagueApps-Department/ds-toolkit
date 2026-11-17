@@ -123,7 +123,7 @@ chk( 'ONLY_MALE_FREE_AGENTS', $r( 'maleag' )['status'], 'Accepting Male Free Age
 chk( 'ONLY_FEMALE_FREE_AGENTS', $r( 'femag' )['status'], 'Accepting Female Free Agents Only' );
 chk( 'ONLY_TEAM_CAPTAINS', $r( 'captains' )['status'], 'Accepting Team Captains Only' );
 chk( 'ONLY_TEAM_PLAYERS', $r( 'players' )['status'], 'Accepting Team Players Only' );
-chk( 'WAITLIST keeps its existing label', $r( 'waitlist' )['status'], 'Waitlist' );
+chk( 'WAITLIST reads Accepting Waitlist, as LeagueApps words it', $r( 'waitlist' )['status'], 'Accepting Waitlist' );
 chk( 'OPENS_SOON', $r( 'soon' )['status'], 'Opens Soon' );
 chk( 'a code nobody has mapped yet shows in words, never a blank cell', $r( 'newcode' )['status'], 'Only returning players' );
 

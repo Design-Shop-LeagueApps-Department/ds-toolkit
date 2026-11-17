@@ -689,7 +689,7 @@ class DS_Programs_Data {
 			'LIMITED'                  => __( 'Limited Spots', 'ds-toolkit' ),
 			'SOLD_OUT'                 => __( 'Sold Out', 'ds-toolkit' ),
 			'CLOSED'                   => __( 'Closed', 'ds-toolkit' ),
-			'WAITLIST'                 => __( 'Waitlist', 'ds-toolkit' ),
+			'WAITLIST'                 => __( 'Accepting Waitlist', 'ds-toolkit' ),
 			'ONLY_FREE_AGENTS'         => __( 'Accepting Free Agents Only', 'ds-toolkit' ),
 			'ONLY_MALE_FREE_AGENTS'    => __( 'Accepting Male Free Agents Only', 'ds-toolkit' ),
 			'ONLY_FEMALE_FREE_AGENTS'  => __( 'Accepting Female Free Agents Only', 'ds-toolkit' ),
