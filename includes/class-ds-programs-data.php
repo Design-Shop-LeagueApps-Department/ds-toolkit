@@ -680,7 +680,26 @@ class DS_Programs_Data {
 		$type_map   = array( 'TOURNAMENT' => __( 'Tournament', 'ds-toolkit' ), 'LEAGUE' => __( 'League', 'ds-toolkit' ), 'CLASS' => __( 'Class', 'ds-toolkit' ), 'CAMP' => __( 'Camp', 'ds-toolkit' ), 'CLINIC' => __( 'Clinic', 'ds-toolkit' ), 'EVENT' => __( 'Event', 'ds-toolkit' ), 'CLUBTEAM' => __( 'Club Team', 'ds-toolkit' ) );
 		$mode_map   = array( 'YOUTH' => __( 'Youth', 'ds-toolkit' ), 'ADULT' => __( 'Adult', 'ds-toolkit' ) );
 		$state_map  = array( 'UPCOMING' => __( 'Upcoming', 'ds-toolkit' ), 'LIVE' => __( 'In Season', 'ds-toolkit' ), 'ARCHIVED' => __( 'Past', 'ds-toolkit' ) );
-		$stat_map   = array( 'OPEN' => __( 'Open', 'ds-toolkit' ), 'OPENS_SOON' => __( 'Opens Soon', 'ds-toolkit' ), 'SOLD_OUT' => __( 'Sold Out', 'ds-toolkit' ), 'CLOSED' => __( 'Closed', 'ds-toolkit' ), 'WAITLIST' => __( 'Waitlist', 'ds-toolkit' ), 'CANCELED' => __( 'Cancelled', 'ds-toolkit' ) );
+		// Every registrationStatus code LeagueApps' own listing widget (widgets.leagueapps.com) knows,
+		// in its wording. LIMITED and ONLY_TEAM_PLAYERS_AND_FA were missing until 1.19.1 and showed a
+		// blank status: 67 of 121 programs on districtsoccer.org the day its winter leagues opened.
+		$stat_map   = array(
+			'OPEN'                     => __( 'Open', 'ds-toolkit' ),
+			'OPENS_SOON'               => __( 'Opens Soon', 'ds-toolkit' ),
+			'LIMITED'                  => __( 'Limited Spots', 'ds-toolkit' ),
+			'SOLD_OUT'                 => __( 'Sold Out', 'ds-toolkit' ),
+			'CLOSED'                   => __( 'Closed', 'ds-toolkit' ),
+			'WAITLIST'                 => __( 'Waitlist', 'ds-toolkit' ),
+			'ONLY_FREE_AGENTS'         => __( 'Accepting Free Agents Only', 'ds-toolkit' ),
+			'ONLY_MALE_FREE_AGENTS'    => __( 'Accepting Male Free Agents Only', 'ds-toolkit' ),
+			'ONLY_FEMALE_FREE_AGENTS'  => __( 'Accepting Female Free Agents Only', 'ds-toolkit' ),
+			'ONLY_TEAM_CAPTAINS'       => __( 'Accepting Team Captains Only', 'ds-toolkit' ),
+			'ONLY_TEAM_PLAYERS'        => __( 'Accepting Team Players Only', 'ds-toolkit' ),
+			// LeagueApps words it "Accepting Team and Free Agents Players Only": no new teams can
+			// sign up, players can still join a team or register as a free agent.
+			'ONLY_TEAM_PLAYERS_AND_FA' => __( 'Accepting Team Players and Free Agents Only', 'ds-toolkit' ),
+			'CANCELED'                 => __( 'Cancelled', 'ds-toolkit' ),
+		);
 
 		$type_raw  = strtoupper( (string) ( $row['type'] ?? '' ) );
 		$mode_raw  = strtoupper( (string) ( $row['mode'] ?? '' ) );
@@ -689,6 +708,9 @@ class DS_Programs_Data {
 		// LeagueApps spells it CANCELED; accept the double-L spelling too so a partner
 		// who cancels a session never has it advertised as bookable.
 		if ( 'CANCELLED' === $stat_raw ) { $stat_raw = 'CANCELED'; }
+		// The widget's own code for a closed registration. One code, so "Hide closed" and the
+		// in-season rule treat it like a derived Closed.
+		if ( 'REGISTRATION_CLOSED' === $stat_raw ) { $stat_raw = 'CLOSED'; }
 		$spots     = self::spots( $row );
 
 		// registrationStatus is blank on most programs (189 of 226 on the
@@ -721,7 +743,8 @@ class DS_Programs_Data {
 			'typeRaw'    => $type_raw,
 			'mode'       => $mode_map[ $mode_raw ] ?? ucfirst( strtolower( $mode_raw ) ),
 			'modeRaw'    => $mode_raw,
-			'status'     => $stat_map[ $stat_raw ] ?? '',
+			// A code LeagueApps adds later still shows (in its own words) rather than a blank cell.
+			'status'     => $stat_map[ $stat_raw ] ?? ucfirst( strtolower( str_replace( '_', ' ', $stat_raw ) ) ),
 			'statusRaw'  => $stat_raw,
 			'state'      => $state_map[ $state_raw ] ?? ucfirst( strtolower( $state_raw ) ),
 			'stateRaw'   => $state_raw,
