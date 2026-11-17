@@ -4,6 +4,23 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.19.1] - 2026-11-17
+PATCH: the Programs block's Registration status column shows every status LeagueApps sends, such as Limited Spots, instead of a blank cell.
+
+### Fixed
+- **Registration status no longer blank on Limited Spots and the "accepting ... only" programs.** LeagueApps sends
+  `LIMITED` and `ONLY_TEAM_PLAYERS_AND_FA` (new teams full, players and free agents still welcome) in
+  `registrationStatus`. The module only knew Open, Opens Soon, Sold Out, Closed, Waitlist and Cancelled, so every other
+  status showed an empty cell: 29 of 45 rows on districtsoccer.org/play/leagues/ the day its winter leagues opened
+  (2026-11-17). The block now uses the full list LeagueApps' own listing widget labels, in its wording: Limited Spots,
+  Accepting Free Agents Only (and the male / female versions), Accepting Team Captains Only, Accepting Team Players
+  Only, Accepting Team Players and Free Agents Only; Waitlist now reads Accepting Waitlist, as on LeagueApps.
+  `REGISTRATION_CLOSED` counts as Closed, and a status LeagueApps adds later shows in words rather than blank. Register
+  buttons are unchanged: only Sold Out and Cancelled turn them off. `tests/programs-registration-status-test.php`
+  (25 checks, 12 fail on 1.19.0).
+
+---
+
 ## [1.19.0] - 2026-11-17
 MINOR: on WP Engine, a failed login CAPTCHA shows its own message again instead of "There has been a critical error on this website".
 
