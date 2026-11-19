@@ -42,6 +42,11 @@ class DS_Hero {
 
 	public function register_module() {
 		if ( class_exists( 'FLBuilder' ) && class_exists( 'FLBuilderModule' ) ) {
+			// Site layouts (1.20.0): <theme>/ds-layouts/ds-hero/<slug>.php shows up as "Site: <name>" in Hero Style.
+			// Hooked before the form registers. A layout with no "Uses:" line keeps Text, SEO Tags, Buttons, Background, Spacing.
+			if ( class_exists( 'DS_Site_Layouts' ) ) {
+				DS_Site_Layouts::hook_form( 'ds-hero', 'content', 'hero_style_sec', 'hero_style', array( 'text', 'seo', 'buttons', 'bg', 'spacing' ) );
+			}
 			require_once DS_TOOLKIT_PATH . 'modules/ds-hero/ds-hero.php';
 		}
 	}

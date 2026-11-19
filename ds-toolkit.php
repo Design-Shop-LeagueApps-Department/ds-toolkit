@@ -3,7 +3,7 @@
  * Plugin Name:       DS Toolkit
  * Plugin URI:        https://github.com/Design-Shop-LeagueApps-Department/ds-toolkit
  * Description:       Design Shop custom features and build toolkit.
- * Version:           1.19.2
+ * Version:           1.20.0
  * Author:            LeagueApps Design Shop
  * Author URI:        https://github.com/Design-Shop-LeagueApps-Department
  * Text Domain:       ds-toolkit
@@ -31,7 +31,7 @@ if ( defined( 'DS_TOOLKIT_VERSION' ) ) {
     return;
 }
 
-define( 'DS_TOOLKIT_VERSION', '1.19.2' );
+define( 'DS_TOOLKIT_VERSION', '1.20.0' );
 define( 'DS_TOOLKIT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'DS_TOOLKIT_URL', plugin_dir_url( __FILE__ ) );
 
@@ -49,6 +49,7 @@ if ( ! defined( 'DS_TOOLKIT_ADMIN_DOMAIN' ) ) {
 // Hosts, addresses and the "is this a development site" rule, in one place (DS_Env).
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-env.php';
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-module-ui.php';
+require_once DS_TOOLKIT_PATH . 'includes/class-ds-site-layouts.php';   // site-only block styles from the theme's ds-layouts folder (1.20.0)
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-card.php';
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-program-cards.php';
 if ( ( defined( 'WP_CLI' ) && WP_CLI ) || is_admin() ) {

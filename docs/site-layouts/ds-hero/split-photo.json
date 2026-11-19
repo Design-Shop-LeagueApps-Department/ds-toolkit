@@ -1,0 +1,13 @@
+{
+  "sections": [
+    {
+      "key": "split",
+      "title": "Split Photo",
+      "fields": {
+        "frame": { "type": "select", "label": "Photo frame", "default": "card", "options": { "card": "Card (white border + shadow)", "rounded": "Rounded", "square": "Square" } },
+        "badge": { "type": "text", "label": "Badge text", "default": "", "help": "Optional label on the photo, e.g. Registration open." },
+        "badge_color": { "type": "color", "label": "Badge colour", "default": "", "show_reset": true, "connections": ["color"] }
+      }
+    }
+  ]
+}

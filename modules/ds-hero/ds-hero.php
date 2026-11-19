@@ -316,6 +316,63 @@ class DS_Hero_Module extends FLBuilderModule {
 		);
 	}
 
+	/** A site layout's CSS in the head and its JS in the footer, only on pages that use it (1.20.0). */
+	public function enqueue_scripts() {
+		$raw = (string) ( $this->settings->hero_style ?? '' );
+		if ( class_exists( 'DS_Site_Layouts' ) && DS_Site_Layouts::is_site_key( $raw ) ) {
+			$layout = DS_Site_Layouts::get( 'ds-hero', $raw );
+			if ( $layout ) { DS_Site_Layouts::enqueue( $layout ); }
+		}
+	}
+
+	/**
+	 * The Hero's own pieces for a site layout template, so a layout writes only its own markup (1.20.0):
+	 *   open (the <section> with the classes and slide timing the hero script needs; $extra = more classes),
+	 *   close, background (image / slideshow / video / mixed, with the Overlay), slide_nav, eyebrow, heading
+	 *   (with the {a}accent{/a} markup), text, buttons, stats.
+	 * Returns the HTML; every value is escaped the same way the built-in styles escape it.
+	 */
+	public function part( $name, $extra = '' ) {
+		$s = $this->settings;
+		ob_start();
+		switch ( $name ) {
+			case 'open':
+				$interval = isset( $s->slide_interval ) && '' !== $s->slide_interval ? (int) $s->slide_interval : 6;
+				$slug     = preg_replace( '/[^a-z0-9\-]/', '', substr( (string) ( $s->hero_style ?? '' ), strlen( 'site-' ) ) );
+				echo '<section class="ds-hero ds-hero--site ds-hero--site-' . esc_attr( $slug ) . ( $extra ? ' ' . esc_attr( $extra ) : '' ) . '" data-interval="' . esc_attr( $interval ) . '">';
+				break;
+			case 'close':      echo '</section>'; break;
+			case 'background': $this->render_bg(); break;
+			case 'slide_nav':  $this->render_slide_nav(); break;
+			case 'stats':      $this->render_proof(); break;
+			case 'eyebrow':
+				if ( ! empty( $s->eyebrow ) ) { $t = self::seo_tag( $s->eyebrow_tag ?? 'span', 'span' ); echo '<' . $t . ' class="ds-hero-eyebrow">' . esc_html( $s->eyebrow ) . '</' . $t . '>'; }
+				break;
+			case 'heading':
+				if ( ! empty( $s->heading ) ) { $t = self::seo_tag( $s->title_tag ?? 'h1', 'h1' ); echo '<' . $t . ' class="ds-hero-title">' . $this->heading_html( $s->heading ) . '</' . $t . '>'; }
+				break;
+			case 'text':
+				if ( ! empty( $s->subtext ) ) { echo '<div class="ds-hero-sub">' . wpautop( wp_kses_post( $s->subtext ) ) . '</div>'; }
+				break;
+			case 'buttons':
+				$b1 = $this->button( $s->btn1_text ?? '', $s->btn1_link ?? '', $s->btn1_style ?? 'primary', true );
+				$b2 = $this->button( $s->btn2_text ?? '', $s->btn2_link ?? '', $s->btn2_style ?? 'ghost', false );
+				if ( $b1 || $b2 ) { echo '<div class="ds-hero-cta">' . $b1 . $b2 . '</div>'; }
+				break;
+		}
+		return ob_get_clean();
+	}
+
+	/** The Background photos as URLs (single image or slideshow), for layouts that use them in their own way. */
+	public function photo_urls( $size = 'full' ) {
+		$s   = $this->settings;
+		$raw = 'image' === ( $s->bg_type ?? 'image' ) ? array( $s->bg_photo ?? '' ) : ( $s->bg_photos ?? array() );
+		if ( is_string( $raw ) ) { $raw = explode( ',', $raw ); }
+		$out = array();
+		foreach ( (array) $raw as $p ) { $u = $this->photo_url( $p, $size ); if ( $u ) { $out[] = $u; } }
+		return $out;
+	}
+
 	public static function styles() {
 		return array(
 			'style1' => __( 'Style 1: Classic', 'ds-toolkit' ),
@@ -325,6 +382,14 @@ class DS_Hero_Module extends FLBuilderModule {
 	}
 
 	public function render_hero() {
+		// A site layout (1.20.0): the theme's ds-layouts/ds-hero/<slug>.php. Missing or failing = Style 1 below.
+		$raw = (string) ( $this->settings->hero_style ?? '' );
+		if ( class_exists( 'DS_Site_Layouts' ) && DS_Site_Layouts::is_site_key( $raw ) ) {
+			$layout = DS_Site_Layouts::get( 'ds-hero', $raw );
+			if ( $layout && DS_Site_Layouts::render( $layout, $this, $this->settings ) ) { return; }
+			$this->render_style1();
+			return;
+		}
 		$style   = isset( $this->settings->hero_style ) ? preg_replace( '/[^a-z0-9_]/', '', $this->settings->hero_style ) : 'style1';
 		$method  = 'render_' . $style;
 		if ( ! array_key_exists( $style, self::styles() ) || ! method_exists( $this, $method ) ) {
