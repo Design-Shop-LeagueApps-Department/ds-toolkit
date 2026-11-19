@@ -49,6 +49,7 @@ if ( ! defined( 'DS_TOOLKIT_ADMIN_DOMAIN' ) ) {
 // Hosts, addresses and the "is this a development site" rule, in one place (DS_Env).
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-env.php';
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-module-ui.php';
+require_once DS_TOOLKIT_PATH . 'includes/class-ds-site-layouts.php';   // site-only block styles from the theme's ds-layouts folder (1.20.0)
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-card.php';
 require_once DS_TOOLKIT_PATH . 'includes/class-ds-program-cards.php';
 if ( ( defined( 'WP_CLI' ) && WP_CLI ) || is_admin() ) {

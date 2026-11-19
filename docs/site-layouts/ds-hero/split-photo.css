@@ -1,0 +1,10 @@
+/* Split Photo site layout: layout only; colours and type come from the Hero's own Style settings, which are made for a dark
+   background, so the band is the Dark Background global colour. */
+.ds-hero--site-split-photo{position:relative;background:var(--fl-global-dark-background,#111)}
+.ds-hero--site-split-photo .ds-split-wrap{max-width:1280px;margin:0 auto;padding:96px 20px;display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
+.ds-hero--site-split-photo .ds-split-photo{position:relative;margin:0}
+.ds-hero--site-split-photo .ds-split-photo img{width:100%;aspect-ratio:4/5;object-fit:cover;object-position:50% 25%;display:block}
+.ds-split--card .ds-split-photo img{border:10px solid #fff;box-shadow:0 24px 50px rgba(0,0,0,.25)}
+.ds-split--rounded .ds-split-photo img{border-radius:24px}
+.ds-hero--site-split-photo .ds-split-badge{position:absolute;left:-18px;bottom:28px;background:var(--ds-split-badge);color:#fff;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:12px 18px}
+@media (max-width:767px){.ds-hero--site-split-photo .ds-split-wrap{grid-template-columns:1fr;padding:64px 20px;gap:32px}.ds-hero--site-split-photo .ds-split-badge{left:12px}}

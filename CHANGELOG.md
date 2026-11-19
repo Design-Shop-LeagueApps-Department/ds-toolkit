@@ -4,6 +4,31 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.20.0] - 2026-11-19
+MINOR: the Hero Banner can use **site layouts**, extra Hero Styles that live in the site's theme instead of the plugin.
+
+### Added
+- **Site layouts for the Hero Banner.** Drop `<slug>.php` (plus an optional `<slug>.json` of settings, `<slug>.css` and
+  `<slug>.js`) into `<child theme>/ds-layouts/ds-hero/` and **Hero Style** offers **Site: <Layout Name>**. Picking it
+  shows only the Hero sections the file's `Uses:` line names (default Text, SEO Tags, Buttons, Background, Spacing), hides
+  the fields its `Hide:` line names, and adds the layout's own settings from the JSON, so the options below the style
+  adapt like the built-in styles do and the partner still edits everything in the block. The layout's CSS and JS load only
+  on pages that use it. Templates get the Hero's pieces ready-made (`$module->part( 'background' | 'heading' | 'buttons'
+  | ... )`, `$module->photo_urls()`), so a layout writes only its own markup. Until now a site-only hero meant hooks
+  hand-written into functions.php (team91national "Numeral Window", 2026-11-11). Alipio 2026-11-19: "update the
+  leagueapps hero banner module to have custom template and it will adapt in options below".
+- Safety: layout files come from the server only; a missing file or one that throws renders **Style 1: Classic** (an
+  administrator sees an HTML comment naming the error), so a theme switch or a typo never blanks a page. Only plain
+  content and design field types pass from the JSON (no code fields), and layout values are stored as
+  `sl_<slug>__<name>`, so they never collide with the Hero's own settings.
+- Guide: `docs/SITE-LAYOUTS.md`; worked example (Split Photo): `docs/site-layouts/ds-hero/`. The registry
+  (`includes/class-ds-site-layouts.php`) is block-agnostic, ready for Marquee, Post Loop and CTA.
+- `tests/site-layouts-test.php` (27 checks): discovery (child theme before parent, bad file names skipped), header,
+  JSON field filter, namespaced names, form extension, fallback on a missing or failing layout. Saved heroes render
+  exactly as before: no existing setting, option or default changed.
+
+---
+
 ## [1.19.2] - 2026-11-17
 PATCH: the Programs block says Men and Women on adult programs instead of Boys and Girls.
 
