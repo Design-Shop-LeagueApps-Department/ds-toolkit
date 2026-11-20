@@ -4,6 +4,23 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.20.1] - 2026-11-21
+PATCH: the LeagueApps Calendar pop-up showed another day's times for some teams.
+
+### Fixed
+- **Calendar pop-up times.** Two days in a row of the same event at the same place (Supernova's "practice" on Sunday
+  22 Nov and Monday 23 Nov) were joined into one entry, and each team kept the time of the first day it appeared. So
+  Monday's pop-up listed 14 Allstars, 14 Gold, 15 Allstars and 15 Gold at Sunday's 12 PM to 2 PM instead of 7 PM to 9 PM
+  and 5 PM to 7 PM, under "All days". Days now join only when every day has the same times (the event's own time and each
+  team's), so a weekend tournament still reads "Oct 17-18" and two different practice days stay apart. The same rule
+  applies to the "Coming up" rail, the list view and the Subscribe (.ics) feed, which had merged Sunday 29 + Monday
+  30 Nov under Sunday's teams. A joined entry opened from its second day now shows the whole date range, and a joined
+  entry whose times differ by team says "Times vary by team" instead of "All days".
+- `tests/calendar-span-times-test.php` (21 checks, Supernova's real 15/16, 22/23 and 29/30 Nov events plus a weekend
+  tournament and a two-day camp that must still join). The pop-up checks run `frontend.js` under node.
+
+---
+
 ## [1.20.0] - 2026-11-19
 MINOR: the Hero Banner can use **site layouts**, extra Hero Styles that live in the site's theme instead of the plugin.
 
