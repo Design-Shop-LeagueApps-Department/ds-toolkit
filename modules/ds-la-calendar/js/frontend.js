@@ -69,6 +69,28 @@ function fold(line){ // 75 octets per line, never inside a character
   return out;
 }
 function slug(s){return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'event';}
+function markText(e){return e.kind==='deadline'?'Registration closes':(e.mark==='start'?'Starts':(e.mark==='end'?'Ends':''));}
+// What one day of an event says about time: its own time and each team's. Mirrors DS_Calendar_ICS::day_key().
+function dayKey(e){
+  return (e.time||'')+'\n'+(e.teams||[]).filter(function(t){return t.t;}).map(function(t){return t.n+'='+t.t;}).sort().join('\n');
+}
+// Consecutive days of the same event at the same place read as one entry ("Oct 17-18"), but only when every day has the
+// same times: a merged entry shows one set of times, so two different practice days stay apart (1.20.1; Supernova's
+// Monday 23 Nov showed Sunday's 12 PM - 2 PM for four teams).
+function spans(list){
+  var out=[],open={};
+  list.forEach(function(e){
+    var key=e.title+'\n'+e.loc+'\n'+(e.kind||''), p=open[key];
+    if(p&&!markText(e)&&!markText(p.e)&&addDays(p.end,1)===e.d&&dayKey(e)===dayKey(p.e)){
+      p.end=e.d;p.all.push(e);
+      e.teams.forEach(function(t){if(!p.teams.some(function(x){return x.n===t.n;})){p.teams.push(t);}});
+      return;
+    }
+    var s={e:e,end:e.d,teams:e.teams.slice(),time:e.time||'',all:[e]};
+    open[key]=s;out.push(s);
+  });
+  return out;
+}
 
 function init(root){
   if(!root||root.dataset.ready){return;}
@@ -127,7 +149,6 @@ function init(root){
     return events.filter(function(e){return !isProg(e)&&e.teams.some(function(t){return t.n===v;});});
   }
   function teamName(){return state.team?state.team.slice(2):'';}
-  function markText(e){return e.kind==='deadline'?'Registration closes':(e.mark==='start'?'Starts':(e.mark==='end'?'Ends':''));}
   function curTeam(){return state.team.indexOf('t:')===0?state.team.slice(2):'';}
   function teamTime(e){var t=e.teams.filter(function(x){return x.n===curTeam();})[0];return t&&t.t?t.t:'';}
   // Short time line (event chips, day cards, rail).
@@ -147,22 +168,6 @@ function init(root){
   if(first>last){last=first;}
   state.ym=first;
 
-  // Consecutive days of the same event at the same place read as one entry ("Oct 17-18").
-  function spans(list){
-    var out=[],open={};
-    list.forEach(function(e){
-      var key=e.title+'\n'+e.loc+'\n'+(e.kind||''), p=open[key];
-      if(p&&!markText(e)&&!markText(p.e)&&addDays(p.end,1)===e.d){
-        p.end=e.d;p.all.push(e);
-        e.teams.forEach(function(t){if(!p.teams.some(function(x){return x.n===t.n;})){p.teams.push(t);}});
-        if(p.time!==(e.time||'')){p.time='';}
-        return;
-      }
-      var s={e:e,end:e.d,teams:e.teams.slice(),time:e.time||'',all:[e]};
-      open[key]=s;out.push(s);
-    });
-    return out;
-  }
   function spanOf(e){
     var hit=null;spans(visible()).some(function(s){if(s.all.indexOf(e)>=0){hit=s;return true;}return false;});
     return hit||{e:e,end:e.d,teams:e.teams.slice(),time:e.time||'',all:[e]};
@@ -177,7 +182,7 @@ function init(root){
   }
   function spanWhen(s){
     if(isProg(s.e)||s.end===s.e.d){return whenText(s.e);}
-    return (curTeam()&&teamTime(s.e))||s.time||'All days';
+    return (curTeam()&&teamTime(s.e))||s.time||(s.e.times?'Times vary by team':'All days');
   }
   function upItem(s,where){
     var e=s.e,d=parse(e.d),tl=teamsLine(e,s.teams);
@@ -398,7 +403,7 @@ function init(root){
   /* ---- Pop-up ---- */
   function open(e){
     var s=spanOf(e);state.ev=e;state.span=s;
-    var d=parse(e.d), end=parse(s.end), multi=s.end!==e.d, prog=isProg(e), tid=dbody.dataset.titleId;
+    var d=parse(s.e.d), end=parse(s.end), multi=s.end!==s.e.d, prog=isProg(e), tid=dbody.dataset.titleId; // the whole entry, whichever day was clicked
     var map=(e.lat&&e.lng)?'https://www.google.com/maps/search/?api=1&query='+e.lat+','+e.lng:(e.loc?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(e.loc):'');
     var date=multi?DOW[d.getDay()]+', '+MONTHS[d.getMonth()].slice(0,3)+' '+d.getDate()+' to '+DOW[end.getDay()]+', '+MONTHS[end.getMonth()].slice(0,3)+' '+end.getDate()+', '+end.getFullYear()
       :DAYS[d.getDay()]+', '+MONTHS[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
@@ -466,7 +471,7 @@ function init(root){
   render();
 }
 
-window.DSLACalendar={init:init};
+window.DSLACalendar={init:init,spans:spans}; // spans: for tests/calendar-span-times-test.php
 function all(){document.querySelectorAll('.dslc').forEach(init);}
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',all);}else{all();}
 })();

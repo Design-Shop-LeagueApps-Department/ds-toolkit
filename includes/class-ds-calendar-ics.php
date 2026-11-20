@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
  * "6 PM"), which DS_Calendar_Data writes in Eastern wall-clock; they are converted to
  * UTC so every calendar app shows them in the reader's own time zone. An event with no
  * readable time (all day, times that differ by team) is an all-day entry, and all-day
- * entries on consecutive days (a weekend tournament) become one entry.
+ * entries on consecutive days with the same times (a weekend tournament) become one entry.
  *
  * frontend.js mirrors clock() and summary() for the pop-up's Add to calendar button.
  */
@@ -103,6 +103,7 @@ class DS_Calendar_ICS {
 		$team = preg_match( '/^t:(.+)$/s', (string) $filter, $m ) ? $m[1] : '';
 		$out  = array();
 		$days = array();
+		$keys = array();
 		foreach ( self::visible( $events, $filter ) as $e ) {
 			$kind  = (string) ( $e['kind'] ?? '' );
 			$prog  = in_array( $kind, array( 'prog', 'deadline' ), true );
@@ -135,13 +136,15 @@ class DS_Calendar_ICS {
 				continue;
 			}
 			$days[ $sum . "\n" . $loc ][ $e['d'] ] = $row;
+			$keys[ $sum . "\n" . $loc ][ $e['d'] ] = self::day_key( $e );
 		}
-		// All-day entries on consecutive days -> one entry.
-		foreach ( $days as $list ) {
+		// All-day entries on consecutive days -> one entry, when every day has the same times (one description for all).
+		foreach ( $days as $k => $list ) {
 			ksort( $list );
 			$run = null;
+			$key = null;
 			foreach ( $list as $d => $row ) {
-				if ( $run && $run['end'] === $d ) {
+				if ( $run && $run['end'] === $d && $key === $keys[ $k ][ $d ] ) {
 					$run['end'] = gmdate( 'Y-m-d', strtotime( $d . ' 00:00:00 UTC +1 day' ) );
 					continue;
 				}
@@ -150,6 +153,7 @@ class DS_Calendar_ICS {
 				}
 				$run = $row + array( 'start' => $d, 'end' => gmdate( 'Y-m-d', strtotime( $d . ' 00:00:00 UTC +1 day' ) ), 'all_day' => true );
 				$run['uid'] = substr( md5( $d . '|' . $row['summary'] . '|' . $row['loc'] ), 0, 24 ) . '@' . $host;
+				$key        = $keys[ $k ][ $d ];
 			}
 			if ( $run ) {
 				$out[ $run['uid'] ] = $run;
@@ -162,6 +166,22 @@ class DS_Calendar_ICS {
 			return strcmp( $x . $a['summary'], $y . $b['summary'] );
 		} );
 		return $out;
+	}
+
+	/**
+	 * What one day of an event says about time: its own time and each team's. Consecutive days merge only when it
+	 * matches, so a merged entry never carries one day's team times on another day (1.20.1). Mirrors dayKey() in
+	 * modules/ds-la-calendar/js/frontend.js.
+	 */
+	public static function day_key( array $e ) {
+		$parts = array();
+		foreach ( (array) ( $e['teams'] ?? array() ) as $t ) {
+			if ( '' !== (string) ( $t['t'] ?? '' ) ) {
+				$parts[] = $t['n'] . '=' . $t['t'];
+			}
+		}
+		sort( $parts, SORT_STRING );
+		return (string) ( $e['time'] ?? '' ) . "\n" . implode( "\n", $parts );
 	}
 
 	private static function description( array $e, $one_team ) {
