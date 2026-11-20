@@ -61,6 +61,11 @@ class DS_LA_Calendar {
 			'callback'            => array( $this, 'feed' ),
 			'args'                => array( 'team' => array( 'type' => 'string', 'default' => '' ) ),
 		) );
+		register_rest_route( 'ds-toolkit/v1', '/calendar-data/(?P<post>\\d{1,20})/(?P<node>[a-z0-9]{1,32})', array(
+			'methods'             => 'GET',
+			'permission_callback' => '__return_true',
+			'callback'            => array( $this, 'data' ),
+		) );
 		add_filter( 'rest_pre_serve_request', array( $this, 'serve_ics' ), 10, 3 );
 	}
 
@@ -101,6 +106,24 @@ class DS_LA_Calendar {
 		return $res;
 	}
 
+	/**
+	 * Newer data for a placed calendar: GET /wp-json/ds-toolkit/v1/calendar-data/<post>/<node>. The page carries its
+	 * data in the HTML, so a page cache (12 hours on speed-kit sites) kept showing an old schedule; the calendar asks
+	 * here when its copy is older than DS_Calendar_Data::TTL (1.20.2). Read-only and public like the page, and it
+	 * serves the same cached schedule the page does (a stale copy queues the usual background refresh), so it adds no
+	 * LeagueApps requests. Five minutes at WP Engine and Cloudflare absorb a burst of visitors.
+	 */
+	public function data( $request ) {
+		$settings = self::node_settings( (int) $request['post'], (string) $request['node'] );
+		if ( ! $settings || ! class_exists( 'DS_Calendar_Module' ) ) {
+			return new WP_Error( 'ds_calendar_not_found', 'No calendar here.', array( 'status' => 404 ) );
+		}
+		$res = new WP_REST_Response( DS_Calendar_Module::client_data( DS_Calendar_Module::data_for( $settings ) ), 200 );
+		$res->header( 'Cache-Control', 'public, max-age=300' );
+		$res->header( 'X-Robots-Tag', 'noindex' );
+		return $res;
+	}
+
 	/** Send the feed as plain iCalendar text instead of a JSON string. */
 	public function serve_ics( $served, $result, $request ) {
 		if ( $served || ! ( $result instanceof WP_REST_Response ) || 200 !== $result->get_status() || ! is_string( $result->get_data() ) ) {
@@ -116,10 +139,7 @@ class DS_LA_Calendar {
 	public function flush() {
 		if ( ! current_user_can( 'edit_posts' ) ) { wp_die( 'Not allowed.' ); }
 		check_admin_referer( 'ds_programs_flush' );
-		if ( false === get_transient( 'ds_programs_flush_throttle' ) ) {
-			set_transient( 'ds_programs_flush_throttle', time(), MINUTE_IN_SECONDS );
-			DS_Programs_Data::flush(); // fires ds_programs_flushed -> DS_Calendar_Data::flush
-		}
+		DS_Programs_Data::manual_refresh(); // throttled; flushes Programs + Calendar data and the page cache
 		wp_safe_redirect( wp_get_referer() ?: admin_url() );
 		exit;
 	}
