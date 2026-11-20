@@ -298,7 +298,7 @@ $la_rank  = array( 'ok' => 0, 'off' => 0, 'warn' => 1, 'bad' => 2 );
 	<aside class="dst-rail" aria-label="How the LeagueApps connection works">
 		<section class="dst-panel" aria-labelledby="dst-la-cache-h">
 			<div class="dst-panel-head"><h2 id="dst-la-cache-h">Feed cache</h2></div>
-			<p>Listings refresh at most every 10 minutes in the background. Visitors always get the last good copy at once, and it is kept 7 days if LeagueApps cannot be reached. Editors also get a "Refresh LeagueApps listings" link in the admin bar.</p>
+			<p>Listings refresh at most every 10 minutes in the background. Visitors always get the last good copy at once, and it is kept 7 days if LeagueApps cannot be reached. Editors also get a "Refresh LeagueApps listings" link in the admin bar; it and the button below also clear the page cache, so visitors see the new data at once.</p>
 			<?php if ( $la_sports ) : ?>
 			<p>Sports in the last feed: <?php echo esc_html( implode( ', ', $la_sports ) ); ?>.</p>
 			<?php endif; ?>

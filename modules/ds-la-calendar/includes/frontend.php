@@ -10,12 +10,10 @@ $today = ( new DateTime( 'now', new DateTimeZone( DS_Calendar_Data::TZ ) ) )->fo
 $yes   = function ( $k, $d = 'yes' ) use ( $settings ) { return 'yes' === ( isset( $settings->$k ) && '' !== $settings->$k ? $settings->$k : $d ); };
 $txt   = function ( $k, $d ) use ( $settings ) { return isset( $settings->$k ) ? sanitize_text_field( (string) $settings->$k ) : $d; };
 
-// Subscribe feed: only for a module saved on a published post the feed can read back.
-$feed = '';
-if ( $yes( 'sub_show' ) && class_exists( 'FLBuilderModel' ) ) {
-	$pid  = (int) FLBuilderModel::get_post_id();
-	$feed = $pid && DS_LA_Calendar::node_settings( $pid, $module->node ) ? rest_url( 'ds-toolkit/v1/calendar/' . $pid . '/' . $module->node ) : '';
-}
+// Subscribe feed and newer data: only for a module saved on a published post the routes can read back.
+$pid      = class_exists( 'FLBuilderModel' ) ? (int) FLBuilderModel::get_post_id() : 0;
+$readable = $pid && DS_LA_Calendar::node_settings( $pid, $module->node );
+$feed     = $readable && $yes( 'sub_show' ) ? rest_url( 'ds-toolkit/v1/calendar/' . $pid . '/' . $module->node ) : '';
 
 $config = array(
 	'viewDesktop'    => 'list' === ( $settings->view_desktop ?? 'month' ) ? 'list' : 'month',
@@ -39,6 +37,9 @@ $config = array(
 	'feed'           => $feed ? esc_url_raw( $feed ) : '',
 	'calName'        => wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES ),
 	'tz'             => DS_Calendar_Data::TZ,
+	// A copy older than this asks dataUrl for a newer one (the page may come from a long page cache).
+	'dataUrl'        => $readable ? esc_url_raw( rest_url( 'ds-toolkit/v1/calendar-data/' . $pid . '/' . $module->node ) ) : '',
+	'maxAge'         => DS_Calendar_Data::TTL,
 	'teamsLabel'     => __( 'Teams', 'ds-toolkit' ),
 	'programsLabel'  => __( 'Programs', 'ds-toolkit' ),
 );
@@ -129,7 +130,7 @@ $svg      = function ( $d ) { return '<svg width="16" height="16" viewBox="0 0 1
 		</dialog>
 		<script type="application/json" class="dslc-data"><?php
 			// HEX flags: no "</script>", quote or ampersand from LeagueApps text can break out of this tag.
-			echo wp_json_encode( array( 'events' => $data['events'], 'teams' => $data['teams'], 'programs' => array_values( (array) $data['programs'] ), 'config' => $config ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
+			echo wp_json_encode( DS_Calendar_Module::client_data( $data ) + array( 'config' => $config ), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT );
 		?></script>
 		<noscript><p><?php esc_html_e( 'Turn on JavaScript to see the calendar.', 'ds-toolkit' ); ?></p></noscript>
 	<?php endif; ?>

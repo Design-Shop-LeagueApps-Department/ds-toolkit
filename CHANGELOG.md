@@ -4,6 +4,26 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.20.2] - 2026-11-21
+PATCH: LeagueApps listings and the Calendar reach visitors through a long page cache.
+
+### Fixed
+- **"Refresh LeagueApps listings" now reaches visitors.** The Programs listings and the Calendar are part of the page
+  HTML, so the refresh (admin bar, and **Refresh all sites now** on the LeagueApps settings page) only reached logged-in
+  editors: visitors kept WP Engine's cached page, 12 hours on sites with the speed kit. The refresh now also clears the
+  page cache (page cache only, never the object cache, which holds logins). Still one press a minute, site-wide.
+  Zay, 2026-11-21: "does it bypass wpengines cache"; it did not.
+- **The Calendar shows a newer schedule than the cached page.** Each page now carries when its schedule was read from
+  LeagueApps. When that copy is older than an hour (the calendar's own refresh time), the calendar asks the new
+  read-only route `GET /wp-json/ds-toolkit/v1/calendar-data/<post>/<node>` and redraws with the newer schedule, unless
+  the visitor has already started using it. The route serves the same cached schedule as the page, so it adds no
+  LeagueApps requests, and it is cached for 5 minutes. Before, a schedule change could take up to the whole page cache
+  time (12 hours) to show.
+- `tests/programs-manual-refresh-purge-test.php` (12 checks) and `tests/calendar-fresh-data-test.php` (27 checks; the
+  browser checks run `frontend.js` under node). Both fail on 1.20.1.
+
+---
+
 ## [1.20.1] - 2026-11-21
 PATCH: the LeagueApps Calendar pop-up showed another day's times for some teams.
 

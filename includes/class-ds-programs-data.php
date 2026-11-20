@@ -976,6 +976,36 @@ class DS_Programs_Data {
 	 * ---------------------------------------------------------------- */
 
 	/**
+	 * "Refresh LeagueApps listings" (admin bar, LeagueApps settings): at most one a minute, site-wide, because each
+	 * press permits one full refetch from LeagueApps. Also clears the page cache: the listings are part of the page
+	 * HTML, so without it visitors kept the cached page (12 hours on sites with the speed kit) and the refresh only
+	 * reached logged-in editors (1.20.2). Returns false when throttled.
+	 */
+	public static function manual_refresh() {
+		if ( false !== get_transient( 'ds_programs_flush_throttle' ) ) {
+			return false;
+		}
+		set_transient( 'ds_programs_flush_throttle', time(), MINUTE_IN_SECONDS );
+		self::flush();
+		self::purge_page_cache();
+		return true;
+	}
+
+	/**
+	 * The host's whole page cache (WP Engine; a no-op elsewhere). The next view of each page is built again and
+	 * refetches, because flush() just marked the data stale. Page cache only, never the object cache: that holds
+	 * every transient, and emptying it logs users out under Defender Session Protection. Cloudflare in front of
+	 * WP Engine keeps its own copy (10 minutes on speed-kit sites).
+	 */
+	public static function purge_page_cache() {
+		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) {
+			WpeCommon::purge_varnish_cache(); // no post id = the whole domain
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * Drop every fresh copy so the next render refetches. Keeps the stale
 	 * fallback, so a flush can never leave a site worse off if LeagueApps
 	 * happens to be down at that moment.

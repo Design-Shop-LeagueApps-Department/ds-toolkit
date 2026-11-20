@@ -92,9 +92,15 @@ function spans(list){
   return out;
 }
 
-function init(root){
+// The page carries its data, so a long page cache (12 hours on speed-kit sites) can serve an old schedule. A copy older
+// than the server keeps one (cfg.maxAge) may have a newer one at cfg.dataUrl (1.20.2).
+function stale(data,cfg,now){return !!(cfg.dataUrl&&data.fetched&&now/1000-data.fetched>(cfg.maxAge||3600));}
+function newer(old,fresh){return !!(fresh&&Array.isArray(fresh.events)&&+fresh.fetched>+(old.fetched||0));}
+
+function init(root,swapped){
   if(!root||root.dataset.ready){return;}
   var src=root.querySelector('.dslc-data'); if(!src){return;}
+  var pristine=swapped?null:root.cloneNode(true); // the untouched markup, to redraw with newer data
   root.dataset.ready=1;
   var data={}; try{data=JSON.parse(src.textContent)||{};}catch(err){}
   var events=data.events||[], cfg=data.config||{}, today=root.dataset.today, tz=cfg.tz||'America/New_York';
@@ -469,9 +475,22 @@ function init(root){
   dlg.addEventListener('click',function(ev){if(ev.target===dlg){shut();}});
   if(!dlg.showModal){document.addEventListener('keydown',function(ev){if('Escape'===ev.key&&dlg.hasAttribute('open')){shut();}});}
   render();
+
+  // An old copy: ask for a newer one and redraw with it, unless the visitor has already started using the calendar.
+  if(pristine&&window.fetch&&stale(data,cfg,Date.now())){
+    var used=false, mark=function(){used=true;};
+    ['click','change','keydown'].forEach(function(t){root.addEventListener(t,mark,true);});
+    fetch(cfg.dataUrl,{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null;}).then(function(fresh){
+      if(used||!newer(data,fresh)||!root.parentNode){return;}
+      var n=pristine.cloneNode(true), d=n.querySelector('.dslc-data');
+      fresh.config=cfg; d.textContent=JSON.stringify(fresh);
+      if(fresh.today){n.setAttribute('data-today',fresh.today);}
+      root.parentNode.replaceChild(n,root); init(n,true);
+    }).catch(function(){});
+  }
 }
 
-window.DSLACalendar={init:init,spans:spans}; // spans: for tests/calendar-span-times-test.php
-function all(){document.querySelectorAll('.dslc').forEach(init);}
+window.DSLACalendar={init:init,spans:spans,stale:stale,newer:newer}; // spans/stale/newer: for the tests
+function all(){document.querySelectorAll('.dslc').forEach(function(r){init(r);});} // not forEach(init): its index would read as `swapped`
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',all);}else{all();}
 })();
