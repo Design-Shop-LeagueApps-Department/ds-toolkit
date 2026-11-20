@@ -204,6 +204,11 @@
    "class": "DS_LA_Roster",
    "min_blueprint": 6
   },
+  "ds_la_standings_module_enabled": {
+   "file": "features/class-ds-la-standings.php",
+   "class": "DS_LA_Standings",
+   "min_blueprint": 6
+  },
   "ds_table_module_enabled": {
    "file": "includes/class-ds-module-loader.php",
    "class": "DS_Module_Loader",
@@ -283,7 +288,8 @@
   "ds_table_module_enabled",
   "ds_programs_module_enabled",
   "ds_la_calendar_module_enabled",
-  "ds_la_roster_module_enabled"
+  "ds_la_roster_module_enabled",
+  "ds_la_standings_module_enabled"
  ],
  "defaults": {
   "bp0": {
@@ -613,6 +619,7 @@
   "audit 2026-11 item 25: tripwire_hq_report became a feature of its own (features/class-ds-hq-link.php, DS_HQ_Link), loaded last. Its default (1) is unchanged.",
   "audit 2026-11 item 32: the 14 blocks whose feature class only registered the block (carousel, cta, device, divider, heading, info-list, marquee, menu, orgstats, pathway, post-loop, social, table, team-detail) load through includes/class-ds-module-loader.php (DS_Module_Loader) with a \"block\" folder name. Same keys, same order, same defaults; min_blueprint unchanged.",
   "audit 2026-11 item 32: admin_menu_tidy_enabled, ds_pattern_library_enabled and design_academy_enabled carry admin_only (every hook they add is a wp-admin one), so the loader skips them outside wp-admin. Keys, order and defaults unchanged.",
-  "1.19.0: wpe_login_error_fix_enabled (features/class-ds-wpe-login-error-fix.php, DS_WPE_Login_Error_Fix), a WP Engine compatibility fix, default 1 on every generation: a failed login CAPTCHA for a real user was a critical error because wpe_refresh_user() turns the WP_Error into false (thestjamescamps.com, 2026-11-17)."
+  "1.19.0: wpe_login_error_fix_enabled (features/class-ds-wpe-login-error-fix.php, DS_WPE_Login_Error_Fix), a WP Engine compatibility fix, default 1 on every generation: a failed login CAPTCHA for a real user was a critical error because wpe_refresh_user() turns the WP_Error into false (thestjamescamps.com, 2026-11-17).",
+  "LeagueApps Standings block (ds_la_standings_module_enabled, features/class-ds-la-standings.php, DS_LA_Standings), loaded right after the Roster block. Opt-in like the other LeagueApps data blocks: no default on any blueprint, so a release adds nothing to a live site until someone switches it on."
  ]
 }

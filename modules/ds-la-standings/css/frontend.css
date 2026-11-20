@@ -1,0 +1,165 @@
+/* LeagueApps Standings (ds-toolkit). Colours and sizes arrive as custom properties from frontend.css.php.
+   The text colour is a dark ink by default, not the site's body colour: the table sits on its own white card, and the
+   blueprint body grey (#757575) fails contrast on the alternate and highlighted rows (designshopdemo, 1.19.0-rc.1). */
+.dsst { --dsst-brand: #1f2937; --dsst-head-bg: var(--dsst-brand); --dsst-head-ink: #fff; --dsst-card: #fff; --dsst-zebra: #f7f8fa;
+	--dsst-hl: #eef2ff; --dsst-text: #1d2127; --dsst-muted: #5b6370; --dsst-line: #e3e6ea; --dsst-pos: #137a3a; --dsst-neg: #b3261e;
+	--dsst-radius: 10px; --dsst-rk: 44px;
+	background: var(--dsst-card); color: var(--dsst-text); border: 1px solid var(--dsst-line); border-radius: var(--dsst-radius);
+	overflow: hidden; font-size: 15px; line-height: 1.45; }
+.dsst.dsst-noframe { background: transparent; border: 0; border-radius: 0; overflow: visible; }
+.dsst *, .dsst *::before, .dsst *::after { box-sizing: border-box; }
+.dsst-notice { padding: 18px; font-size: 14px; border-style: dashed; }
+.dsst-sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.dsst-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 20px; padding: 20px 20px 16px; }
+.dsst-noframe .dsst-top { padding-left: 0; padding-right: 0; }
+.dsst-titles { display: grid; gap: 4px; min-width: 0; }
+.dsst-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--dsst-muted); }
+.dsst .dsst-title { margin: 0; font-size: 30px; line-height: 1.1; color: inherit; }
+.dsst-title-div { color: var(--dsst-muted); }
+
+.dsst-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.dsst .dsst-tabs .dsst-tab { appearance: none; margin: 0; font: inherit; font-size: 14px; font-weight: 600; line-height: 1; padding: 9px 14px;
+	border-radius: 999px; border: 1px solid var(--dsst-line); background: transparent; color: inherit; cursor: pointer; box-shadow: none; text-transform: none; letter-spacing: normal; }
+.dsst .dsst-tabs .dsst-tab:hover { border-color: var(--dsst-head-bg); background: transparent; color: inherit; }
+.dsst .dsst-tabs .dsst-tab[aria-selected="true"] { background: var(--dsst-head-bg); border-color: var(--dsst-head-bg); color: var(--dsst-head-ink); }
+.dsst .dsst-tabs .dsst-tab:focus-visible, .dsst-select:focus-visible, .dsst-scroll:focus-visible, .dsst a:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; }
+/* The division dropdown matches the league dropdown: label over the select. */
+.dsst-pick { display: grid; gap: 6px; margin: 0; }
+.dsst-pick-label { font-size: 13px; font-weight: 700; color: var(--dsst-text); }
+.dsst .dsst-select { font: inherit; font-size: 15px; font-weight: 600; padding: 9px 36px 9px 12px; border: 1px solid var(--dsst-line); border-radius: 8px; background: var(--dsst-card); color: var(--dsst-text); min-height: 0; height: auto; width: auto; min-width: min(100%, 240px); max-width: 100%; }
+
+.dsst-mode-tabs .dsst-panel:not(.is-active), .dsst-mode-select .dsst-panel:not(.is-active) { display: none; }
+.dsst-mode-stacked .dsst-panel + .dsst-panel { margin-top: 10px; }
+.dsst .dsst-div-title { margin: 0; padding: 12px 20px; font-size: 20px; line-height: 1.2; color: inherit; border-top: 1px solid var(--dsst-line); }
+
+.dsst-scroll { overflow-x: auto; border-top: 1px solid var(--dsst-line); -webkit-overflow-scrolling: touch; }
+.dsst-noframe .dsst-scroll { border: 1px solid var(--dsst-line); border-radius: var(--dsst-radius); }
+.dsst .dsst-table { width: 100%; margin: 0; border: 0; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; font-size: 1em; table-layout: auto; background: transparent; }
+.dsst .dsst-table th, .dsst .dsst-table td { padding: 11px 10px; text-align: center; vertical-align: middle; white-space: nowrap; border: 0; border-bottom: 1px solid var(--dsst-line); background: var(--dsst-card); color: inherit; font-size: 1em; line-height: 1.3; }
+.dsst .dsst-table thead th, .dsst .dsst-table thead td { background: var(--dsst-head-bg); color: var(--dsst-head-ink); font-size: .8em; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border-bottom: 0; }
+.dsst .dsst-table thead abbr { text-decoration: none; border: 0; cursor: help; }
+.dsst .dsst-table thead tr.dsst-groups th, .dsst .dsst-table thead tr.dsst-groups td { padding: 10px 10px 0; font-size: .68em; letter-spacing: .1em; opacity: .85; }
+.dsst .dsst-table thead tr.dsst-groups th span { display: block; padding-bottom: 6px; border-bottom: 2px solid currentColor; }
+.dsst .dsst-table tbody tr:nth-child(even) > * { background: var(--dsst-zebra); }
+.dsst .dsst-table tbody tr:last-child > * { border-bottom: 0; }
+.dsst .dsst-table .dsst-c-rk { width: var(--dsst-rk); min-width: var(--dsst-rk); max-width: var(--dsst-rk); padding-left: 8px; padding-right: 8px; font-weight: 700; color: var(--dsst-muted); }
+.dsst .dsst-table thead .dsst-c-rk { color: var(--dsst-head-ink); }
+.dsst .dsst-table .dsst-c-team { text-align: left; font-weight: 600; white-space: normal; min-width: 190px; }
+.dsst .dsst-table .dsst-c-team a { color: inherit; text-decoration: none; }
+.dsst .dsst-table .dsst-c-team a:hover { text-decoration: underline; }
+.dsst .dsst-table .dsst-pin { position: sticky; left: 0; z-index: 1; }
+.dsst .dsst-table .dsst-pin2 { position: sticky; left: var(--dsst-rk); z-index: 1; box-shadow: 1px 0 0 var(--dsst-line); }
+.dsst .dsst-table thead .dsst-pin, .dsst .dsst-table thead .dsst-pin2 { z-index: 2; box-shadow: none; }
+.dsst .dsst-table .is-strong { font-weight: 700; }
+.dsst .dsst-table .is-pos { color: var(--dsst-pos); font-weight: 600; }
+.dsst .dsst-table .is-neg { color: var(--dsst-neg); font-weight: 600; }
+.dsst .dsst-table tbody .is-zero, .dsst .dsst-table tbody .dsst-c-dnp { color: var(--dsst-muted); }
+.dsst .dsst-table tbody tr.is-me > * { background: var(--dsst-hl); }
+.dsst .dsst-table tbody tr.is-me > .dsst-c-rk { box-shadow: inset 4px 0 0 var(--dsst-brand); color: inherit; }
+
+.dsst-foot { display: grid; gap: 8px; padding: 14px 20px 18px; font-size: 13px; color: var(--dsst-muted); }
+.dsst-noframe .dsst-foot { padding-left: 0; padding-right: 0; }
+.dsst .dsst-foot p { margin: 0; }
+.dsst-legend { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.dsst-legend b { color: var(--dsst-text); font-weight: 700; }
+.dsst-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 18px; }
+.dsst .dsst-meta .dsst-la { color: var(--dsst-text); font-weight: 600; text-decoration: underline; }
+.dsst-empty { margin: 0; padding: 16px 20px; color: var(--dsst-muted); font-size: 14px; }
+
+/* Leader cards */
+.dsst-leaders-wrap, .dsst-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; padding: 0 20px 20px; }
+.dsst-noframe .dsst-cards { padding: 0; }
+.dsst-card { display: grid; gap: 10px; align-content: start; padding: 16px; border: 1px solid var(--dsst-line); border-top: 3px solid var(--dsst-brand); border-radius: calc(var(--dsst-radius) * .8); background: var(--dsst-card); min-width: 0; }
+.dsst .dsst-card-title { margin: 0; font-size: 18px; line-height: 1.2; color: inherit; }
+.dsst .dsst-leaders { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-variant-numeric: tabular-nums; }
+.dsst .dsst-leaders li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; margin: 0; font-size: 14px; }
+.dsst .dsst-leaders li.is-me { background: var(--dsst-hl); border-radius: 6px; padding: 2px 4px; margin: 0 -4px; }
+.dsst-leaders .dsst-rk { font-weight: 700; color: var(--dsst-muted); }
+.dsst-leaders .dsst-nm { font-weight: 600; overflow-wrap: anywhere; line-height: 1.3; }
+.dsst-leaders .dsst-rec { color: var(--dsst-muted); }
+/* Links name the element (a.) so they outrank Beaver's Global Styles link colour, `.fl-builder-content
+   a:not(.fl-builder-submenu-link)` (0,2,1): without it "Full standings" was primary green on white, 3.53:1. */
+.dsst .dsst-card a.dsst-more { font-size: 13px; font-weight: 600; color: var(--dsst-text); text-decoration: underline; }
+
+/* League dropdown: label over the select, the season line under it. The select reuses the division dropdown's look
+   but not its class (.dsst-select is the division dropdown the tabs script drives). */
+.dsst-league { display: grid; gap: 6px; justify-items: start; margin: 4px 0 0; }
+.dsst-league-pick { display: grid; gap: 6px; margin: 0; }
+.dsst-league-label { font-size: 13px; font-weight: 700; color: var(--dsst-text); }
+.dsst .dsst-league-select { font: inherit; font-size: 15px; font-weight: 600; padding: 9px 36px 9px 12px; border: 1px solid var(--dsst-line); border-radius: 8px;
+	background: var(--dsst-card); color: var(--dsst-text); min-height: 0; height: auto; width: auto; min-width: min(100%, 300px); max-width: 100%; }
+.dsst .dsst-league-select:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; }
+.dsst-league-meta { font-size: 13px; line-height: 19px; color: var(--dsst-muted); }
+/* Beside the league dropdown, the division dropdown lines up with the league select, not with the season line under
+   it (19px line + 6px gap). Phones stack the two, so this stays on wider screens. */
+@media (min-width: 769px) {
+	.dsst-top:has(.dsst-league-meta) > .dsst-pick { margin-bottom: 25px; }
+}
+.dsst .dsst-league-go { margin: 0; padding: 8px 14px; border-radius: 8px; font-size: 14px; }
+.dsst.is-loading .dsst-panel, .dsst.is-loading .dsst-cards, .dsst.is-loading .dsst-tabs, .dsst.is-loading .dsst-foot { opacity: .45; }
+.dsst.is-loading { cursor: progress; }
+@media (prefers-reduced-motion: no-preference) {
+	.dsst .dsst-panel, .dsst .dsst-cards { transition: opacity .15s; }
+}
+
+/* Leader cards carousel: the same cards in one row that scrolls sideways (swipe, keyboard, the header arrows),
+   like the Roster block's carousel. --dsst-in = cards in view, set per screen size in frontend.css.php. */
+.dsst-carousel { --dsst-in: 3; --dsst-gap: 14px; }
+.dsst-car { padding: 0 20px 20px; }
+.dsst-noframe .dsst-car { padding: 0; }
+/* position: relative keeps Beaver's absolutely placed "(opens in new tab)" notes inside the scroller: without it the
+   ones in off-screen cards widened the whole page by a card (386px at 1440). */
+.dsst-carousel .dsst-cards { position: relative; display: flex; gap: var(--dsst-gap); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory;
+	scroll-behavior: smooth; scrollbar-width: none; padding: 4px 2px 8px; margin: -4px -2px -8px; }
+.dsst-carousel .dsst-cards::-webkit-scrollbar { display: none; }
+.dsst-carousel .dsst-cards:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; border-radius: var(--dsst-radius); }
+.dsst-carousel .dsst-card { flex: 0 0 calc((100% - (var(--dsst-in) - 1) * var(--dsst-gap)) / var(--dsst-in)); scroll-snap-align: start; }
+.dsst-car-nav { display: flex; gap: 8px; }
+.dsst-car-nav[hidden] { display: none; }
+.dsst .dsst-nav { appearance: none; display: grid; place-items: center; width: 40px; height: 40px; min-height: 0; margin: 0; padding: 0;
+	border: 1px solid var(--dsst-line); border-radius: 50%; background: var(--dsst-card); color: var(--dsst-text); box-shadow: none; cursor: pointer; line-height: 1; }
+.dsst .dsst-nav:hover, .dsst .dsst-nav:focus-visible { background: var(--dsst-head-bg); border-color: var(--dsst-head-bg); color: var(--dsst-head-ink); }
+.dsst .dsst-nav:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; }
+.dsst .dsst-nav[disabled], .dsst .dsst-nav[disabled]:hover { opacity: .4; cursor: default; background: var(--dsst-card); border-color: var(--dsst-line); color: var(--dsst-text); }
+.dsst .dsst-nav svg { display: block; }
+[dir="rtl"] .dsst .dsst-nav svg { transform: scaleX(-1); }
+
+/* Ticker: the Marquee block's tape (pinned label, seamless -50% loop, pause on hover), drawn in the Standings colours. */
+@keyframes dsstScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.dsst.dsst-ticker { --dsst-tk-h: 44px; position: relative; display: flex; align-items: stretch; height: var(--dsst-tk-h); padding: 0;
+	background: var(--dsst-head-bg); color: var(--dsst-head-ink); border: 0; }
+.dsst-tk-label { flex: 0 0 auto; z-index: 2; display: flex; align-items: center; padding: 0 16px; background: var(--dsst-text); color: var(--dsst-card);
+	font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+.dsst-tk-viewport { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; overflow: hidden; }
+.dsst-tk-track { display: flex; flex: 0 0 auto; align-items: center; white-space: nowrap; will-change: transform; animation: dsstScroll var(--dsst-tk-dur, 60s) linear infinite; }
+.dsst-tk-group { display: inline-flex; align-items: center; gap: 28px; padding-left: 28px; }
+.dsst-tk-div { display: inline-flex; align-items: center; gap: 18px; font-size: 14px; }
+/* (0,3,1): above Beaver's Global Styles link colour, which painted the division names primary green on the green tape. */
+.dsst.dsst-ticker .dsst-tk-name, .dsst.dsst-ticker a.dsst-tk-name { font-weight: 800; letter-spacing: .1em; text-transform: uppercase; font-size: 12px; color: inherit; text-decoration: none; }
+.dsst.dsst-ticker a.dsst-tk-name:hover { text-decoration: underline; color: inherit; }
+.dsst-tk-team { display: inline-flex; align-items: baseline; gap: 6px; font-weight: 600; }
+.dsst-tk-team.is-me { text-decoration: underline; text-underline-offset: 3px; }
+.dsst-tk-rk { font-weight: 800; }
+.dsst-tk-rec { font-variant-numeric: tabular-nums; opacity: .85; }
+.dsst-tk-sep { font-size: 10px; opacity: .7; }
+/* Focus pauses only inside the tape (a keyboard user on a division link). Focus on the pause button must not: a mouse
+   click on Play leaves the button focused, and the tape stayed still until the visitor clicked somewhere else. */
+.dsst-ticker:hover .dsst-tk-track, .dsst-tk-viewport:focus-within .dsst-tk-track, .dsst-ticker.is-paused .dsst-tk-track { animation-play-state: paused; }
+.dsst .dsst-tk-pause { appearance: none; flex: 0 0 auto; z-index: 2; width: var(--dsst-tk-h); margin: 0; padding: 0; border: 0; border-radius: 0;
+	background: var(--dsst-text); color: var(--dsst-card); cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: none; }
+.dsst .dsst-tk-pause:hover { background: var(--dsst-text); color: var(--dsst-card); opacity: .9; }
+.dsst .dsst-tk-pause:focus-visible { outline: 3px solid var(--dsst-head-ink); outline-offset: -5px; }
+.dsst-tk-pause span { width: 10px; height: 12px; border-left: 3px solid currentColor; border-right: 3px solid currentColor; }
+.dsst-ticker.is-paused .dsst-tk-pause span { width: 0; height: 0; border-style: solid; border-width: 6px 0 6px 10px; border-color: transparent transparent transparent currentColor; }
+.dsst-ticker .dsst-empty { color: inherit; align-self: center; }
+@media (prefers-reduced-motion: reduce) {
+	/* No motion: the tape stays still and scrolls by hand instead. */
+	.dsst-tk-track { animation: none; }
+	.dsst-tk-viewport { overflow-x: auto; }
+	.dsst-tk-group[aria-hidden="true"], .dsst .dsst-tk-pause { display: none; } /* .dsst prefix: the button's own rule is (0,2,0) */
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.dsst .dsst-tabs .dsst-tab { transition: background-color .15s, color .15s, border-color .15s; }
+}
