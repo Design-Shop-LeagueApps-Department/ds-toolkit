@@ -50,7 +50,9 @@ function is_wp_error( $x ) { return $x instanceof WP_Error; }
 $GLOBALS['o'] = array(); $GLOBALS['cron'] = array(); $GLOBALS['filters'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['o'] ) ? $GLOBALS['o'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['o'][ $k ] = $v; return true; }
-function add_action() {}
+function add_action( $h = '', $cb = null, $p = 10, $n = 1 ) { if ( 'http_api_debug' === $h ) { add_filter( $h, $cb, $p, $n ); } } // only the crash-check probe is exercised
+function remove_action( $h, $cb, $p = 10 ) { return remove_filter( $h, $cb, $p ); }
+function do_action( $h, ...$a ) { foreach ( $GLOBALS['filters'][ $h ] ?? array() as $f ) { $f( ...$a ); } }
 function wp_next_scheduled( $h ) { return $GLOBALS['cron'][ $h ] ?? false; }
 function wp_schedule_single_event( $t, $h ) { $GLOBALS['cron'][ $h ] = $t; return true; }
 function wp_clear_scheduled_hook( $h ) { unset( $GLOBALS['cron'][ $h ] ); }
@@ -105,6 +107,8 @@ class WP_Automatic_Updater {
 		$GLOBALS['offered'] = array( 'type' => $type, 'item' => $item, 'transient_pkg' => $offer ? $offer->package : null,
 			'pkg_exists' => $offer && file_exists( $offer->package ), 'pkg_sha' => $offer && file_exists( $offer->package ) ? hash_file( 'sha256', $offer->package ) : '',
 			'auto' => apply_filters( 'auto_update_plugin', false, $item ), 'cron' => apply_filters( 'wp_doing_cron', false ), 'disabled' => apply_filters( 'automatic_updater_disabled', true ) );
+		// WordPress's crash check: a request to the home page with the scrape key, seen through http_api_debug.
+		if ( isset( $GLOBALS['scrape'] ) ) { do_action( 'http_api_debug', $GLOBALS['scrape'], 'response', 'WpOrg\Requests\Requests', array(), 'https://site.test/?wp_scrape_key=k1&wp_scrape_nonce=1' ); }
 		if ( ! empty( $GLOBALS['updater_result'] ) ) { return $GLOBALS['updater_result']; }
 		plugin_at( $offer->new_version );
 		return true;
@@ -251,7 +255,33 @@ class_exists( 'WP_Automatic_Updater' );
 $GLOBALS['updater_result'] = new WP_Error( 'plugin_update_fatal_error_rollback_successful', "The update for 'ds-toolkit' contained a fatal error. The previously installed version has been restored." );
 $res = DS_HQ_Update::install( '1.10.26' );
 ok( is_wp_error( $res ) && false !== strpos( $res->get_error_message(), 'restored' ) && false !== strpos( $res->get_error_message(), 'still on 1.10.26-rc.1' ), 'a rollback by WordPress (fatal error) is reported as a failure with the version kept' );
+
+// What the crash check saw travels with the failure, so HQ shows the real error (core only logs it).
+$rollback = new WP_Error( 'plugin_update_fatal_error_rollback_successful', "The update for 'ds-toolkit' contained a fatal error. The previously installed version has been restored." );
+$scrape_body = function ( $json ) { return "<html>page</html>
+
+###### wp_scraping_result_start:k1 ######
+" . $json . "
+###### wp_scraping_result_end:k1 ######
+"; };
+plugin_at( '1.10.26-rc.1' ); setup_http( $good, $goodsig ); $GLOBALS['updater_result'] = $rollback;
+$GLOBALS['scrape'] = array( 'code' => 200, 'body' => $scrape_body( json_encode( array( 'type' => 1, 'message' => "Uncaught Error: Call to undefined method Foo::bar() in " . ABSPATH . "wp-content/plugins/ds-toolkit/features/x.php:12
+Stack trace: ...", 'file' => ABSPATH . 'wp-content/plugins/ds-toolkit/features/x.php', 'line' => 12 ) ) ) );
+$res = DS_HQ_Update::install( '1.10.26' );
+$msg = is_wp_error( $res ) ? $res->get_error_message() : '';
+ok( false !== strpos( $msg, 'still on 1.10.26-rc.1' ) && false !== strpos( $msg, 'Check: fatal in wp-content/plugins/ds-toolkit/features/x.php:12: Uncaught Error: Call to undefined method Foo::bar()' ), 'a rollback names the file, line and message the crash check found' );
+ok( false === strpos( $msg, ABSPATH ), 'the server path is stripped from the report' );
+ok( false !== strpos( substr( 'install: ' . $msg, 0, 300 ), 'x.php:12' ), 'the file survives the 300-character report cap' );
+ok( empty( $GLOBALS['filters'] ), 'the crash-check probe is removed after the run' );
+$GLOBALS['scrape'] = new WP_Error( 'http_request_failed', 'cURL error 6: Could not resolve host: gone.test' );
+$res = DS_HQ_Update::install( '1.10.26' );
+ok( is_wp_error( $res ) && false !== strpos( $res->get_error_message(), 'Check: the home page did not load: cURL error 6' ), 'a home page that does not load (no DNS) is reported as that, not as a code fatal' );
+unset( $GLOBALS['scrape'] );
+$res = DS_HQ_Update::install( '1.10.26' );
+ok( is_wp_error( $res ) && false === strpos( $res->get_error_message(), 'Check:' ), 'with no crash-check response seen, the message is as before' );
 $GLOBALS['updater_result'] = null;
+ok( '' === DS_HQ_Update::crash_detail( array( 'code' => 200, 'body' => $scrape_body( 'true' ) ) ), 'a clean check result gives no detail' );
+ok( false !== strpos( DS_HQ_Update::crash_detail( array( 'code' => 403, 'body' => 'blocked' ) ), 'HTTP 403' ), 'a page without the check result reports its HTTP code' );
 
 // WordPress busy with its own auto-updates: not tried now, not counted as a try.
 $GLOBALS['wp_busy'] = true; setup_http( $good, $goodsig );
