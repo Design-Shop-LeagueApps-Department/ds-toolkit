@@ -435,6 +435,15 @@ class DS_HQ_Update {
 		add_filter( 'auto_update_plugin', $allow, 999, 2 );          // WP Engine forces plugin auto-updates off
 		add_filter( 'automatic_updater_disabled', '__return_false', 999 );
 		add_filter( 'wp_doing_cron', '__return_true', 999 );          // keeps the plugin active through the swap
+		// Core's rollback message never says what went wrong (that goes to the PHP error log, out of reach on
+		// WP Engine and Flywheel), so keep what its crash check got back and send it to HQ with the failure.
+		$crash = '';
+		$probe = function ( $response, $context = '', $class = '', $args = array(), $url = '' ) use ( &$crash ) {
+			if ( false !== strpos( (string) $url, 'wp_scrape_key=' ) ) {
+				$crash = self::crash_detail( $response );
+			}
+		};
+		add_action( 'http_api_debug', $probe, 10, 5 );
 		$was_active = is_plugin_active( self::PLUGIN );
 		try {
 			$result = ( new WP_Automatic_Updater() )->update( 'plugin', $item );
@@ -443,6 +452,7 @@ class DS_HQ_Update {
 			remove_filter( 'auto_update_plugin', $allow, 999 );
 			remove_filter( 'automatic_updater_disabled', '__return_false', 999 );
 			remove_filter( 'wp_doing_cron', '__return_true', 999 );
+			remove_action( 'http_api_debug', $probe, 10 );
 			WP_Upgrader::release_lock( 'auto_updater' );
 		}
 		wp_clean_plugins_cache( false );
@@ -451,7 +461,7 @@ class DS_HQ_Update {
 		}
 		$now = self::installed();
 		if ( is_wp_error( $result ) ) {
-			return new WP_Error( 'install', $result->get_error_message() . " (still on $now)" );
+			return new WP_Error( 'install', $result->get_error_message() . " (still on $now)" . ( '' !== $crash ? " Check: $crash" : '' ) );
 		}
 		if ( false === $result ) {
 			return new WP_Error( 'install', "WordPress declined the update (plugin files not writable without FTP details, a version-control checkout, or a host setting that blocks plugin updates); still on $now" );
@@ -460,6 +470,36 @@ class DS_HQ_Update {
 			return new WP_Error( 'install', "the update ran but the plugin says $now, not $target" );
 		}
 		return true;
+	}
+
+	/**
+	 * What WordPress's post-update crash check saw, in one line for HQ ('' when it found no fatal).
+	 * The check loads the home page; a request that fails outright (a domain with no DNS, a timeout) also counts
+	 * as a fatal there, so say which one it was. File first, so the 300-character report cap cuts the message,
+	 * never the file.
+	 */
+	public static function crash_detail( $response ) {
+		if ( is_wp_error( $response ) ) {
+			return 'the home page did not load: ' . substr( $response->get_error_message(), 0, 160 );
+		}
+		$body = (string) wp_remote_retrieve_body( $response );
+		if ( ! preg_match( '/###### wp_scraping_result_start:\w+ ######(.*?)###### wp_scraping_result_end/s', $body, $m ) ) {
+			return 'the home page answered HTTP ' . (int) wp_remote_retrieve_response_code( $response ) . " without WordPress's check result";
+		}
+		$e = json_decode( trim( $m[1] ), true );
+		if ( ! is_array( $e ) || ! isset( $e['type'] ) ) {
+			return '';
+		}
+		$root = defined( 'ABSPATH' ) ? ABSPATH : '';
+		$file = (string) ( $e['file'] ?? '' );
+		if ( '' !== $root && 0 === strpos( $file, $root ) ) {
+			$file = substr( $file, strlen( $root ) );
+		}
+		$msg = preg_replace( '/\s+/', ' ', (string) ( $e['message'] ?? '' ) );
+		if ( '' !== $root ) {
+			$msg = str_replace( $root, '', $msg );
+		}
+		return 'fatal' . ( '' !== $file ? ' in ' . $file . ':' . (int) ( $e['line'] ?? 0 ) : '' ) . ': ' . substr( $msg, 0, 200 );
 	}
 
 	/** On uninstall and when reporting is switched off. */
