@@ -6,7 +6,7 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 $data  = $module->calendar_data();
-$today = ( new DateTime( 'now', new DateTimeZone( DS_Calendar_Data::TZ ) ) )->format( 'Y-m-d' );
+$today = ( new DateTime( 'now', new DateTimeZone( DS_Calendar_Data::club_tz() ) ) )->format( 'Y-m-d' ); // the club's today
 $yes   = function ( $k, $d = 'yes' ) use ( $settings ) { return 'yes' === ( isset( $settings->$k ) && '' !== $settings->$k ? $settings->$k : $d ); };
 $txt   = function ( $k, $d ) use ( $settings ) { return isset( $settings->$k ) ? sanitize_text_field( (string) $settings->$k ) : $d; };
 
@@ -36,7 +36,7 @@ $config = array(
 	'subText'        => $txt( 'sub_text', __( 'Subscribe', 'ds-toolkit' ) ),
 	'feed'           => $feed ? esc_url_raw( $feed ) : '',
 	'calName'        => wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES ),
-	'tz'             => DS_Calendar_Data::TZ,
+	'tz'             => DS_Calendar_Data::club_tz(), // wall-clock times -> real moments for Add to calendar
 	// A copy older than this asks dataUrl for a newer one (the page may come from a long page cache).
 	'dataUrl'        => $readable ? esc_url_raw( rest_url( 'ds-toolkit/v1/calendar-data/' . $pid . '/' . $module->node ) ) : '',
 	'maxAge'         => DS_Calendar_Data::TTL,
