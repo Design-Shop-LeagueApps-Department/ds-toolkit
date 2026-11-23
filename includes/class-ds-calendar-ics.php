@@ -99,7 +99,7 @@ class DS_Calendar_ICS {
 	 * Events -> calendar entries: array( uid, summary, start, end, all_day, loc, desc, url ).
 	 * $start/$end are DateTime (timed) or 'Y-m-d' (all day, end exclusive).
 	 */
-	public static function entries( array $events, $filter = '', $host = 'calendar' ) {
+	public static function entries( array $events, $filter = '', $host = 'calendar', $tz = null ) {
 		$team = preg_match( '/^t:(.+)$/s', (string) $filter, $m ) ? $m[1] : '';
 		$out  = array();
 		$days = array();
@@ -116,7 +116,7 @@ class DS_Calendar_ICS {
 				}
 			}
 			$marked = 'deadline' === $kind || '' !== (string) ( $e['mark'] ?? '' );
-			$range  = $marked ? null : self::clock( $text, $e['d'] ?? '' );
+			$range  = $marked ? null : self::clock( $text, $e['d'] ?? '', $tz );
 			$sum    = self::summary( $e, $team );
 			$loc    = (string) ( $e['loc'] ?? '' );
 			$row    = array(
@@ -215,8 +215,9 @@ class DS_Calendar_ICS {
 		return implode( "\n", $lines );
 	}
 
-	/** The whole feed. */
-	public static function build( array $events, $filter, $name, $host ) {
+	/** The whole feed. $tz = the club's time zone (DS_Calendar_Data::club_tz()); null = Eastern. */
+	public static function build( array $events, $filter, $name, $host, $tz = null ) {
+		$tz    = $tz ? (string) $tz : DS_Calendar_Data::TZ;
 		$host  = preg_replace( '/[^a-z0-9.-]/i', '', (string) $host );
 		$host  = '' !== $host ? $host : 'calendar';
 		$stamp = gmdate( 'Ymd\THis\Z' );
@@ -227,12 +228,12 @@ class DS_Calendar_ICS {
 			'CALSCALE:GREGORIAN',
 			'METHOD:PUBLISH',
 			'X-WR-CALNAME:' . self::esc( $name ),
-			'X-WR-TIMEZONE:' . DS_Calendar_Data::TZ,
+			'X-WR-TIMEZONE:' . $tz,
 			'REFRESH-INTERVAL;VALUE=DURATION:PT6H',
 			'X-PUBLISHED-TTL:PT6H',
 		);
 		$utc = new DateTimeZone( 'UTC' );
-		foreach ( self::entries( $events, $filter, $host ) as $r ) {
+		foreach ( self::entries( $events, $filter, $host, $tz ) as $r ) {
 			$lines[] = 'BEGIN:VEVENT';
 			$lines[] = 'UID:' . $r['uid'];
 			$lines[] = 'DTSTAMP:' . $stamp;

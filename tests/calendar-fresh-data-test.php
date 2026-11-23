@@ -12,7 +12,7 @@ define( 'ABSPATH', '/tmp/fake-wp/' );
 class FLBuilderModule { public function __construct( $a = array() ) {} }
 class FLBuilder { public static function register_module() {} }
 class FLBuilderCSS { public static function typography_field_rule() {} }
-class DS_Calendar_Data { const TZ = 'America/New_York'; const TTL = 3600; public static function site_options() { return array(); } public static function known() { return array(); } }
+class DS_Calendar_Data { const TZ = 'America/New_York'; public static function club_tz() { return self::TZ; } const TTL = 3600; public static function site_options() { return array(); } public static function known() { return array(); } }
 class DS_Module_UI { public static function color( $v ) { return $v; } public static function u( $v, $d ) { return $d; } public static function form_shown() { return true; } }
 function __( $s, $d = '' ) { return $s; }
 function sanitize_title( $s ) { return strtolower( preg_replace( '/\s+/', '-', $s ) ); }

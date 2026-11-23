@@ -4,6 +4,18 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.20.3] - 2026-11-23
+PATCH: the Calendar's Subscribe feed and Add to calendar use the club's time zone.
+
+### Fixed
+- **Subscribed calendars showed events hours off outside the Eastern time zone.** LeagueApps times are the club's own
+  local times and the calendar shows them correctly, but the Subscribe feed and the pop-up's Add to calendar turned
+  them into real moments as if they were Eastern, so a noon practice in Los Angeles arrived in Google Calendar at
+  9 AM. Both now use the site's time zone (Settings > General > Timezone) when it is set to a city, such as
+  Los Angeles. Sites that never set one keep Eastern, as before. Supernova (Zendesk #471462).
+
+---
+
 ## [1.20.2] - 2026-11-21
 PATCH: LeagueApps listings and the Calendar reach visitors through a long page cache.
 

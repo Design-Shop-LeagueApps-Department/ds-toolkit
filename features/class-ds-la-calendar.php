@@ -97,7 +97,7 @@ class DS_LA_Calendar {
 		$data   = DS_Calendar_Module::data_for( $settings );
 		$name   = wp_specialchars_decode( (string) get_bloginfo( 'name' ), ENT_QUOTES );
 		$name   = trim( $name . ( '' !== $filter ? ' (' . substr( $filter, 2 ) . ')' : '' ) );
-		$ics    = DS_Calendar_ICS::build( (array) $data['events'], $filter, '' !== $name ? $name : 'Calendar', (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+		$ics    = DS_Calendar_ICS::build( (array) $data['events'], $filter, '' !== $name ? $name : 'Calendar', (string) wp_parse_url( home_url(), PHP_URL_HOST ), DS_Calendar_Data::club_tz() );
 		$res    = new WP_REST_Response( $ics, 200 );
 		$res->header( 'Content-Type', 'text/calendar; charset=utf-8' );
 		$res->header( 'Content-Disposition', 'inline; filename="calendar.ics"' );

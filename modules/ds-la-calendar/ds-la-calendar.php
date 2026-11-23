@@ -86,7 +86,7 @@ class DS_Calendar_Module extends FLBuilderModule {
 			'teams'    => array_values( (array) ( $data['teams'] ?? array() ) ),
 			'programs' => array_values( (array) ( $data['programs'] ?? array() ) ),
 			'fetched'  => (int) ( $data['fetched'] ?? 0 ),
-			'today'    => ( new DateTime( 'now', new DateTimeZone( DS_Calendar_Data::TZ ) ) )->format( 'Y-m-d' ),
+			'today'    => ( new DateTime( 'now', new DateTimeZone( DS_Calendar_Data::club_tz() ) ) )->format( 'Y-m-d' ),
 		);
 	}
 
