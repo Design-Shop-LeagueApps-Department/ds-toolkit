@@ -100,10 +100,23 @@ class DS_Standings_Module extends FLBuilderModule {
 		return array_values( array_filter( array_map( 'trim', (array) $v ), 'strlen' ) );
 	}
 
+	/** Essential set (the design canvas default): record, win %, games, points for and against, differential. */
+	const ESSENTIAL = array( 'gp', 'w', 'l', 't', 'pct', 'ps', 'psa', 'psd' );
+
+	/** On phones the Essential set keeps W, L, (T), PCT and PSD; the rest scroll out of the way. */
+	const ESSENTIAL_NOT_PHONE = array( 'gp', 'ps', 'psa' );
+
 	/** The columns to print, in LeagueApps order, and which of them are left out on phones. */
 	public function columns() {
-		$s     = $this->settings;
-		$all   = array_keys( self::COLUMNS );
+		$s   = $this->settings;
+		$all = array_keys( self::COLUMNS );
+		$set = (string) ( $s->col_set ?? 'essential' );
+		if ( 'essential' === $set ) {
+			return array( self::ESSENTIAL, self::ESSENTIAL_NOT_PHONE );
+		}
+		if ( 'all' === $set ) {
+			return array( $all, array() ); // phones scroll the whole table sideways
+		}
 		$cols  = array_values( array_intersect( $all, self::list_value( $s->cols ?? '' ) ) );
 		$cols  = $cols ? $cols : $all;
 		$phone = array_values( array_intersect( $cols, self::list_value( $s->cols_phone ?? '' ) ) );
@@ -313,6 +326,42 @@ class DS_Standings_Module extends FLBuilderModule {
 		return array( $txt, $cls );
 	}
 
+	/**
+	 * A division's columns after "Hide Ties and Forfeits": T and DNP drop out when every team in it has 0
+	 * (the canvas rule; most leagues never tie or forfeit, and a column of zeros only widens the table).
+	 */
+	public function division_columns( array $cols, array $rows ) {
+		if ( 'no' === ( $this->settings->hide_zero ?? 'yes' ) ) {
+			return $cols;
+		}
+		foreach ( array( 't', 'dnp' ) as $k ) {
+			$used = false;
+			foreach ( $rows as $r ) {
+				if ( ! empty( $r[ $k ] ) ) {
+					$used = true;
+					break;
+				}
+			}
+			if ( ! $used ) {
+				$cols = array_values( array_diff( $cols, array( $k ) ) );
+			}
+		}
+		return $cols;
+	}
+
+	/** A division's LeagueApps schedule, built from its standings address. */
+	public static function schedule_url( $division_url ) {
+		if ( '' === $division_url || ! preg_match( '#/standings/?$#', $division_url ) ) {
+			return '';
+		}
+		return preg_replace( '#/standings/?$#', '/schedule', $division_url );
+	}
+
+	/** The short name a league or division goes by in the page link (#standings=boys-fall-league/varsity). */
+	public static function slug( $name ) {
+		return sanitize_title( (string) $name );
+	}
+
 	/** A team's LeagueApps page, built from the division's standings address. */
 	public static function team_url( $division_url, $team_id ) {
 		if ( '' === $division_url || ! preg_match( '#/standings/?$#', $division_url ) ) {
@@ -428,12 +477,12 @@ FLBuilder::register_module( 'DS_Standings_Module', array(
 						'label'   => __( 'Show Divisions As', 'ds-toolkit' ),
 						'default' => 'auto',
 						'options' => array(
-							'auto'    => __( 'Tabs, or a dropdown for more than 6 divisions', 'ds-toolkit' ),
-							'tabs'    => __( 'Tabs', 'ds-toolkit' ),
+							'auto'    => __( 'Chips while they fit on one row, a dropdown when they don\'t', 'ds-toolkit' ),
+							'tabs'    => __( 'Chips', 'ds-toolkit' ),
 							'select'  => __( 'A dropdown', 'ds-toolkit' ),
 							'stacked' => __( 'One table under another', 'ds-toolkit' ),
 						),
-						'help'    => __( 'A league with many divisions reads better as a dropdown: 17 tabs stack one under another on a phone. The first choice picks per league, so it also suits the league dropdown.', 'ds-toolkit' ),
+						'help'    => __( 'The first choice switches to a dropdown when the chips would wrap to a second row: about 6 divisions on a computer, 3 on a phone. It decides per league and per screen, so it also suits the league dropdown.', 'ds-toolkit' ),
 					),
 				),
 			),
@@ -525,6 +574,9 @@ FLBuilder::register_module( 'DS_Standings_Module', array(
 					'updated'      => DS_Module_UI::show_hide_field( __( 'Results Date and Games Played', 'ds-toolkit' ) ),
 					'la_link'      => DS_Module_UI::show_hide_field( __( 'LeagueApps Link', 'ds-toolkit' ) ),
 					'la_link_text' => array( 'type' => 'text', 'label' => __( 'LeagueApps Link Text', 'ds-toolkit' ), 'default' => __( 'View on LeagueApps', 'ds-toolkit' ) ),
+					'sched_link'      => DS_Module_UI::show_hide_field( __( 'Full Schedule Link', 'ds-toolkit' ), 'show', array( 'help' => __( 'The division\'s schedule on LeagueApps, in a new tab.', 'ds-toolkit' ) ) ),
+					'sched_link_text' => array( 'type' => 'text', 'label' => __( 'Full Schedule Link Text', 'ds-toolkit' ), 'default' => __( 'Full schedule', 'ds-toolkit' ) ),
+					'find'         => DS_Module_UI::show_hide_field( __( 'Find a Team Box', 'ds-toolkit' ), 'show', array( 'help' => __( 'Above a division with more than 15 teams. It filters the rows as people type; each team keeps its real position.', 'ds-toolkit' ) ) ),
 					'team_links'   => DS_Module_UI::yes_no_field( __( 'Link Team Names to LeagueApps', 'ds-toolkit' ), 'yes' ),
 					'empty_text'   => array( 'type' => 'text', 'label' => __( 'Before the First Game', 'ds-toolkit' ), 'default' => __( 'No results yet. Standings appear after the first game.', 'ds-toolkit' ) ),
 					'down_text'    => array( 'type' => 'text', 'label' => __( 'When LeagueApps Cannot Be Reached', 'ds-toolkit' ), 'default' => __( 'Standings are temporarily unavailable. Please check back shortly.', 'ds-toolkit' ) ),
@@ -539,6 +591,19 @@ FLBuilder::register_module( 'DS_Standings_Module', array(
 			'cols' => array(
 				'title'  => __( 'Columns', 'ds-toolkit' ),
 				'fields' => array(
+					'col_set'    => array(
+						'type'    => 'select',
+						'label'   => __( 'Column Set', 'ds-toolkit' ),
+						'default' => 'essential',
+						'options' => array(
+							'essential' => __( 'Essential: GP, W, L, T, PCT, PS, PSA, PSD', 'ds-toolkit' ),
+							'all'       => __( 'All stats (every LeagueApps column)', 'ds-toolkit' ),
+							'custom'    => __( 'Columns I choose', 'ds-toolkit' ),
+						),
+						'toggle'  => array( 'custom' => array( 'fields' => array( 'cols', 'cols_phone' ) ) ),
+						'help'    => __( 'Essential shows W, L, PCT and PSD on phones. All stats scrolls sideways on phones, with the rank and team pinned.', 'ds-toolkit' ),
+					),
+					'hide_zero'  => DS_Module_UI::yes_no_field( __( 'Hide Ties and Forfeits When Every Team Has 0', 'ds-toolkit' ), 'yes' ),
 					'cols'       => array(
 						'type'         => 'button-group',
 						'label'        => __( 'Columns', 'ds-toolkit' ),

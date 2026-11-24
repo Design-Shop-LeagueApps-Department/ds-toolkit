@@ -1,22 +1,87 @@
 /* LeagueApps Standings (ds-toolkit): division tabs and the division dropdown. One init per block; safe to call twice.
    The table is printed by the server, so without this script the first division still shows. */
 (function () {
-	function show(root, panelId) {
-		root.querySelectorAll('.dsst-panel').forEach(function (p) { p.classList.toggle('is-active', p.id === panelId); });
+	/* The page link: #standings=<league>/<division> (slugs of their names). Written when a visitor picks a division
+	   or a league, read once on load, so a menu item or a shared link opens that league and division. */
+	var HASH = 'standings=';
+	function readHash() {
+		var h = decodeURIComponent((window.location.hash || '').replace(/^#/, ''));
+		if (h.indexOf(HASH) !== 0) { return null; }
+		var parts = h.slice(HASH.length).split('/');
+		return { league: parts[0] || '', div: parts[1] || '' };
+	}
+	function writeHash(root, divSlug) {
+		var league = root.getAttribute('data-dsst-league-slug') || '';
+		if (!league || !window.history || !window.history.replaceState) { return; }
+		try {
+			var u = new URL(window.location.href);
+			u.hash = HASH + league + (divSlug ? '/' + divSlug : '');
+			window.history.replaceState(window.history.state, '', u.toString());
+		} catch (e) { /* an old browser keeps the address as it is */ }
+	}
+	function show(root, panelId, byVisitor) {
+		var panel = null;
+		root.querySelectorAll('.dsst-panel').forEach(function (p) {
+			var on = p.id === panelId;
+			p.classList.toggle('is-active', on);
+			if (on) { panel = p; }
+		});
 		root.querySelectorAll('.dsst-tab').forEach(function (t) {
 			var on = t.getAttribute('aria-controls') === panelId;
 			t.setAttribute('aria-selected', on ? 'true' : 'false');
 			t.setAttribute('tabindex', on ? '0' : '-1');
 		});
 		var sel = root.querySelector('.dsst-select');
-		if (sel) { sel.setAttribute('aria-controls', panelId); }
+		if (sel) {
+			sel.setAttribute('aria-controls', panelId);
+			sel.value = panelId;
+		}
+		if (byVisitor && panel) { writeHash(root, panel.getAttribute('data-slug')); }
+	}
+	/* A division by its slug (from the page link); false when this block has no such division. */
+	function openDiv(root, slug) {
+		var p = slug ? root.querySelector('.dsst-panel[data-slug="' + slug.replace(/[^a-z0-9_%-]/gi, '') + '"]') : null;
+		if (!p) { return false; }
+		show(root, p.id, false);
+		return true;
+	}
+	/* "Auto": chips while they fit on one row, the Division dropdown when they would wrap (phones, long names).
+	   Both are printed; this only picks one, so without the script the chips show. */
+	function fit(root) {
+		if (!root.classList.contains('dsst-mode-auto')) { return; }
+		root.classList.remove('is-menu');
+		var tabs = root.querySelectorAll('.dsst-tab');
+		if (tabs.length > 1 && tabs[tabs.length - 1].offsetTop > tabs[0].offsetTop + 2) {
+			root.classList.add('is-menu');
+		}
+	}
+	/* Find a team (divisions over 15 teams): hides the rows that do not match; ranks are printed, so each team keeps its
+	   real position. Matching is on the same normalised name the server writes in data-team. */
+	function norm(v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+	function finder(root) {
+		root.querySelectorAll('[data-dsst-find]').forEach(function (input) {
+			if (input.dsstReady) { return; }
+			input.dsstReady = true;
+			var panel = input.closest('.dsst-panel');
+			var none = panel && panel.querySelector('.dsst-nomatch');
+			input.addEventListener('input', function () {
+				var q = norm(input.value);
+				var shown = 0;
+				panel.querySelectorAll('.dsst-table tbody tr').forEach(function (tr) {
+					var hit = !q || (tr.getAttribute('data-team') || '').indexOf(q) > -1;
+					tr.hidden = !hit;
+					if (hit) { shown++; }
+				});
+				if (none) { none.hidden = shown > 0; }
+			});
+		});
 	}
 	function init(root) {
 		if (!root || root.dsstReady) { return; }
 		root.dsstReady = true;
 		var tabs = [].slice.call(root.querySelectorAll('.dsst-tab'));
 		tabs.forEach(function (t, i) {
-			t.addEventListener('click', function () { show(root, t.getAttribute('aria-controls')); });
+			t.addEventListener('click', function () { show(root, t.getAttribute('aria-controls'), true); });
 			t.addEventListener('keydown', function (e) {
 				var n = null;
 				if (e.key === 'ArrowRight') { n = (i + 1) % tabs.length; }
@@ -26,14 +91,16 @@
 				if (n === null) { return; }
 				e.preventDefault();
 				tabs[n].focus();
-				show(root, tabs[n].getAttribute('aria-controls'));
+				show(root, tabs[n].getAttribute('aria-controls'), true);
 			});
 		});
 		var sel = root.querySelector('.dsst-select');
 		if (sel) {
 			sel.value = (root.querySelector('.dsst-panel.is-active') || {}).id || sel.value;
-			sel.addEventListener('change', function () { show(root, sel.value); });
+			sel.addEventListener('change', function () { show(root, sel.value, true); });
 		}
+		fit(root);
+		finder(root);
 	}
 	/* Ticker: like the Marquee block, two identical groups scroll by -50%. When one group is narrower than the bar a gap
 	   would scroll through, so both are topped up with copies; the loop time follows the group width at the chosen speed. */
@@ -113,7 +180,8 @@
 		var sel = form.querySelector('select');
 		var meta = form.querySelector('.dsst-league-meta');
 		var was = sel.value;
-		function load() {
+		root.dsstLoad = function (key, divSlug) { sel.value = key; load(divSlug); };
+		function load(divSlug) {
 			var key = sel.value;
 			if (key === was || root.classList.contains('is-loading')) { return; }
 			root.classList.add('is-loading');
@@ -127,8 +195,11 @@
 					if (!fresh) { throw new Error('empty'); }
 					root.parentNode.replaceChild(fresh, root);
 					boot();
+					var opened = typeof divSlug === 'string' && openDiv(fresh, divSlug);
 					var next = fresh.querySelector('[data-dsst-league] select');
-					if (next) { next.focus({ preventScroll: true }); }
+					if (next && typeof divSlug !== 'string') { next.focus({ preventScroll: true }); }
+					var active = fresh.querySelector('.dsst-panel.is-active');
+					writeHash(fresh, opened ? divSlug : (active ? active.getAttribute('data-slug') : ''));
 					try {
 						var u = new URL(window.location.href);
 						u.searchParams.set('dsst_league', key);
@@ -142,19 +213,48 @@
 					if (meta) { meta.textContent = meta.getAttribute('data-failed') || 'That league could not load. Please try again.'; }
 				});
 		}
-		sel.addEventListener('change', load);
+		sel.addEventListener('change', function () { load(); });
 		form.addEventListener('submit', function (e) { e.preventDefault(); load(); });
+	}
+	/* Once per page load: open the league and division the page link names, in the first block that has them. */
+	var linkDone = false;
+	function fromLink() {
+		if (linkDone) { return; }
+		linkDone = true;
+		var want = readHash();
+		if (!want || !want.league) { return; }
+		var roots = [].slice.call(document.querySelectorAll('[data-dsst]'));
+		for (var i = 0; i < roots.length; i++) {
+			if (roots[i].getAttribute('data-dsst-league-slug') === want.league) {
+				openDiv(roots[i], want.div);
+				return;
+			}
+		}
+		for (var j = 0; j < roots.length; j++) {
+			var opt = roots[j].querySelector('.dsst-league-select option[data-slug="' + want.league.replace(/[^a-z0-9_%-]/gi, '') + '"]');
+			if (opt && roots[j].dsstLoad) {
+				roots[j].dsstLoad(opt.value, want.div);
+				return;
+			}
+		}
 	}
 	function boot() {
 		document.querySelectorAll('[data-dsst]').forEach(init);
 		document.querySelectorAll('[data-dsst]').forEach(league);
 		document.querySelectorAll('[data-dsst-ticker]').forEach(ticker);
 		document.querySelectorAll('.dsst-carousel').forEach(carousel);
+		fromLink();
 	}
 	var resizeT;
-	window.addEventListener('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(function () { document.querySelectorAll('[data-dsst-ticker]').forEach(fill); }, 200); });
+	window.addEventListener('resize', function () {
+		clearTimeout(resizeT);
+		resizeT = setTimeout(function () {
+			document.querySelectorAll('[data-dsst-ticker]').forEach(fill);
+			document.querySelectorAll('.dsst-mode-auto').forEach(fit);
+		}, 200);
+	});
 	if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
 	// The builder re-renders a block after a settings change.
 	if (window.jQuery) { window.jQuery(document).on('fl-builder.layout-rendered fl-builder.preview-rendered', boot); }
-	window.DSStandings = { init: init, boot: boot };
+	window.DSStandings = { init: init, boot: boot, fit: fit };
 })();

@@ -24,10 +24,13 @@ $layout  = in_array( ( $settings->layout ?? 'table' ), array( 'leaders', 'carous
 $cards   = in_array( $layout, array( 'leaders', 'carousel' ), true ); // the carousel is the leader cards in one sideways row
 $arrows  = 'carousel' === $layout && $shown( 'car_arrows' );
 $mode    = ( count( $divs ) > 1 && ! $cards ) ? (string) ( $settings->div_view ?? 'tabs' ) : 'single';
-if ( 'auto' === $mode ) { // tabs, or a dropdown past 6 divisions (decided per league, so it follows the league dropdown)
-	$mode = count( $divs ) > 6 ? 'select' : 'tabs';
+if ( 'auto' === $mode && count( $divs ) > 6 ) { // past 6 the chips never fit one row: a dropdown from the start
+	$mode = 'select';
 }
-$mode    = in_array( $mode, array( 'tabs', 'select', 'stacked', 'single' ), true ) ? $mode : 'tabs';
+// 'auto' prints the chips and the dropdown; js/frontend.js shows the dropdown when the chips wrap (phones, long names).
+$mode    = in_array( $mode, array( 'auto', 'tabs', 'select', 'stacked', 'single' ), true ) ? $mode : 'tabs';
+$chips   = 'tabs' === $mode || 'auto' === $mode;
+$menu    = 'select' === $mode || 'auto' === $mode;
 $title   = trim( (string) ( $settings->title ?? __( 'Standings', 'ds-toolkit' ) ) );
 $hl      = $module->highlight();
 $links   = 'no' !== ( $settings->team_links ?? 'yes' );
@@ -46,7 +49,7 @@ if ( $picker && $view['league'] ) {
 	$picker_html .= '<span class="dsst-league-label' . ( '' === $plabel ? ' dsst-sr' : '' ) . '">' . esc_html( '' !== $plabel ? $plabel : __( 'League', 'ds-toolkit' ) ) . '</span>';
 	$picker_html .= '<select class="dsst-league-select" name="dsst_league"' . ( $builder ? ' disabled' : '' ) . '>';
 	foreach ( $picker as $k => $l ) {
-		$picker_html .= '<option value="' . esc_attr( $k ) . '"' . selected( $k, $view['key'], false ) . '>' . esc_html( $l['name'] ) . '</option>';
+		$picker_html .= '<option value="' . esc_attr( $k ) . '" data-slug="' . esc_attr( DS_Standings_Module::slug( $l['name'] ) ) . '"' . selected( $k, $view['key'], false ) . '>' . esc_html( $l['name'] ) . '</option>';
 	}
 	$picker_html .= '</select></label>';
 	$picker_html .= '<noscript><button type="submit" class="fl-content-ui-button dsst-league-go">' . esc_html__( 'Show', 'ds-toolkit' ) . '</button></noscript>';
@@ -55,6 +58,9 @@ if ( $picker && $view['league'] ) {
 	$picker_html .= '</form>';
 }
 $root_attr = '' !== $src ? ' data-dsst-src="' . esc_url( $src ) . '"' : '';
+// The page link names the league and division shown (#standings=girls-winter-league/5th-grade), so a menu item or a
+// shared link can open one directly; js/frontend.js reads and writes it.
+$root_attr .= ' data-dsst-league-slug="' . esc_attr( DS_Standings_Module::slug( $view['league']['name'] ?? '' ) ) . '"';
 
 if ( ! $divs ) {
 	// LeagueApps could not be reached and nothing is kept yet.
@@ -113,7 +119,7 @@ if ( ! $shown( 'frame' ) ) {
 }
 ?>
 <div class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" data-dsst<?php echo $root_attr; // phpcs:ignore WordPress.Security.EscapeOutput -- esc_url above ?>>
-	<?php if ( ( $shown( 'eyebrow_show' ) && '' !== $league['name'] ) || '' !== $title || 'tabs' === $mode || 'select' === $mode || $arrows || '' !== $picker_html ) : ?>
+	<?php if ( ( $shown( 'eyebrow_show' ) && '' !== $league['name'] ) || '' !== $title || $chips || $menu || $arrows || '' !== $picker_html ) : ?>
 	<div class="dsst-top">
 		<div class="dsst-titles">
 			<?php if ( '' === $picker_html && $shown( 'eyebrow_show' ) && '' !== $league['name'] ) : // the dropdown names the league instead ?>
@@ -124,13 +130,14 @@ if ( ! $shown( 'frame' ) ) {
 			<?php endif; ?>
 			<?php echo $picker_html; // phpcs:ignore WordPress.Security.EscapeOutput -- every part escaped above ?>
 		</div>
-		<?php if ( 'tabs' === $mode ) : ?>
+		<?php if ( $chips ) : ?>
 			<div class="dsst-tabs" role="tablist" aria-label="<?php esc_attr_e( 'Divisions', 'ds-toolkit' ); ?>">
 				<?php foreach ( $divs as $i => $d ) : ?>
 					<button type="button" class="fl-content-ui-button dsst-tab" role="tab" id="<?php echo esc_attr( $uid . '-t' . $i ); ?>" aria-controls="<?php echo esc_attr( $uid . '-p' . $i ); ?>" aria-selected="<?php echo 0 === $i ? 'true' : 'false'; ?>" tabindex="<?php echo 0 === $i ? '0' : '-1'; ?>"><?php echo esc_html( $d['name'] ); ?></button>
 				<?php endforeach; ?>
 			</div>
-		<?php elseif ( 'select' === $mode ) : ?>
+		<?php endif; ?>
+		<?php if ( $menu ) : ?>
 			<label class="dsst-pick">
 				<span class="dsst-pick-label"><?php esc_html_e( 'Division', 'ds-toolkit' ); ?></span>
 				<select class="dsst-select" aria-controls="<?php echo esc_attr( $uid . '-p0' ); ?>">
@@ -139,7 +146,8 @@ if ( ! $shown( 'frame' ) ) {
 					<?php endforeach; ?>
 				</select>
 			</label>
-		<?php elseif ( $arrows ) : ?>
+		<?php endif; ?>
+		<?php if ( ! $chips && ! $menu && $arrows ) : ?>
 			<?php // Arrows sit in the header: the framed block clips anything placed outside it. The script shows them when the cards overflow. ?>
 			<div class="dsst-car-nav" hidden>
 				<button type="button" class="fl-content-ui-button dsst-nav dsst-prev" aria-controls="<?php echo esc_attr( $uid . '-cards' ); ?>" aria-label="<?php esc_attr_e( 'Previous divisions', 'ds-toolkit' ); ?>"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7"/></svg></button>
@@ -194,8 +202,9 @@ if ( ! $shown( 'frame' ) ) {
 		<?php foreach ( $divs as $i => $d ) :
 			$active = ( 0 === $i || 'stacked' === $mode || 'single' === $mode );
 			$rows   = $limit ? array_slice( $d['rows'], 0, $limit ) : $d['rows'];
+			$dcols  = $module->division_columns( $cols, $d['rows'] );
 			$groups = array();
-			foreach ( $cols as $c ) {
+			foreach ( $dcols as $c ) {
 				$g = DS_Standings_Module::COLUMNS[ $c ][2];
 				$n = count( $groups );
 				if ( $n && $groups[ $n - 1 ][0] === $g ) {
@@ -205,15 +214,25 @@ if ( ! $shown( 'frame' ) ) {
 				}
 			}
 			?>
-			<section class="dsst-panel<?php echo $active ? ' is-active' : ''; ?>" id="<?php echo esc_attr( $uid . '-p' . $i ); ?>"<?php echo 'tabs' === $mode ? ' role="tabpanel" aria-labelledby="' . esc_attr( $uid . '-t' . $i ) . '"' : ''; ?>>
+			<section class="dsst-panel<?php echo $active ? ' is-active' : ''; ?>" id="<?php echo esc_attr( $uid . '-p' . $i ); ?>" data-slug="<?php echo esc_attr( DS_Standings_Module::slug( $d['name'] ) ); ?>"<?php echo $chips ? ' role="tabpanel" aria-labelledby="' . esc_attr( $uid . '-t' . $i ) . '"' : ''; ?>>
 				<?php if ( 'stacked' === $mode ) : ?>
 					<h3 class="dsst-div-title"><?php echo esc_html( $d['name'] ); ?></h3>
 				<?php endif; ?>
 				<?php if ( ! $d['played'] && ! $d['rows'] ) : ?>
 					<p class="dsst-empty"><?php echo esc_html( $txt( 'empty_text', __( 'No results yet. Standings appear after the first game.', 'ds-toolkit' ) ) ); ?></p>
 				<?php else : ?>
+				<?php if ( count( $rows ) > 15 && $shown( 'find' ) ) : ?>
+				<div class="dsst-find">
+					<label class="dsst-find-pick">
+						<span class="dsst-find-label"><?php esc_html_e( 'Find a team', 'ds-toolkit' ); ?></span>
+						<input type="search" class="dsst-find-input" data-dsst-find autocomplete="off" spellcheck="false">
+					</label>
+					<p class="dsst-nomatch" role="status" hidden><?php esc_html_e( 'No team in this division matches that name.', 'ds-toolkit' ); ?></p>
+				</div>
+				<?php endif; ?>
 				<div class="dsst-scroll" tabindex="0" role="region" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: division name */ __( '%s standings', 'ds-toolkit' ), $d['name'] ) ); ?>">
 					<table class="dsst-table">
+						<caption class="dsst-sr"><?php echo esc_html( sprintf( /* translators: 1: league, 2: division, 3: number of teams */ _n( '%1$s: %2$s standings, %3$d team', '%1$s: %2$s standings, %3$d teams', count( $d['rows'] ), 'ds-toolkit' ), $league['name'], $d['name'], count( $d['rows'] ) ) ); ?></caption>
 						<thead>
 							<?php if ( $shown( 'group_head' ) && count( $groups ) > 1 ) : ?>
 							<tr class="dsst-groups">
@@ -221,7 +240,7 @@ if ( ! $shown( 'frame' ) ) {
 								<?php
 								$at = 0;
 								foreach ( $groups as $gr ) {
-									$span_cols = array_slice( $cols, $at, $gr[1] );
+									$span_cols = array_slice( $dcols, $at, $gr[1] );
 									$at       += $gr[1];
 									$phone_off = ! array_diff( $span_cols, $not_phone );
 									echo '<th scope="colgroup" colspan="' . (int) $gr[1] . '" class="dsst-g' . ( $phone_off ? ' dsst-np' : '' ) . '"><span>' . esc_html( __( DS_Standings_Module::GROUPS[ $gr[0] ], 'ds-toolkit' ) ) . '</span></th>'; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText
@@ -232,7 +251,7 @@ if ( ! $shown( 'frame' ) ) {
 							<tr>
 								<th scope="col" class="dsst-c-rk dsst-pin"><span class="dsst-sr"><?php esc_html_e( 'Rank', 'ds-toolkit' ); ?></span><span aria-hidden="true">#</span></th>
 								<th scope="col" class="dsst-c-team dsst-pin2"><?php esc_html_e( 'Team', 'ds-toolkit' ); ?></th>
-								<?php foreach ( $cols as $c ) : ?>
+								<?php foreach ( $dcols as $c ) : ?>
 									<th scope="col" class="dsst-c-<?php echo esc_attr( $c ); ?><?php echo in_array( $c, $not_phone, true ) ? ' dsst-np' : ''; ?>"><abbr title="<?php echo esc_attr( __( DS_Standings_Module::COLUMNS[ $c ][1], 'ds-toolkit' ) ); // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText ?>"><?php echo esc_html( DS_Standings_Module::COLUMNS[ $c ][0] ); ?></abbr></th>
 								<?php endforeach; ?>
 							</tr>
@@ -242,7 +261,7 @@ if ( ! $shown( 'frame' ) ) {
 								$me  = '' !== $hl && DS_Standings_Module::norm( $r['team'] ) === $hl;
 								$url = $links ? DS_Standings_Module::team_url( $d['url'], $r['id'] ) : '';
 								?>
-								<tr<?php echo $me ? ' class="is-me" aria-current="true"' : ''; ?>>
+								<tr data-team="<?php echo esc_attr( DS_Standings_Module::norm( $r['team'] ) ); ?>"<?php echo $me ? ' class="is-me" aria-current="true"' : ''; ?>>
 									<td class="dsst-c-rk dsst-pin"><?php echo (int) ( $n + 1 ); ?></td>
 									<th scope="row" class="dsst-c-team dsst-pin2"><?php
 									if ( $url ) {
@@ -251,7 +270,7 @@ if ( ! $shown( 'frame' ) ) {
 										echo esc_html( $r['team'] );
 									}
 									?></th>
-									<?php foreach ( $cols as $c ) :
+									<?php foreach ( $dcols as $c ) :
 										list( $val, $cls ) = $module->cell( $r, $c );
 										?>
 										<td class="<?php echo esc_attr( $cls . ( in_array( $c, $not_phone, true ) ? ' dsst-np' : '' ) ); ?>"><?php echo esc_html( $val ); ?></td>
@@ -266,7 +285,7 @@ if ( ! $shown( 'frame' ) ) {
 				$foot = array();
 				if ( $shown( 'legend' ) && $d['played'] ) {
 					$keys = array();
-					foreach ( $cols as $c ) {
+					foreach ( $dcols as $c ) {
 						$keys[] = '<span><b>' . esc_html( DS_Standings_Module::COLUMNS[ $c ][0] ) . '</b> ' . esc_html( __( DS_Standings_Module::COLUMNS[ $c ][1], 'ds-toolkit' ) ) . '</span>'; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText
 					}
 					$foot[] = '<p class="dsst-legend">' . implode( ' ', $keys ) . '</p>';
@@ -276,6 +295,11 @@ if ( ! $shown( 'frame' ) ) {
 				}
 				$meta = $shown( 'updated' ) ? DS_Standings_Module::status_line( $d ) : '';
 				$la   = ( $shown( 'la_link' ) && '' !== $d['url'] ) ? '<a class="dsst-la" href="' . esc_url( $d['url'] ) . '" target="_blank" rel="noopener">' . esc_html( $txt( 'la_link_text', __( 'View on LeagueApps', 'ds-toolkit' ) ) ) . '</a>' : '';
+				$sched = $shown( 'sched_link' ) ? DS_Standings_Module::schedule_url( $d['url'] ) : '';
+				if ( '' !== $sched ) {
+					$la = '<a class="dsst-la dsst-sched" href="' . esc_url( $sched ) . '" target="_blank" rel="noopener">' . esc_html( $txt( 'sched_link_text', __( 'Full schedule', 'ds-toolkit' ) ) ) . '</a>' . $la;
+				}
+				$la = '' !== $la ? '<span class="dsst-links">' . $la . '</span>' : '';
 				if ( '' !== $meta || '' !== $la ) {
 					$foot[] = '<div class="dsst-meta">' . ( '' !== $meta ? '<span>' . esc_html( $meta ) . '</span>' : '<span></span>' ) . $la . '</div>';
 				}

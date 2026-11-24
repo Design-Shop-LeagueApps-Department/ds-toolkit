@@ -29,7 +29,20 @@
 .dsst-pick-label { font-size: 13px; font-weight: 700; color: var(--dsst-text); }
 .dsst .dsst-select { font: inherit; font-size: 15px; font-weight: 600; padding: 9px 36px 9px 12px; border: 1px solid var(--dsst-line); border-radius: 8px; background: var(--dsst-card); color: var(--dsst-text); min-height: 0; height: auto; width: auto; min-width: min(100%, 240px); max-width: 100%; }
 
-.dsst-mode-tabs .dsst-panel:not(.is-active), .dsst-mode-select .dsst-panel:not(.is-active) { display: none; }
+.dsst-mode-tabs .dsst-panel:not(.is-active), .dsst-mode-select .dsst-panel:not(.is-active), .dsst-mode-auto .dsst-panel:not(.is-active) { display: none; }
+/* Auto: chips while they fit one row; js/frontend.js adds .is-menu when they would wrap, and the dropdown takes over. */
+.dsst-mode-auto:not(.is-menu) .dsst-pick, .dsst-mode-auto.is-menu .dsst-tabs { display: none; }
+
+/* Find a team (divisions over 15 teams) */
+.dsst-find { display: grid; gap: 6px; padding: 0 20px 14px; }
+.dsst-noframe .dsst-find { padding-left: 0; padding-right: 0; }
+.dsst-find-pick { display: grid; gap: 6px; margin: 0; justify-items: start; }
+.dsst-find-label { font-size: 13px; font-weight: 700; color: var(--dsst-text); }
+.dsst .dsst-find-input { font: inherit; font-size: 16px; padding: 10px 12px; min-height: 44px; width: 320px; max-width: 100%; margin: 0;
+	border: 1px solid var(--dsst-line); border-radius: 8px; background: var(--dsst-card); color: var(--dsst-text); box-shadow: none; }
+.dsst .dsst-find-input:focus-visible { outline: 3px solid var(--dsst-brand); outline-offset: 2px; }
+.dsst .dsst-nomatch { margin: 0; font-size: 14px; color: var(--dsst-muted); }
+.dsst .dsst-table tbody tr[hidden] { display: none; }
 .dsst-mode-stacked .dsst-panel + .dsst-panel { margin-top: 10px; }
 .dsst .dsst-div-title { margin: 0; padding: 12px 20px; font-size: 20px; line-height: 1.2; color: inherit; border-top: 1px solid var(--dsst-line); }
 
@@ -64,7 +77,8 @@
 .dsst-legend { display: flex; flex-wrap: wrap; gap: 2px 14px; }
 .dsst-legend b { color: var(--dsst-text); font-weight: 700; }
 .dsst-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 18px; }
-.dsst .dsst-meta .dsst-la { color: var(--dsst-text); font-weight: 600; text-decoration: underline; }
+.dsst-links { display: inline-flex; flex-wrap: wrap; gap: 6px 18px; }
+.dsst .dsst-meta a.dsst-la { color: var(--dsst-text); font-weight: 600; text-decoration: underline; }
 .dsst-empty { margin: 0; padding: 16px 20px; color: var(--dsst-muted); font-size: 14px; }
 
 /* Leader cards */
