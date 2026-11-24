@@ -85,7 +85,7 @@ class DS_HQ_Update {
 		}
 	}
 
-	private static function verify( $sig_b64, $message, $pub_b64 ) {
+	public static function verify( $sig_b64, $message, $pub_b64 ) {
 		$sig = base64_decode( (string) $sig_b64, true );
 		$pub = base64_decode( (string) $pub_b64, true );
 		if ( ! $sig || 64 !== strlen( $sig ) || ! $pub || 32 !== strlen( $pub ) ) {
@@ -391,6 +391,35 @@ class DS_HQ_Update {
 		return is_array( $out ) && isset( $out[0]['content'] ) ? (string) $out[0]['content'] : null;
 	}
 
+	/**
+	 * A WordPress update lock left behind more than an hour ago that the object cache hides. WordPress's create_lock()
+	 * inserts the row (fails: it exists), then reads it with get_option(), which the cache answers "no such option",
+	 * so it reports busy forever and never reaches its own one-hour stale check. Seen on 9 WP Engine sites in the
+	 * 1.20.2 rollout (2026-11-23), locks 16 hours to 4.6 days old. Delete such a row (delete_option() reads the table,
+	 * then clears the cache); a lock younger than an hour is left alone.
+	 */
+	public static function clear_stale_lock( $name = 'auto_updater' ) {
+		global $wpdb;
+		if ( ! isset( $wpdb ) || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_var' ) ) {
+			return false;
+		}
+		$opt = $name . '.lock';
+		$v   = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $opt ) );
+		if ( null === $v || '' === $v || (int) $v > time() - 3600 ) {
+			return false;
+		}
+		delete_option( $opt );
+		if ( function_exists( 'wp_cache_delete' ) ) {
+			wp_cache_delete( $opt, 'options' );
+			$n = wp_cache_get( 'notoptions', 'options' );
+			if ( is_array( $n ) && isset( $n[ $opt ] ) ) {
+				unset( $n[ $opt ] );
+				wp_cache_set( 'notoptions', $n, 'options' );
+			}
+		}
+		return true;
+	}
+
 	/** WordPress's automatic updater, offered exactly this verified local zip, for ds-toolkit only. */
 	private static function wp_install( $target, $zip ) {
 		require_once ABSPATH . 'wp-admin/includes/admin.php';
@@ -399,6 +428,7 @@ class DS_HQ_Update {
 		if ( ! method_exists( 'WP_Automatic_Updater', 'has_fatal_error' ) ) {
 			return new WP_Error( 'old-wp', 'this WordPress has no crash check to roll a bad update back; nothing installed' );
 		}
+		self::clear_stale_lock();
 		if ( ! WP_Upgrader::create_lock( 'auto_updater' ) ) {
 			return new WP_Error( 'busy', 'WordPress is running its own automatic updates; trying again later' );
 		}

@@ -4,6 +4,30 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.21.0] - 2026-11-25
+MINOR: Design Shop HQ can update plugins and the Beaver Builder theme on the sites that need them.
+
+### Added
+- **Plugin and theme fixes from HQ** (`features/class-ds-hq-plugins.php`). Built after Nested Pages 3.3.5 broke the
+  Pages screen on 50 fleet sites (24 Nov) and the fix had to go out site by site. HQ (Tripwire > Plugin updates) can now
+  send "update this plugin to this version" to the sites that run an older one. Two sources, each checked on the site:
+  - **wordpress.org plugins**: the installed copy must match wordpress.org's published checksums (so a custom plugin
+    that shares a name is never replaced), and every file of the new version is checked against wordpress.org before
+    anything is installed.
+  - **Premium plugins and the Beaver Builder theme from HQ's Plugin Store**: installed only when the release key, which
+    never lives on HQ, signed that exact package. The signing job compares every file with the blueprint first.
+  Installs run from cron through WordPress's own updater, with its backup and crash rollback; a theme gets its own
+  backup copy and crash check, and is put back when the site stops loading. HQ can never name a download address of its
+  own choosing, a plugin the site does not have, or an older version. Check-ins now list installed plugins and themes.
+  Off switch on a site: `define( 'DS_HQ_PLUGINS_DISABLED', true )`.
+
+### Fixed
+- **Toolkit updates stuck on "WordPress is running its own automatic updates".** An update lock left behind more than an
+  hour ago that the object cache hides made WordPress report busy forever (9 WP Engine sites in the 1.20.2 rollout, locks
+  up to 4.6 days old). Such a lock is now cleared before an update; a lock younger than an hour is left alone.
+
+---
+
 ## [1.20.3] - 2026-11-23
 PATCH: the Calendar's Subscribe feed and Add to calendar use the club's time zone.
 
