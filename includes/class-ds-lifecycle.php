@@ -28,7 +28,7 @@ class DS_Toolkit_Lifecycle {
 	/** Every WP-Cron hook a feature schedules. */
 	const CRON_HOOKS = array(
 		'ds_tripwire_daily', 'ds_tripwire_content', 'ds_tripwire_mailcheck',
-		'ds_hq_link_enroll', 'ds_hq_link_checkin', 'ds_hq_link_flush', 'ds_hq_update_run',
+		'ds_hq_link_enroll', 'ds_hq_link_checkin', 'ds_hq_link_flush', 'ds_hq_update_run', 'ds_hq_plugin_update_run',
 		'ds_la_roster_sync', 'ds_la_roster_continue', 'ds_la_roster_photos',
 		'ds_calendar_refresh', 'ds_programs_refresh',
 		'ds_table_sync', 'ds_table_refresh',
@@ -43,7 +43,7 @@ class DS_Toolkit_Lifecycle {
 	/** Options removed on uninstall, by exact name. */
 	const OPTIONS = array(
 		'ds_toolkit_settings', 'ds_toolkit_assets_version', 'ds_toolkit_assets_print', 'ds_toolkit_update_check', 'ds_mcp_log',
-		'ds_hq_link', 'ds_hq_link_lock', 'ds_hq_update', 'ds_hq_update_lock',
+		'ds_hq_link', 'ds_hq_link_lock', 'ds_hq_update', 'ds_hq_update_lock', 'ds_hq_plugin_updates', 'ds_hq_plugins_lock',
 		'ds_tripwire_state', 'ds_tripwire_lock', 'ds_tripwire_last_notify', 'ds_tripwire_last_skip', 'ds_tripwire_prelaunch_quiet',
 		'ds_mailcheck_result', 'ds_mailcheck_to', 'ds_mailcheck_token',
 		'ds_bot_shield_events', 'ds_bot_shield_iplog', 'ds_bot_shield_totals',

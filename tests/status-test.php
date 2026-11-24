@@ -95,7 +95,7 @@ $m->setAccessible( true );
 $GLOBALS['o']['ds_toolkit_settings'] = $opts;
 $p   = $m->invoke( null, 'checkin', array() );
 $old = array( 'enabled', 'content_enabled', 'last_run', 'content_last_run', 'content_scanned', 'content_total', 'content_error', 'last_mail', 'last_mail_tier' );
-$is( 'the payload keeps the top-level keys HQ reads', array_keys( $p ), array( 'v', 'kind', 'site_url', 'login_url', 'platform', 'toolkit', 'update', 'tripwire', 'findings' ) );
+$is( 'the payload keeps the top-level keys HQ reads', array_keys( $p ), array( 'v', 'kind', 'site_url', 'login_url', 'platform', 'toolkit', 'update', 'plugins', 'themes', 'plugin_updates', 'tripwire', 'findings' ) );
 $is( 'every tripwire key HQ already reads is still there', array_values( array_diff( $old, array_keys( $p['tripwire'] ) ) ), array() );
 $is( 'the old keys keep their own values', array( $p['tripwire']['enabled'], $p['tripwire']['content_scanned'], $p['tripwire']['content_total'], $p['tripwire']['last_mail_tier'] ), array( 1, 1234, 13770, 'HIGH' ) );
 $is( 'the new fields ride in the same flat map', array_values( array_diff( array_keys( $hq ), array_keys( $p['tripwire'] ) ) ), array() );
