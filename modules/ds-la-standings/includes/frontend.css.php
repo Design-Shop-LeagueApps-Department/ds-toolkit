@@ -62,7 +62,7 @@ echo DS_Module_UI::responsive_css( $node, 'font-size', $settings, 'font_size' );
 echo DS_Module_UI::responsive_css( $node . ' .dsst-title', 'font-size', $settings, 'title_size' ); // phpcs:ignore WordPress.Security.EscapeOutput -- numbers only
 
 // Columns left out on phones, and a narrower team column there.
-echo "@media(max-width:{$sm}px){{$node} .dsst-np{display:none}{$node} .dsst-table .dsst-c-team{min-width:140px}{$node} .dsst-top{padding:16px 14px 12px}{$node} .dsst-foot{padding:12px 14px 16px}{$node}:not(.dsst-carousel) .dsst-cards{padding:0 14px 14px}{$node} .dsst-car{padding:0 14px 14px}}\n"; // phpcs:ignore WordPress.Security.EscapeOutput -- ints and fixed selectors
+echo "{$node} .dsst-po{display:none}@media(max-width:{$sm}px){{$node} .dsst-np{display:none}{$node} tr.dsst-po{display:table-row}{$node} .dsst-table .dsst-c-team{min-width:140px}{$node} .dsst-top{padding:16px 14px 12px}{$node} .dsst-foot{padding:12px 14px 16px}{$node}:not(.dsst-carousel) .dsst-cards{padding:0 14px 14px}{$node} .dsst-car{padding:0 14px 14px}}\n"; // phpcs:ignore WordPress.Security.EscapeOutput -- ints and fixed selectors
 
 // Carousel: cards in view per screen size (blank = 3 / 2 / 1). Phones add a slice of the next card as a swipe hint.
 if ( 'carousel' === ( $settings->layout ?? '' ) ) {

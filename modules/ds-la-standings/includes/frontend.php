@@ -203,16 +203,6 @@ if ( ! $shown( 'frame' ) ) {
 			$active = ( 0 === $i || 'stacked' === $mode || 'single' === $mode );
 			$rows   = $limit ? array_slice( $d['rows'], 0, $limit ) : $d['rows'];
 			$dcols  = $module->division_columns( $cols, $d['rows'] );
-			$groups = array();
-			foreach ( $dcols as $c ) {
-				$g = DS_Standings_Module::COLUMNS[ $c ][2];
-				$n = count( $groups );
-				if ( $n && $groups[ $n - 1 ][0] === $g ) {
-					$groups[ $n - 1 ][1]++;
-				} else {
-					$groups[] = array( $g, 1 );
-				}
-			}
 			?>
 			<section class="dsst-panel<?php echo $active ? ' is-active' : ''; ?>" id="<?php echo esc_attr( $uid . '-p' . $i ); ?>" data-slug="<?php echo esc_attr( DS_Standings_Module::slug( $d['name'] ) ); ?>"<?php echo $chips ? ' role="tabpanel" aria-labelledby="' . esc_attr( $uid . '-t' . $i ) . '"' : ''; ?>>
 				<?php if ( 'stacked' === $mode ) : ?>
@@ -234,20 +224,39 @@ if ( ! $shown( 'frame' ) ) {
 					<table class="dsst-table">
 						<caption class="dsst-sr"><?php echo esc_html( sprintf( /* translators: 1: league, 2: division, 3: number of teams */ _n( '%1$s: %2$s standings, %3$d team', '%1$s: %2$s standings, %3$d teams', count( $d['rows'] ), 'ds-toolkit' ), $league['name'], $d['name'], count( $d['rows'] ) ) ); ?></caption>
 						<thead>
-							<?php if ( $shown( 'group_head' ) && count( $groups ) > 1 ) : ?>
-							<tr class="dsst-groups">
-								<td class="dsst-c-rk dsst-pin"></td><td class="dsst-c-team dsst-pin2"></td>
-								<?php
-								$at = 0;
-								foreach ( $groups as $gr ) {
-									$span_cols = array_slice( $dcols, $at, $gr[1] );
-									$at       += $gr[1];
-									$phone_off = ! array_diff( $span_cols, $not_phone );
-									echo '<th scope="colgroup" colspan="' . (int) $gr[1] . '" class="dsst-g' . ( $phone_off ? ' dsst-np' : '' ) . '"><span>' . esc_html( __( DS_Standings_Module::GROUPS[ $gr[0] ], 'ds-toolkit' ) ) . '</span></th>'; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText
+							<?php
+							if ( $shown( 'group_head' ) ) {
+								// A group label spans its columns, and a colspan cannot shrink when phones hide some of them
+								// (a Points label over PS PSA PSD widened the phone table by two columns). So phones get their
+								// own row, counted from the columns they show, when that differs.
+								$phone_cols = array_values( array_diff( $dcols, $not_phone ) );
+								$group_row  = function ( array $list, $cls ) {
+									$gs = array();
+									foreach ( $list as $c ) {
+										$g = DS_Standings_Module::COLUMNS[ $c ][2];
+										$n = count( $gs );
+										if ( $n && $gs[ $n - 1 ][0] === $g ) {
+											$gs[ $n - 1 ][1]++;
+										} else {
+											$gs[] = array( $g, 1 );
+										}
+									}
+									if ( count( $gs ) < 2 ) {
+										return '';
+									}
+									$out = '<tr class="dsst-groups' . $cls . '"><td class="dsst-c-rk dsst-pin"></td><td class="dsst-c-team dsst-pin2"></td>';
+									foreach ( $gs as $gr ) {
+										$out .= '<th scope="colgroup" colspan="' . (int) $gr[1] . '" class="dsst-g"><span>' . esc_html( __( DS_Standings_Module::GROUPS[ $gr[0] ], 'ds-toolkit' ) ) . '</span></th>'; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText
+									}
+									return $out . '</tr>';
+								};
+								$differs = $phone_cols !== $dcols;
+								echo $group_row( $dcols, $differs ? ' dsst-np' : '' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped inside
+								if ( $differs ) {
+									echo $group_row( $phone_cols, ' dsst-po' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped inside
 								}
-								?>
-							</tr>
-							<?php endif; ?>
+							}
+							?>
 							<tr>
 								<th scope="col" class="dsst-c-rk dsst-pin"><span class="dsst-sr"><?php esc_html_e( 'Rank', 'ds-toolkit' ); ?></span><span aria-hidden="true">#</span></th>
 								<th scope="col" class="dsst-c-team dsst-pin2"><?php esc_html_e( 'Team', 'ds-toolkit' ); ?></th>
@@ -286,7 +295,7 @@ if ( ! $shown( 'frame' ) ) {
 				if ( $shown( 'legend' ) && $d['played'] ) {
 					$keys = array();
 					foreach ( $dcols as $c ) {
-						$keys[] = '<span><b>' . esc_html( DS_Standings_Module::COLUMNS[ $c ][0] ) . '</b> ' . esc_html( __( DS_Standings_Module::COLUMNS[ $c ][1], 'ds-toolkit' ) ) . '</span>'; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText
+						$keys[] = '<span' . ( in_array( $c, $not_phone, true ) ? ' class="dsst-np"' : '' ) . '><b>' . esc_html( DS_Standings_Module::COLUMNS[ $c ][0] ) . '</b> ' . esc_html( __( DS_Standings_Module::COLUMNS[ $c ][1], 'ds-toolkit' ) ) . '</span>'; // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText
 					}
 					$foot[] = '<p class="dsst-legend">' . implode( ' ', $keys ) . '</p>';
 				}
