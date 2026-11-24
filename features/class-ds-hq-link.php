@@ -101,6 +101,8 @@ class DS_HQ_Link {
 		require_once __DIR__ . '/class-ds-hq-update.php';
 		DS_HQ_Update::boot();
 		require_once __DIR__ . '/class-ds-hq-package.php';
+		require_once __DIR__ . '/class-ds-hq-plugins.php';
+		DS_HQ_Plugins::boot();
 		add_action( 'rest_api_init', array( __CLASS__, 'rest_routes' ) );
 		add_action( 'ds_tripwire_checked', array( __CLASS__, 'on_checked' ), 10, 1 );
 		add_action( 'ds_tripwire_alert', array( __CLASS__, 'on_alert' ), 10, 3 );
@@ -258,6 +260,9 @@ class DS_HQ_Link {
 		if ( 200 === $code && is_array( $out ) && ! empty( $out['update'] ) && is_array( $out['update'] ) && class_exists( 'DS_HQ_Update' ) ) {
 			DS_HQ_Update::take_order( $out['update'], (string) $s['sid'] ); // only queues; checked and installed from cron
 		}
+		if ( 200 === $code && is_array( $out ) && ! empty( $out['plugins'] ) && is_array( $out['plugins'] ) && class_exists( 'DS_HQ_Plugins' ) ) {
+			DS_HQ_Plugins::take_orders( $out['plugins'], (string) $s['sid'] ); // wordpress.org plugin fixes; same rules
+		}
 		if ( is_array( $out ) && ! empty( $out['checkin_every'] ) ) {
 			$s3          = self::state();
 			$new         = max( self::EVERY_MIN, min( self::EVERY_MAX, (int) $out['checkin_every'] ) );
@@ -326,6 +331,9 @@ class DS_HQ_Link {
 			'platform'  => self::platform(),
 			'toolkit'   => class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::installed() : ( defined( 'DS_TOOLKIT_VERSION' ) ? DS_TOOLKIT_VERSION : '' ),
 			'update'    => class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::report() : array(),
+			// Every plugin in a folder with its version (HQ's Plugins view and plugin fix orders), and those orders' state.
+			'plugins'        => class_exists( 'DS_HQ_Plugins' ) && 'enroll' !== $kind ? DS_HQ_Plugins::inventory() : array(),
+			'plugin_updates' => class_exists( 'DS_HQ_Plugins' ) ? DS_HQ_Plugins::report() : array(),
 			// The health values of the Status card ride along as extra flat values (DS_Status::hq_fields()). The
 			// keys below win on a clash, so nothing HQ already reads can change meaning.
 			'tripwire'  => ( class_exists( 'DS_Status' ) ? DS_Status::hq_fields( $set ) : array() ) + array(
@@ -660,6 +668,8 @@ class DS_HQ_Link {
 		}
 		require_once __DIR__ . '/class-ds-hq-update.php';
 		DS_HQ_Update::unschedule();
+		require_once __DIR__ . '/class-ds-hq-plugins.php';
+		DS_HQ_Plugins::unschedule();
 	}
 
 	/** Ask HQ how it sees this site (the settings card calls this; at most once every 5 minutes). */
