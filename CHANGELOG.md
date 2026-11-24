@@ -4,6 +4,111 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.20.3] - 2026-11-23
+PATCH: the Calendar's Subscribe feed and Add to calendar use the club's time zone.
+
+### Fixed
+- **Subscribed calendars showed events hours off outside the Eastern time zone.** LeagueApps times are the club's own
+  local times and the calendar shows them correctly, but the Subscribe feed and the pop-up's Add to calendar turned
+  them into real moments as if they were Eastern, so a noon practice in Los Angeles arrived in Google Calendar at
+  9 AM. Both now use the site's time zone (Settings > General > Timezone) when it is set to a city, such as
+  Los Angeles. Sites that never set one keep Eastern, as before. Supernova (Zendesk #471462).
+
+---
+
+## [1.20.2] - 2026-11-21
+PATCH: LeagueApps listings and the Calendar reach visitors through a long page cache.
+
+### Fixed
+- **"Refresh LeagueApps listings" now reaches visitors.** The Programs listings and the Calendar are part of the page
+  HTML, so the refresh (admin bar, and **Refresh all sites now** on the LeagueApps settings page) only reached logged-in
+  editors: visitors kept WP Engine's cached page, 12 hours on sites with the speed kit. The refresh now also clears the
+  page cache (page cache only, never the object cache, which holds logins). Still one press a minute, site-wide.
+  Zay, 2026-11-21: "does it bypass wpengines cache"; it did not.
+- **The Calendar shows a newer schedule than the cached page.** Each page now carries when its schedule was read from
+  LeagueApps. When that copy is older than an hour (the calendar's own refresh time), the calendar asks the new
+  read-only route `GET /wp-json/ds-toolkit/v1/calendar-data/<post>/<node>` and redraws with the newer schedule, unless
+  the visitor has already started using it. The route serves the same cached schedule as the page, so it adds no
+  LeagueApps requests, and it is cached for 5 minutes. Before, a schedule change could take up to the whole page cache
+  time (12 hours) to show.
+- `tests/programs-manual-refresh-purge-test.php` (12 checks) and `tests/calendar-fresh-data-test.php` (27 checks; the
+  browser checks run `frontend.js` under node). Both fail on 1.20.1.
+
+---
+
+## [1.20.1] - 2026-11-21
+PATCH: the LeagueApps Calendar pop-up showed another day's times for some teams.
+
+### Fixed
+- **Calendar pop-up times.** Two days in a row of the same event at the same place (Supernova's "practice" on Sunday
+  22 Nov and Monday 23 Nov) were joined into one entry, and each team kept the time of the first day it appeared. So
+  Monday's pop-up listed 14 Allstars, 14 Gold, 15 Allstars and 15 Gold at Sunday's 12 PM to 2 PM instead of 7 PM to 9 PM
+  and 5 PM to 7 PM, under "All days". Days now join only when every day has the same times (the event's own time and each
+  team's), so a weekend tournament still reads "Oct 17-18" and two different practice days stay apart. The same rule
+  applies to the "Coming up" rail, the list view and the Subscribe (.ics) feed, which had merged Sunday 29 + Monday
+  30 Nov under Sunday's teams. A joined entry opened from its second day now shows the whole date range, and a joined
+  entry whose times differ by team says "Times vary by team" instead of "All days".
+- `tests/calendar-span-times-test.php` (21 checks, Supernova's real 15/16, 22/23 and 29/30 Nov events plus a weekend
+  tournament and a two-day camp that must still join). The pop-up checks run `frontend.js` under node.
+
+---
+
+## [1.20.0] - 2026-11-19
+MINOR: the Hero Banner can use **site layouts**, extra Hero Styles that live in the site's theme instead of the plugin.
+
+### Added
+- **Site layouts for the Hero Banner.** Drop `<slug>.php` (plus an optional `<slug>.json` of settings, `<slug>.css` and
+  `<slug>.js`) into `<child theme>/ds-layouts/ds-hero/` and **Hero Style** offers **Site: <Layout Name>**. Picking it
+  shows only the Hero sections the file's `Uses:` line names (default Text, SEO Tags, Buttons, Background, Spacing), hides
+  the fields its `Hide:` line names, and adds the layout's own settings from the JSON, so the options below the style
+  adapt like the built-in styles do and the partner still edits everything in the block. The layout's CSS and JS load only
+  on pages that use it. Templates get the Hero's pieces ready-made (`$module->part( 'background' | 'heading' | 'buttons'
+  | ... )`, `$module->photo_urls()`), so a layout writes only its own markup. Until now a site-only hero meant hooks
+  hand-written into functions.php (team91national "Numeral Window", 2026-11-11). Alipio 2026-11-19: "update the
+  leagueapps hero banner module to have custom template and it will adapt in options below".
+- Safety: layout files come from the server only; a missing file or one that throws renders **Style 1: Classic** (an
+  administrator sees an HTML comment naming the error), so a theme switch or a typo never blanks a page. Only plain
+  content and design field types pass from the JSON (no code fields), and layout values are stored as
+  `sl_<slug>__<name>`, so they never collide with the Hero's own settings.
+- Guide: `docs/SITE-LAYOUTS.md`; worked example (Split Photo): `docs/site-layouts/ds-hero/`. The registry
+  (`includes/class-ds-site-layouts.php`) is block-agnostic, ready for Marquee, Post Loop and CTA.
+- `tests/site-layouts-test.php` (27 checks): discovery (child theme before parent, bad file names skipped), header,
+  JSON field filter, namespaced names, form extension, fallback on a missing or failing layout. Saved heroes render
+  exactly as before: no existing setting, option or default changed.
+
+---
+
+## [1.19.2] - 2026-11-17
+PATCH: the Programs block says Men and Women on adult programs instead of Boys and Girls.
+
+### Fixed
+- **Adult programs read Men / Women.** LeagueApps' Gender (MALE / FEMALE) was always worded for youth, so an adult
+  league site showed Boys and Girls in the Gender column, filter and cards: 35 of 87 rows on districtsoccer.org, where
+  every program is adult. A program whose Youth / Adult is Adult (its own, or its main program's when blank) now reads
+  Men or Women; youth programs, and programs with no Youth / Adult set, still read Boys and Girls; Coed is unchanged.
+  The Programs tab Gender scope still matches on LeagueApps' codes, so saved pages list the same programs. A Gender code
+  LeagueApps adds later shows in words rather than blank, as Registration status does since 1.19.1.
+  `tests/programs-gender-labels-test.php` (15 checks, 6 fail on 1.19.1).
+
+---
+
+## [1.19.1] - 2026-11-17
+PATCH: the Programs block's Registration status column shows every status LeagueApps sends, such as Limited Spots, instead of a blank cell.
+
+### Fixed
+- **Registration status no longer blank on Limited Spots and the "accepting ... only" programs.** LeagueApps sends
+  `LIMITED` and `ONLY_TEAM_PLAYERS_AND_FA` (new teams full, players and free agents still welcome) in
+  `registrationStatus`. The module only knew Open, Opens Soon, Sold Out, Closed, Waitlist and Cancelled, so every other
+  status showed an empty cell: 29 of 45 rows on districtsoccer.org/play/leagues/ the day its winter leagues opened
+  (2026-11-17). The block now uses the full list LeagueApps' own listing widget labels, in its wording: Limited Spots,
+  Accepting Free Agents Only (and the male / female versions), Accepting Team Captains Only, Accepting Team Players
+  Only, Accepting Team Players and Free Agents Only; Waitlist now reads Accepting Waitlist, as on LeagueApps.
+  `REGISTRATION_CLOSED` counts as Closed, and a status LeagueApps adds later shows in words rather than blank. Register
+  buttons are unchanged: only Sold Out and Cancelled turn them off. `tests/programs-registration-status-test.php`
+  (25 checks, 12 fail on 1.19.0).
+
+---
+
 ## [1.19.0] - 2026-11-17
 MINOR: on WP Engine, a failed login CAPTCHA shows its own message again instead of "There has been a critical error on this website".
 

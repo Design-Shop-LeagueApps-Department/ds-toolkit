@@ -37,6 +37,23 @@ chk( 'raw LeagueApps text that is not a time = no time', DS_Calendar_ICS::clock(
 chk( 'empty = no time', DS_Calendar_ICS::clock( '', '2026-10-20' ), null );
 chk( 'bad date = no time', DS_Calendar_ICS::clock( '6 PM', '2026-1-2' ), null );
 
+echo "Club time zone (1.20.3: Supernova, Los Angeles, saw every subscribed event 3 hours early)\n";
+$r = DS_Calendar_ICS::clock( '12 PM – 2 PM', '2026-11-22', 'America/Los_Angeles' );
+chk( 'Pacific noon (PST) = 20:00 UTC', utc( $r, 0 ), '2026-11-22 20:00' );
+chk( 'Pacific 2 PM ends 22:00 UTC', utc( $r, 1 ), '2026-11-22 22:00' );
+$r = DS_Calendar_ICS::clock( '7 PM – 9 PM', '2026-11-23', 'America/Los_Angeles' );
+chk( 'Pacific 7 PM Monday = 03:00 UTC Tuesday', utc( $r, 0 ), '2026-11-24 03:00' );
+$r = DS_Calendar_ICS::clock( '9 AM – 11 AM', '2026-10-24', 'America/Los_Angeles' );
+chk( 'Pacific in daylight time (PDT) = 16:00 UTC', utc( $r, 0 ), '2026-10-24 16:00' );
+$r = DS_Calendar_ICS::clock( '6 PM', '2026-11-10', 'America/Chicago' );
+chk( 'Central 6 PM = 00:00 UTC next day', utc( $r, 0 ), '2026-11-11 00:00' );
+$sn  = array( ev( '2026-11-22', 'practice', array( 'time' => '12 PM – 2 PM' ) ) );
+$ics = DS_Calendar_ICS::build( $sn, '', 'Supernova', 'supernovaallstars.com', 'America/Los_Angeles' );
+chk( 'feed names the club time zone', false !== strpos( $ics, "X-WR-TIMEZONE:America/Los_Angeles\r\n" ), true );
+chk( 'feed event at the club\'s noon', false !== strpos( $ics, "DTSTART:20261122T200000Z\r\n" ), true );
+$ics = DS_Calendar_ICS::build( $sn, '', 'Supernova', 'supernovaallstars.com' );
+chk( 'no time zone given = Eastern, as before', false !== strpos( $ics, "X-WR-TIMEZONE:America/New_York\r\n" ) && false !== strpos( $ics, "DTSTART:20261122T170000Z\r\n" ), true );
+
 echo "Entries\n";
 $events = array(
 	ev( '2026-10-17', 'Fall Classic', array( 'type' => 'Tournament', 'teams' => array( array( 'n' => '14 Sunrise', 't' => '' ), array( 'n' => '13 Twilight', 't' => '' ) ) ) ),

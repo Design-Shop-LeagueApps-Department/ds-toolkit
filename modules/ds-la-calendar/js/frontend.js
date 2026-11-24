@@ -69,10 +69,38 @@ function fold(line){ // 75 octets per line, never inside a character
   return out;
 }
 function slug(s){return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60)||'event';}
+function markText(e){return e.kind==='deadline'?'Registration closes':(e.mark==='start'?'Starts':(e.mark==='end'?'Ends':''));}
+// What one day of an event says about time: its own time and each team's. Mirrors DS_Calendar_ICS::day_key().
+function dayKey(e){
+  return (e.time||'')+'\n'+(e.teams||[]).filter(function(t){return t.t;}).map(function(t){return t.n+'='+t.t;}).sort().join('\n');
+}
+// Consecutive days of the same event at the same place read as one entry ("Oct 17-18"), but only when every day has the
+// same times: a merged entry shows one set of times, so two different practice days stay apart (1.20.1; Supernova's
+// Monday 23 Nov showed Sunday's 12 PM - 2 PM for four teams).
+function spans(list){
+  var out=[],open={};
+  list.forEach(function(e){
+    var key=e.title+'\n'+e.loc+'\n'+(e.kind||''), p=open[key];
+    if(p&&!markText(e)&&!markText(p.e)&&addDays(p.end,1)===e.d&&dayKey(e)===dayKey(p.e)){
+      p.end=e.d;p.all.push(e);
+      e.teams.forEach(function(t){if(!p.teams.some(function(x){return x.n===t.n;})){p.teams.push(t);}});
+      return;
+    }
+    var s={e:e,end:e.d,teams:e.teams.slice(),time:e.time||'',all:[e]};
+    open[key]=s;out.push(s);
+  });
+  return out;
+}
 
-function init(root){
+// The page carries its data, so a long page cache (12 hours on speed-kit sites) can serve an old schedule. A copy older
+// than the server keeps one (cfg.maxAge) may have a newer one at cfg.dataUrl (1.20.2).
+function stale(data,cfg,now){return !!(cfg.dataUrl&&data.fetched&&now/1000-data.fetched>(cfg.maxAge||3600));}
+function newer(old,fresh){return !!(fresh&&Array.isArray(fresh.events)&&+fresh.fetched>+(old.fetched||0));}
+
+function init(root,swapped){
   if(!root||root.dataset.ready){return;}
   var src=root.querySelector('.dslc-data'); if(!src){return;}
+  var pristine=swapped?null:root.cloneNode(true); // the untouched markup, to redraw with newer data
   root.dataset.ready=1;
   var data={}; try{data=JSON.parse(src.textContent)||{};}catch(err){}
   var events=data.events||[], cfg=data.config||{}, today=root.dataset.today, tz=cfg.tz||'America/New_York';
@@ -127,7 +155,6 @@ function init(root){
     return events.filter(function(e){return !isProg(e)&&e.teams.some(function(t){return t.n===v;});});
   }
   function teamName(){return state.team?state.team.slice(2):'';}
-  function markText(e){return e.kind==='deadline'?'Registration closes':(e.mark==='start'?'Starts':(e.mark==='end'?'Ends':''));}
   function curTeam(){return state.team.indexOf('t:')===0?state.team.slice(2):'';}
   function teamTime(e){var t=e.teams.filter(function(x){return x.n===curTeam();})[0];return t&&t.t?t.t:'';}
   // Short time line (event chips, day cards, rail).
@@ -147,22 +174,6 @@ function init(root){
   if(first>last){last=first;}
   state.ym=first;
 
-  // Consecutive days of the same event at the same place read as one entry ("Oct 17-18").
-  function spans(list){
-    var out=[],open={};
-    list.forEach(function(e){
-      var key=e.title+'\n'+e.loc+'\n'+(e.kind||''), p=open[key];
-      if(p&&!markText(e)&&!markText(p.e)&&addDays(p.end,1)===e.d){
-        p.end=e.d;p.all.push(e);
-        e.teams.forEach(function(t){if(!p.teams.some(function(x){return x.n===t.n;})){p.teams.push(t);}});
-        if(p.time!==(e.time||'')){p.time='';}
-        return;
-      }
-      var s={e:e,end:e.d,teams:e.teams.slice(),time:e.time||'',all:[e]};
-      open[key]=s;out.push(s);
-    });
-    return out;
-  }
   function spanOf(e){
     var hit=null;spans(visible()).some(function(s){if(s.all.indexOf(e)>=0){hit=s;return true;}return false;});
     return hit||{e:e,end:e.d,teams:e.teams.slice(),time:e.time||'',all:[e]};
@@ -177,7 +188,7 @@ function init(root){
   }
   function spanWhen(s){
     if(isProg(s.e)||s.end===s.e.d){return whenText(s.e);}
-    return (curTeam()&&teamTime(s.e))||s.time||'All days';
+    return (curTeam()&&teamTime(s.e))||s.time||(s.e.times?'Times vary by team':'All days');
   }
   function upItem(s,where){
     var e=s.e,d=parse(e.d),tl=teamsLine(e,s.teams);
@@ -398,7 +409,7 @@ function init(root){
   /* ---- Pop-up ---- */
   function open(e){
     var s=spanOf(e);state.ev=e;state.span=s;
-    var d=parse(e.d), end=parse(s.end), multi=s.end!==e.d, prog=isProg(e), tid=dbody.dataset.titleId;
+    var d=parse(s.e.d), end=parse(s.end), multi=s.end!==s.e.d, prog=isProg(e), tid=dbody.dataset.titleId; // the whole entry, whichever day was clicked
     var map=(e.lat&&e.lng)?'https://www.google.com/maps/search/?api=1&query='+e.lat+','+e.lng:(e.loc?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(e.loc):'');
     var date=multi?DOW[d.getDay()]+', '+MONTHS[d.getMonth()].slice(0,3)+' '+d.getDate()+' to '+DOW[end.getDay()]+', '+MONTHS[end.getMonth()].slice(0,3)+' '+end.getDate()+', '+end.getFullYear()
       :DAYS[d.getDay()]+', '+MONTHS[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
@@ -464,9 +475,22 @@ function init(root){
   dlg.addEventListener('click',function(ev){if(ev.target===dlg){shut();}});
   if(!dlg.showModal){document.addEventListener('keydown',function(ev){if('Escape'===ev.key&&dlg.hasAttribute('open')){shut();}});}
   render();
+
+  // An old copy: ask for a newer one and redraw with it, unless the visitor has already started using the calendar.
+  if(pristine&&window.fetch&&stale(data,cfg,Date.now())){
+    var used=false, mark=function(){used=true;};
+    ['click','change','keydown'].forEach(function(t){root.addEventListener(t,mark,true);});
+    fetch(cfg.dataUrl,{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null;}).then(function(fresh){
+      if(used||!newer(data,fresh)||!root.parentNode){return;}
+      var n=pristine.cloneNode(true), d=n.querySelector('.dslc-data');
+      fresh.config=cfg; d.textContent=JSON.stringify(fresh);
+      if(fresh.today){n.setAttribute('data-today',fresh.today);}
+      root.parentNode.replaceChild(n,root); init(n,true);
+    }).catch(function(){});
+  }
 }
 
-window.DSLACalendar={init:init};
-function all(){document.querySelectorAll('.dslc').forEach(init);}
+window.DSLACalendar={init:init,spans:spans,stale:stale,newer:newer}; // spans/stale/newer: for the tests
+function all(){document.querySelectorAll('.dslc').forEach(function(r){init(r);});} // not forEach(init): its index would read as `swapped`
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',all);}else{all();}
 })();

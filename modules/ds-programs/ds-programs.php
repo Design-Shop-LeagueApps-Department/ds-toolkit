@@ -531,7 +531,7 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 						'multi-select' => true,
 						'default'      => array(),
 						'options'      => array( 'MALE' => __( 'Boys', 'ds-toolkit' ), 'FEMALE' => __( 'Girls', 'ds-toolkit' ), 'ANY' => __( 'Coed', 'ds-toolkit' ) ),
-						'help'         => __( 'The Gender the club set on each program in LeagueApps. Tick one or more; nothing ticked shows every program. Coed also lists programs with no gender set. For a girls page that should list coed programs too, tick Girls and Coed.', 'ds-toolkit' ),
+						'help'         => __( 'The Gender the club set on each program in LeagueApps. Tick one or more; nothing ticked shows every program. Coed also lists programs with no gender set. For a girls page that should list coed programs too, tick Girls and Coed. On adult programs Boys means men\'s and Girls women\'s (the list shows Men and Women).', 'ds-toolkit' ),
 					),
 					'sport_filter' => array(
 						'type'    => 'select',

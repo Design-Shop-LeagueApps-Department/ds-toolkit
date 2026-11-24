@@ -75,6 +75,21 @@ class DS_Calendar_Module extends FLBuilderModule {
 		return $data;
 	}
 
+	/**
+	 * What the browser gets: embedded in the page and from the calendar-data route (1.20.2). `fetched` is when the
+	 * schedule was read from LeagueApps and `today` the Eastern date, so a page served from a long page cache can tell
+	 * that its copy is old and ask for a newer one.
+	 */
+	public static function client_data( array $data ) {
+		return array(
+			'events'   => array_values( (array) ( $data['events'] ?? array() ) ),
+			'teams'    => array_values( (array) ( $data['teams'] ?? array() ) ),
+			'programs' => array_values( (array) ( $data['programs'] ?? array() ) ),
+			'fetched'  => (int) ( $data['fetched'] ?? 0 ),
+			'today'    => ( new DateTime( 'now', new DateTimeZone( DS_Calendar_Data::club_tz() ) ) )->format( 'Y-m-d' ),
+		);
+	}
+
 	/** "Show team schedules" (on unless switched off). Off = camps, clinics, leagues... only. */
 	public static function show_teams( $s ) {
 		return 'no' !== (string) ( $s->team_show ?? 'yes' );

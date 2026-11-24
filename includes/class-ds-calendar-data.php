@@ -33,7 +33,10 @@ require_once __DIR__ . '/class-ds-data-client.php';
  * ledger (Settings > DS Toolkit > LeagueApps) with the real request count.
  *
  * LeagueApps schedule epochs are Eastern wall-clock: they are formatted in
- * America/New_York on purpose, whatever the site's timezone.
+ * America/New_York on purpose, whatever the site's timezone. The result is the
+ * club's own local time ("12 PM - 2 PM" for a noon practice in Los Angeles), so
+ * turning it back into a real moment (Subscribe, Add to calendar) needs the
+ * club's time zone: club_tz().
  */
 class DS_Calendar_Data {
 
@@ -53,6 +56,26 @@ class DS_Calendar_Data {
 	const SHAPE         = 2; // cached copies older than this lack fields the module needs (2: schedule src/grp)
 	const MAX_SPAN_DAYS = 31;
 	const TZ            = 'America/New_York';
+
+	/**
+	 * The club's time zone, for turning the calendar's wall-clock times into real moments (the Subscribe feed and
+	 * Add to calendar). It is the site's own Settings > General > Timezone when that is a named zone such as
+	 * America/Los_Angeles; a bare UTC offset or plain UTC (WordPress's default, usually never set) falls back to
+	 * Eastern, the behaviour before 1.20.3. Filter: ds_calendar_club_tz.
+	 */
+	public static function club_tz() {
+		$tz = function_exists( 'get_option' ) ? (string) get_option( 'timezone_string' ) : '';
+		if ( function_exists( 'apply_filters' ) ) {
+			$tz = (string) apply_filters( 'ds_calendar_club_tz', $tz );
+		}
+		return self::valid_tz( $tz ) ? $tz : self::TZ;
+	}
+
+	/** A named, real time zone (not '', not UTC, not an offset). */
+	public static function valid_tz( $tz ) {
+		$tz = (string) $tz;
+		return '' !== $tz && 'UTC' !== $tz && false !== strpos( $tz, '/' ) && in_array( $tz, timezone_identifiers_list( DateTimeZone::ALL_WITH_BC ), true );
+	}
 
 	/** Saved LeagueApps sites (Settings > DS Toolkit > LeagueApps). */
 	public static function sites() {

@@ -662,7 +662,15 @@ class DS_Programs_Data {
 		$start_s  = $start ? (int) floor( $start / 1000 ) : 0;
 		$end_s    = $end ? (int) floor( $end / 1000 ) : 0;
 
-		$gender_map = array( 'MALE' => __( 'Boys', 'ds-toolkit' ), 'FEMALE' => __( 'Girls', 'ds-toolkit' ), 'ANY' => __( 'Coed', 'ds-toolkit' ) );
+		// Adult programs are men's and women's: until 1.19.2 every MALE program read "Boys", so an adult
+		// league site showed Boys / Girls (districtsoccer.org: 35 of its 87 adult rows). The mode is the
+		// program's own, or its main program's when blank, like every other field.
+		$adult      = ( 'ADULT' === strtoupper( $inherit( 'mode' ) ) );
+		$gender_map = array(
+			'MALE'   => $adult ? __( 'Men', 'ds-toolkit' ) : __( 'Boys', 'ds-toolkit' ),
+			'FEMALE' => $adult ? __( 'Women', 'ds-toolkit' ) : __( 'Girls', 'ds-toolkit' ),
+			'ANY'    => __( 'Coed', 'ds-toolkit' ),
+		);
 		// The row's own Gender (a sub-program left blank takes its main program's, like every
 		// other field). For the Programs tab scope a row also carries every Gender it covers: a
 		// main program listed with its sub-programs covers each sub-program's, so a tournament
@@ -680,7 +688,26 @@ class DS_Programs_Data {
 		$type_map   = array( 'TOURNAMENT' => __( 'Tournament', 'ds-toolkit' ), 'LEAGUE' => __( 'League', 'ds-toolkit' ), 'CLASS' => __( 'Class', 'ds-toolkit' ), 'CAMP' => __( 'Camp', 'ds-toolkit' ), 'CLINIC' => __( 'Clinic', 'ds-toolkit' ), 'EVENT' => __( 'Event', 'ds-toolkit' ), 'CLUBTEAM' => __( 'Club Team', 'ds-toolkit' ) );
 		$mode_map   = array( 'YOUTH' => __( 'Youth', 'ds-toolkit' ), 'ADULT' => __( 'Adult', 'ds-toolkit' ) );
 		$state_map  = array( 'UPCOMING' => __( 'Upcoming', 'ds-toolkit' ), 'LIVE' => __( 'In Season', 'ds-toolkit' ), 'ARCHIVED' => __( 'Past', 'ds-toolkit' ) );
-		$stat_map   = array( 'OPEN' => __( 'Open', 'ds-toolkit' ), 'OPENS_SOON' => __( 'Opens Soon', 'ds-toolkit' ), 'SOLD_OUT' => __( 'Sold Out', 'ds-toolkit' ), 'CLOSED' => __( 'Closed', 'ds-toolkit' ), 'WAITLIST' => __( 'Waitlist', 'ds-toolkit' ), 'CANCELED' => __( 'Cancelled', 'ds-toolkit' ) );
+		// Every registrationStatus code LeagueApps' own listing widget (widgets.leagueapps.com) knows,
+		// in its wording. LIMITED and ONLY_TEAM_PLAYERS_AND_FA were missing until 1.19.1 and showed a
+		// blank status: 67 of 121 programs on districtsoccer.org the day its winter leagues opened.
+		$stat_map   = array(
+			'OPEN'                     => __( 'Open', 'ds-toolkit' ),
+			'OPENS_SOON'               => __( 'Opens Soon', 'ds-toolkit' ),
+			'LIMITED'                  => __( 'Limited Spots', 'ds-toolkit' ),
+			'SOLD_OUT'                 => __( 'Sold Out', 'ds-toolkit' ),
+			'CLOSED'                   => __( 'Closed', 'ds-toolkit' ),
+			'WAITLIST'                 => __( 'Accepting Waitlist', 'ds-toolkit' ),
+			'ONLY_FREE_AGENTS'         => __( 'Accepting Free Agents Only', 'ds-toolkit' ),
+			'ONLY_MALE_FREE_AGENTS'    => __( 'Accepting Male Free Agents Only', 'ds-toolkit' ),
+			'ONLY_FEMALE_FREE_AGENTS'  => __( 'Accepting Female Free Agents Only', 'ds-toolkit' ),
+			'ONLY_TEAM_CAPTAINS'       => __( 'Accepting Team Captains Only', 'ds-toolkit' ),
+			'ONLY_TEAM_PLAYERS'        => __( 'Accepting Team Players Only', 'ds-toolkit' ),
+			// LeagueApps words it "Accepting Team and Free Agents Players Only": no new teams can
+			// sign up, players can still join a team or register as a free agent.
+			'ONLY_TEAM_PLAYERS_AND_FA' => __( 'Accepting Team Players and Free Agents Only', 'ds-toolkit' ),
+			'CANCELED'                 => __( 'Cancelled', 'ds-toolkit' ),
+		);
 
 		$type_raw  = strtoupper( (string) ( $row['type'] ?? '' ) );
 		$mode_raw  = strtoupper( (string) ( $row['mode'] ?? '' ) );
@@ -689,6 +716,9 @@ class DS_Programs_Data {
 		// LeagueApps spells it CANCELED; accept the double-L spelling too so a partner
 		// who cancels a session never has it advertised as bookable.
 		if ( 'CANCELLED' === $stat_raw ) { $stat_raw = 'CANCELED'; }
+		// The widget's own code for a closed registration. One code, so "Hide closed" and the
+		// in-season rule treat it like a derived Closed.
+		if ( 'REGISTRATION_CLOSED' === $stat_raw ) { $stat_raw = 'CLOSED'; }
 		$spots     = self::spots( $row );
 
 		// registrationStatus is blank on most programs (189 of 226 on the
@@ -715,13 +745,15 @@ class DS_Programs_Data {
 			'endDate'    => self::date_one( $end_s, $format['date'] ?? 'numeric' ),
 			'month'      => $start_s ? date_i18n( 'F', $start_s ) : '',
 			'sport'      => $inherit( 'sport' ),
-			'gender'     => $gender_map[ $gender_raw ] ?? '',
+			// Same rule as status: a code LeagueApps adds later shows in words, never a blank cell.
+			'gender'     => $gender_map[ $gender_raw ] ?? ucfirst( strtolower( str_replace( '_', ' ', $gender_raw ) ) ),
 			'genders'    => array_values( array_unique( $genders ) ),
 			'type'       => $type_map[ $type_raw ] ?? ucfirst( strtolower( $type_raw ) ),
 			'typeRaw'    => $type_raw,
 			'mode'       => $mode_map[ $mode_raw ] ?? ucfirst( strtolower( $mode_raw ) ),
 			'modeRaw'    => $mode_raw,
-			'status'     => $stat_map[ $stat_raw ] ?? '',
+			// A code LeagueApps adds later still shows (in its own words) rather than a blank cell.
+			'status'     => $stat_map[ $stat_raw ] ?? ucfirst( strtolower( str_replace( '_', ' ', $stat_raw ) ) ),
 			'statusRaw'  => $stat_raw,
 			'state'      => $state_map[ $state_raw ] ?? ucfirst( strtolower( $state_raw ) ),
 			'stateRaw'   => $state_raw,
@@ -942,6 +974,36 @@ class DS_Programs_Data {
 	/* ------------------------------------------------------------------
 	 * Cache control
 	 * ---------------------------------------------------------------- */
+
+	/**
+	 * "Refresh LeagueApps listings" (admin bar, LeagueApps settings): at most one a minute, site-wide, because each
+	 * press permits one full refetch from LeagueApps. Also clears the page cache: the listings are part of the page
+	 * HTML, so without it visitors kept the cached page (12 hours on sites with the speed kit) and the refresh only
+	 * reached logged-in editors (1.20.2). Returns false when throttled.
+	 */
+	public static function manual_refresh() {
+		if ( false !== get_transient( 'ds_programs_flush_throttle' ) ) {
+			return false;
+		}
+		set_transient( 'ds_programs_flush_throttle', time(), MINUTE_IN_SECONDS );
+		self::flush();
+		self::purge_page_cache();
+		return true;
+	}
+
+	/**
+	 * The host's whole page cache (WP Engine; a no-op elsewhere). The next view of each page is built again and
+	 * refetches, because flush() just marked the data stale. Page cache only, never the object cache: that holds
+	 * every transient, and emptying it logs users out under Defender Session Protection. Cloudflare in front of
+	 * WP Engine keeps its own copy (10 minutes on speed-kit sites).
+	 */
+	public static function purge_page_cache() {
+		if ( class_exists( 'WpeCommon' ) && method_exists( 'WpeCommon', 'purge_varnish_cache' ) ) {
+			WpeCommon::purge_varnish_cache(); // no post id = the whole domain
+			return true;
+		}
+		return false;
+	}
 
 	/**
 	 * Drop every fresh copy so the next render refetches. Keeps the stale
