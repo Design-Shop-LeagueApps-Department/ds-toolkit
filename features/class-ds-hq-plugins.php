@@ -21,6 +21,16 @@
  * So a stolen HQ key can at most make a site install an official wordpress.org release of a plugin it already runs.
  * Never: on a multisite subsite, with DISALLOW_FILE_MODS, on WordPress older than 6.6, or as a downgrade.
  *
+ * Premium plugins and the Beaver Builder theme (1.21.0) come from HQ's Plugin Store instead ("store" orders):
+ *   {"src": "store", "type": "plugin"|"theme", "slug", "version", "url", "rsig", "t", "sig"}, HQ key over
+ *   "dshq-pkg-order\n<install id>\n<type>\n<slug>\n<version>\n<t>". The zip at "url" (HQ's store, a link that expires
+ *   within the hour) is installed only when the RELEASE key (DS_HQ_Update::RELEASE_PUBKEYS, never on HQ) signed
+ *   "ds-toolkit-package\n<type>\n<slug>\n<version>\n<sha256 of the zip>" ("rsig"). The signing job on Alipio's
+ *   machines signs a store version only after comparing every file with the blueprint it came from. So HQ, even
+ *   compromised, can only hand out packages the release key vetted. One top folder named <slug>, and the version in
+ *   the main file (plugin header / style.css) must say <version>. A theme gets its own backup copy and crash check,
+ *   because WordPress rolls back only plugin updates by itself.
+ *
  * Off switch: define( 'DS_HQ_PLUGINS_DISABLED', true ) in wp-config.php. (DS_HQ_UPDATE_DISABLED, which holds
  * ds-toolkit itself on a test build, does not stop plugin fixes.)
  *
@@ -129,12 +139,108 @@ class DS_HQ_Plugins {
 		return $out;
 	}
 
+	/** Installed themes for HQ: slug => [ v, a ] (a = 1 when the site uses it, as its theme or its parent). */
+	public static function themes() {
+		if ( ! function_exists( 'wp_get_themes' ) ) {
+			return array();
+		}
+		$use = array( (string) get_stylesheet(), (string) get_template() );
+		$out = array();
+		foreach ( (array) wp_get_themes() as $slug => $t ) {
+			if ( ! self::valid_slug( (string) $slug ) || count( $out ) >= 50 ) {
+				continue;
+			}
+			$out[ $slug ] = array( 'v' => substr( (string) $t->get( 'Version' ), 0, 30 ), 'a' => in_array( $slug, $use, true ) ? 1 : 0 );
+		}
+		ksort( $out );
+		return $out;
+	}
+
+	/** The installed version of a theme folder, read fresh, or ''. */
+	public static function theme_installed( $slug ) {
+		if ( function_exists( 'wp_clean_themes_cache' ) ) {
+			wp_clean_themes_cache( false );
+		}
+		if ( ! function_exists( 'wp_get_theme' ) ) {
+			return '';
+		}
+		$t = wp_get_theme( $slug );
+		return $t->exists() ? (string) $t->get( 'Version' ) : '';
+	}
+
+	/** State key: the slug for a plugin, "theme:<slug>" for a theme. */
+	public static function key( $type, $slug ) {
+		return 'theme' === $type ? 'theme:' . $slug : $slug;
+	}
+
+	/** The installed version for a state key. */
+	public static function current( $key ) {
+		return 0 === strpos( (string) $key, 'theme:' ) ? self::theme_installed( substr( $key, 6 ) ) : self::installed( $key );
+	}
+
+	/** [ true, key, version, extra ] for a store order HQ signed for this install, fresh, for an installed plugin/theme; else [ false, key, reason ]. */
+	public static function store_order_ok( $order, $sid, $now = null ) {
+		$now  = null === $now ? time() : (int) $now;
+		$type = (string) ( $order['type'] ?? '' );
+		$slug = (string) ( $order['slug'] ?? '' );
+		$ver  = (string) ( $order['version'] ?? '' );
+		$t    = (int) ( $order['t'] ?? 0 );
+		if ( ! in_array( $type, array( 'plugin', 'theme' ), true ) || ! self::valid_slug( $slug ) ) {
+			return array( false, '', 'not a plugin or theme slug' );
+		}
+		$key = self::key( $type, $slug );
+		if ( ! self::valid_version( $ver ) ) {
+			return array( false, $key, 'not a plain version number' );
+		}
+		if ( abs( $now - $t ) > self::ORDER_SKEW ) {
+			return array( false, $key, 'order too old (or clock off)' );
+		}
+		$pub = defined( 'DS_HQ_LINK_PUBKEY' ) ? DS_HQ_LINK_PUBKEY : ( class_exists( 'DS_HQ_Link' ) ? DS_HQ_Link::HQ_PUBKEY : '' );
+		if ( ! DS_HQ_Update::verify( $order['sig'] ?? '', "dshq-pkg-order\n$sid\n$type\n$slug\n$ver\n$t", $pub ) ) {
+			return array( false, $key, 'bad HQ signature' );
+		}
+		$url = (string) ( $order['url'] ?? '' );
+		if ( ! self::store_url_ok( $url ) ) {
+			return array( false, $key, 'the download is not on HQ' );
+		}
+		$rsig = (string) ( $order['rsig'] ?? '' );
+		if ( '' === $rsig || strlen( $rsig ) > 200 ) {
+			return array( false, $key, 'no release signature for this package' );
+		}
+		$have = self::current( $key );
+		if ( '' === $have ) {
+			return array( false, $key, 'not installed on this site' );
+		}
+		if ( ! version_compare( $ver, $have, '>' ) ) {
+			return array( false, $key, 'not newer than the installed ' . $have );
+		}
+		return array( true, $key, $ver, array( 'src' => 'store', 'type' => $type, 'slug' => $slug, 'url' => $url, 'rsig' => $rsig ) );
+	}
+
+	/** A store link must be HTTPS on HQ's own host. */
+	public static function store_url_ok( $url ) {
+		$hq   = defined( 'DS_HQ_STORE_HOST' ) ? DS_HQ_STORE_HOST : ( class_exists( 'DS_HQ_Link' ) ? (string) wp_parse_url( DS_HQ_Link::endpoint(), PHP_URL_HOST ) : '' );
+		$host = (string) wp_parse_url( (string) $url, PHP_URL_HOST );
+		return '' !== $hq && 'https' === wp_parse_url( (string) $url, PHP_URL_SCHEME ) && strtolower( $host ) === strtolower( $hq ) && strlen( (string) $url ) < 600;
+	}
+
+	/** Does the release key sign this store package (type + slug + version + sha256)? */
+	public static function package_sig_ok( $type, $slug, $version, $sha256, $sig_b64 ) {
+		$keys = defined( 'DS_TOOLKIT_RELEASE_PUBKEY' ) ? array( DS_TOOLKIT_RELEASE_PUBKEY ) : DS_HQ_Update::RELEASE_PUBKEYS;
+		foreach ( $keys as $k ) {
+			if ( DS_HQ_Update::verify( trim( (string) $sig_b64 ), "ds-toolkit-package\n$type\n$slug\n$version\n" . strtolower( (string) $sha256 ), $k ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** The state of every order, for HQ. */
 	public static function report() {
 		$o = array();
 		foreach ( self::state() as $slug => $s ) {
 			$r = array();
-			foreach ( array( 'target', 'status', 'from', 'to', 'error', 'tries', 'waits', 'queued', 'finished', 'refused' ) as $k ) {
+			foreach ( array( 'target', 'status', 'from', 'to', 'error', 'tries', 'waits', 'queued', 'finished', 'refused', 'src' ) as $k ) {
 				if ( isset( $s[ $k ] ) ) {
 					$r[ $k ] = $s[ $k ];
 				}
@@ -202,7 +308,10 @@ class DS_HQ_Plugins {
 		$s      = self::state();
 		$queued = false;
 		foreach ( array_slice( array_values( $orders ), 0, self::MAX_ORDERS ) as $order ) {
-			list( $ok, $slug, $ver ) = self::order_ok( $order, $sid );
+			$store = is_array( $order ) && 'store' === ( $order['src'] ?? '' );
+			$r     = $store ? self::store_order_ok( $order, $sid ) : self::order_ok( $order, $sid );
+			list( $ok, $slug, $ver ) = $r;
+			$extra = $ok && $store ? $r[3] : array();
 			if ( '' === $slug ) {
 				continue;
 			}
@@ -216,6 +325,9 @@ class DS_HQ_Plugins {
 			$same = ( $cur['target'] ?? '' ) === $ver;
 			$st   = $cur['status'] ?? '';
 			if ( $same && ( 'queued' === $st || ( 'running' === $st && time() - (int) ( $cur['started'] ?? 0 ) < self::STUCK_AFTER ) ) ) {
+				if ( $extra && 'queued' === $st ) {
+					$s[ $slug ]['url'] = $extra['url']; // a fresh store link for the queued install
+				}
 				continue;
 			}
 			if ( $same && (int) ( $cur['tries'] ?? 0 ) >= self::MAX_TRIES ) {
@@ -224,12 +336,12 @@ class DS_HQ_Plugins {
 			$s[ $slug ] = array(
 				'target' => $ver,
 				'status' => 'queued',
-				'from'   => self::installed( $slug ),
+				'from'   => self::current( $slug ),
 				'queued' => time(),
 				'tries'  => $same ? (int) ( $cur['tries'] ?? 0 ) : 0,
 				'waits'  => $same ? (int) ( $cur['waits'] ?? 0 ) : 0,
 				'error'  => $same ? (string) ( $cur['error'] ?? '' ) : '',
-			);
+			) + $extra;
 			$queued = true;
 		}
 		self::save( $s );
@@ -276,7 +388,7 @@ class DS_HQ_Plugins {
 			self::finish( $slug, $target, 'failed', $why, self::MAX_TRIES );
 			return;
 		}
-		$have = self::installed( $slug );
+		$have = self::current( $slug );
 		if ( '' === $have ) {
 			self::finish( $slug, $target, 'failed', 'no longer installed on this site', self::MAX_TRIES );
 			return;
@@ -290,7 +402,8 @@ class DS_HQ_Plugins {
 		$s[ $slug ]['started']  = time();
 		$s[ $slug ]['tries']    = (int) ( $s[ $slug ]['tries'] ?? 0 ) + 1;
 		self::save( $s );
-		$res = self::install( $slug, $target );
+		$e   = $s[ $slug ];
+		$res = 'store' === ( $e['src'] ?? '' ) ? self::install_store( (string) $e['type'], (string) $e['slug'], $target, (string) ( $e['url'] ?? '' ), (string) ( $e['rsig'] ?? '' ) ) : self::install( $slug, $target );
 		if ( ! is_wp_error( $res ) ) {
 			self::finish( $slug, $target, 'done', '' );
 		} elseif ( 'skipped' === $res->get_error_code() ) {
@@ -306,7 +419,7 @@ class DS_HQ_Plugins {
 				wp_schedule_single_event( time() + ( function_exists( 'wp_rand' ) ? wp_rand( 900, 3600 ) : 1800 ), self::HOOK );
 			}
 		} else {
-			$fatal = in_array( $res->get_error_code(), array( 'not-wporg', 'modified', 'release', 'checksums' ), true );
+			$fatal = in_array( $res->get_error_code(), array( 'not-wporg', 'modified', 'release', 'checksums', 'signature', 'zip' ), true );
 			self::finish( $slug, $target, 'failed', substr( $res->get_error_code() . ': ' . $res->get_error_message(), 0, 300 ), $fatal ? self::MAX_TRIES : null );
 		}
 	}
@@ -318,7 +431,7 @@ class DS_HQ_Plugins {
 		}
 		$s[ $slug ]['status']   = $status;
 		$s[ $slug ]['error']    = $error;
-		$s[ $slug ]['to']       = self::installed( $slug );
+		$s[ $slug ]['to']       = self::current( $slug );
 		$s[ $slug ]['finished'] = time();
 		if ( null !== $tries ) {
 			$s[ $slug ]['tries'] = $tries;
@@ -527,5 +640,226 @@ class DS_HQ_Plugins {
 			return new WP_Error( 'install', "the update ran but the plugin says $now, not $target" );
 		}
 		return true;
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Store packages (premium plugins, the Beaver Builder theme)          */
+	/* ------------------------------------------------------------------ */
+
+	/** Download from HQ's store, verify the release signature and the zip, install. True or WP_Error. */
+	public static function install_store( $type, $slug, $target, $url, $rsig ) {
+		$key  = self::key( $type, $slug );
+		$have = self::current( $key );
+		if ( '' === $have ) {
+			return new WP_Error( 'missing', 'not installed on this site' );
+		}
+		if ( $have === $target ) {
+			return true;
+		}
+		if ( ! self::store_url_ok( $url ) ) {
+			return new WP_Error( 'zip', 'the download is not on HQ' );
+		}
+		if ( ! function_exists( 'download_url' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+		$tmp = download_url( $url, 300 );
+		if ( is_wp_error( $tmp ) ) {
+			$d    = $tmp->get_error_data();
+			$code = (int) ( is_array( $d ) ? ( $d['code'] ?? 0 ) : 0 );
+			// 403: the one-hour link ran out before cron got to it; the next check-in brings a fresh one.
+			return new WP_Error( 'unreachable', 'the package did not download from HQ (' . ( $code ? 'HTTP ' . $code : $tmp->get_error_message() ) . ')' );
+		}
+		try {
+			$size = (int) @filesize( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			if ( $size < 100 || $size > self::MAX_ZIP ) {
+				return new WP_Error( 'download', 'zip has an unexpected size (' . $size . ' bytes)' );
+			}
+			if ( ! self::package_sig_ok( $type, $slug, $target, hash_file( 'sha256', $tmp ), $rsig ) ) {
+				return new WP_Error( 'signature', 'the package does not match its release signature; nothing installed' );
+			}
+			$main = 'plugin' === $type ? substr( self::plugin_file( $slug ), strlen( $slug ) + 1 ) : 'style.css';
+			$bad  = self::check_store_zip( $tmp, $slug, $target, $main );
+			if ( '' !== $bad ) {
+				return new WP_Error( 'zip', $bad . '; nothing installed' );
+			}
+			return 'plugin' === $type ? self::wp_install( $slug, self::plugin_file( $slug ), $target, $tmp ) : self::wp_install_theme( $slug, $target, $tmp );
+		} finally {
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		}
+	}
+
+	/** '' when the zip holds one top folder <slug>/ and its main file says <version>; else why not. */
+	public static function check_store_zip( $zip, $slug, $version, $main ) {
+		if ( ! class_exists( 'ZipArchive' ) ) {
+			return 'this server has no ZipArchive to check the files';
+		}
+		$z = new ZipArchive();
+		if ( true !== $z->open( $zip ) ) {
+			return 'the zip does not open';
+		}
+		$bad = '';
+		for ( $i = 0; $i < $z->numFiles; $i++ ) {
+			$n = (string) $z->getNameIndex( $i );
+			if ( 0 !== strpos( $n, $slug . '/' ) || false !== strpos( $n, '..' ) ) {
+				$bad = 'the zip has something outside ' . $slug . '/: ' . substr( $n, 0, 80 );
+				break;
+			}
+		}
+		$body = ( '' === $bad && '' !== (string) $main ) ? $z->getFromName( $slug . '/' . $main ) : false;
+		$z->close();
+		if ( '' !== $bad ) {
+			return $bad;
+		}
+		if ( false === $body ) {
+			return 'the zip has no ' . $slug . '/' . $main;
+		}
+		$v = preg_match( '/^[ \t\/*#@]*Version:\s*(\S+)/mi', (string) $body, $m ) ? $m[1] : '';
+		return $v === $version ? '' : "the zip's " . $main . ' says version ' . ( $v ? $v : '?' ) . ', not ' . $version;
+	}
+
+	/**
+	 * A theme through WordPress's automatic updater, offered exactly this verified local zip. WordPress does not roll
+	 * a broken theme back by itself, so: a copy of the installed theme first, the same crash check WordPress runs for
+	 * plugins afterwards, and the copy put back when the site no longer loads.
+	 */
+	private static function wp_install_theme( $slug, $target, $zip ) {
+		require_once ABSPATH . 'wp-admin/includes/admin.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+		if ( ! method_exists( 'WP_Automatic_Updater', 'has_fatal_error' ) || ! class_exists( 'DS_HQ_Theme_Updater' ) ) {
+			return new WP_Error( 'old-wp', 'this WordPress has no crash check; nothing installed' );
+		}
+		$dir = trailingslashit( get_theme_root( $slug ) ) . $slug;
+		$bak = WP_CONTENT_DIR . '/upgrade/ds-hq-theme-' . $slug . '-' . wp_generate_password( 8, false, false );
+		if ( ! is_dir( $dir ) ) {
+			return new WP_Error( 'missing', 'theme folder not found' );
+		}
+		DS_HQ_Update::clear_stale_lock();
+		if ( ! WP_Upgrader::create_lock( 'auto_updater' ) ) {
+			return new WP_Error( 'busy', 'WordPress is running its own automatic updates; trying again later' );
+		}
+		if ( ! version_compare( $target, self::theme_installed( $slug ), '>' ) ) {
+			WP_Upgrader::release_lock( 'auto_updater' );
+			return new WP_Error( 'skipped', 'already on ' . self::theme_installed( $slug ) );
+		}
+		$copied = self::copy_tree( $dir, $bak );
+		if ( true !== $copied ) {
+			WP_Upgrader::release_lock( 'auto_updater' );
+			self::remove_tree( $bak );
+			return new WP_Error( 'install', 'could not make a backup copy of the theme (' . $copied . '); nothing installed' );
+		}
+		$item  = (object) array( 'theme' => $slug, 'new_version' => $target, 'url' => '', 'package' => $zip, 'autoupdate' => true );
+		$offer = function ( $t ) use ( $item, $slug ) {
+			if ( ! is_object( $t ) ) {
+				$t = (object) array( 'last_checked' => time(), 'checked' => array(), 'response' => array(), 'no_update' => array() );
+			}
+			$t->response          = isset( $t->response ) && is_array( $t->response ) ? $t->response : array();
+			$t->response[ $slug ] = (array) $item;
+			return $t;
+		};
+		$allow = function ( $update, $it ) use ( $slug ) {
+			return ( isset( $it->theme ) && $slug === $it->theme ) ? true : $update;
+		};
+		add_filter( 'site_transient_update_themes', $offer, 999 );
+		add_filter( 'auto_update_theme', $allow, 999, 2 );
+		add_filter( 'automatic_updater_disabled', '__return_false', 999 );
+		$crash   = '';
+		$updater = new DS_HQ_Theme_Updater();
+		try {
+			$result = $updater->update( 'theme', $item );
+			if ( ! is_wp_error( $result ) && false !== $result && $updater->broken() ) {
+				$crash  = $updater->detail;
+				$put    = self::swap_back( $dir, $bak );
+				$result = new WP_Error( 'fatal', 'the site stopped loading after the update' . ( $put ? '; the previous version was put back' : '; PUTTING THE PREVIOUS VERSION BACK FAILED' ) );
+			}
+		} finally {
+			remove_filter( 'site_transient_update_themes', $offer, 999 );
+			remove_filter( 'auto_update_theme', $allow, 999 );
+			remove_filter( 'automatic_updater_disabled', '__return_false', 999 );
+			WP_Upgrader::release_lock( 'auto_updater' );
+			self::remove_tree( $bak );
+		}
+		$now = self::theme_installed( $slug );
+		if ( is_wp_error( $result ) ) {
+			return new WP_Error( 'install', $result->get_error_message() . " (on $now)" . ( '' !== $crash ? " Check: $crash" : '' ) );
+		}
+		if ( false === $result ) {
+			return new WP_Error( 'install', "WordPress declined the update (files not writable or a host setting); still on $now" );
+		}
+		if ( $now !== $target ) {
+			return new WP_Error( 'install', "the update ran but the theme says $now, not $target" );
+		}
+		return true;
+	}
+
+	/** Copy a folder tree (the theme backup). True or a reason. */
+	public static function copy_tree( $from, $to ) {
+		if ( ! wp_mkdir_p( $to ) ) {
+			return 'mkdir';
+		}
+		$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $from, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::SELF_FIRST );
+		foreach ( $it as $f ) {
+			if ( $f->isLink() ) {
+				continue;
+			}
+			$dst = $to . '/' . substr( $f->getPathname(), strlen( $from ) + 1 );
+			if ( $f->isDir() ? ! wp_mkdir_p( $dst ) : ! @copy( $f->getPathname(), $dst ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				return 'copy ' . substr( $dst, -60 );
+			}
+		}
+		return true;
+	}
+
+	/** Remove one of our own backup copies (never anything else). */
+	public static function remove_tree( $dir ) {
+		$dir = (string) $dir;
+		if ( ! is_dir( $dir ) || ( false === strpos( $dir, '/upgrade/ds-hq-theme-' ) && '.ds-hq-broken' !== substr( $dir, -13 ) ) ) {
+			return;
+		}
+		$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+		foreach ( $it as $f ) {
+			if ( $f->isDir() && ! $f->isLink() ) {
+				@rmdir( $f->getPathname() ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			} else {
+				@unlink( $f->getPathname() ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			}
+		}
+		@rmdir( $dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+	}
+
+	/** Put the backup copy back in place of a theme that broke the site. */
+	public static function swap_back( $dir, $bak ) {
+		$old = $dir . '.ds-hq-broken';
+		if ( @rename( $dir, $old ) && @rename( $bak, $dir ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			self::remove_tree( $old );
+			return true;
+		}
+		return false;
+	}
+}
+
+if ( ! class_exists( 'WP_Automatic_Updater' ) && defined( 'ABSPATH' ) && is_readable( ABSPATH . 'wp-admin/includes/class-wp-automatic-updater.php' ) ) {
+	require_once ABSPATH . 'wp-admin/includes/class-wp-automatic-updater.php';
+}
+if ( class_exists( 'WP_Automatic_Updater' ) && ! class_exists( 'DS_HQ_Theme_Updater' ) ) {
+	/** WordPress's automatic updater with its (protected) crash check callable after a theme update. */
+	class DS_HQ_Theme_Updater extends WP_Automatic_Updater {
+		public $detail = '';
+		public function broken() {
+			if ( ! method_exists( $this, 'has_fatal_error' ) ) {
+				return false;
+			}
+			$self  = $this;
+			$probe = function ( $response, $context = '', $class = '', $args = array(), $url = '' ) use ( $self ) {
+				if ( false !== strpos( (string) $url, 'wp_scrape_key=' ) ) {
+					$self->detail = DS_HQ_Update::crash_detail( $response );
+				}
+			};
+			add_action( 'http_api_debug', $probe, 10, 5 );
+			try {
+				return (bool) $this->has_fatal_error();
+			} finally {
+				remove_action( 'http_api_debug', $probe, 10 );
+			}
+		}
 	}
 }

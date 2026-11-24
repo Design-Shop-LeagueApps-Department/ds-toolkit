@@ -108,8 +108,15 @@ class WP_Upgrader {
 	public static function release_lock( $n ) { self::$locked = false; }
 }
 class WP_Automatic_Updater {
-	public function has_fatal_error() { return false; }
+	public function has_fatal_error() { return ! empty( $GLOBALS['theme_fatal'] ); }
 	public function update( $type, $item ) {
+		if ( 'theme' === $type ) { // unpack the offered zip over the themes folder, like the real upgrader
+			$t  = get_site_transient( 'update_themes' );
+			$pk = $t->response[ $item->theme ]['package'] ?? '';
+			$GLOBALS['theme_allowed'] = apply_filters( 'auto_update_theme', false, $item );
+			$z = new ZipArchive(); $z->open( $pk ); $z->extractTo( WP_CONTENT_DIR . '/themes' ); $z->close();
+			return true;
+		}
 		$GLOBALS['updated'] = $item;
 		$t = get_site_transient( 'update_plugins' );
 		$GLOBALS['package_seen'] = $t->response[ $item->plugin ]->package ?? '';
@@ -302,6 +309,128 @@ put_plugin( 'wp-nested-pages', '3.3.6', 'nestedpages.php', null, true );
 put_plugin( 'redirection', '5.4.2', 'redirection.php', null, false );
 $inv = DS_HQ_Plugins::inventory();
 ok( array( 'v' => '3.3.6', 'a' => 1 ) === $inv['wp-nested-pages'] && 0 === $inv['redirection']['a'], 'inventory: slug, version, active' );
+
+
+// ---- 7. store packages (premium plugins, themes) ---------------------------------------------------------------
+// HQ's store link, the release key (only on Alipio's machines in real life), themes on disk.
+$rel = sodium_crypto_sign_keypair();
+define( 'DS_TOOLKIT_RELEASE_PUBKEY', base64_encode( sodium_crypto_sign_publickey( $rel ) ) );
+define( 'DS_HQ_STORE_HOST', 'hq.test' );
+define( 'WP_CONTENT_DIR', $root . '/wp-content' );
+@mkdir( WP_CONTENT_DIR . '/themes', 0777, true );
+@mkdir( WP_CONTENT_DIR . '/upgrade', 0777, true );
+function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
+function trailingslashit( $s ) { return rtrim( $s, '/' ) . '/'; }
+function wp_mkdir_p( $d ) { return is_dir( $d ) || mkdir( $d, 0777, true ); }
+function wp_generate_password( $n = 12 ) { return substr( md5( (string) mt_rand() ), 0, $n ); }
+function get_theme_root( $s = '' ) { return WP_CONTENT_DIR . '/themes'; }
+function get_stylesheet() { return 'bb-theme-child'; }
+function get_template() { return 'bb-theme'; }
+function wp_clean_themes_cache() {}
+class FakeTheme {
+	private $s; public function __construct( $s ) { $this->s = $s; }
+	public function exists() { return is_file( WP_CONTENT_DIR . "/themes/{$this->s}/style.css" ); }
+	public function get( $k ) { $c = (string) @file_get_contents( WP_CONTENT_DIR . "/themes/{$this->s}/style.css" ); return preg_match( '/^[ \t\/*#@]*Version:\s*(\S+)/mi', $c, $m ) ? $m[1] : ''; }
+}
+function wp_get_theme( $s ) { return new FakeTheme( $s ); }
+function wp_get_themes() { $o = array(); foreach ( glob( WP_CONTENT_DIR . '/themes/*', GLOB_ONLYDIR ) as $d ) { $o[ basename( $d ) ] = new FakeTheme( basename( $d ) ); } return $o; }
+function put_theme( $slug, $ver ) { @mkdir( WP_CONTENT_DIR . "/themes/$slug", 0777, true ); file_put_contents( WP_CONTENT_DIR . "/themes/$slug/style.css", "/*\nTheme Name: $slug\nVersion: $ver\n*/\n" ); file_put_contents( WP_CONTENT_DIR . "/themes/$slug/functions.php", "<?php // $ver\n" ); }
+// The automatic updater installs themes too: unpack the offered zip over the themes folder.
+class WP_Automatic_Updater_Theme_Hook {}
+$GLOBALS['theme_fatal'] = false;
+
+function store_zip( $slug, $files ) {
+	$zp = sys_get_temp_dir() . "/store-$slug-" . md5( serialize( $files ) ) . '-' . getmypid() . '.zip';
+	@unlink( $zp ); $z = new ZipArchive(); $z->open( $zp, ZipArchive::CREATE );
+	foreach ( $files as $n => $c ) { $z->addFromString( $n, $c ); }
+	$z->close(); return $zp;
+}
+function rsig( $type, $slug, $ver, $zip, $kp = null ) {
+	global $rel; $kp = $kp ?: $rel;
+	return base64_encode( sodium_crypto_sign_detached( "ds-toolkit-package\n$type\n$slug\n$ver\n" . hash_file( 'sha256', $zip ), sodium_crypto_sign_secretkey( $kp ) ) );
+}
+function sorder( $sid, $type, $slug, $ver, $url, $rsig, $t = null, $prefix = 'dshq-pkg-order' ) {
+	global $hq; $t = null === $t ? time() : $t;
+	$msg = 'dshq-plugin' === $prefix ? "dshq-plugin\n$sid\n$slug\n$ver\n$t" : "$prefix\n$sid\n$type\n$slug\n$ver\n$t";
+	return array( 'src' => 'store', 'type' => $type, 'slug' => $slug, 'version' => $ver, 'url' => $url, 'rsig' => $rsig, 't' => $t, 'sig' => base64_encode( sodium_crypto_sign_detached( $msg, sodium_crypto_sign_secretkey( $hq ) ) ) );
+}
+$URL = 'https://hq.test/dshq-pkg/wp-smush-pro?v=4.3.6&e=1&s=x';
+
+reset_site();
+put_plugin( 'wp-smush-pro', '4.3.5', 'wp-smush.php', main_body( 'wp-smush-pro', '4.3.5' ), true );
+$pz = store_zip( 'wp-smush-pro', array( 'wp-smush-pro/wp-smush.php' => main_body( 'wp-smush-pro', '4.3.6' ), 'wp-smush-pro/core/a.php' => '<?php' ) );
+$GLOBALS['zips'][ $URL ] = $pz;
+$r = DS_HQ_Plugins::store_order_ok( sorder( $SID, 'plugin', 'wp-smush-pro', '4.3.6', $URL, rsig( 'plugin', 'wp-smush-pro', '4.3.6', $pz ) ), $SID );
+ok( true === $r[0] && 'wp-smush-pro' === $r[1] && 'store' === $r[3]['src'], 'store order: HQ-signed, on HQ, with a release signature: accepted' );
+ok( 'the download is not on HQ' === DS_HQ_Plugins::store_order_ok( sorder( $SID, 'plugin', 'wp-smush-pro', '4.3.6', 'https://evil.test/x.zip', 'abc' ), $SID )[2], 'store order pointing anywhere but HQ: refused' );
+ok( 'the download is not on HQ' === DS_HQ_Plugins::store_order_ok( sorder( $SID, 'plugin', 'wp-smush-pro', '4.3.6', 'http://hq.test/dshq-pkg/x', 'abc' ), $SID )[2], 'store order over plain http: refused' );
+ok( 'bad HQ signature' === DS_HQ_Plugins::store_order_ok( sorder( $SID, 'plugin', 'wp-smush-pro', '4.3.6', $URL, 'abc', null, 'dshq-plugin' ), $SID )[2], 'a wordpress.org order signature replayed as a store order: refused' );
+ok( 'no release signature for this package' === DS_HQ_Plugins::store_order_ok( sorder( $SID, 'plugin', 'wp-smush-pro', '4.3.6', $URL, '' ), $SID )[2], 'store order without a release signature: refused' );
+ok( 'not plugin' !== DS_HQ_Plugins::store_order_ok( sorder( $SID, 'mu-plugin', 'x', '1.0', $URL, 'abc' ), $SID )[2] && false === DS_HQ_Plugins::store_order_ok( sorder( $SID, 'mu-plugin', 'x', '1.0', $URL, 'abc' ), $SID )[0], 'a type other than plugin/theme: refused' );
+
+// install: happy path
+DS_HQ_Plugins::take_orders( array( sorder( $SID, 'plugin', 'wp-smush-pro', '4.3.6', $URL, rsig( 'plugin', 'wp-smush-pro', '4.3.6', $pz ) ) ), $SID );
+DS_HQ_Plugins::run();
+$st = DS_HQ_Plugins::state()['wp-smush-pro'];
+ok( 'done' === $st['status'] && '4.3.6' === $st['to'] && 'store' === $st['src'], 'store plugin: verified and installed (4.3.5 -> 4.3.6)' );
+ok( 'wp-smush-pro/wp-smush.php' === ( $GLOBALS['activated'] ?? '' ), 'store plugin: active again after the swap' );
+ok( empty( $GLOBALS['filters'] ), 'store plugin: every filter it added is gone' );
+
+function store_case( $zipfiles, $sigfn, $label, $expect ) {
+	global $SID, $URL;
+	reset_site();
+	put_plugin( 'wp-smush-pro', '4.3.5', 'wp-smush.php', main_body( 'wp-smush-pro', '4.3.5' ), true );
+	$z = store_zip( 'wp-smush-pro', $zipfiles );
+	$GLOBALS['zips'][ $URL ] = $z;
+	DS_HQ_Plugins::take_orders( array( sorder( $SID, 'plugin', 'wp-smush-pro', '4.3.6', $URL, $sigfn( $z ) ) ), $SID );
+	DS_HQ_Plugins::run();
+	$st = DS_HQ_Plugins::state()['wp-smush-pro'];
+	ok( 'failed' === $st['status'] && 0 === strpos( $st['error'], $expect ) && empty( $GLOBALS['updated'] ) && '4.3.5' === $GLOBALS['installed']['wp-smush-pro'][1], $label );
+}
+$good = array( 'wp-smush-pro/wp-smush.php' => main_body( 'wp-smush-pro', '4.3.6' ) );
+store_case( $good, function ( $z ) use ( $bad ) { return rsig( 'plugin', 'wp-smush-pro', '4.3.6', $z, $bad ); }, 'release signature from another key (e.g. HQ\'s): nothing installed', 'signature' );
+store_case( $good, function ( $z ) { return rsig( 'theme', 'wp-smush-pro', '4.3.6', $z ); }, 'release signature for another type: nothing installed', 'signature' );
+store_case( $good, function ( $z ) { return rsig( 'plugin', 'wp-smush-pro', '4.3.7', $z ); }, 'release signature for another version: nothing installed', 'signature' );
+store_case( $good + array( 'evil/x.php' => '<?php' ), function ( $z ) { return rsig( 'plugin', 'wp-smush-pro', '4.3.6', $z ); }, 'signed zip with a second top folder: nothing installed', 'zip' );
+store_case( array( 'wp-smush-pro/wp-smush.php' => main_body( 'wp-smush-pro', '4.3.4' ) ), function ( $z ) { return rsig( 'plugin', 'wp-smush-pro', '4.3.6', $z ); }, 'signed zip whose plugin header says another version: nothing installed', 'zip' );
+
+reset_site();
+put_plugin( 'wp-smush-pro', '4.3.5', 'wp-smush.php', main_body( 'wp-smush-pro', '4.3.5' ), true );
+DS_HQ_Plugins::take_orders( array( sorder( $SID, 'plugin', 'wp-smush-pro', '4.3.6', 'https://hq.test/dshq-pkg/gone?v=4.3.6', 'abc' ) ), $SID );
+DS_HQ_Plugins::run();
+$st = DS_HQ_Plugins::state()['wp-smush-pro'];
+ok( 'queued' === $st['status'] && 1 === (int) $st['waits'] && 0 === (int) $st['tries'], 'store link expired or HQ down: waits for a fresh link, not counted as a try' );
+
+// themes
+function setup_theme() {
+	reset_site();
+	foreach ( glob( WP_CONTENT_DIR . '/themes/*', GLOB_ONLYDIR ) as $d ) { DS_HQ_Plugins_test_rm( $d ); }
+	put_theme( 'bb-theme', '1.7.19' ); put_theme( 'bb-theme-child', '1.0' );
+}
+function DS_HQ_Plugins_test_rm( $d ) { foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $d, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST ) as $f ) { $f->isDir() ? rmdir( $f ) : unlink( $f ); } rmdir( $d ); }
+$TURL = 'https://hq.test/dshq-pkg/bb-theme?v=1.7.20&e=1&s=x';
+$tz   = store_zip( 'bb-theme', array( 'bb-theme/style.css' => "/*\nTheme Name: bb-theme\nVersion: 1.7.20\n*/\n", 'bb-theme/functions.php' => "<?php // 1.7.20\n" ) );
+setup_theme();
+$inv = DS_HQ_Plugins::themes();
+ok( array( 'v' => '1.7.19', 'a' => 1 ) === $inv['bb-theme'] && 1 === $inv['bb-theme-child']['a'], 'themes inventory: parent and child both count as in use' );
+$GLOBALS['zips'][ $TURL ] = $tz;
+DS_HQ_Plugins::take_orders( array( sorder( $SID, 'theme', 'bb-theme', '1.7.20', $TURL, rsig( 'theme', 'bb-theme', '1.7.20', $tz ) ) ), $SID );
+ok( 'queued' === ( DS_HQ_Plugins::state()['theme:bb-theme']['status'] ?? '' ), 'theme order queued under theme:bb-theme' );
+DS_HQ_Plugins::run();
+$st = DS_HQ_Plugins::state()['theme:bb-theme'];
+ok( 'done' === $st['status'] && '1.7.20' === DS_HQ_Plugins::theme_installed( 'bb-theme' ), 'theme: verified and installed (1.7.19 -> 1.7.20)' );
+ok( ! glob( WP_CONTENT_DIR . '/upgrade/ds-hq-theme-*' ), 'theme: the backup copy is removed afterwards' );
+ok( '1.0' === DS_HQ_Plugins::theme_installed( 'bb-theme-child' ), 'theme: the child theme is untouched' );
+
+setup_theme();
+$GLOBALS['zips'][ $TURL ] = $tz;
+$GLOBALS['theme_fatal'] = true;
+DS_HQ_Plugins::take_orders( array( sorder( $SID, 'theme', 'bb-theme', '1.7.20', $TURL, rsig( 'theme', 'bb-theme', '1.7.20', $tz ) ) ), $SID );
+DS_HQ_Plugins::run();
+$st = DS_HQ_Plugins::state()['theme:bb-theme'];
+ok( 'failed' === $st['status'] && false !== strpos( $st['error'], 'previous version was put back' ) && '1.7.19' === DS_HQ_Plugins::theme_installed( 'bb-theme' ), 'theme that breaks the site: the previous version is put back' );
+ok( "<?php // 1.7.19\n" === file_get_contents( WP_CONTENT_DIR . '/themes/bb-theme/functions.php' ) && ! glob( WP_CONTENT_DIR . '/themes/*.ds-hq-broken' ) && ! glob( WP_CONTENT_DIR . '/upgrade/ds-hq-theme-*' ), 'theme rollback: old files back, nothing left behind' );
+$GLOBALS['theme_fatal'] = false;
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail ? 1 : 0 );

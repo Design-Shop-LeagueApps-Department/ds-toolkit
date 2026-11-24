@@ -333,6 +333,7 @@ class DS_HQ_Link {
 			'update'    => class_exists( 'DS_HQ_Update' ) ? DS_HQ_Update::report() : array(),
 			// Every plugin in a folder with its version (HQ's Plugins view and plugin fix orders), and those orders' state.
 			'plugins'        => class_exists( 'DS_HQ_Plugins' ) && 'enroll' !== $kind ? DS_HQ_Plugins::inventory() : array(),
+			'themes'         => class_exists( 'DS_HQ_Plugins' ) && 'enroll' !== $kind ? DS_HQ_Plugins::themes() : array(),
 			'plugin_updates' => class_exists( 'DS_HQ_Plugins' ) ? DS_HQ_Plugins::report() : array(),
 			// The health values of the Status card ride along as extra flat values (DS_Status::hq_fields()). The
 			// keys below win on a clash, so nothing HQ already reads can change meaning.
