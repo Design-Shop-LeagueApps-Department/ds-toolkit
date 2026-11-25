@@ -105,7 +105,7 @@ $la_rank  = array( 'ok' => 0, 'off' => 0, 'warn' => 1, 'bad' => 2 );
 			</div>
 
 			<?php if ( ! $programs_module_on ) : ?>
-			<p class="dst-la-notice"><strong>The LeagueApps Programs, Calendar and Roster blocks are all switched off.</strong> Turn one on under Features, LeagueApps Modules, for these settings to have any effect.</p>
+			<p class="dst-la-notice"><strong>The LeagueApps Programs, Calendar, Roster and Standings blocks are all switched off.</strong> Turn one on under Features, LeagueApps Modules, for these settings to have any effect.</p>
 			<?php endif; ?>
 
 			<div class="dst-sites" id="dst-la-sites">
