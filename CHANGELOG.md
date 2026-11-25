@@ -4,6 +4,19 @@ All notable changes to DS Toolkit are documented here.
 
 ---
 
+## [1.22.0] - 2026-11-26
+MINOR: the LeagueApps Programs module can hide programs that have already ended.
+
+### Added
+- **Hide programs that have already ended** (LeagueApps Programs > Scope). LeagueApps keeps an old program LIVE, and
+  often OPEN, until someone archives it, so a page moved from the hosted listing widget to this module could list
+  seasons from years ago: Lou Fusz Lacrosse (site 18153) still had 17 programs from 2017-2019 live (Zendesk #475146).
+  With the setting on, a program is left out once its end date is more than a day past; the day of grace keeps it
+  listed through its last day in every time zone. A program with no end date is never hidden. Default is No, so
+  existing modules list exactly what they list today.
+
+---
+
 ## [1.21.0] - 2026-11-25
 MINOR: Design Shop HQ can update plugins and the Beaver Builder theme on the sites that need them.
 

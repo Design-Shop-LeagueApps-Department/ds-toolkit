@@ -84,6 +84,17 @@ class DS_Programs_Module extends FLBuilderModule {
 	 * Experience Level exactly as the club typed them (a mapping that rewrites the shown "season"
 	 * does not change it). A program with the field left empty is in no picked season or level.
 	 */
+	/**
+	 * Whether a program's end date has passed. LeagueApps keeps old programs LIVE until someone archives them (Lou Fusz
+	 * Lacrosse still listed 17 programs from 2017-2019 as open in Nov 2026), and the hosted widget hid them, so a page
+	 * moved to this module showed them again. LeagueApps stores the club's local times, so a program counts as ended
+	 * only a full day after its end: it stays listed through its last day in every time zone. No end date = not ended.
+	 */
+	public static function has_ended( array $r, $now ) {
+		$end = (int) ( $r['endTs'] ?? 0 );
+		return $end > 0 && ( $end + 86400 ) < (int) $now;
+	}
+
 	public static function in_season_level( array $r, array $seasons, array $levels ) {
 		if ( $seasons && ! in_array( (string) ( $r['seasonRaw'] ?? $r['season'] ?? '' ), $seasons, true ) ) { return false; }
 		if ( $levels && ! in_array( (string) ( $r['levelRaw'] ?? $r['level'] ?? '' ), $levels, true ) ) { return false; }
@@ -172,9 +183,11 @@ class DS_Programs_Module extends FLBuilderModule {
 		$hide_sold   = 'yes' === ( $s->hide_sold_out ?? 'no' );
 		$hide_closed = 'yes' === ( $s->hide_closed ?? 'no' );
 		$hide_canc   = 'yes' === ( $s->hide_canceled ?? 'no' );
+		$hide_ended  = 'yes' === ( $s->hide_ended ?? 'no' );
+		$now         = time();
 		list( $seasons, $levels ) = self::season_level_scope( $s );
 
-		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $gends, $state, $sport, $locs, $hide_sold, $hide_closed, $hide_canc, $seasons, $levels ) {
+		$rows = array_values( array_filter( $rows, function ( $r ) use ( $types, $mode, $gends, $state, $sport, $locs, $hide_sold, $hide_closed, $hide_canc, $hide_ended, $now, $seasons, $levels ) {
 			if ( $types && ! in_array( $r['typeRaw'], $types, true ) ) { return false; }
 			if ( $mode && $r['modeRaw'] !== $mode ) { return false; }
 			if ( ! self::in_genders( $r, $gends ) ) { return false; }
@@ -185,6 +198,7 @@ class DS_Programs_Module extends FLBuilderModule {
 			if ( $hide_sold && $r['soldOut'] ) { return false; }
 			if ( $hide_canc && ! empty( $r['canceled'] ) ) { return false; }
 			if ( $hide_closed && 'CLOSED' === $r['statusRaw'] ) { return false; }
+			if ( $hide_ended && self::has_ended( $r, $now ) ) { return false; }
 			return true;
 		} ) );
 
@@ -584,6 +598,7 @@ FLBuilder::register_module( 'DS_Programs_Module', array(
 					'hide_sold_out' => array( 'type' => 'select', 'label' => __( 'Hide sold-out programs', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ) ),
 					'hide_canceled' => array( 'type' => 'select', 'label' => __( 'Hide cancelled programs', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them marked cancelled', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ), 'help' => __( 'Cancelled programs never show a register button either way.', 'ds-toolkit' ) ),
 					'hide_closed'   => array( 'type' => 'select', 'label' => __( 'Hide programs whose registration has closed', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ) ),
+					'hide_ended'    => array( 'type' => 'select', 'label' => __( 'Hide programs that have already ended', 'ds-toolkit' ), 'default' => 'no', 'options' => array( 'no' => __( 'No, show them', 'ds-toolkit' ), 'yes' => __( 'Yes', 'ds-toolkit' ) ), 'help' => __( 'For old programs LeagueApps still lists as live because nobody archived them. Uses each program\'s end date; a program stays listed through its last day.', 'ds-toolkit' ) ),
 				),
 			),
 			'list' => array(
